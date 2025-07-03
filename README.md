@@ -1,4 +1,3 @@
-
 # Guardian
 
 Guardian is an AI-powered healthcare application designed to help users understand and manage their medical records. This project is built with Next.js, TypeScript, and Tailwind CSS, and it leverages various AI models for tasks like OCR and data analysis.
@@ -51,7 +50,8 @@ This project follows a standard Next.js application structure. The front-end is 
 
 ## Code Quality and AI Collaboration Policy
 
-This section outlines the principles for maintaining a clean, readable, and scalable codebase. All contributors (human or AI) are expected to adhere to these guidelines.
+> **Standard of Excellence:**
+> All code, whether written by AI or human contributors, should reflect the wisdom, experience, and best practices of a team of senior software engineers. Every decision should be made thoughtfully, with maintainability, scalability, and clarity in mind, as if the codebase were built by an amazing, highly experienced team.
 
 ### Clarity and Simplicity
 - Write code that is easy to understand. Prioritize readability over cleverness.
@@ -61,6 +61,8 @@ This section outlines the principles for maintaining a clean, readable, and scal
 - Maintain the existing Next.js project structure.
 - Create new files and directories in a logical and organized manner.
 - Before creating a new file, review the existing file structure to see if the new code belongs in an existing file.
+- **`lib/` (Library):** Use for more substantial, application-specific logic or integrations (e.g., database functions, API client wrappers, authentication logic).
+- **`utils/` (Utilities):** Use for smaller, generic, and often pure helper functions (e.g., date formatting, string manipulation, validation).
 
 ### Don't Repeat Yourself (DRY)
 - Avoid duplicating code. Instead, create reusable components, functions, or classes.
