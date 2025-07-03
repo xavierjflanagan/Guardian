@@ -48,6 +48,11 @@ This project follows a standard Next.js application structure. The front-end is 
 └───node_modules/
 ```
 
+### Database, Storage, and Auth Decision
+
+Guardian starts with **Supabase** (Postgres + Auth + Storage) to maximise development speed for a solo developer while preserving an easy migration path to Neon + S3 if future scale demands it.  
+See **[docs/decisions/0001-supabase-vs-neon.md](docs/decisions/0001-supabase-vs-neon.md)** for the full rationale.
+
 ## Code Quality and AI Collaboration Policy
 
 > **Standard of Excellence:**
