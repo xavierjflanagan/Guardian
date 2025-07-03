@@ -1,84 +1,79 @@
-# Guardian AI Pipeline – Edge Function Context & Roadmap  
-*Last updated: 04 Jul 2025 (AEST)*
+# Guardian AI Pipeline – Context & Roadmap  
+*Last updated: 04 Jul 2025 (AEST)*  
 
 ---
 
-## 1. Timeline & Incident Recap
+## 1. Project History (condensed)
+
 | Date (2025) | Event |
 |-------------|-------|
-| **Jun 26, 02:46 UTC** | Supabase reported *“Elevated error rates in Edge Functions in all regions.”*<br>Symptoms: 404 `NOT_FOUND` on deployed functions. Outage lasted ~1 h (AP-SE longest). |
-| Jun 26 (later) | Our function **`process-document`** re-tested → healthy. |
-| Jun 28 | GitHub issues closed by Supabase maintainers as “resolved by platform fix.” |
+| **Jun 26** | Supabase platform incident caused 404s on Edge Functions (`process-document`) in our *Bolt* prototype (project `dimobexqlloeicpuirjf`). |
+| **Jun 27 – 30** | Prototype still useful for reference, but decision made to **start fresh** outside Bolt to avoid accumulated tech-debt. |
+| **Jul 03** | New repo & Supabase project **created from scratch** (clean schema, no Edge Functions yet). |
+| **Jul 04** | Current planning session – evaluating whether to re-adopt Supabase Edge Functions, move compute elsewhere, or design for hot-swappability from the outset. |
 
-**Takeaway:** Our support ticket was triggered by a genuine platform bug, not mis-configuration.
-
----
-
-## 2. Why We Originally Chose Supabase Edge Functions
-
-| Requirement | Edge Function Benefit |
-|-------------|-----------------------|
-| **Low-latency, same-cloud calls** to Postgres (`health_records`, `documents`) | Runs in Supabase PoP → round-trip < 50 ms. |
-| **Secure service-role key** (avoid exposing in client) | Key auto-injected inside function runtime. |
-| **Event-driven start** on file upload | Storage “object-created” webhook directly triggers Edge Function. |
-| **Simple DX / billing** | One CLI (`supabase functions deploy`) and no separate invoice line-item during prototyping. |
+> **Legacy note:** The old *Bolt* project (and its `process-document` function) remain archived for code examples only.
 
 ---
 
-## 3. Current Limitations
+## 2. Guiding Design Principles
 
-* Single-vendor dependency – another routing outage would stall OCR pipeline.  
-* 10 s execution cap (cold starts + Vision API calls can exceed this).  
-* Limited observability vs. Cloudflare/Cloud Run logs.
-
----
-
-## 4. Alternative Architecture Paths
-
-| Option | What Changes | Pros | Cons / Unknowns |
-|--------|--------------|------|-----------------|
-| **A. External Compute, keep Supabase data**<br>(Cloudflare Workers / Vercel Edge / AWS Lambda) | Replace `process-document` with Worker/Lambda. Use `supabase-js` + service key. | • Resilient to Supabase runtime bugs<br>• Longer execution windows | • Cross-cloud latency<br>• Manual secret rotation |
-| **B. Hybrid: Neon + S3/R2, drop Supabase Storage** | Move Postgres to Neon. Keep Auth or roll your own. | • Pay-per-use DB scaling<br>• Region freedom | • Re-implement RLS & dashboard tooling |
-| **C. Full vendor stack (AWS / GCP)** | Aurora Serverless + S3 + Lambda + Step Functions | • Tight IAM, single vendor<br>• Step Functions map nicely to multi-agent pipeline | • Highest DevOps overhead |
-| **D. Stay on Supabase, add Fallback** | Keep Edge Function but add retry to external endpoint on 404/5xx | • Minimal code churn<br>• Quick resilience win | • Still primary-path dependency on Supabase |
+1. **Pluggable “document-processor” endpoint** – All upstream agents (OCR, Triage, Comparator, Master) call a *contract*-defined URL, not a specific provider.  
+2. **Stateless micro-steps** – Each agent does one job; chaining handled by event queue / webhook.  
+3. **Vendor-agnostic data layer** – Preference for Postgres (Supabase or Neon) with portable RLS policies.  
+4. **Solo-dev friendly** – Minimal DevOps, observable logs, pay-per-use pricing.
 
 ---
 
-## 5. Decision Framework
+## 3. Why Keep the Pipeline Diagram Modular?
 
-1. **Latency target:** < 500 ms from upload to DB write?  
-2. **Cost ceiling:** \$X / 1 000 documents (incl. Vision API).  
-3. **Ops capacity:** Solo dev for now → favour hosted / low-DevOps.  
-4. **Swap-ability:** Pipeline should treat *“document-processor”* as a pluggable endpoint.
+Even with a clean slate, adopting a **pluggable document-processor** now:
 
----
+* Keeps **compute/vendor swaps** cheap (Cloudflare ↔ GCP ↔ AWS).  
+* Allows different runtime caps (10 s edge vs 15 min Cloud Run) without re-wiring agents.  
+* Future-proofs for **on-device** processing (Gemma 3N or Mistral) by targeting the same contract.
 
-## 6. Immediate Action Items
-
-| # | Task | Owner | Deadline |
-|---|------|-------|----------|
-| 1 | **Re-deploy** `process-document` on latest Supabase CLI (≥ v1.162) and sanity-test | Xavier | **05 Jul** |
-| 2 | **Proof-of-Concept:** Cloudflare Worker that<br>• receives storage webhook<br>• calls Vision API<br>• writes to Supabase via service key | Xavier | **07 Jul** |
-| 3 | Record metrics: cold-start, avg latency, cost/1k docs | — | after POC |
-| 4 | Decide: Route A (external compute) vs Route D (fallback) | Team | **10 Jul** |
-| 5 | Update multi-agent pipeline diagram + README | Xavier | after decision |
+**Conclusion:** ✔️ **Yes – update (and simplify) the multi-agent diagram right away** so the new repo starts modular.
 
 ---
 
-## 7. Open Questions
+## 4. Architecture Options (re-evaluated)
 
-* Do we **need** per-page AI routing (blank-page skip etc.) in the same worker, or can it be a later micro-step?  
-* If moving compute out, do we also move **Storage** to S3/R2 for higher egress limits?  
-* Auth/RLS parity: how painful is it to replicate Supabase policies in Neon or Aurora?  
-
----
-
-## 8. References
-
-* Supabase status incident – 26 Jun 2025  
-* GitHub issues #1379, #1381 – “Edge function 404 after successful deploy” (closed Jun 28)  
-* Internal support ticket: `SUP-20250626-EDGE-404`
+| Option | Stack | Suitability for “clean slate” |
+|--------|-------|-------------------------------|
+| **A. Supabase Edge + Storage + Functions** | Same-cloud, low-latency. | Good for rapid iteration; outage risk mitigated by pluggable design. |
+| **B. Supabase DB/Auth + Cloudflare Worker compute** | Keep data, move heavy lifting. | Nice balance; Workers easy to deploy; avoids 10 s cap. |
+| **C. Neon Postgres + Cloudflare R2 + Workers** | Fully serverless, vendor mix. | Maximises flexibility; requires recreating RLS/Auth outside Supabase UI. |
+| **D. AWS full-stack (Aurora Serverless + S3 + Lambda/Step Fn)** | Single vendor, IAM tight. | More ops overhead; only if we need enterprise-grade compliance ASAP. |
 
 ---
 
-**Next checkpoint:** Review POC latency & cost numbers on 08 Jul 2025, then lock the architecture direction.
+## 5. Immediate Action Items (new project)
+
+| # | Task | Owner | Target |
+|---|------|-------|--------|
+| 1 | Create **`/docs/architecture/pipeline.md`** with updated diagram (show pluggable `document-processor`). | Xavier | 05 Jul |
+| 2 | Spike **Cloudflare Worker POC**: receive dummy PDF webhook, call Vision API, write to new Supabase tables. | Xavier | 07 Jul |
+| 3 | Benchmark cold-start, avg latency, cost per 1 000 docs; log in `/benchmarks/2025-07-worker-poc.md`. | — | after POC |
+| 4 | Decision meeting: pick Option A, B, or C for MVP. | Team | 10 Jul |
+| 5 | Draft RLS policies & Auth plan (Supabase vs external) in `/docs/security/rls-auth.md`. | Xavier | 12 Jul |
+
+---
+
+## 6. Open Questions
+
+1. Do we need a **queue/bus** (e.g.\, Supabase Realtime, Upstash) between agents, or are webhooks enough for v0?  
+2. Should the OCR layer be **on-device (Gemma 3N)** for mobile uploads, with cloud fallback?  
+3. What is the simplest **secrets management** approach across multiple clouds (Doppler, Cloudflare Secrets, AWS SM)?  
+
+---
+
+## 7. Reference Links
+
+* Supabase status incident 26 Jun 2025  
+* Archived support ticket `SUP-20250626-EDGE-404` (Bolt prototype)  
+* GitHub issues #1379 & #1381 – “Edge function 404” (closed)  
+
+---
+
+> **Next checkpoint:** Review Worker POC results on **08 Jul 2025**, then lock the MVP architecture.
