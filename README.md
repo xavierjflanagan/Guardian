@@ -7,6 +7,7 @@ Guardian is an AI-powered healthcare application designed to help users understa
 
 - [Project Overview](#project-overview)
 - [Architecture](#architecture)
+- [Code Quality and AI Collaboration Policy](#code-quality-and-ai-collaboration-policy)
 - [Getting Started](#getting-started)
 - [To-Do List](#to-do-list)
 
@@ -47,6 +48,36 @@ This project follows a standard Next.js application structure. The front-end is 
 │       └───vercel.svg
 └───node_modules/
 ```
+
+## Code Quality and AI Collaboration Policy
+
+This section outlines the principles for maintaining a clean, readable, and scalable codebase. All contributors (human or AI) are expected to adhere to these guidelines.
+
+### Clarity and Simplicity
+- Write code that is easy to understand. Prioritize readability over cleverness.
+- Add comments only when necessary to explain *why* a particular piece of code exists, not *what* it does.
+
+### File and Directory Organization
+- Maintain the existing Next.js project structure.
+- Create new files and directories in a logical and organized manner.
+- Before creating a new file, review the existing file structure to see if the new code belongs in an existing file.
+
+### Don't Repeat Yourself (DRY)
+- Avoid duplicating code. Instead, create reusable components, functions, or classes.
+- Before writing new code, check if similar functionality already exists that can be reused or generalized.
+
+### Regular Refactoring
+- Periodically, development should pause to review and refactor the codebase.
+- Refactoring includes removing unused code, simplifying complex logic, and improving the overall structure of the code.
+- This ensures the project remains maintainable as it grows.
+
+### Descriptive Naming
+- Use clear and descriptive names for files, folders, variables, functions, and components.
+- Names should reflect the purpose of the code they represent. For example, a function that gets user data should be named `getUserData()`.
+
+### Commit Message Standards
+- Write clear and concise commit messages.
+- A good commit message should summarize the change and its purpose.
 
 ## Getting Started
 
