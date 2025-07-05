@@ -19,6 +19,7 @@ export default function SignInPage() {
       setError(error.message);
     } else {
       setMessage("Check your email for a magic link to sign in.");
+      setEmail("");
     }
     setLoading(false);
   };
