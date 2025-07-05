@@ -35,8 +35,14 @@ Add them to:
 ```bash
 cd guardian-web
 npm install @supabase/supabase-js
-npm install -D @supabase/cli
-npx supabase login   # opens browser
+# Install Supabase CLI (choose one method below)
+# Recommended for macOS:
+brew install supabase/tap/supabase
+# For other platforms or more options, see: https://supabase.com/docs/guides/cli/installation
+# Or use npx for one-off commands:
+# npx supabase@latest <command>
+
+supabase login   # opens browser
 ```
 
 Generate type-safe db types (optional):

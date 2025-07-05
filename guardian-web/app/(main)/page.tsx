@@ -1,8 +1,73 @@
 import Image from 'next/image';
+import { useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { uploadFile } from '@/utils/uploadFile';
 
 export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files?.[0] || null);
+    setMessage(null);
+    setError(null);
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setError('You must be signed in to upload files.');
+        setUploading(false);
+        return;
+      }
+      if (!file) {
+        setError('Please select a file to upload.');
+        setUploading(false);
+        return;
+      }
+      await uploadFile(file, user.id);
+      setMessage('File uploaded successfully!');
+      setFile(null);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message || 'Upload failed.');
+      } else {
+        setError('Upload failed.');
+      }
+    }
+    setUploading(false);
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      {/* File Upload Form */}
+      <div className="w-full max-w-md mb-8 p-6 border rounded shadow bg-white dark:bg-zinc-900">
+        <h2 className="text-xl font-bold mb-4">Upload Medical Document</h2>
+        <form onSubmit={handleUpload} className="space-y-4">
+          <input
+            type="file"
+            accept="application/pdf,image/*"
+            onChange={handleFileChange}
+            className="w-full"
+          />
+          <button
+            type="submit"
+            disabled={uploading}
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+        </form>
+        {message && <p className="mt-4 text-green-600">{message}</p>}
+        {error && <p className="mt-4 text-red-600">{error}</p>}
+      </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
           Get started by editing&nbsp;
