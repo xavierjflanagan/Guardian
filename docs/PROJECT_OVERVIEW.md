@@ -4,6 +4,12 @@ Welcome to the Guardian documentation hub. This file provides a high-level summa
 
 ---
 
+## Getting Started
+
+If you're new to the project, the best place to start is the [Developer Setup Guide](./guides/SETUP.md). It will walk you through cloning the repository, installing dependencies, and getting the application running locally.
+
+---
+
 ## Vision & Mission
 - Empower individuals to take meaningful control of their healthcare data by providing a **secure, patient-owned, centralized health platform** that enables **seamless access, portability, and meaningful insights** into their medical history. Through increased access and understanding, patients will be equipped to take a more active role in their healthcare.
 - "Take control of your health. Guardian puts your medical data in your hands, giving you instant access, security, and the power to decide who sees it. Wherever you go, whatever happens, you're in control. Your health, your rules."
@@ -17,6 +23,27 @@ Welcome to the Guardian documentation hub. This file provides a high-level summa
 - Define and track success metrics (e.g., patient engagement, data accessibility, satisfaction scores).
 - Design for scalability and modularity to support future integrations (prescription management, appointment bookings, multi-language support).
 - Ensure HIPAA, GDPR, and regional regulatory compliance at every layer.
+
+---
+
+## Key Architectural Principles
+
+Our architecture is designed to be modular, scalable, and maintainable. The core principles are:
+
+- **Pluggable "document-processor" endpoint:** Allows for easy swapping of backend compute services.
+- **Stateless micro-steps:** Each part of the AI pipeline performs a single, focused task.
+- **Vendor-agnostic data layer:** Built on Postgres to avoid vendor lock-in.
+- **Solo-dev friendly:** Minimal DevOps and pay-per-use pricing.
+
+For a more detailed explanation, see the [Architecture Overview](./architecture/OVERVIEW.md) and the [Document Processing Pipeline](./architecture/pipeline.md) design.
+
+---
+
+## Current Status
+
+The project is under active development. For a detailed log of recent activities, please see the [Progress Log](./PROGRESS_LOG.md).
+
+---
 
 ## Quick Links
 - [Roadmap](./ROADMAP.md)

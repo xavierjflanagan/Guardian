@@ -11,7 +11,18 @@ This document provides a high-level overview of the Guardian technical architect
 - Deployment: Vercel
 
 ## System Diagram
-- [Insert or link to system diagram here]
+## System Diagram
+
+```mermaid
+graph TD
+    A[User] -->|Interacts with| B(Next.js Frontend);
+    B -->|Auth, Data, Storage| C{Supabase};
+    C -->|Postgres DB| D[Database];
+    C -->|Authentication| E[Auth];
+    C -->|File Storage| F[Storage];
+    B -->|Triggers| G(Document Processing Pipeline);
+    G -->|Reads from/Writes to| C;
+```
 
 ## Modularity & Scalability
 - Stateless microservices, pluggable endpoints, vendor-agnostic data layer
