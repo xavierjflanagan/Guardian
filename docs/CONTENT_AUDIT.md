@@ -1,6 +1,6 @@
 # Content Audit - Guardian Documentation
 
-**Date:** December 2024  
+**Date:** 05 July 2025  
 **Purpose:** Systematic review of all documentation to identify duplicates, gaps, and improvement opportunities
 
 ---
