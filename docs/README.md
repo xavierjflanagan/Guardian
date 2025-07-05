@@ -26,6 +26,9 @@
 |----------|---------|--------------|
 | **[Developer Setup](guides/SETUP.md)** | Local development environment | 5 min |
 | **[Supabase Setup](guides/supabase-setup.md)** | Database and auth configuration | 15 min |
+| **[API Documentation](api/endpoints.md)** | Complete API reference guide | 15 min |
+| **[Deployment Guide](guides/deployment.md)** | Production deployment procedures | 20 min |
+| **[Troubleshooting Guide](guides/troubleshooting.md)** | Common issues and solutions | 10 min |
 | **[Architecture Overview](architecture/OVERVIEW.md)** | System design and components | 10 min |
 | **[Document Pipeline](architecture/pipeline.md)** | AI processing architecture | 15 min |
 | **[Security & Compliance](architecture/SECURITY_COMPLIANCE.md)** | HIPAA, GDPR requirements | 10 min |
@@ -106,11 +109,12 @@ vercel --prod
 
 **Looking for...**
 - **Setup instructions?** → [Developer Setup](guides/SETUP.md)
-- **API documentation?** → [Architecture Overview](architecture/OVERVIEW.md)
+- **API documentation?** → [API Documentation](api/endpoints.md)
+- **Deployment help?** → [Deployment Guide](guides/deployment.md)
+- **Troubleshooting?** → [Troubleshooting Guide](guides/troubleshooting.md)
 - **Business information?** → [Project Overview](PROJECT_OVERVIEW.md)
 - **Current priorities?** → [Tasks](management/TASKS.md)
 - **Technical decisions?** → [Decision Records](decisions/)
-- **Troubleshooting?** → [Supabase Setup](guides/supabase-setup.md)
 
 ---
 
@@ -135,9 +139,10 @@ vercel --prod
 
 | Metric | Status | Target |
 |--------|--------|--------|
-| Documentation Coverage | 85% | 90% |
+| Documentation Coverage | 90% ✅ | 90% |
 | Setup Time (new dev) | 15 min | 10 min |
-| Broken Links | 2 | 0 |
-| Outdated Content | 5% | <5% |
+| Broken Links | 0 ✅ | 0 |
+| Outdated Content | <5% ✅ | <5% |
+| Critical Gaps | 0 ✅ | 0 |
 
 Last updated: December 2024
