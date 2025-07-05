@@ -8,11 +8,8 @@ export async function middleware(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Define protected routes (customize as needed)
-  const protectedPaths = ["/", "/(main)"];
-  const isProtected = protectedPaths.some((path) => req.nextUrl.pathname.startsWith(path));
-
-  if (isProtected && !user) {
+  // Since matcher restricts to protected routes, just check auth
+  if (!user) {
     const signInUrl = new URL("/sign-in", req.url);
     signInUrl.searchParams.set("redirectedFrom", req.nextUrl.pathname);
     return NextResponse.redirect(signInUrl);

@@ -48,3 +48,25 @@ Build a prototype of "Guardian," an AI-powered healthcare app for uploading, ana
     - Changes to stack or architecture
     - Next immediate step(s)
     - Any blockers or open questions
+
+## 6. Session Update (2025-07-05)
+
+**Progress:**
+- Supabase Auth fully implemented: magic link sign-in replaces Clerk, with route protection via middleware.
+- File upload helper and UI integrated: authenticated users can upload medical documents to Supabase Storage, with RLS and per-user bucket policies.
+- Modular pipeline architecture documented in `docs/architecture/pipeline.md`, summarizing the pluggable, vendor-agnostic design and next steps.
+- Linter and TypeScript errors resolved; project structure and config cleaned up for maintainability.
+
+**Decisions:**
+- All authentication and storage flows now use Supabase (see ADR-0001).
+- Clerk and legacy auth code fully removed.
+- `@` alias configured for imports; all source, config, and dependency files are tracked in git.
+
+**Next Steps:**
+- Implement the pluggable `document-processor` endpoint (Supabase Edge Function or Cloudflare Worker).
+- Benchmark cold-start, latency, and cost for each compute option.
+- Document RLS policies and Auth plan in `/docs/security/rls-auth.md`.
+- Continue updating Notion "Guardian Dev Hub" and in-repo docs at the end of each session.
+
+**Blockers/Open Questions:**
+- None at this time. Ready to proceed with pipeline implementation and benchmarking.
