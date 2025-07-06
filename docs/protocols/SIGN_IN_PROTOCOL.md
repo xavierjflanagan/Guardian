@@ -22,8 +22,26 @@ Check if the previous session was properly signed off:
 
 1. **Review last entry in `docs/PROGRESS_LOG.md`**
 2. **Check if last session has completion details**
-3. **If no proper sign-off found**, gently remind user: 
-   - "I notice your last session wasn't properly signed off. Would you like me to help you complete that first, or should we proceed with starting the new session?"
+3. **If no proper sign-off found:**
+   - Ask: *"I notice your last session wasn't properly signed off. Do you remember what you accomplished and how long you worked? I can help you complete that sign-off first."*
+   
+   **If user provides information:**
+   - Execute the sign-off protocol retrospectively
+   - Follow all sign-off steps using the user's provided information
+   - Then proceed with current sign-in
+   
+   **If user doesn't remember or doesn't respond:**
+   - Add default entry to progress log:
+   ```markdown
+   ## [ESTIMATED_DATE] Previous Session (Incomplete Sign-off)
+   - **Duration:** Unknown
+   - **Accomplishments:** Session occurred but details not recorded
+   - **Status:** ⚠️ Incomplete documentation - sign-off missed
+   - **R&D Hours:** 0 (cannot verify for compliance)
+   
+   ---
+   ```
+   - Then proceed with current sign-in
 
 ### Step 2: Gather Session Information
 Ask the user these questions:
@@ -58,28 +76,29 @@ Add a new session start entry:
 - **Planned Duration:** [User's estimate if provided]
 - **Session Goals:** [User's main objectives]
 - **Focus Areas:** [User's specified focus]
-- **Status:** Session in progress
 
 ---
 ```
+
+**⚠️ DATE/TIME ACCURACY:** 
+- **Always ask user for current date/time** if uncertain
+- **Use format: YYYY-MM-DD** for dates
+- **If no access to system time, use placeholder [CURRENT_DATE]** and note for user to update
 
 #### B. Update Session Summary (`docs/SESSION_SUMMARY.md`)
 Update the current session information:
 ```markdown
 # Current Development Session
 
-**Session Started:** [Current date and time]
-**Planned Duration:** [X hours if provided]
-**Status:** 🟢 Active
+**Last Updated:** [Current date and time]
+**Session Status:** 🟢 Active (planned: [X hours if provided])
+**Total Hours This Week:** [Calculate from recent sessions]
 
-## Session Goals
+## Current Session Goals
 [User's main goals for this session]
 
-## Current Priorities
-[From task management review]
-
-## Recent Context
-[Brief summary of recent progress and current project state]
+## Project Status
+[Brief current project state from task management review]
 ```
 
 ### Step 5: Provide Session Briefing
