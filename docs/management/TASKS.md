@@ -52,7 +52,9 @@ This file tracks all major tasks, their status, and dependencies. Use it as a Ka
 
 ## Current Milestones
 
-### 🎯 MVP Prototype (Target: Q1 2025)
+
+### 🎯 MVP Prototype (Target: August 2025)
+
 - **Status:** 80% Complete
 - **Key Features:** 
   - ✅ Authentication & user management
@@ -126,4 +128,4 @@ This file tracks all major tasks, their status, and dependencies. Use it as a Ka
 
 ---
 
-*This board is updated weekly or after major changes. Last review: December 2024* 
+*This board is updated weekly or after major changes. Last review: July 6th 2025*
