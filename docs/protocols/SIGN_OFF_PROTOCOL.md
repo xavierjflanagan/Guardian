@@ -1,213 +1,97 @@
 # Sign-Off Protocol Policy
 
-**Purpose:** This document defines the complete sign-off protocol that should be executed when the user requests "execute sign off protocol" or similar commands.
+**Purpose:** This document defines the sign-off protocol for ending a work session when the user requests it. It now uses only `docs/PROGRESS_LOG.md` as the single source of truth for session tracking.
 
 ---
 
-## 🎯 **When to Execute This Protocol**
+## When to Execute This Protocol
 
 Execute this protocol when the user says any of:
 - "Execute sign off protocol"
-- "Sign off session" 
+- "Sign off session"
 - "End work session"
 - "Complete sign off"
 - Similar requests to end a work session
 
 ---
 
-## 📋 **Protocol Steps**
+## Protocol Steps
 
-### Step 1: Gather Information from User
-Ask the user these questions (use friendly, conversational tone):
+### Step 1: Gather Session Information
+Ask the user these questions in a single message (dot points, one after the other):
 
-1. **"What did you accomplish in this session?"**
-   - Get a summary of tasks completed, progress made, problems solved
-   - This will be used to update progress logs and task status
+in this session;
+- what work did you do?
+- how many hours? (as decimal, e.g. 4.5)
+- what are your priorities next session?
+- any blockers or issues?
 
-2. **"How many hours did you work this session?"** 
-   - Get precise work time for R&D tax compliance
-   - Format as decimal (e.g., 4.5 hours, 2.25 hours)
+### Step 2: Update Progress Log
+- Find the `## [YYYY-MM-DD] Work Session Started` block at the top of `docs/PROGRESS_LOG.md` and replace it with a summary block in this format:
+  ```markdown
+  ## [YYYY-MM-DD] Work Session Summary
+  - **Duration:** [X.X hours]
+  - **Accomplishments:** [User's summary]
+  - **Blockers:** [Any issues noted]
+  - **Next Session Focus:** [User's next priorities]
+  - **R&D Hours:** [Same as duration]
+  ---
+  ```
 
-3. **"What are your priorities for the next session?"**
-   - Get upcoming tasks and focus areas
-   - This will be used to update task management
-
-4. **"Any blockers or issues to note?"** (Optional)
-   - Get any obstacles or problems encountered
-   - Leave blank if none
-
-### Step 2: Investigate Recent Changes
-Review what has changed since the last sign-off by:
-
-1. **Check the last entry in `docs/PROGRESS_LOG.md`** to see when the last session ended
-2. **Review any file changes** made since that time (if possible)
-3. **Look at `docs/management/TASKS.md`** to see current task status
-4. **Note any significant developments** since last session
-
-### Step 3: Update Documents
-Update the following documents in this order:
-
-#### A. Update Progress Log (`docs/PROGRESS_LOG.md`)
-Add a new session entry at the top with this format:
-```markdown
-## [YYYY-MM-DD] Work Session Summary
-- **Duration:** [X.X hours]
-- **Accomplishments:** [User's summary]
-- **Key Progress:** [Your investigation findings]
-- **Blockers:** [Any issues noted] 
-- **Next Session Focus:** [User's next priorities]
-- **R&D Hours:** [Same as duration - for tax compliance]
-
----
-```
-
-**⚠️ DATE/TIME ACCURACY:** 
-- **Always ask user for current date/time** if uncertain
-- **Use format: YYYY-MM-DD** for dates
-- **If no access to system time, use placeholder [CURRENT_DATE]** and note for user to update
-
-#### B. Update Task Management (`docs/management/TASKS.md`)
-Based on user's accomplishments:
-- Mark completed tasks as ✅ Complete
-- Add new tasks from "next priorities" 
-- Update task status and priorities
-- Move items between sections as appropriate
-
-#### C. Update Session Summary (`docs/SESSION_SUMMARY.md`)
-Reset session summary to show completion:
-```markdown
-# Current Development Session
-
-**Last Updated:** [Current date and time]
-**Session Status:** ✅ Completed ([X.X hours])
-**Total Hours This Week:** [Calculate from recent sessions]
-
-## Last Session Summary
-- **Accomplished:** [Brief summary]
-- **Next Focus:** [User's next priorities]
-- **Details:** See latest entry in [Progress Log](PROGRESS_LOG.md)
-
-## Project Status
-[Brief current project state from task management review]
-```
-
-#### D. Conditional Updates
-Based on the type of work accomplished, also update:
-
-**If Documentation Work:**
-- Update relevant documentation files mentioned
-- Update `docs/README.md` if navigation changed
-
-**If Code Development:**
-- Consider updating `README.md` if new features added
-- Note any architectural changes
-
-**If Architecture/Design Work:**
-- Update relevant architecture documents
-- Update project overview if scope changed
-
-**If Bug Fixes/Issues:**
-- Update any relevant troubleshooting docs
-- Note resolved issues
-
-### Step 4: R&D Tax Compliance
-Ensure R&D compliance by:
-1. Recording hours worked in progress log
-2. Categorizing work as R&D eligible (development, research, problem-solving)
-3. Maintaining detailed activity records for audit purposes
-
-### Step 5: Confirm Completion
-Respond to the user with:
-```
-✅ Sign-off protocol completed successfully!
-
-📊 Session Summary:
-- Duration: [X.X hours] 
-- Accomplishments: [Brief summary]
-- Documents updated: [List of files updated]
-- Next session focus: [Key priorities]
-
-All progress has been logged and files updated. Great work this session! 🚀
-```
+### Step 3: Confirm Completion
+- Respond to the user with a completion message and a sign-off quote, e.g.:
+  All progress has been logged and files updated. Great work this session!
+  [Insert a random sign-off quote here, e.g., "Rest is not idleness, and to lie sometimes on the grass under trees on a summer's day... is by no means a waste of time." – John Lubbock]
 
 ---
 
-## 📁 **Files That May Need Updates**
-
-### Primary Files (Always Update)
-- `docs/PROGRESS_LOG.md` - Session logging
-- `docs/management/TASKS.md` - Task status  
-- `docs/SESSION_SUMMARY.md` - Current session overview
-
-### Secondary Files (Conditional)
-- `docs/README.md` - If navigation or overview changed
-- `README.md` (root) - If major features or status changed
-- `docs/architecture/` files - If architectural work done
-- `docs/guides/` files - If setup or process changes
-- `docs/api/` files - If API changes made
-- Any specific files mentioned in user's accomplishments
-
-### Backup Considerations
-- Always preserve existing content when updating
-- Add new information rather than replacing
-- Maintain chronological order in logs
-- Keep formatting consistent
+## 📁 Files That May Need Updates
+- `docs/PROGRESS_LOG.md` (always)
+- `docs/management/TASKS.md` (for task status)
+- Other documentation files as needed (conditional)
 
 ---
 
-## 🛡️ **Error Handling**
-
-If any step fails:
-1. **Continue with other steps** - Don't let one failure stop the whole protocol
-2. **Note the failure** in your response to the user
-3. **Suggest manual action** if needed
-4. **Still complete the protocol** as much as possible
-
-If user provides incomplete information:
-1. **Ask for clarification** on missing details
-2. **Use reasonable defaults** if user prefers (e.g., "General development work")
-3. **Proceed with available information** rather than blocking
+## 🛡️ Error Handling
+- If any step fails, continue with other steps and note the failure in your response. Suggest manual action if needed.
+- If user provides incomplete information, ask for clarification or use reasonable defaults (e.g., "General development work"). Proceed with available information rather than blocking.
 
 ---
 
-## 🎯 **Success Criteria**
+## Success Criteria
+- User questions answered and recorded
+- Progress log updated with session details
+- Task management reflects current status
+- User receives confirmation message
 
-Protocol is successful when:
-- [x] User questions answered and recorded
-- [x] Progress log updated with session details
-- [x] Task management reflects current status  
-- [x] Session summary is current
-- [x] R&D hours properly documented
-- [x] User receives confirmation message
-
-The goal is to make this **seamless and quick** - the entire interaction should take 2-3 minutes maximum.
+The goal is to make this seamless and quick—the entire interaction should take 2-3 minutes maximum.
 
 ---
 
-## 📝 **Example Interaction**
+## Example Interaction
 
 **User:** "Execute sign off protocol"
 
 **AI:** "I'll execute the sign-off protocol for you! Let me ask a few quick questions:
 
-1. What did you accomplish in this session?
-2. How many hours did you work?
-3. What are your priorities for the next session?
-4. Any blockers or issues to note?"
+in this session;
+- what work did you do?
+- how many hours? (as decimal, e.g. 4.5)
+- what are your priorities next session?
+- any blockers or issues?
 
 **User:** [Provides answers]
 
-**AI:** "Perfect! Let me update the documentation... 
+**AI:** "Perfect! Let me update the documentation...
 
-✅ Sign-off protocol completed successfully!
-
-📊 Session Summary:
+Session Summary:
 - Duration: 4.5 hours
 - Accomplishments: API documentation completed, deployment guide created
-- Documents updated: PROGRESS_LOG.md, TASKS.md, SESSION_SUMMARY.md
+- Documents updated: PROGRESS_LOG.md, TASKS.md
 - Next session focus: Implement document processor endpoint
 
-All progress has been logged and files updated. Great work this session! 🚀"
+All progress has been logged and files updated. Great work this session!
+[Insert a random sign-off quote here, e.g., "Rest is not idleness, and to lie sometimes on the grass under trees on a summer's day... is by no means a waste of time." – John Lubbock]"
 
 ---
 

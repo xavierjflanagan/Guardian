@@ -116,4 +116,39 @@ docs/
 3. Read relevant [Architecture Decision Records](./decisions/)
 4. Update [AI Context](./context/AI_context.md) after sessions
 
---- 
+---
+
+## Code Quality and AI Collaboration Policy
+
+> **Standard of Excellence:**
+> All code, whether written by AI or human contributors, should reflect the wisdom, experience, and best practices of a team of senior software engineers. Every decision should be made thoughtfully, with maintainability, scalability, and clarity in mind, as if the codebase were built by an amazing, highly experienced team.
+
+### Core Principles
+
+#### Clarity and Simplicity
+- Write code that is easy to understand. Prioritize readability over cleverness.
+- Add comments only when necessary to explain *why* a particular piece of code exists, not *what* it does.
+
+#### File and Directory Organization
+- Maintain the existing Next.js project structure.
+- Create new files and directories in a logical and organized manner.
+- Before creating a new file, review the existing file structure to see if the new code belongs in an existing file.
+- **`lib/` (Library):** Use for more substantial, application-specific logic or integrations (e.g., database functions, API client wrappers, authentication logic).
+- **`utils/` (Utilities):** Use for smaller, generic, and often pure helper functions (e.g., date formatting, string manipulation, validation).
+
+#### Don't Repeat Yourself (DRY)
+- Avoid duplicating code. Instead, create reusable components, functions, or classes.
+- Before writing new code, check if similar functionality already exists that can be reused or generalized.
+
+#### Regular Refactoring
+- Periodically, development should pause to review and refactor the codebase.
+- Refactoring includes removing unused code, simplifying complex logic, and improving the overall structure of the code.
+- This ensures the project remains maintainable as it grows.
+
+#### Descriptive Naming
+- Use clear and descriptive names for files, folders, variables, functions, and components.
+- Names should reflect the purpose of the code they represent. For example, a function that gets user data should be named `getUserData()`.
+
+#### Commit Message Standards
+- Write clear and concise commit messages.
+- A good commit message should summarize the change and its purpose.
