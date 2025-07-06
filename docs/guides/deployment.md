@@ -1,6 +1,6 @@
 # Production Deployment Guide - Guardian
 
-**Last Updated:** December 2024  
+**Last Updated:** July 2025  
 **Target Environment:** Vercel + Supabase  
 **Prerequisites:** GitHub account, Vercel account, Supabase account
 

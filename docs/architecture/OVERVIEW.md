@@ -11,10 +11,8 @@ This document provides a high-level overview of the Guardian technical architect
 - Deployment: Vercel
 
 ## System Diagram
-## System Diagram
 
-```mermaid
-graph TD
+```mermaid graph TD
     A[User] -->|Interacts with| B(Next.js Frontend);
     B -->|Auth, Data, Storage| C{Supabase};
     C -->|Postgres DB| D[Database];
