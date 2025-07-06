@@ -49,7 +49,7 @@
 | **[Protocol System](protocols/README.md)** | AI-driven session management | 5 min |
 | **[Current Tasks](management/TASKS.md)** | Active development priorities | 3 min |
 | **[Progress Log](PROGRESS_LOG.md)** | Recent developments and decisions | 5 min |
-| **[Session Summary](SESSION_SUMMARY.md)** | Current work session status | 2 min |
+
 | **[Decision Records](decisions/)** | Technical decision rationale | 10 min |
 
 ---
