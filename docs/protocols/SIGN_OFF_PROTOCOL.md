@@ -61,6 +61,11 @@ Add a new session entry at the top with this format:
 ---
 ```
 
+**⚠️ DATE/TIME ACCURACY:** 
+- **Always ask user for current date/time** if uncertain
+- **Use format: YYYY-MM-DD** for dates
+- **If no access to system time, use placeholder [CURRENT_DATE]** and note for user to update
+
 #### B. Update Task Management (`docs/management/TASKS.md`)
 Based on user's accomplishments:
 - Mark completed tasks as ✅ Complete
@@ -69,22 +74,21 @@ Based on user's accomplishments:
 - Move items between sections as appropriate
 
 #### C. Update Session Summary (`docs/SESSION_SUMMARY.md`)
-Create or update the current session summary:
+Reset session summary to show completion:
 ```markdown
 # Current Development Session
 
 **Last Updated:** [Current date and time]
-**Session Duration:** [X.X hours]
+**Session Status:** ✅ Completed ([X.X hours])
 **Total Hours This Week:** [Calculate from recent sessions]
 
-## This Session
-[User's accomplishments]
+## Last Session Summary
+- **Accomplished:** [Brief summary]
+- **Next Focus:** [User's next priorities]
+- **Details:** See latest entry in [Progress Log](PROGRESS_LOG.md)
 
-## Next Session Priorities
-[User's next priorities]
-
-## Weekly Progress Overview
-[Brief summary of recent progress from multiple sessions]
+## Project Status
+[Brief current project state from task management review]
 ```
 
 #### D. Conditional Updates
