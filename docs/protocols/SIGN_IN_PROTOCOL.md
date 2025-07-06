@@ -44,6 +44,12 @@ For this session;
 - How long do you plan to work?
 - Any specific areas you want to focus on? (Optional: e.g., frontend, backend, documentation, architecture)
 
+### Step 2.5: Sync Technical Tasks
+- Read the current `docs/management/TASKS.md` file.
+- Check for any updates or changes since last session.
+- Sync all technical tasks with the Notion Technical Task Board (https://www.notion.so/22887f8cee9e816b98cbc8a99950d452).
+- Ensure both TASKS.md and Notion board are up to date (push/pull as needed).
+
 ### Step 3: Update Progress Log
 - Add a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
   ```markdown

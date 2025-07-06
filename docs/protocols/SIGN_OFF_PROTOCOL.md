@@ -38,6 +38,12 @@ in this session;
   ---
   ```
 
+### Step 2.5: Sync Technical Tasks
+- Read the current `docs/management/TASKS.md` file.
+- Check for any updates or changes since last session.
+- Sync all technical tasks with the Notion Technical Task Board (https://www.notion.so/22887f8cee9e816b98cbc8a99950d452).
+- Ensure both TASKS.md and Notion board are up to date (push/pull as needed).
+
 ### Step 3: Confirm Completion
 - Respond to the user with a completion message and a sign-off quote, e.g.:
   All progress has been logged and files updated. Great work this session!

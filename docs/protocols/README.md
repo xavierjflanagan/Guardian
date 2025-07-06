@@ -4,9 +4,11 @@
 
 ---
 
-## 🎯 **How It Works**
+## **How It Works**
 
 This system uses **AI-readable protocol documents** that define exactly what should happen when you start or end work sessions. Simply tell your AI assistant to execute the protocols, and it will handle all the documentation updates automatically.
+
+**New:** The system now also syncs technical tasks between your local `docs/management/TASKS.md` and the Notion Technical Task Board ([link](https://www.notion.so/22887f8cee9e816b98cbc8a99950d452)). This ensures your technical to-do list is always up to date in both your codebase and Notion workspace.
 
 ### **Available Protocols**
 
@@ -15,9 +17,9 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 
 ---
 
-## 🚀 **Quick Start**
+## **Quick Start**
 
-### To Start a Work Session:
+### **To Start a Work Session:**
 **Say to your AI:** *"Execute sign in protocol"*
 
 **What happens:**
@@ -25,9 +27,10 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 2. AI asks about your goals for this session
 3. AI reviews current project status and priorities  
 4. AI updates session tracking documents
-5. AI gives you a helpful session briefing
+5. I syncs technical tasks between TASKS.md and Notion Technical Task Board
+6. AI gives you a helpful session briefing
 
-### To End a Work Session:
+### **To End a Work Session:**
 **Say to your AI:** *"Execute sign off protocol"*
 
 **What happens:**
@@ -36,18 +39,19 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 3. AI asks about your next session priorities
 4. AI investigates what changed since last session
 5. AI updates all relevant documentation
-6. AI confirms completion with session summary
+6. AI syncs technical tasks between TASKS.md and Notion Technical Task Board
+7. AI confirms completion with session summary
 
 ---
 
-## 📁 **Files Updated Automatically**
+## **Files Updated Automatically**
 
-### Every Session
+### **Every Session**
 - **`docs/PROGRESS_LOG.md`** - Detailed session logs
+- **`docs/management/TASKS.md`** - Task status updates (now synced with Notion)
+- **Notion Technical Task Board** - Technical task board in Notion (synced with TASKS.md)
 
-- **`docs/management/TASKS.md`** - Task status updates
-
-### As Needed (Based on Work Type)
+### **As Needed (Based on Work Type)**
 - **`docs/README.md`** - If navigation changes
 - **`README.md`** (root) - If major features added
 - **`docs/architecture/`** files - If architectural work
@@ -56,10 +60,10 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 
 ---
 
-## 💡 **Benefits**
+## **Benefits**
 
 ### **For You**
-- ✅ **No manual logging** - AI handles all documentation
+- ✅ **No manual logging** - AI handles all documentation and task board syncing
 - ✅ **R&D tax compliance** - Automatic hour tracking and activity categorization
 - ✅ **Session focus** - Clear goals and priorities each session
 - ✅ **Progress visibility** - Always know where you left off
@@ -72,19 +76,19 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 
 ---
 
-## 🔧 **Setup Requirements**
+## **Setup Requirements**
 
 ### **None!** 
 The system is ready to use immediately. Just ensure these files exist:
-- `docs/PROGRESS_LOG.md` ✅ (Already exists)
-  
-- `docs/management/TASKS.md` ✅ (Already exists)
+- **`docs/PROGRESS_LOG.md`** (Already exists)
+- **`docs/management/TASKS.md`** (Already exists)
+- **Notion Technical Task Board** ([link](https://www.notion.so/22887f8cee9e816b98cbc8a99950d452))
 
-Your AI assistant will read the protocol documents and follow them automatically.
+Your AI assistant will read the protocol documents and follow them automatically, including syncing your technical tasks with Notion.
 
 ---
 
-## 📝 **Example Usage**
+## **Example Usage**
 
 For detailed examples, please see the protocol files:
 - **[Sign-In Protocol](SIGN_IN_PROTOCOL.md)**
@@ -92,31 +96,31 @@ For detailed examples, please see the protocol files:
 
 ---
 
-## 🎯 **R&D Tax Compliance**
+## **R&D Tax Compliance**
 
 The system automatically maintains R&D tax compliance by:
 
-- **📊 Tracking Hours:** Precise work time recording
-- **📝 Documenting Activities:** Detailed descriptions of R&D work
-- **🗂️ Categorizing Work:** Development, research, problem-solving activities
-- **📋 Audit Trail:** Complete documentation for tax purposes
-- **📈 Monthly Reports:** Ready for accountant/tax advisor
+- **Tracking Hours:** Precise work time recording
+- **Documenting Activities:** Detailed descriptions of R&D work
+- **Categorizing Work:** Development, research, problem-solving activities
+- **Audit Trail:** Complete documentation for tax purposes
+- **Monthly Reports:** Ready for accountant/tax advisor
 
 **Estimated Value:** Proper R&D documentation could unlock thousands in tax incentives annually.
 
 ---
 
-## 🛠️ **Customization**
+## **Customization**
 
 Want to modify the protocols? Simply edit the markdown files:
-- **[SIGN_IN_PROTOCOL.md](SIGN_IN_PROTOCOL.md)** - Customize session start process
-- **[SIGN_OFF_PROTOCOL.md](SIGN_OFF_PROTOCOL.md)** - Customize session end process
+- **SIGN_IN_PROTOCOL.md** - Customize session start process
+- **SIGN_OFF_PROTOCOL.md** - Customize session end process
 
 The AI will automatically follow any changes you make to these protocol documents.
 
 ---
 
-## 🆘 **Troubleshooting**
+## **Troubleshooting**
 
 ### **Protocol Not Working?**
 1. Check that protocol files exist and are readable
@@ -132,7 +136,5 @@ The AI will automatically follow any changes you make to these protocol document
 1. The protocols are designed to work with incomplete information
 2. Provide what you can, the AI will use reasonable defaults
 3. You can always update documentation manually if needed
-
----
 
 *This protocol system provides effortless work session management while ensuring professional documentation and R&D tax compliance. Simply tell your AI to execute the protocols and focus on your work!*
