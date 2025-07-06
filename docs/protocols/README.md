@@ -44,7 +44,7 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 
 ### Every Session
 - **`docs/PROGRESS_LOG.md`** - Detailed session logs
-- **`docs/SESSION_SUMMARY.md`** - Current session status
+
 - **`docs/management/TASKS.md`** - Task status updates
 
 ### As Needed (Based on Work Type)
@@ -77,7 +77,7 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 ### **None!** 
 The system is ready to use immediately. Just ensure these files exist:
 - `docs/PROGRESS_LOG.md` ✅ (Already exists)
-- `docs/SESSION_SUMMARY.md` ✅ (Already exists)  
+  
 - `docs/management/TASKS.md` ✅ (Already exists)
 
 Your AI assistant will read the protocol documents and follow them automatically.
@@ -86,48 +86,9 @@ Your AI assistant will read the protocol documents and follow them automatically
 
 ## 📝 **Example Usage**
 
-### Starting a Session
-**You:** "Execute sign in protocol"
-
-**AI:** "I'll start your work session! What are your main goals for this session?"
-
-**You:** "I want to implement the document processor endpoint and update the API documentation."
-
-**AI:** "Perfect! Let me check your current status... 
-
-🚀 Work session started successfully!
-
-📋 Session Overview:
-- Goals: Implement document processor endpoint, update API docs
-- Current priorities: Document processor endpoint (High), API documentation (High), troubleshooting guide (Medium)
-- Recent progress: Major documentation overhaul completed
-- Status: Phase 1 MVP development, 70% complete
-
-You're all set! Let me know if you need assistance during your session. 💪"
-
-### Ending a Session
-**You:** "Execute sign off protocol"  
-
-**AI:** "I'll execute the sign-off protocol! Let me ask a few quick questions:
-
-1. What did you accomplish in this session?
-2. How many hours did you work?
-3. What are your priorities for the next session?
-4. Any blockers or issues to note?"
-
-**You:** [Answers questions]
-
-**AI:** "Perfect! Let me update the documentation...
-
-✅ Sign-off protocol completed successfully!
-
-📊 Session Summary:
-- Duration: 4.5 hours
-- Accomplishments: Document processor endpoint implemented, API docs updated
-- Documents updated: PROGRESS_LOG.md, TASKS.md, SESSION_SUMMARY.md
-- Next session focus: Testing pipeline, error handling implementation
-
-All progress has been logged and files updated. Great work this session! 🚀"
+For detailed examples, please see the protocol files:
+- **[Sign-In Protocol](SIGN_IN_PROTOCOL.md)**
+- **[Sign-Off Protocol](SIGN_OFF_PROTOCOL.md)**
 
 ---
 
