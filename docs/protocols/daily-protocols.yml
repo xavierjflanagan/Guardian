@@ -1,0 +1,264 @@
+# Guardian Daily Protocol Automation
+#
+# This workflow automatically executes sign-in and sign-off protocols
+# every 12 hours at 12:00 PM and 12:00 AM AEST
+#
+# Schedule:
+# - 12:00 PM AEST = 02:00 UTC = Sign-in protocol
+# - 12:00 AM AEST = 14:00 UTC (previous day) = Sign-off protocol
+
+name: Daily Protocol Execution
+
+on:
+  schedule:
+    # 12:00 PM AEST (02:00 UTC) - Sign-in protocol
+    - cron: '0 2 * * *'
+    # 12:00 AM AEST (14:00 UTC previous day) - Sign-off protocol  
+    - cron: '0 14 * * *'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+    inputs:
+      protocol_type:
+        description: 'Protocol to execute'
+        required: true
+        default: 'sign-in'
+        type: choice
+        options:
+        - sign-in
+        - sign-off
+      force_execution:
+        description: 'Force execution even if validations fail'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  execute-protocol:
+    runs-on: ubuntu-latest
+    
+    # Only run on main branch to avoid duplicate executions
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for proper file updates
+          fetch-depth: 0
+          # Use a token that can push back to the repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: guardian-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: guardian-web
+        run: npm ci
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'Guardian Protocol Bot'
+          git config --global user.email 'guardian-bot@noreply.com'
+
+      - name: Determine protocol type
+        id: protocol
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ github.event.inputs.protocol_type }}" >> $GITHUB_OUTPUT
+            echo "force=${{ github.event.inputs.force_execution }}" >> $GITHUB_OUTPUT
+          else
+            # Determine based on UTC time
+            current_hour=$(date +%H)
+            if [ "$current_hour" = "02" ]; then
+              echo "type=sign-in" >> $GITHUB_OUTPUT
+            elif [ "$current_hour" = "14" ]; then
+              echo "type=sign-off" >> $GITHUB_OUTPUT
+            else
+              echo "type=unknown" >> $GITHUB_OUTPUT
+            fi
+            echo "force=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate protocol timing
+        id: validate
+        run: |
+          protocol_type="${{ steps.protocol.outputs.type }}"
+          current_hour=$(date +%H)
+          force="${{ steps.protocol.outputs.force }}"
+          
+          if [ "$protocol_type" = "unknown" ] && [ "$force" != "true" ]; then
+            echo "❌ Invalid execution time. Current UTC hour: $current_hour"
+            echo "Expected: 02 (sign-in) or 14 (sign-off)"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ Protocol validation passed: $protocol_type"
+            echo "valid=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Execute protocol
+        id: execute
+        if: steps.validate.outputs.valid == 'true'
+        working-directory: guardian-web
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROTOCOL_TYPE: ${{ steps.protocol.outputs.type }}
+          EXECUTION_MODE: automated
+          AEST_TIME: ${{ steps.protocol.outputs.aest_time }}
+        run: |
+          echo "🚀 Executing $PROTOCOL_TYPE protocol..."
+          
+          # Create logs directory if it doesn't exist
+          mkdir -p protocols/logs
+          
+          # Execute the protocol with timeout to prevent hanging
+          timeout 300 node protocols/execute-protocol.js "$PROTOCOL_TYPE" 2>&1 | tee "protocols/logs/$PROTOCOL_TYPE-$(date +%Y%m%d-%H%M%S).log"
+          
+          # Capture exit code
+          exit_code=${PIPESTATUS[0]}
+          
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ Protocol execution completed successfully"
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Protocol execution failed with exit code: $exit_code"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit $exit_code
+          fi
+
+      - name: Commit and push changes
+        if: steps.execute.outputs.success == 'true'
+        run: |
+          # Add all modified files
+          git add -A
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "📝 No changes to commit"
+          else
+            # Create commit message
+            protocol_type="${{ steps.protocol.outputs.type }}"
+            timestamp=$(date '+%Y-%m-%d %H:%M:%S AEST')
+            
+            git commit -m "🤖 Automated $protocol_type protocol execution - $timestamp
+            
+            - Updated progress logs
+            - Updated task management
+            - Updated time tracking
+            - Generated session summaries
+            
+            Executed automatically via GitHub Actions"
+            
+            # Push changes
+            git push origin main
+            
+            echo "✅ Changes committed and pushed successfully"
+          fi
+
+      - name: Create execution summary
+        if: always()
+        run: |
+          protocol_type="${{ steps.protocol.outputs.type }}"
+          success="${{ steps.execute.outputs.success }}"
+          timestamp=$(date '+%Y-%m-%d %H:%M:%S AEST')
+          
+          echo "## Protocol Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Protocol:** $protocol_type" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time:** $timestamp" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** $([ "$success" = "true" ] && echo "✅ Success" || echo "❌ Failed")" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "guardian-web/protocols/logs/$protocol_type-$(date +%Y%m%d)*.log" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Recent Log Output" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            tail -20 guardian-web/protocols/logs/$protocol_type-$(date +%Y%m%d)*.log | head -20 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload execution logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: protocol-logs-${{ steps.protocol.outputs.type }}-${{ github.run_number }}
+          path: guardian-web/protocols/logs/
+          retention-days: 30
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Protocol execution failed!"
+          echo "Check the logs and execution summary for details."
+          echo "Manual intervention may be required."
+          
+          # In a real implementation, you might want to send notifications:
+          # - Slack webhook
+          # - Email notification
+          # - GitHub issue creation
+          # - Discord webhook
+          
+          # For now, just ensure the failure is clearly logged
+          exit 1
+
+  # Optional: Health check job that runs after protocol execution
+  health-check:
+    needs: execute-protocol
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify system health
+        run: |
+          echo "🔍 Performing post-execution health check..."
+          
+          # Check if critical files exist and are valid
+          if [ -f "guardian-web/protocols/time-tracker.json" ]; then
+            echo "✅ Time tracker file exists"
+            # Validate JSON format
+            if node -e "JSON.parse(require('fs').readFileSync('guardian-web/protocols/time-tracker.json', 'utf8'))"; then
+              echo "✅ Time tracker JSON is valid"
+            else
+              echo "❌ Time tracker JSON is invalid"
+              exit 1
+            fi
+          else
+            echo "⚠️ Time tracker file missing"
+          fi
+          
+          # Check if progress log was updated recently
+          if [ -f "docs/PROGRESS_LOG.md" ]; then
+            last_modified=$(stat -c %Y "docs/PROGRESS_LOG.md" 2>/dev/null || stat -f %m "docs/PROGRESS_LOG.md")
+            current_time=$(date +%s)
+            time_diff=$((current_time - last_modified))
+            
+            # If file was modified within the last hour (3600 seconds)
+            if [ $time_diff -lt 3600 ]; then
+              echo "✅ Progress log recently updated"
+            else
+              echo "⚠️ Progress log not recently updated (${time_diff}s ago)"
+            fi
+          fi
+          
+          echo "🎯 Health check completed"
+
+      - name: Generate daily metrics
+        if: needs.execute-protocol.result == 'success'
+        run: |
+          echo "📊 Generating daily metrics..."
+          
+          # This could be expanded to:
+          # - Calculate daily productivity metrics
+          # - Update project health dashboards  
+          # - Generate progress reports
+          # - Update Notion databases with summary data
+          
+          echo "Daily metrics generation completed"
