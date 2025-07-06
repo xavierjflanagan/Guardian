@@ -1,6 +1,6 @@
 # API Documentation - Guardian
 
-**Last Updated:** December 2024  
+**Last Updated:** July 2025  
 **Version:** MVP v1.0  
 **Base URL:** `https://your-app.vercel.app/api`
 

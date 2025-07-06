@@ -4,13 +4,13 @@ This roadmap outlines the phased development of Guardian, including MVP and long
 
 ---
 
-## Phase 1: MVP Prototype Build (1-6 months)
+## Phase 1: MVP Prototype Build (1 month - August 2025)
 - Set up Next.js + Supabase tech stack
 - Implement core auth and document upload flows
 - Build OCR pipeline and data visualization
 - Establish security and compliance baseline
 
-## Phase 2: MVP Prototype (1–6 months)
+## Phase 2: MVP Prototype (2–6 months -- December 2025)
 - Build core features (see prototype.md)
 - User authentication, document upload, basic OCR, data visualization
 - Security & compliance foundation
