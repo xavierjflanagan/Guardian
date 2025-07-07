@@ -1,6 +1,9 @@
 # AI Protocol System - Guardian Project
 
-**Purpose:** Simple, AI-driven work session management for project tracking and R&D tax compliance.
+**Purpose:** Defines the AI-driven work session management protocols for project tracking and R&D tax compliance.
+**Last updated:** July 2025
+**Audience:** All contributors, developers, project managers
+**Prerequisites:** None
 
 ---
 

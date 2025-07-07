@@ -1,6 +1,11 @@
 # Long-Term Product Vision
 
-> This document describes the revolutionary, big-picture vision for Guardian (2–5 year horizon).
+**Purpose:** Describes the revolutionary, big-picture vision for Guardian (2–5 year horizon).
+**Last updated:** July 2025
+**Audience:** All stakeholders, developers, product managers
+**Prerequisites:** None
+
+---
 
 ## Vision Statement
 

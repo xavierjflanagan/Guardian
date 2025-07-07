@@ -1,7 +1,9 @@
 # Troubleshooting Guide - Guardian
 
-**Last Updated:** December 2024  
-**Purpose:** Common issues and solutions for Guardian development and deployment
+**Purpose:** Common issues and solutions for Guardian development and deployment.
+**Last updated:** July 2025
+**Audience:** Developers, contributors
+**Prerequisites:** Familiarity with Node.js, Next.js, Supabase, and Vercel
 
 ---
 
@@ -680,4 +682,4 @@ When asking for help, include:
 
 ---
 
-*This troubleshooting guide is continuously updated based on common issues encountered. Last updated: December 2024*
+*This troubleshooting guide is continuously updated based on common issues encountered. Last updated: July 2025*

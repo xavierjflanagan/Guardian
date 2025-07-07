@@ -1,6 +1,9 @@
 # Security & Compliance
 
-This document summarizes the security, privacy, and regulatory requirements for Guardian.
+**Purpose:** Summary of security, privacy, and regulatory requirements for Guardian.
+**Last updated:** July 2025
+**Audience:** Developers, security officers, compliance stakeholders
+**Prerequisites:** Familiarity with healthcare data regulations (HIPAA, GDPR)
 
 ---
 
@@ -20,4 +23,4 @@ This document summarizes the security, privacy, and regulatory requirements for 
 - Continuous monitoring and incident response
 
 ## References
-- [Link to relevant ADRs, policies, and external resources] 
+- [See relevant ADRs, policies, and external resources] 

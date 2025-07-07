@@ -1,6 +1,9 @@
 # Meeting Log
 
-This file records meeting agendas, notes, and action items for the Guardian project.
+**Purpose:** Records meeting agendas, notes, and action items for the Guardian project.
+**Last updated:** July 2025
+**Audience:** All stakeholders, contributors
+**Prerequisites:** None
 
 ---
 

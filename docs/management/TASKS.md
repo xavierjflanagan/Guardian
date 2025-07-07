@@ -1,8 +1,9 @@
 # Task Board & Milestone Tracker
 
-This file tracks all major tasks, their status, and dependencies. Use it as a Kanban board for project management.
-
-**Last Updated:** December 2024
+**Purpose:** Tracks all major tasks, their status, and dependencies. Use as a Kanban board for project management.
+**Last updated:** July 2025
+**Audience:** Developers, project managers, contributors
+**Prerequisites:** None
 
 ---
 

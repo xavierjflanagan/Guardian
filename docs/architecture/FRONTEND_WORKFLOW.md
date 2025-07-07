@@ -1,5 +1,12 @@
 # Guardian — Front-End Generation & Source-of-Truth Workflow (July 2025)
 
+**Purpose:** Describes the frontend code generation, review, and deployment workflow for Guardian.
+**Last updated:** July 2025
+**Audience:** Developers, contributors
+**Prerequisites:** Familiarity with frontend development and Git workflows
+
+---
+
 ## 1 · Primary Repo & Deployment
 - **GitHub + Vercel (Next.js/Supabase)** = single source of truth  
 - Protect `main` with PR-only merges; run lint + OWASP scans on every pull request
@@ -29,4 +36,4 @@
 - Run OWASP/Zap baseline, `npm audit`, `npm run lint`  
 - Confirm Supabase storage rules & Vercel env vars never leak
 
-> **TL;DR** Generate fast (v0 / Bolt / Lovable) ➜ export to Git ➜ refactor in Cursor ➜ deploy via Vercel. Always treat AI output like normal code: review, test, secure.
+> **TL;DR** Generate fast (v0 / Bolt / Lovable) → export to Git → refactor in Cursor → deploy via Vercel. Always treat AI output like normal code: review, test, secure.

@@ -1,6 +1,10 @@
 # API Documentation - Guardian
 
-**Last Updated:** July 2025  
+**Purpose:** Complete reference for Guardian's API endpoints, authentication, and usage.
+**Last updated:** July 2025
+**Audience:** Developers, integrators, API consumers
+**Prerequisites:** Familiarity with REST APIs, authentication, and JSON
+
 **Version:** MVP v1.0  
 **Base URL:** `https://your-app.vercel.app/api`
 

@@ -1,6 +1,9 @@
 # Architecture Overview
 
-This document provides a high-level overview of the Guardian technical architecture, stack, and modular design.
+**Purpose:** High-level overview of the Guardian technical architecture, stack, and modular design.
+**Last updated:** July 2025
+**Audience:** Developers, architects, contributors
+**Prerequisites:** Familiarity with web application architecture
 
 ---
 
@@ -12,7 +15,8 @@ This document provides a high-level overview of the Guardian technical architect
 
 ## System Diagram
 
-```mermaid graph TD
+```mermaid
+graph TD
     A[User] -->|Interacts with| B(Next.js Frontend);
     B -->|Auth, Data, Storage| C{Supabase};
     C -->|Postgres DB| D[Database];
@@ -27,7 +31,7 @@ This document provides a high-level overview of the Guardian technical architect
 - Designed for solo-dev velocity, minimal DevOps
 
 ## Security & Compliance
-- RLS policies, HIPAA/GDPR considerations, see SECURITY_COMPLIANCE.md
+- RLS policies, HIPAA/GDPR considerations, see [Security & Compliance](./security-compliance.md)
 
 ## Further Details
 - [MVP Prototype](./prototype.md)

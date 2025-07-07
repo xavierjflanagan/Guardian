@@ -1,6 +1,9 @@
 # Project Roadmap
 
-This roadmap outlines the phased development of Guardian, including MVP and long-term milestones.
+**Purpose:** Outlines the phased development of Guardian, including MVP and long-term milestones.
+**Last updated:** July 2025
+**Audience:** All stakeholders, developers, business, contributors
+**Prerequisites:** None
 
 ---
 

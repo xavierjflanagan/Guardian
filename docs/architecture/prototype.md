@@ -1,6 +1,11 @@
 # MVP Prototype Design
 
-> This document details the current MVP/prototype: its scope, design, limitations, and rationale. (1–6 month horizon)
+**Purpose:** Details the current MVP/prototype: scope, design, limitations, and rationale (1–6 month horizon).
+**Last updated:** July 2025
+**Audience:** Developers, product managers, contributors
+**Prerequisites:** None
+
+---
 
 ## Scope
 
@@ -16,7 +21,7 @@ The MVP is focused on validating the core user journey: a user can securely uplo
 
 ## Design Decisions
 
-*   **Technology Stack:** We are using the stack defined in the [Architecture Overview](./OVERVIEW.md) (Next.js, Supabase, Vercel).
+*   **Technology Stack:** We are using the stack defined in the [Architecture Overview](./system-design.md) (Next.js, Supabase, Vercel).
 *   **Authentication:** Magic links were chosen for their simplicity and security. They reduce the friction of signing up and don't require users to remember a password.
 *   **UI/UX:** The user interface is built with Tailwind CSS and shadcn/ui for a clean, modern, and accessible design. The focus is on simplicity and ease of use.
 *   **Pipeline:** The initial pipeline is a single, asynchronous step (OCR). This allows us to deliver value quickly while the more complex, multi-agent pipeline is being developed.

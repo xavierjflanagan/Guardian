@@ -1,6 +1,9 @@
 # Core Functionality
 
-This document outlines the core features and user flows of Guardian.
+**Purpose:** Summary of Guardian's core features and user flows.
+**Last updated:** July 2025
+**Audience:** Developers, product managers, contributors
+**Prerequisites:** None
 
 ---
 

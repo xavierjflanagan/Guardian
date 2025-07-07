@@ -1,6 +1,9 @@
 # Guardian Document Processing Pipeline
 
-**Last updated:** 05 Jul 2025
+**Purpose:** Overview of the modular, pluggable, and vendor-agnostic document processing pipeline for Guardian.
+**Last updated:** July 2025
+**Audience:** Developers, architects, contributors
+**Prerequisites:** Familiarity with web application and AI pipeline concepts
 
 ---
 
@@ -59,11 +62,11 @@ Guardian's document processing pipeline is designed to be modular, pluggable, an
 
 - Implement the pluggable `document-processor` endpoint as a Supabase Edge Function or Cloudflare Worker.
 - Benchmark cold-start, latency, and cost for each compute option.
-- Document RLS policies and Auth plan in `/docs/security/rls-auth.md`.
+- Document RLS policies and Auth plan in [Security & Compliance](./security-compliance.md).
 - Review and update this pipeline doc as the architecture evolves.
 
 ---
 
 ## References
-- See [docs/context/edge_function_context.md](../context/edge_function_context.md) for full context and design history.
-- ADR-0001 for stack decision rationale. 
+- See [Edge Function Context](../context/edge_function_context.md) for full context and design history.
+- See [ADR-0001](./adr/0001-database-choice.md) for stack decision rationale. 
