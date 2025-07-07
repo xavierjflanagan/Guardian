@@ -46,11 +46,23 @@ For this session;
 - How long do you plan to work?
 - Any specific areas you want to focus on? (Optional: e.g., frontend, backend, documentation, architecture)
 
+### Step 2.25: Review AI Context
+**Comprehensive AI Context Review** in `docs/context/AI_context.md`:
+
+- Read through the entire AI context file to understand current project state
+- Note the latest session updates, decisions, and next steps
+- Identify any blockers or priorities from previous sessions
+- Understand recent architectural or technical decisions
+- Gather context about project evolution and current focus areas
+
+This review will inform both the task sync and session briefing steps.
+
 ### Step 2.5: Sync Technical Tasks
 - Read the current `docs/management/TASKS.md` file.
 - Check for any updates or changes since last session.
 - Sync all technical tasks with the Notion Technical Task Board (https://www.notion.so/22887f8cee9e816b98cbc8a99950d452).
 - Ensure both TASKS.md and Notion board are up to date (push/pull as needed).
+- **Use AI context insights** to better understand task priorities and status.
 
 ### Step 3: Update Progress Log
 - Add a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
@@ -61,8 +73,20 @@ For this session;
   ---
   ```
 
-### Step 4: Provide Briefing
-- Generate a session briefing by reading the new entry and the previous entry (the summary from the last session) in `docs/PROGRESS_LOG.md`.
+### Step 4: Provide Contextual Briefing
+Generate a comprehensive session briefing by combining insights from:
+
+- **AI Context Review**: Current project state, recent decisions, priorities, and blockers
+- **Progress Log**: Recent session summaries and accomplishments
+- **Task Status**: Current task priorities and any updates from Notion sync
+- **User Goals**: How the user's session goals align with project priorities
+
+**Briefing should include:**
+- Current project phase and focus areas
+- Recent progress and key decisions
+- How user's goals fit into overall project direction
+- Any relevant blockers or considerations
+- Contextual encouragement based on recent momentum
 
 ---
 
@@ -72,8 +96,9 @@ For this session;
 - `docs/PROGRESS_LOG.md` - Session start logging
 
 ### Review Files (For Context)
-- `docs/management/TASKS.md` - Current task priorities
-- Recent entries in progress log for context
+- `docs/context/AI_context.md` - Canonical project context and recent decisions
+- `docs/management/TASKS.md` - Current task priorities and status
+- Recent entries in progress log for session continuity
 
 ---
 
@@ -116,17 +141,23 @@ For this session;
 
 **User:** [Provides answers]
 
-**AI:** "Perfect! Let me check your current status and get you set up...
+**AI:** "Perfect! Let me review your project context and get you set up...
 
 🚀 Work session started successfully!
 
 📋 Session Overview:
-- Goals: Complete API documentation, start deployment guide
-- Current priorities: Document processor endpoint, API docs, troubleshooting guide  
-- Recent progress: Major documentation overhaul completed yesterday
-- Estimated duration: 4 hours
+- **Your Goals:** Complete API documentation, start deployment guide
+- **Session Duration:** 4 hours
+- **Focus Areas:** Documentation and pipeline development
 
-📍 Current Project Status:
-You're in Phase 1 of MVP development. Authentication and file upload are complete, now focusing on documentation and AI pipeline development.
+📍 Current Project Context:
+- **Project Phase:** Phase 1 MVP development
+- **Recent Progress:** Major documentation overhaul completed, authentication and file upload implemented
+- **Current Priorities:** Document processor endpoint, API documentation, troubleshooting guide
+- **Architecture Status:** Supabase stack finalized, modular pipeline design documented
+- **Next Steps:** AI pipeline implementation and benchmarking
+
+🎯 Session Alignment:
+Your goals align perfectly with current project priorities. The API documentation work will support the upcoming pipeline implementation phase.
 
 You're all set! [Insert a random inspirational quote here, e.g., "The future depends on what you do today." – Mahatma Gandhi]
