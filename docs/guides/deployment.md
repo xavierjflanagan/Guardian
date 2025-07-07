@@ -1,7 +1,8 @@
 # Production Deployment Guide - Guardian
 
-**Last Updated:** July 2025  
-**Target Environment:** Vercel + Supabase  
+**Purpose:** Guide for deploying Guardian to production using Vercel and Supabase.
+**Last updated:** July 2025
+**Audience:** Developers, DevOps, contributors
 **Prerequisites:** GitHub account, Vercel account, Supabase account
 
 ---

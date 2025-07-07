@@ -1,7 +1,9 @@
 # Sign-In Protocol Policy
 
-**Purpose:** This document defines the sign-in protocol for starting a new work session when the user requests "execute sign in protocol" or 
-wants to start a work session. It now uses only `docs/PROGRESS_LOG.md` as the single source of truth for session tracking.
+**Purpose:** Defines the sign-in protocol for starting a new work session. Uses docs/PROGRESS_LOG.md as the single source of truth for session tracking.
+**Last updated:** July 2025
+**Audience:** All contributors, developers, project managers
+**Prerequisites:** None
 
 ---
 

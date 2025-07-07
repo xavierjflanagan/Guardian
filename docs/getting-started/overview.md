@@ -1,6 +1,9 @@
 # Guardian Project Overview
 
-Welcome to the Guardian documentation hub. This file provides a high-level summary of the project, its vision, mission, goals, and links to all major documentation sections.
+**Purpose:** High-level summary of the Guardian project, its vision, mission, goals, and navigation to all major documentation sections.
+**Last updated:** July 2025
+**Audience:** New developers, business stakeholders, contributors
+**Prerequisites:** None
 
 ---
 
@@ -35,86 +38,50 @@ Our architecture is designed to be modular, scalable, and maintainable. The core
 - **Vendor-agnostic data layer:** Built on Postgres to avoid vendor lock-in.
 - **Solo-dev friendly:** Minimal DevOps and pay-per-use pricing.
 
-For a more detailed explanation, see the [Architecture Overview](./architecture/OVERVIEW.md) and the [Document Processing Pipeline](./architecture/pipeline.md) design.
+For a more detailed explanation, see the [Architecture Overview](../architecture/system-design.md) and the [Document Processing Pipeline](../architecture/data-pipeline.md).
 
 ---
 
 ## Current Status
 
-The project is under active development. For a detailed log of recent activities, please see the [Progress Log](./PROGRESS_LOG.md).
+The project is under active development. For a detailed log of recent activities, please see the [Progress Log](../PROGRESS_LOG.md).
 
 ---
 
 ## Quick Links
-- [Roadmap](./ROADMAP.md)
-- [Progress Log](./PROGRESS_LOG.md)
-- [MVP Prototype](./architecture/prototype.md)
-- [Long-Term Vision](./architecture/vision.md)
-- [Architecture Overview](./architecture/OVERVIEW.md)
-- [Core Functionality](./architecture/CORE_FUNCTIONALITY.md)
-- [Security & Compliance](./architecture/SECURITY_COMPLIANCE.md)
-- [Decisions/ADRs](./decisions/)
-- [Guides](./guides/)
-- [Management](./management/)
-- [Business](./business/)
+- [Roadmap](../project/roadmap.md)
+- [Progress Log](../PROGRESS_LOG.md)
+- [MVP Prototype](../architecture/prototype.md)
+- [Long-Term Vision](../architecture/vision.md)
+- [Architecture Overview](../architecture/system-design.md)
+- [Core Functionality](../architecture/CORE_FUNCTIONALITY.md)
+- [Security & Compliance](../architecture/security-compliance.md)
+- [Decision Records](../architecture/adr/)
+- [Guides](../guides/)
+- [Management](../management/)
+- [Business](../business/)
 
 ---
 
-## Project Structure
-
-The documentation is organized into logical sections to help different audiences find what they need:
-
-### 📁 Directory Structure
-```
-docs/
-├── README.md                    # Main entry point and navigation
-├── PROJECT_OVERVIEW.md          # This file - project summary
-├── ROADMAP.md                   # Development timeline
-├── PROGRESS_LOG.md              # Session-by-session progress
-├── architecture/                # Technical architecture
-│   ├── OVERVIEW.md             # System design overview
-│   ├── pipeline.md             # AI processing pipeline
-│   ├── prototype.md            # MVP scope and design
-│   ├── vision.md               # Long-term technical vision
-│   ├── CORE_FUNCTIONALITY.md   # Key features
-│   └── SECURITY_COMPLIANCE.md  # Security requirements
-├── guides/                      # Setup and development guides
-│   ├── SETUP.md               # Developer setup instructions
-│   └── supabase-setup.md      # Database and auth setup
-├── decisions/                   # Architecture Decision Records
-│   └── 0001-supabase-vs-neon.md # Stack decision rationale
-├── business/                    # Business context
-│   ├── MODEL.md               # Revenue and partnerships
-│   └── BRAND.md               # Brand and marketing
-├── management/                  # Project management
-│   ├── TASKS.md               # Current task board
-│   └── MEETING_LOG.md         # Meeting notes
-├── context/                     # AI development context
-│   └── AI_context.md          # Session history and decisions
-└── archive/                     # Historical information
-    ├── edge_function_context.md # Previous implementation context
-    └── chatgpt_response.txt     # Early planning discussions
-```
-
-### 🎯 How to Use This Documentation
+## How to Use This Documentation
 
 **For New Developers:**
-1. Start with [README.md](./README.md) for navigation
-2. Follow [Developer Setup Guide](./guides/SETUP.md) 
-3. Review [Architecture Overview](./architecture/OVERVIEW.md)
-4. Check [Current Tasks](./management/TASKS.md) for priorities
+1. Start with [README.md](../README.md) for navigation
+2. Follow [Developer Setup Guide](../guides/developer-setup.md)
+3. Review [Architecture Overview](../architecture/system-design.md)
+4. Check [Current Tasks](../management/TASKS.md) for priorities
 
 **For Business Stakeholders:**
 1. Read this overview document
-2. Review [Roadmap](./ROADMAP.md) for timeline
-3. Check [Business Model](./business/MODEL.md) for strategy
-4. See [Progress Log](./PROGRESS_LOG.md) for recent updates
+2. Review [Roadmap](../project/roadmap.md) for timeline
+3. Check [Business Model](../business/model.md) for strategy
+4. See [Progress Log](../PROGRESS_LOG.md) for recent updates
 
 **For Contributors:**
-1. Review [Current Tasks](./management/TASKS.md) for priorities
-2. Check [Progress Log](./PROGRESS_LOG.md) for context
-3. Read relevant [Architecture Decision Records](./decisions/)
-4. Update [AI Context](./context/AI_context.md) after sessions
+1. Review [Current Tasks](../management/TASKS.md) for priorities
+2. Check [Progress Log](../PROGRESS_LOG.md) for context
+3. Read relevant [Decision Records](../architecture/adr/)
+4. Update [AI Context](../context/AI_context.md) after sessions
 
 ---
 

@@ -1,10 +1,15 @@
-# AI_context.md
+# AI Context
 
-> **This file is the canonical project context for Guardian AI. At the end of every session, the current AI assistant should update this file to reflect the latest state, decisions, and next steps.**
+**Purpose:** Canonical project context for Guardian AI. Updated at the end of every session to reflect the latest state, decisions, and next steps.
+**Last updated:** July 2025
+**Audience:** Developers, AI contributors, project managers
+**Prerequisites:** None
+
+---
 
 ## 1. Project Goal
 
-Build a prototype of "Guardian," an AI-powered healthcare app for uploading, analyzing, and managing medical records. The app should deliver a "wow-factor" UX and be maintainable by a solo developer. For a full overview, see the [Project Overview](../PROJECT_OVERVIEW.md).
+Build a prototype of "Guardian," an AI-powered healthcare app for uploading, analyzing, and managing medical records. The app should deliver a "wow-factor" UX and be maintainable, initially, by a solo developer. For a full overview, see the [Project Overview](../getting-started/overview.md).
 
 ## 2. Tech Stack & Architecture
 
@@ -14,9 +19,9 @@ The project uses a modern, scalable, and solo-dev friendly stack.
 - **Architecture:** The system is designed with a modular, pluggable document processing pipeline.
 
 For complete details, please refer to the following documents:
-- [Architecture Overview](../architecture/OVERVIEW.md)
-- [Document Processing Pipeline](../architecture/pipeline.md)
-- [ADR 0001: Database, Storage, and Authentication Stack Choice](../decisions/0001-supabase-vs-neon.md)
+- [Architecture Overview](../architecture/system-design.md)
+- [Document Processing Pipeline](../architecture/data-pipeline.md)
+- [ADR 0001: Database, Storage, and Authentication Stack Choice](../architecture/adr/0001-database-choice.md)
 
 ## 3. Session Updates
 

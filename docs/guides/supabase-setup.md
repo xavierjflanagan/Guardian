@@ -1,6 +1,9 @@
 # Supabase Setup & Integration Guide
 
-**Goal:** Stand up Supabase for Guardian and wire it into the Next.js code-base.
+**Purpose:** Stand up Supabase for Guardian and wire it into the Next.js code-base.
+**Last updated:** July 2025
+**Audience:** Developers, contributors
+**Prerequisites:** Supabase account, Node.js, npm or pnpm
 
 ---
 

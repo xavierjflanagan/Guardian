@@ -1,6 +1,9 @@
 # Brand, Community & Marketing
 
-This document covers the Guardian brand, community-building, and marketing strategy.
+**Purpose:** Covers the Guardian brand, community-building, and marketing strategy.
+**Last updated:** July 2025
+**Audience:** Founders, marketing, community managers
+**Prerequisites:** None
 
 ---
 

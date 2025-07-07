@@ -1,6 +1,9 @@
 # Sign-Off Protocol Policy
 
-**Purpose:** This document defines the sign-off protocol for ending a work session when the user requests it. It now uses only `docs/PROGRESS_LOG.md` as the single source of truth for session tracking.
+**Purpose:** Defines the sign-off protocol for ending a work session. Uses docs/PROGRESS_LOG.md as the single source of truth for session tracking.
+**Last updated:** July 2025
+**Audience:** All contributors, developers, project managers
+**Prerequisites:** None
 
 ---
 

@@ -1,6 +1,9 @@
 # Testing Strategy
 
-This document outlines the testing strategy for the Guardian project to ensure code quality, reliability, and maintainability.
+**Purpose:** Outlines the testing strategy for the Guardian project to ensure code quality, reliability, and maintainability.
+**Last updated:** July 2025
+**Audience:** Developers, QA, contributors
+**Prerequisites:** Familiarity with Node.js, TypeScript, and testing frameworks
 
 ---
 
