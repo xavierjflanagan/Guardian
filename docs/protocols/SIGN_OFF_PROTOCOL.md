@@ -20,6 +20,10 @@ Execute this protocol when the user says any of:
 
 ## Protocol Steps
 
+### Step 0.5: Review Protocol Documentation
+- Read `docs/protocols/README.md` to understand the full context and intended outcomes of the protocol system
+- This ensures proper execution and validates that all promised benefits are delivered
+
 ### Step 1: Gather Session Information
 Ask the user these questions in a single message (dot points, one after the other):
 
@@ -30,9 +34,12 @@ in this session;
 - any blockers or issues?
 
 ### Step 2: Update Progress Log
-- Find the `## [YYYY-MM-DD] Work Session Started` block at the top of `docs/PROGRESS_LOG.md` and replace it with a summary block in this format:
+- **Get current date and time**: Use `date` command to get current date and time for accurate logging
+- **Extract start time**: Capture the "Start Time" from the existing `## [YYYY-MM-DD] Work Session Started` block
+- Replace the "Work Session Started" block at the top of `docs/PROGRESS_LOG.md` with a summary block in this format:
   ```markdown
   ## [YYYY-MM-DD] Work Session Summary
+  - **Start Time:** [From the Work Session Started block]
   - **Duration:** [X.X hours]
   - **Accomplishments:** [User's summary]
   - **Blockers:** [Any issues noted]

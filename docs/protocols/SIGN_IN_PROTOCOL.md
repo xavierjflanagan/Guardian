@@ -20,6 +20,10 @@ Execute this protocol when the user says any of:
 
 ## 📋 **Protocol Steps**
 
+### Step 0.5: Review Protocol Documentation
+- Read `docs/protocols/README.md` to understand the full context and intended outcomes of the protocol system
+- This ensures proper execution and validates that all promised benefits are delivered
+
 ### Step 1: Check Previous Session
 - Review the last entry in `docs/PROGRESS_LOG.md` to ensure the previous session was properly signed off.
 - If the last session is missing completion details:
@@ -65,13 +69,15 @@ This review will inform both the task sync and session briefing steps.
 - **Use AI context insights** to better understand task priorities and status.
 
 ### Step 3: Update Progress Log
+- **Get current date and time**: Use `date` command to get current date and time
 - Add a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
   ```markdown
   ## [YYYY-MM-DD] Work Session Started
-  - **Start Time:** [Current time]
+  - **Start Time:** [HH:MM TIMEZONE from date command]
   - **Session Goals:** [User's main objectives]
   ---
   ```
+  *Note: Both date and time come from the `date` command output*
 
 ### Step 4: Provide Contextual Briefing
 Generate a comprehensive session briefing by combining insights from:
