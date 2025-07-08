@@ -28,10 +28,10 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 **What happens:**
 1. AI checks if previous session was properly signed off
 2. AI asks about your goals for this session
-3. AI reviews current project status and priorities  
-4. AI updates session tracking documents
-5. I syncs technical tasks between TASKS.md and Notion Technical Task Board
-6. AI gives you a helpful session briefing
+3. **AI reviews entire AI context** - comprehensive project state analysis
+4. AI syncs technical tasks between TASKS.md and Notion Technical Task Board
+5. AI updates session tracking documents
+6. AI gives you a **contextual session briefing** combining project status, recent decisions, and goal alignment
 
 ### **To End a Work Session:**
 **Say to your AI:** *"Execute sign off protocol"*
@@ -40,10 +40,10 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 1. AI asks what you accomplished this session
 2. AI asks how many hours you worked (for R&D tax compliance)
 3. AI asks about your next session priorities
-4. AI investigates what changed since last session
-5. AI updates all relevant documentation
-6. AI syncs technical tasks between TASKS.md and Notion Technical Task Board
-7. AI confirms completion with session summary
+4. **AI comprehensively reviews and updates AI context** - analyzes entire project state
+5. AI syncs technical tasks between TASKS.md and Notion Technical Task Board
+6. AI updates all relevant documentation
+7. AI confirms completion with **detailed session summary** including files modified
 
 ---
 
@@ -51,6 +51,7 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 
 ### **Every Session**
 - **`docs/PROGRESS_LOG.md`** - Detailed session logs
+- **`docs/context/AI_context.md`** - Comprehensive project context and session updates
 - **`docs/management/TASKS.md`** - Task status updates (now synced with Notion)
 - **Notion Technical Task Board** - Technical task board in Notion (synced with TASKS.md)
 
@@ -70,12 +71,16 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 - ✅ **R&D tax compliance** - Automatic hour tracking and activity categorization
 - ✅ **Session focus** - Clear goals and priorities each session
 - ✅ **Progress visibility** - Always know where you left off
+- ✅ **Contextual awareness** - AI understands full project state and recent decisions
+- ✅ **Intelligent briefings** - Session starts with comprehensive, relevant context
 
 ### **For the Project**
 - ✅ **Professional documentation** - Consistent, detailed logs
 - ✅ **Accountability** - Clear record of all work
 - ✅ **Knowledge preservation** - Context and decisions captured
 - ✅ **Audit trail** - Complete development history
+- ✅ **Contextual continuity** - AI maintains comprehensive project context across sessions
+- ✅ **Intelligent updates** - Documentation evolves contextually rather than just chronologically
 
 ---
 
@@ -84,6 +89,7 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 ### **None!** 
 The system is ready to use immediately. Just ensure these files exist:
 - **`docs/PROGRESS_LOG.md`** (Already exists)
+- **`docs/context/AI_context.md`** (Already exists)
 - **`docs/management/TASKS.md`** (Already exists)
 - **Notion Technical Task Board** ([link](https://www.notion.so/22887f8cee9e816b98cbc8a99950d452))
 
