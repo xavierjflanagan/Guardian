@@ -40,11 +40,10 @@ in this session;
   ```markdown
   ## [YYYY-MM-DD] Work Session Summary
   - **Start Time:** [From the Work Session Started block]
-  - **Duration:** [X.X hours]
   - **Accomplishments:** [User's summary]
   - **Blockers:** [Any issues noted]
   - **Next Session Focus:** [User's next priorities]
-  - **R&D Hours:** [Same as duration]
+  - **R&D Hours:** [X.X hours]
   ---
   ```
 
@@ -97,7 +96,7 @@ Session sign-off complete!
 - docs/management/TASKS.md
 
 **Session Summary:**
-- Duration: [X.X hours]
+- R&D Hours: [X.X hours]
 - Focus: [Brief summary of work]
 - Next session: [Key priorities]
 
@@ -148,7 +147,7 @@ in this session;
 **AI:** "Perfect! Let me update the documentation...
 
 Session Summary:
-- Duration: 4.5 hours
+- R&D Hours: 4.5 hours
 - Accomplishments: API documentation completed, deployment guide created
 - Documents updated: PROGRESS_LOG.md, TASKS.md
 - Next session focus: Implement document processor endpoint

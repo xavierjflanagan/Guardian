@@ -1,4 +1,20 @@
 
+# Auth configuration for local development  
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**"]
+
+# Email configuration for local development
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[auth.email.smtp]
+host = "inbucket"
+port = 2500
+admin_email = "admin@email.com"
+sender_name = "Guardian Support"
+
 [functions.document-processor]
 enabled = true
 verify_jwt = true
