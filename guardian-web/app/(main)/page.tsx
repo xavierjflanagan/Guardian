@@ -1,6 +1,8 @@
+"use client";
+
 import { User } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseClientSSR";
 import { uploadFile } from "@/utils/uploadFile";
 
 interface Document {
@@ -12,6 +14,9 @@ interface Document {
   created_at: string;
 }
 
+// Create a single, stable Supabase client instance
+const supabase = createClient();
+
 export default function Dashboard() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -20,28 +25,50 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // Effect for handling authentication state
   useEffect(() => {
-    const fetchUserAndDocs = async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        setUser(null);
-        return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsAuthLoading(false);
+    });
+
+    // Initial fetch of user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUser(user);
       }
-      setUser(user);
-      setLoadingDocs(true);
-      const { data, error: docsError } = await supabase
-        .from("documents")
-        .select("id, original_name, s3_key, mime_type, status, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (!docsError && data) {
-        setDocuments(data);
-      }
-      setLoadingDocs(false);
-    };
-    fetchUserAndDocs();
-  }, [uploading]);
+      setIsAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Effect for fetching documents when user is available or changes
+  useEffect(() => {
+    if (user) {
+      const fetchDocs = async () => {
+        setLoadingDocs(true);
+        const { data, error: docsError } = await supabase
+          .from("documents")
+          .select("id, original_name, s3_key, mime_type, status, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (!docsError && data) {
+          setDocuments(data);
+        }
+        setLoadingDocs(false);
+      };
+      fetchDocs();
+    } else {
+      // Clear documents if there is no user
+      setDocuments([]);
+    }
+  }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] || null);
@@ -68,9 +95,12 @@ export default function Dashboard() {
       const newFilePath = await uploadFile(file, user.id);
 
       // Invoke the document-processor Edge Function
-      const { error: functionError } = await supabase.functions.invoke('document-processor', {
-        body: { filePath: newFilePath },
-      });
+      const { error: functionError } = await supabase.functions.invoke(
+        "document-processor",
+        {
+          body: { filePath: newFilePath },
+        }
+      );
 
       if (functionError) {
         throw new Error(`Failed to start processing: ${functionError.message}`);
@@ -88,11 +118,35 @@ export default function Dashboard() {
     setUploading(false);
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    // The onAuthStateChange listener will handle setting user to null
+    // and redirecting will be handled by middleware or page-level checks.
+    // For an immediate redirect, you could use:
+    // window.location.href = '/sign-in';
+  };
+
+  if (isAuthLoading) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen p-8 bg-gray-50 dark:bg-zinc-900">
+        <p>Loading...</p>
+      </main>
+    );
+  }
+
   return (
     <main className="flex flex-col items-center min-h-screen p-8 bg-gray-50 dark:bg-zinc-900">
       <div className="w-full max-w-2xl">
         {user && (
-          <h1 className="text-2xl font-bold mb-6">Welcome, {user.email}</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">Welcome, {user.email}</h1>
+            <button
+              onClick={handleSignOut}
+              className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              Sign Out
+            </button>
+          </div>
         )}
         {/* File Upload Form */}
         <div className="mb-8 p-6 border rounded shadow bg-white dark:bg-zinc-800">
@@ -125,9 +179,14 @@ export default function Dashboard() {
           ) : (
             <ul className="divide-y divide-gray-200 dark:divide-zinc-700">
               {documents.map((doc) => (
-                <li key={doc.id} className="py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <li
+                  key={doc.id}
+                  className="py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between"
+                >
                   <span>{doc.original_name || doc.s3_key}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(doc.created_at).toLocaleString()}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(doc.created_at).toLocaleString()}
+                  </span>
                 </li>
               ))}
             </ul>

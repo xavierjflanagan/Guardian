@@ -1,20 +1,35 @@
 "use client";
 
-import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabaseClientSSR";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  // Check for auth callback errors from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authError = urlParams.get('error');
+    if (authError) {
+      setError(`Authentication error: ${authError.replace('_', ' ')}`);
+    }
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
     setError(null);
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithOtp({ 
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
     if (error) {
       setError(error.message);
     } else {

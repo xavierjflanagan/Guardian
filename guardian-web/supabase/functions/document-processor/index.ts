@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { corsHeaders } from '../_shared/cors.ts'
+import { corsHeaders } from '../_shared/cors'
 
 // Initialize Supabase client
 const supabase = createClient(
