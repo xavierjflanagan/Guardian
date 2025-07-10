@@ -146,4 +146,11 @@ The AI will automatically follow any changes you make to these protocol document
 2. Provide what you can, the AI will use reasonable defaults
 3. You can always update documentation manually if needed
 
+---
+
+## **Log Integrity Policy**
+
+- All session logs in `docs/PROGRESS_LOG.md` are append-only. No edits or overwrites are allowed to any block, including 'Work Session Started' or 'Summary' blocks.
+- Every session event (sign-in or sign-off) must create a new block at the top of the log for audit, compliance, and historical accuracy.
+
 *This protocol system provides effortless work session management while ensuring professional documentation and R&D tax compliance. Simply tell your AI to execute the protocols and focus on your work!*

@@ -20,6 +20,15 @@ Execute this protocol when the user says any of:
 
 ## Protocol Steps
 
+### Step 0: Git Hygiene Check
+- Run `git status` and `git fetch origin` before any other protocol actions.
+- Summarize:
+  - Any uncommitted changes? (Prompt to commit/stash)
+  - Is `main` behind `origin/main`? (Prompt to pull/review)
+  - Any new remote changes? (Prompt to review PRs or pull)
+- If all clear, confirm you’re ready to proceed.
+- *Why?* This keeps your repo safe, up to date, and prevents conflicts—professional daily Git workflow.
+
 ### Step 0.5: Review Protocol Documentation
 - Read `docs/protocols/README.md` to understand the full context and intended outcomes of the protocol system
 - This ensures proper execution and validates that all promised benefits are delivered
@@ -35,8 +44,7 @@ in this session;
 
 ### Step 2: Update Progress Log
 - **Get current date and time**: Use `date` command to get current date and time for accurate logging
-- **Extract start time**: Capture the "Start Time" from the existing `## [YYYY-MM-DD] Work Session Started` block
-- Replace the "Work Session Started" block at the top of `docs/PROGRESS_LOG.md` with a summary block in this format:
+- **Append** a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
   ```markdown
   ## [YYYY-MM-DD] Work Session Summary
   - **Start Time:** [From the Work Session Started block]
@@ -46,6 +54,7 @@ in this session;
   - **R&D Hours:** [X.X hours]
   ---
   ```
+- **Important:** Never edit or overwrite any session logs (including 'Work Session Started' blocks). Every session event must be append-only for audit and compliance.
 
 ### Step 2.5: Update AI Context Log
 
@@ -125,6 +134,7 @@ Great work this session!
 - Progress log updated with session details
 - Task management reflects current status
 - User receives confirmation message
+- All session logs are append-only; no edits or overwrites to any previous blocks
 
 The goal is to make this seamless and quick—the entire interaction should take 2-3 minutes maximum.
 
