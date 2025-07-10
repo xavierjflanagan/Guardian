@@ -25,7 +25,39 @@ For complete details, please refer to the following documents:
 
 ## 3. Session Updates
 
-This section serves as a running log of progress, decisions, and next steps at the end of each development session.
+This section serves as a running log of progress, decisions, and next steps at the end of each development session. Newest at the top.
+
+---
+
+### Session Update (2025-07-10)
+
+**Progress:**
+- Deep research into document processing pipelines, RAG, and Cursor's backend (semantic chunking, Turbopuffer, context window optimization)
+- Created and reviewed Notion documentation on Email Architecture and document pipeline; integrated key insights into project docs
+- Set up Windsurf IDE as a secondary assistant branch (windsurf-assistant), learned advanced git workflows for multi-IDE development
+- Fixed Gemini CLI editor config for seamless integration with Cursor and Windsurf (leveraging Gemini's 1M context window)
+- Updated project documentation
+- Researched and documented email/domain strategy for Exora (exorahealth.com.au, exora.au)
+- Updated sign-in and sign-off protocols to include a Git Hygiene step (run `git status` and `git fetch origin` before each session)
+
+**Decisions:**
+- Adopted daily Git Hygiene ritual for all sessions (prevents merge conflicts, ensures up-to-date repo state)
+- Multi-IDE workflow (Cursor on main, Windsurf on windsurf-assistant branch) for parallel development and cost efficiency
+- Email architecture: considering both permanent and temporary inbox access for subscribers; BYO email integration under review
+
+**Context Evolution:**
+- Project documentation and protocols now reflect advanced git and multi-IDE workflows
+- Email system planning is now a major technical and compliance focus
+- Notion documentation is now a key part of the project knowledge base
+
+**Next Steps:**
+- Begin technical implementation of document processing pipeline (OCR, AI modules)
+- Finalize and document email architecture decisions
+- Continue optimizing multi-IDE workflow and integrating Gemini CLI
+
+**Blockers:**
+- Need to further explore JetBrains and FactoryAI IDEs for future workflows
+- Email architecture: must decide on permanent vs temporary inbox access for subscribers; BYO email integration has compliance and technical challenges
 
 ---
 
@@ -171,3 +203,5 @@ Document Upload → OCR Text Extraction → AI Analysis → Medical Data Storage
 - **Repository:** Cleaned and force-pushed to GitHub.
 - **File Structure:** Re-organized for clarity (`app/(auth)`, `app/(main)`, etc.).
 - **Docs:** Key architectural decisions and setup guides were created. See [ADR-0001](../decisions/0001-supabase-vs-neon.md) and the [Supabase Setup Guide](../guides/supabase-setup.md).
+
+---

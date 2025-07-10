@@ -20,6 +20,15 @@ Execute this protocol when the user says any of:
 
 ## 📋 **Protocol Steps**
 
+### Step 0: Git Hygiene Check
+- Run `git status` and `git fetch origin` before any other protocol actions.
+- Summarize:
+  - Any uncommitted changes? (Prompt to commit/stash)
+  - Is `main` behind `origin/main`? (Prompt to pull/review)
+  - Any new remote changes? (Prompt to review PRs or pull)
+- If all clear, confirm you’re ready to proceed.
+- *Why?* This keeps your repo safe, up to date, and prevents conflicts—professional daily Git workflow.
+
 ### Step 0.5: Review Protocol Documentation
 - Read `docs/protocols/README.md` to understand the full context and intended outcomes of the protocol system
 - This ensures proper execution and validates that all promised benefits are delivered
@@ -70,7 +79,7 @@ This review will inform both the task sync and session briefing steps.
 
 ### Step 3: Update Progress Log
 - **Get current date and time**: Use `date` command to get current date and time
-- Add a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
+- **Append** a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
   ```markdown
   ## [YYYY-MM-DD] Work Session Started
   - **Start Time:** [HH:MM TIMEZONE from date command]
@@ -78,6 +87,7 @@ This review will inform both the task sync and session briefing steps.
   ---
   ```
   *Note: Both date and time come from the `date` command output*
+- **Important:** Never edit or overwrite any session logs (including 'Work Session Started' blocks). Every session event must be append-only for audit and compliance.
 
 ### Step 4: Provide Contextual Briefing
 Generate a comprehensive session briefing by combining insights from:
