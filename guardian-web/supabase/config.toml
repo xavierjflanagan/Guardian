@@ -1,19 +1,13 @@
 
-# Auth configuration for local development  
+# Auth configuration
 [auth]
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://localhost:3000/**"]
+site_url = "https://your-production-domain.vercel.app"
+additional_redirect_urls = ["https://your-production-domain.vercel.app/**"]
 
-# Email configuration for local development
+# Email configuration
 [auth.email]
 enable_signup = true
 enable_confirmations = true
-
-[auth.email.smtp]
-host = "inbucket"
-port = 2500
-admin_email = "admin@email.com"
-sender_name = "Guardian Support"
 
 [functions.document-processor]
 enabled = true
