@@ -12,6 +12,10 @@ interface Document {
   mime_type: string | null;
   status: string | null;
   created_at: string;
+  extracted_text?: string | null;
+  ocr_confidence?: number | null;
+  processed_at?: string | null;
+  error_log?: string | null;
 }
 
 // Create a single, stable Supabase client instance
@@ -54,7 +58,7 @@ export default function Dashboard() {
         setLoadingDocs(true);
         const { data, error: docsError } = await supabase
           .from("documents")
-          .select("id, original_name, s3_key, mime_type, status, created_at")
+          .select("id, original_name, s3_key, mime_type, status, created_at, extracted_text, ocr_confidence, processed_at, error_log")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -177,19 +181,55 @@ export default function Dashboard() {
           ) : documents.length === 0 ? (
             <p>No documents uploaded yet.</p>
           ) : (
-            <ul className="divide-y divide-gray-200 dark:divide-zinc-700">
+            <div className="space-y-4">
               {documents.map((doc) => (
-                <li
+                <div
                   key={doc.id}
-                  className="py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between"
+                  className="p-4 border rounded-lg bg-gray-50 dark:bg-zinc-700"
                 >
-                  <span>{doc.original_name || doc.s3_key}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {new Date(doc.created_at).toLocaleString()}
-                  </span>
-                </li>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                    <h3 className="font-medium">{doc.original_name || doc.s3_key}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        doc.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        doc.status === 'processing' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        doc.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
+                        {doc.status}
+                      </span>
+                      {doc.ocr_confidence && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {doc.ocr_confidence}% confidence
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Uploaded: {new Date(doc.created_at).toLocaleString()}
+                    {doc.processed_at && ` • Processed: ${new Date(doc.processed_at).toLocaleString()}`}
+                  </div>
+                  {doc.extracted_text && (
+                    <div className="mt-2">
+                      <details className="cursor-pointer">
+                        <summary className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                          View Extracted Text
+                        </summary>
+                        <div className="mt-2 p-3 bg-white dark:bg-zinc-800 rounded border text-sm max-h-32 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap font-mono text-xs">{doc.extracted_text}</pre>
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                  {doc.error_log && (
+                    <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                      <p className="text-sm text-red-700 dark:text-red-300 font-medium">Processing Error:</p>
+                      <pre className="text-xs text-red-600 dark:text-red-400 mt-1">{doc.error_log}</pre>
+                    </div>
+                  )}
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </div>
