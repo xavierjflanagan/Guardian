@@ -29,6 +29,38 @@ This section serves as a running log of progress, decisions, and next steps at t
 
 ---
 
+### Session Update (2025-07-21, Late Evening)
+
+**Progress:**
+- Full day (13 hours with 4 hours break) spent on document processing pipeline
+- Extensive hands-on with Claude code and custom command documentation cleanup
+- Proved GitHub issues creation command works well
+- Key insight: OCR alone is limited, but valuable as adjunct for cross-referencing and as a filter for AI pipeline
+- Successfully embedded AI model alongside OCR, with JSON output and confidence scores
+- Began planning next pipeline stages: data normalization, relational DB storage, and user-facing dashboard
+- Decided to use Bolt for frontend, Windsurf IDE for frontend work, Cursor/Claude for backend
+- Diary-style session summary now included verbatim in progress log per updated protocol
+
+**Decisions:**
+- Protocols updated: User's full written session notes (including diary-style) are now copied verbatim into the progress log for maximum context and compliance
+- Continue using Claude code for backend, Windsurf for frontend, Bolt for user-facing build
+
+**Context Evolution:**
+- Project documentation and protocols now reflect diary-style session logging for richer context
+- AI pipeline architecture evolving to leverage OCR as a filter and adjunct, not primary processor
+- Next pipeline focus: verifying AI JSON output, expanding test files, and building normalization/data structuring for DB
+
+**Next Steps:**
+- Verify AI JSON output completeness and accuracy
+- Test with additional files
+- Begin data normalization and DB storage implementation
+- Start frontend work with Bolt and Windsurf
+
+**Blockers:**
+- None reported
+
+---
+
 ### Session Update (2025-07-21)
 
 **Progress:**
