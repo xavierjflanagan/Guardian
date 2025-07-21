@@ -1,24 +1,10 @@
-# Sign-In Protocol Policy
+Execute the sign-in protocol to start a new work session with proper documentation and context gathering.
 
-**Purpose:** Defines the sign-in protocol for starting a new work session. Uses docs/PROGRESS_LOG.md as the single source of truth for session tracking.
-**Last updated:** July 2025
-**Audience:** All contributors, developers, project managers
-**Prerequisites:** None
+$ARGUMENTS
 
----
+Follow these steps to complete the sign-in protocol, create a todo list and execute systematically:
 
-## 🎯 **When to Execute This Protocol**
-
-Execute this protocol when the user says any of:
-- "Execute sign in protocol"
-- "Start work session"
-- "Begin session"
-- "Sign in for work"
-- Similar requests to start a work session
-
----
-
-## 📋 **Protocol Steps**
+## 🎯 **Protocol Steps**
 
 ### Step 0: Git Hygiene Check
 - Run `git status` and `git fetch origin` before any other protocol actions.
@@ -26,7 +12,7 @@ Execute this protocol when the user says any of:
   - Any uncommitted changes? (Prompt to commit/stash)
   - Is `main` behind `origin/main`? (Prompt to pull/review)
   - Any new remote changes? (Prompt to review PRs or pull)
-- If all clear, confirm you’re ready to proceed.
+- If all clear, confirm you're ready to proceed.
 - *Why?* This keeps your repo safe, up to date, and prevents conflicts—professional daily Git workflow.
 
 ### Step 0.5: Review Protocol Documentation
@@ -104,20 +90,6 @@ Generate a comprehensive session briefing by combining insights from:
 - Any relevant blockers or considerations
 - Contextual encouragement based on recent momentum
 
----
-
-## 📁 **Files That May Need Updates**
-
-### Primary Files (Always Update)
-- `docs/PROGRESS_LOG.md` - Session start logging
-
-### Review Files (For Context)
-- `docs/context/AI_context.md` - Canonical project context and recent decisions
-- `docs/management/TASKS.md` - Current task priorities and status
-- Recent entries in progress log for session continuity
-
----
-
 ## 🛡️ **Error Handling**
 
 If previous session wasn't signed off:
@@ -130,8 +102,6 @@ If files are missing:
 2. **Note file creation** in response
 3. **Continue with protocol**
 
----
-
 ## 🎯 **Success Criteria**
 
 Protocol is successful when:
@@ -142,38 +112,14 @@ Protocol is successful when:
 
 The goal is to **quickly orient** the user and **set up the session** for productivity.
 
----
+## 📁 **Files That May Need Updates**
 
-## 📝 **Example Interaction**
+### Primary Files (Always Update)
+- `docs/PROGRESS_LOG.md` - Session start logging
 
-**User:** "Execute sign in protocol"
+### Review Files (For Context)
+- `docs/context/AI_context.md` - Canonical project context and recent decisions
+- `docs/management/TASKS.md` - Current task priorities and status
+- Recent entries in progress log for session continuity
 
-**AI:** "I'll start your work session! Let me ask a couple quick questions:
-
-For this session;
-- What are your main goals?
-- How long do you plan to work?
-- Any specific areas you want to focus on?
-
-**User:** [Provides answers]
-
-**AI:** "Perfect! Let me review your project context and get you set up...
-
-🚀 Work session started successfully!
-
-📋 Session Overview:
-- **Your Goals:** Complete API documentation, start deployment guide
-- **Session Duration:** 4 hours
-- **Focus Areas:** Documentation and pipeline development
-
-📍 Current Project Context:
-- **Project Phase:** Phase 1 MVP development
-- **Recent Progress:** Major documentation overhaul completed, authentication and file upload implemented
-- **Current Priorities:** Document processor endpoint, API documentation, troubleshooting guide
-- **Architecture Status:** Supabase stack finalized, modular pipeline design documented
-- **Next Steps:** AI pipeline implementation and benchmarking
-
-🎯 Session Alignment:
-Your goals align perfectly with current project priorities. The API documentation work will support the upcoming pipeline implementation phase.
-
-You're all set! [Insert a random inspirational quote here, e.g., "The future depends on what you do today." – Mahatma Gandhi]
+**Execute this protocol systematically and provide a comprehensive session briefing to get the user oriented and productive quickly.**

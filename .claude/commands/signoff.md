@@ -1,24 +1,10 @@
-# Sign-Off Protocol Policy
+Execute the sign-off protocol to end a work session with proper documentation and R&D compliance tracking.
 
-**Purpose:** Defines the sign-off protocol for ending a work session. Uses docs/PROGRESS_LOG.md as the single source of truth for session tracking.
-**Last updated:** July 2025
-**Audience:** All contributors, developers, project managers
-**Prerequisites:** None
+$ARGUMENTS
 
----
+Follow these steps to complete the sign-off protocol, create a todo list and execute systematically:
 
-## When to Execute This Protocol
-
-Execute this protocol when the user says any of:
-- "Execute sign off protocol"
-- "Sign off session"
-- "End work session"
-- "Complete sign off"
-- Similar requests to end a work session
-
----
-
-## Protocol Steps
+## 📋 **Protocol Steps**
 
 ### Step 0: Git Hygiene Check
 - Run `git status` and `git fetch origin` before any other protocol actions.
@@ -26,7 +12,7 @@ Execute this protocol when the user says any of:
   - Any uncommitted changes? (Prompt to commit/stash)
   - Is `main` behind `origin/main`? (Prompt to pull/review)
   - Any new remote changes? (Prompt to review PRs or pull)
-- If all clear, confirm you’re ready to proceed.
+- If all clear, confirm you're ready to proceed.
 - *Why?* This keeps your repo safe, up to date, and prevents conflicts—professional daily Git workflow.
 
 ### Step 0.5: Review Protocol Documentation
@@ -113,23 +99,11 @@ Great work this session!
 [Insert a random sign-off quote here, e.g., "Rest is not idleness, and to lie sometimes on the grass under trees on a summer's day... is by no means a waste of time." – John Lubbock]
 ```
 
----
-
-## 📁 Files That May Need Updates
-- `docs/PROGRESS_LOG.md` (always updated)
-- `docs/context/AI_context.md` (always updated)
-- `docs/management/TASKS.md` (for task status sync)
-- Other documentation files as needed (conditional based on session work)
-
----
-
-## 🛡️ Error Handling
+## 🛡️ **Error Handling**
 - If any step fails, continue with other steps and note the failure in your response. Suggest manual action if needed.
 - If user provides incomplete information, ask for clarification or use reasonable defaults (e.g., "General development work"). Proceed with available information rather than blocking.
 
----
-
-## Success Criteria
+## 🎯 **Success Criteria**
 - User questions answered and recorded
 - Progress log updated with session details
 - Task management reflects current status
@@ -138,33 +112,10 @@ Great work this session!
 
 The goal is to make this seamless and quick—the entire interaction should take 2-3 minutes maximum.
 
----
+## 📁 **Files That May Need Updates**
+- `docs/PROGRESS_LOG.md` (always updated)
+- `docs/context/AI_context.md` (always updated)
+- `docs/management/TASKS.md` (for task status sync)
+- Other documentation files as needed (conditional based on session work)
 
-## Example Interaction
-
-**User:** "Execute sign off protocol"
-
-**AI:** "I'll execute the sign-off protocol for you! Let me ask a few quick questions:
-
-in this session;
-- what work did you do?
-- how many hours? (as decimal, e.g. 4.5)
-- what are your priorities next session?
-- any blockers or issues?
-
-**User:** [Provides answers]
-
-**AI:** "Perfect! Let me update the documentation...
-
-Session Summary:
-- R&D Hours: 4.5 hours
-- Accomplishments: API documentation completed, deployment guide created
-- Documents updated: PROGRESS_LOG.md, TASKS.md
-- Next session focus: Implement document processor endpoint
-
-All progress has been logged and files updated. Great work this session!
-[Insert a random sign-off quote here, e.g., "Rest is not idleness, and to lie sometimes on the grass under trees on a summer's day... is by no means a waste of time." – John Lubbock]"
-
----
-
-*This protocol ensures consistent project tracking, R&D compliance, and seamless session management through AI assistance.*
+**Execute this protocol systematically to ensure proper R&D compliance, project tracking, and seamless session management.**
