@@ -103,8 +103,39 @@ guardian-web/
 The core infrastructure is complete and production-ready:
 - ✅ Authentication system fully functional
 - ✅ File upload and storage system operational
-- ✅ Document processing foundation ready
+- ✅ Document processing pipeline operational (Vision + OCR)
 - ✅ User interface polished and responsive
-- 🚧 Ready for AI/OCR integration phase
+- ✅ AI/OCR integration complete - **POC ready for testing**
 
-Next development phase focuses on integrating OCR services and AI processing capabilities into the existing Edge Function architecture.
+### Document Processing Pipeline
+
+The application now includes a cost-optimized **Vision + OCR Safety Net** pipeline:
+
+#### Required Environment Variables
+```bash
+# Core Supabase (existing)
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# New AI Processing APIs
+OPENAI_API_KEY=your_openai_api_key          # For GPT-4o Mini vision analysis
+GOOGLE_CLOUD_API_KEY=your_google_api_key    # For Google Cloud Vision OCR
+
+# Legacy (can be removed)
+AWS_ACCESS_KEY_ID=optional                  # Old Textract integration
+AWS_SECRET_ACCESS_KEY=optional              # Old Textract integration
+AWS_REGION=optional                         # Old Textract integration
+```
+
+#### Pipeline Architecture
+1. **Google Cloud Vision OCR** (~$1.50/1K docs) - Text extraction safety net
+2. **GPT-4o Mini Vision** (~$15-30/1K docs) - Medical data analysis with OCR cross-validation
+3. **Database Storage** - Structured medical data with confidence scores
+
+#### Cost Analysis
+- **Previous**: AWS Textract ~$250/1K docs
+- **Current**: Vision + OCR ~$16.50-31.50/1K docs (**85-90% cost reduction**)
+
+#### API Endpoints
+- `POST /functions/v1/document-processor` - Process uploaded documents
+- Returns structured medical data with confidence scores
