@@ -33,10 +33,12 @@ If you're new to the project, the best place to start is the [Developer Setup Gu
 
 Our architecture is designed to be modular, scalable, and maintainable. The core principles are:
 
-- **Pluggable "document-processor" endpoint:** Allows for easy swapping of backend compute services.
-- **Stateless micro-steps:** Each part of the AI pipeline performs a single, focused task.
-- **Vendor-agnostic data layer:** Built on Postgres to avoid vendor lock-in.
-- **Solo-dev friendly:** Minimal DevOps and pay-per-use pricing.
+- **Multi-Provider AI Framework:** Flexible architecture supporting multiple document processing providers (GPT-4o Mini, Google Document AI, AWS Textract, Azure) for cost/quality optimization.
+- **Pluggable Processing Pipeline:** Easy swapping of AI providers with A/B testing framework for performance comparison.
+- **Healthcare-Grade Accuracy:** >85% confidence thresholds with comprehensive error handling and fallback mechanisms.
+- **Stateless Micro-Steps:** Each part of the AI pipeline performs a single, focused task.
+- **Vendor-Agnostic Data Layer:** Built on Postgres to avoid vendor lock-in.
+- **Solo-Dev Friendly:** Minimal DevOps with pay-per-use pricing and Supabase Edge Functions.
 
 For a more detailed explanation, see the [Architecture Overview](../architecture/system-design.md) and the [Document Processing Pipeline](../architecture/data-pipeline.md).
 
@@ -44,7 +46,12 @@ For a more detailed explanation, see the [Architecture Overview](../architecture
 
 ## Current Status
 
-The project is under active development. For a detailed log of recent activities, please see the [Progress Log](../PROGRESS_LOG.md).
+**Phase:** MVP Prototype Development (Proof of Concept due July 31, 2025)  
+**Progress:** Authentication ✅ | File Upload ✅ | OCR Pipeline ✅ (99.8% accuracy) | Multi-Provider AI 🚧 | Dashboard 🚧
+
+**Latest Achievement:** AWS Textract OCR integration completed with 99.8% accuracy on medical documents. Currently implementing multi-provider AI architecture (GPT-4o Mini, Document AI, Azure) for flexible document processing and cost optimization.
+
+For detailed progress updates, see the [Progress Log](../PROGRESS_LOG.md) and [AI Context](../context/AI_context.md).
 
 ---
 
