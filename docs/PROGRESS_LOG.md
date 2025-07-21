@@ -4,12 +4,28 @@
 
 ---
 
+## [2025-07-22] Work Session Started
+- **Start Time:** 09:37 AEST
+- **Session Goals:** Review current AI processing pipeline status, verify AI JSON output captures all medical information, progress to next pipeline stage (normalize and clean JSON output for relational database storage), work on frontend via Windsurf with Bolt (using Claude Code prompts), investigate better AI dictation tools (beyond native Mac dictation), clean up ADR documentation in architecture folder
+- **Planned Duration:** At least 9 hours
+---
+
+## [2025-07-21] Work Session Summary
+- **Start Time:** 9:10 AEST
+- **Accomplishments:** Its 10pm now and i started at 9am with total of 4 hours breaks (2 for lunch 2 for arvo walk dinner). so 9 hours as planned. 
+i worked on the document processing pipeline today for most of the day - worked with claude code the whole time which was great. cleaned up some of the claude custom command documentation to streamline things in the future, proved that the github issues creation command works well. re AI pipeline. Conclusion was that OCR is pretty useless by itself but could be useful as an adjunct to the poweful AI model that ingest the raw image/file to help cross reference and also one day later we can orgainze to use the OCR as a filter check at the same time (i.e., if no words extracted its blank so dont feed to AI bot, or if word count is less than 10 than just feed ocr text output to AI instead,. perhaps, etc). So then we finally got the AI model embedded along with OCR and it was working well in the end providing confidence scores as well. the output was json and still need to verifiy that its outputting everything it should be from the original raw image, will no doubt be checking that tomorrow and the days to come. I also started working and thinking about the next stages in the pipeline - data normalization and storage in relational db, to then be brought forther to the user facing dashboard. logistically started thinking all about this - goign to use bolt for front end build, with claude code building out the initial in depth and well reviewed and researched prompt. then BOLT will be used for all thing user facing., also Windsurg IDE will try to only be used for this front end stuff for now to keep it seperate. WIth cursor claude code being the back end kind. Hit my claude code limit today at 10pm so just didnt get to buiulding the prompt but almost, windsurf claude code is going to build it and put it in the current github issue that exists for all this. then i will feed it to Bolt once im happy that weve thought through it well enough. Priorities for next session are go conitnue with the AI document processing pipeline, verifiy that the AI JSON output is indeed getting everything, try with some other files too. Then move on to the next cog in the pipeline - data json normalization for filing into the relational db. WIll also work on front end for fun and to change things up and start to understand how all that works which i think will help me while im thinkning about building out the normalization adn data structuring. 
+
+*please c/p and record my written response above into the progress log verbatim, i think we should start inclduing my written almost diary like notes into the @PROGRESS_LOG.md , so please update the @signin.md and @signoff.md and @README.md files to reflect this update of my wishes
+- **Blockers:** None reported
+- **Next Session Focus:** Continue with the AI document processing pipeline, verify that the AI JSON output is indeed getting everything, try with some other files, then move on to data JSON normalization for filing into the relational DB, and start working on the front end for user-facing dashboard.
+- **R&D Hours:** 9.0 hours
+---
+
 ## [2025-07-21] Work Session Started
 - **Start Time:** 9:10 AEST
 - **Session Goals:** Implement GPT-4o Mini vision integration as primary document processor, build multi-provider AI framework for cost/quality optimization, get AI file processing pipeline humming
 - **Planned Duration:** 10 hours
 ---
-
 ## [2025-07-20] Work Session Summary
 - **Start Time:** 09:29 AEST
 - **Accomplishments:** OCR Pipeline Implementation (Pillar 3) - AWS Textract integration achieved 99.8% accuracy on medical documents. Resolved technical challenges including stack overflow in base64 encoding, file format validation, and AWS Signature V4 manual implementation for Deno compatibility. Successfully tested with real medical documents. Strategic decision made to pivot from OCR-focused approach to multi-provider AI architecture (GPT-4o Mini, Document AI, Azure) for better semantic understanding and cost optimization (3-10x cost reduction potential).

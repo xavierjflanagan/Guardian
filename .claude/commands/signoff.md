@@ -28,6 +28,8 @@ in this session;
 - what are your priorities next session?
 - any blockers or issues?
 
+**When the user provides their session summary, copy and paste their full written response verbatim (including diary-style notes) into the 'Accomplishments' field of the progress log entry.**
+
 ### Step 2: Update Progress Log
 - **Get current date and time**: Use `date` command to get current date and time for accurate logging
 - **Append** a new entry at the top of `docs/PROGRESS_LOG.md` in this format:

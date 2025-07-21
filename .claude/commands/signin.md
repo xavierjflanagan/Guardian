@@ -45,6 +45,8 @@ For this session;
 - How long do you plan to work?
 - Any specific areas you want to focus on? (Optional: e.g., frontend, backend, documentation, architecture)
 
+**If the user provides a diary-style or detailed written response for session goals or context, copy and paste their full response verbatim into the progress log entry for full context preservation.**
+
 ### Step 2.25: Review AI Context
 **Comprehensive AI Context Review** in `docs/context/AI_context.md`:
 
@@ -70,6 +72,7 @@ This review will inform both the task sync and session briefing steps.
   ## [YYYY-MM-DD] Work Session Started
   - **Start Time:** [HH:MM TIMEZONE from date command]
   - **Session Goals:** [User's main objectives]
+  - **User Summary:** [User's verbatim response]
   ---
   ```
   *Note: Both date and time come from the `date` command output*
