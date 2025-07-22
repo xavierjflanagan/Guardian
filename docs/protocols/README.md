@@ -13,6 +13,8 @@ This system uses **AI-readable protocol documents** that define exactly what sho
 
 **New:** The system now also syncs technical tasks between your local `docs/management/TASKS.md` and the Notion Technical Task Board ([link](https://www.notion.so/22887f8cee9e816b98cbc8a99950d452)). This ensures your technical to-do list is always up to date in both your codebase and Notion workspace.
 
+**Update July 2025:** The user's full written session notes (including diary-style entries) will be copied verbatim into the progress log for maximum context and compliance. This is now part of the sign-in and sign-off protocol.
+
 ### **Available Protocols**
 
 1. **[Sign-In Protocol](SIGN_IN_PROTOCOL.md)** - Start work sessions
