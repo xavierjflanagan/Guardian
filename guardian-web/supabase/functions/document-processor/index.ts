@@ -30,7 +30,7 @@ for (const [name, value] of Object.entries(requiredEnvVars)) {
 console.log('🔑 Environment validation passed - all required API keys configured');
 
 // Google Cloud Vision OCR integration
-async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{ extractedText: string; confidence: number }> {
+async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{ extractedText: string; confidence: number | null }> {
   console.log('🔍 Starting Google Cloud Vision OCR processing...');
   
   try {
@@ -95,10 +95,11 @@ async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{
       }
     }
     
-    // Default to 90% confidence if no confidence scores available (Google Vision is typically reliable)
-    const averageConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 90;
+    // Use actual confidence if available, null if Google doesn't provide it
+    const averageConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : null;
     
-    console.log(`✅ Google Vision OCR completed: ${extractedText.length} characters, ${averageConfidence.toFixed(1)}% confidence`);
+    const confidenceText = averageConfidence !== null ? `${averageConfidence.toFixed(1)}% confidence` : 'no confidence provided';
+    console.log(`✅ Google Vision OCR completed: ${extractedText.length} characters, ${confidenceText}`);
     
     return {
       extractedText: extractedText.trim(),
@@ -116,7 +117,7 @@ async function analyzeWithGPT4oMiniVision(
   documentBuffer: Uint8Array, 
   ocrText: string, 
   filename: string
-): Promise<{ medicalData: any; confidence: number }> {
+): Promise<{ medicalData: any; confidence: number | null }> {
   console.log('🧠 Starting GPT-4o Mini vision analysis with OCR cross-validation...');
   
   try {
@@ -209,14 +210,15 @@ VALIDATION RULES:
       throw new Error(`Failed to parse GPT-4o Mini response as JSON: ${parseError}. Response: ${responseText}`);
     }
 
-    // Extract confidence score
-    const confidence = medicalData.confidence?.overall || 0.85;
+    // Extract confidence score - use actual AI confidence or null if not provided
+    const confidence = medicalData.confidence?.overall || null;
     
-    console.log(`✅ GPT-4o Mini analysis completed with ${(confidence * 100).toFixed(1)}% confidence`);
+    const confText = confidence !== null ? `${(confidence * 100).toFixed(1)}% confidence` : 'no confidence provided';
+    console.log(`✅ GPT-4o Mini analysis completed with ${confText}`);
     
     return {
       medicalData,
-      confidence: confidence * 100 // Convert to percentage for consistency
+      confidence: confidence !== null ? confidence * 100 : null // Convert to percentage or keep null
     };
     
   } catch (error) {
@@ -248,9 +250,9 @@ function validateFileFormat(buffer: Uint8Array, filePath: string): boolean {
 async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: string): Promise<{
   extractedText: string;
   medicalData: any;
-  confidence: number;
-  ocrConfidence: number;
-  visionConfidence: number;
+  confidence: number | null;
+  ocrConfidence: number | null;
+  visionConfidence: number | null;
 }> {
   console.log('🔍 Starting Vision + OCR Safety Net pipeline...');
   
@@ -277,18 +279,30 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
       filePath
     );
     
-    // Step 3: Calculate overall confidence
-    const overallConfidence = Math.min(ocrConfidence, visionConfidence);
+    // Step 3: Calculate overall confidence (handle null values gracefully)
+    let overallConfidence = null;
     
-    // Healthcare accuracy threshold
-    if (overallConfidence < 80) {
+    if (ocrConfidence !== null && visionConfidence !== null) {
+      // Both APIs provided confidence - use minimum (conservative approach)
+      overallConfidence = Math.min(ocrConfidence, visionConfidence);
+    } else if (ocrConfidence !== null) {
+      // Only OCR provided confidence
+      overallConfidence = ocrConfidence;
+    } else if (visionConfidence !== null) {
+      // Only Vision provided confidence  
+      overallConfidence = visionConfidence;
+    }
+    // If both are null, overallConfidence remains null
+    
+    // Healthcare accuracy threshold (only apply if we have confidence data)
+    if (overallConfidence !== null && overallConfidence < 80) {
       throw new Error(`Combined confidence too low: ${overallConfidence.toFixed(1)}% (minimum 80% required for medical documents)`);
     }
     
     console.log(`🎉 Vision + OCR pipeline completed successfully!`);
-    console.log(`   📊 OCR confidence: ${ocrConfidence.toFixed(1)}%`);
-    console.log(`   👁️  Vision confidence: ${visionConfidence.toFixed(1)}%`);
-    console.log(`   ✅ Overall confidence: ${overallConfidence.toFixed(1)}%`);
+    console.log(`   📊 OCR confidence: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
+    console.log(`   👁️  Vision confidence: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
+    console.log(`   ✅ Overall confidence: ${overallConfidence !== null ? overallConfidence.toFixed(1) + '%' : 'not available'}`);
     
     return {
       extractedText,
@@ -394,9 +408,9 @@ Deno.serve(async (req: Request) => {
       }
 
       console.log(`🎉 Processing completed for document: ${filePath}`);
-      console.log(`   📊 OCR: ${ocrConfidence.toFixed(1)}%`);
-      console.log(`   👁️  Vision: ${visionConfidence.toFixed(1)}%`);
-      console.log(`   ✅ Overall: ${confidence.toFixed(1)}%`);
+      console.log(`   📊 OCR: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
+      console.log(`   👁️  Vision: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
+      console.log(`   ✅ Overall: ${confidence !== null ? confidence.toFixed(1) + '%' : 'not available'}`);
 
       return new Response(JSON.stringify({ 
         success: true, 
