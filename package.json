@@ -1,3 +1,4 @@
+    "lucide-react": "^0.263.1",
 {
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0"
