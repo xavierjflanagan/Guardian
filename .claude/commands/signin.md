@@ -37,61 +37,54 @@ Follow these steps to complete the sign-in protocol, create a todo list and exec
       ```
     - Then proceed with current sign-in.
 
-### Step 2: Gather Session Information
-Ask the user these questions in a single message (dot points, one after the other):
-
-For this session;
-- What are your main goals? (2-3 key objectives or tasks)
+### Step 2: Gather User Goals & Raw Log
+Ask the user these questions in a single message:
+- What are your main goals for this session? (2-3 key objectives)
 - How long do you plan to work?
-- Any specific areas you want to focus on? (Optional: e.g., frontend, backend, documentation, architecture)
+- Is there a specific area of focus? (e.g., frontend, docs)
 
-**If the user provides a diary-style or detailed written response for session goals or context, copy and paste their full response verbatim into the progress log entry for full context preservation.**
+**Capture the user's response to "main goals" VERBATIM for the log.**
 
-### Step 2.25: Review AI Context
-**Comprehensive AI Context Review** in `docs/context/AI_context.md`:
+### Step 3: Generate Session Plan & Update Progress Log
 
-- Read through the entire AI context file to understand current project state
-- Note the latest session updates, decisions, and next steps
-- Identify any blockers or priorities from previous sessions
-- Understand recent architectural or technical decisions
-- Gather context about project evolution and current focus areas
+This is a two-part step. First, you will create a lightweight session plan. Second, you will log both the plan and the user's raw goals.
 
-This review will inform both the task sync and session briefing steps.
+#### Step 3a: Generate Claude's Session Plan
+Based on the user's stated goals and a review of the `AI_context.md` and `TASKS.md` files, generate a concise, actionable plan for the session. This is not a deep analysis, but a quick alignment check.
 
-### Step 2.5: Sync Technical Tasks
-- Read the current `docs/management/TASKS.md` file.
-- Check for any updates or changes since last session.
-- Sync all technical tasks with the Notion Technical Task Board (https://www.notion.so/22887f8cee9e816b98cbc8a99950d452).
-- Ensure both TASKS.md and Notion board are up to date (push/pull as needed).
-- **Use AI context insights** to better understand task priorities and status.
+Your plan **must** include:
+- **Top Priorities**: A bulleted list of the 2-3 key tasks for the day, framed to align with project goals.
+- **Contextual Reminder**: A brief sentence reminding the user of the last session's outcome to ensure continuity (e.g., "Yesterday, we finished the auth logic; today is about the UI.").
+- **Focus Points**: A suggestion for where to start or a key question to consider.
 
-### Step 3: Update Progress Log
-- **Get current date and time**: Use `date` command to get current date and time
-- **Append** a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
+#### Step 3b: Update Progress Log
+- **Get current date and time**: Use the `date` command.
+- **Append** a new entry to the top of `docs/PROGRESS_LOG.md`.
+
   ```markdown
   ## [YYYY-MM-DD] Work Session Started
-  - **Start Time:** [HH:MM TIMEZONE from date command]
-  - **Session Goals:** [User's main objectives]
-  - **User Summary:** [User's verbatim response]
+  - **Start Time:** [HH:MM TIMEZONE]
+  - **Planned Duration:** [User-provided duration]
+  - **Claude's Session Plan:**
+    - **Top Priorities:**
+      - [Generated bullet point 1]
+      - [Generated bullet point 2]
+    - **Context:** [Generated reminder of previous work]
+  - **User's Verbatim Goals:**
+    > [Paste the user's full, unedited response about their goals here]
   ---
   ```
-  *Note: Both date and time come from the `date` command output*
-- **Important:** Never edit or overwrite any session logs (including 'Work Session Started' blocks). Every session event must be append-only for audit and compliance.
+- **Important:** All logs must be append-only.
 
 ### Step 4: Provide Contextual Briefing
-Generate a comprehensive session briefing by combining insights from:
 
-- **AI Context Review**: Current project state, recent decisions, priorities, and blockers
-- **Progress Log**: Recent session summaries and accomplishments
-- **Task Status**: Current task priorities and any updates from Notion sync
-- **User Goals**: How the user's session goals align with project priorities
+Now, deliver the **`Claude's Session Plan`** you just created as the primary output to the user. Frame it as a collaborative starting point.
 
 **Briefing should include:**
-- Current project phase and focus areas
-- Recent progress and key decisions
-- How user's goals fit into overall project direction
-- Any relevant blockers or considerations
-- Contextual encouragement based on recent momentum
+- A clear presentation of the **Top Priorities**.
+- The **Contextual Reminder** to orient the user.
+- The **Focus Points** to provide a clear starting action.
+- A final, encouraging sentence to kick off the session.
 
 ## 🛡️ **Error Handling**
 
