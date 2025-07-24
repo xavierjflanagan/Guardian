@@ -19,57 +19,58 @@ Follow these steps to complete the sign-off protocol, create a todo list and exe
 - Read `docs/protocols/README.md` to understand the full context and intended outcomes of the protocol system
 - This ensures proper execution and validates that all promised benefits are delivered
 
-### Step 1: Gather Session Information
-Ask the user these questions in a single message (dot points, one after the other):
+### Step 1: Gather Session Information & Raw Log
+Ask the user these questions in a single message:
+- What work did you accomplish this session?
+- How many hours did you work? (e.g., 4.5)
+- What are your priorities for the next session?
+- Are there any blockers or issues?
 
-in this session;
-- what work did you do?
-- how many hours? (as decimal, e.g. 4.5)
-- what are your priorities next session?
-- any blockers or issues?
+**Crucially, capture the user's response to "what work did you accomplish" VERBATIM. This is for historical context and compliance.**
 
-**When the user provides their session summary, copy and paste their full written response verbatim (including diary-style notes) into the 'Accomplishments' field of the progress log entry.**
+### Step 2: Generate Structured Analysis & Update Progress Log
 
-### Step 2: Update Progress Log
-- **Get current date and time**: Use `date` command to get current date and time for accurate logging
-- **Append** a new entry at the top of `docs/PROGRESS_LOG.md` in this format:
+This is a two-part step. First, you will analyze the user's raw input and the project context. Second, you will use that analysis to create a structured log entry.
+
+#### Step 2a: Generate Claude's Structured Analysis
+Based on the user's raw log, the AI context (`docs/context/AI_context.md`), and the tasks (`docs/management/TASKS.md`), generate a concise, structured analysis. This analysis is the "so what" of the session's work.
+
+Your analysis **must** include:
+- **Key Accomplishments**: A bulleted list of the 2-4 most significant achievements from the session. Translate the user's narrative into concrete outcomes.
+- **Alignment with Goals**: Briefly state how these accomplishments map to the session goals declared at sign-in.
+- **Impact & Decisions**: Note any key decisions made (e.g., "Decided to use library X for Y") or the overall impact on the project (e.g., "This completes the backend for feature Z").
+- **Emerging Issues/Questions**: Identify any new risks, blockers, or open questions that arose during the session.
+
+#### Step 2b: Update Progress Log
+- **Get current date and time**: Use the `date` command for accurate logging.
+- **Append** a new entry to the top of `docs/PROGRESS_LOG.md`. Use the analysis from the previous step to fill out the structured fields.
+
   ```markdown
   ## [YYYY-MM-DD] Work Session Summary
-  - **Start Time:** [From the Work Session Started block]
-  - **Accomplishments:** [User's summary]
-  - **Blockers:** [Any issues noted]
-  - **Next Session Focus:** [User's next priorities]
+  - **Start Time:** [From the corresponding 'Work Session Started' block]
   - **R&D Hours:** [X.X hours]
+  - **Claude's Structured Summary:**
+    - **Key Accomplishments:**
+      - [Generated bullet point 1]
+      - [Generated bullet point 2]
+    - **Impact & Decisions:** [Generated summary of impact]
+  - **Blockers:** [User-reported issues + any identified in analysis]
+  - **Next Session Focus:** [User's stated priorities]
+  - **User's Verbatim Log:**
+    > [Paste the user's full, unedited response about their work here]
   ---
   ```
-- **Important:** Never edit or overwrite any session logs (including 'Work Session Started' blocks). Every session event must be append-only for audit and compliance.
+- **Important:** The `User's Verbatim Log` must be an exact copy of their input. The other fields are your structured analysis. All logs must be append-only.
 
 ### Step 2.5: Update AI Context Log
 
-**Comprehensive AI Context Review & Update** in `docs/context/AI_context.md`:
+Now, use the **`Claude's Structured Summary`** you just created to update the main AI context file.
 
-**First, Review Entire File:**
-- Read through all existing sections to understand current project state
-- Identify outdated information, completed tasks, or changed priorities
-- Note gaps between documented context and actual progress
-
-**Then, Update Contextually:**
-- **Project Goal**: Update if scope, priorities, or objectives evolved during session
-- **Tech Stack & Architecture**: Modify if new technologies added, removed, or architectural decisions changed
-- **Session Updates**: 
-  - Update existing session summaries if they contain outdated "Next Steps" or "Blockers"
-  - Add new session update that builds on previous context rather than repeating information
-  - Reference and connect to previous sessions' outcomes
-- **Cross-Reference**: Ensure consistency with related documentation files that were modified
-
-**Session Update Content:**
-- **Progress**: What was accomplished, referencing previous session goals
-- **Decisions**: Key architectural, technical, or process decisions made
-- **Context Evolution**: How the project understanding or direction changed
-- **Next Steps**: Updated priorities based on current state
-- **Blockers**: Current obstacles, noting which previous blockers were resolved
-
-**Error Handling**: If unable to update, note the failure and suggest manual update.
+**Action:**
+- Read `docs/context/AI_context.md`.
+- Synthesize the key points from your **`Structured Summary`** (accomplishments, decisions, impact) into the `Session Updates` section of the AI context file.
+- Do NOT simply copy-paste. Integrate the new information smoothly with the existing context. The goal is to evolve the context file, not just add a new block of text.
+- Ensure the `Next Steps` and `Blockers` in the AI context file reflect the latest information from the session sign-off.
 
 ### Step 2.75: Sync Technical Tasks
 - Read the current `docs/management/TASKS.md` file.

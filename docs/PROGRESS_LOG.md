@@ -4,6 +4,14 @@
 
 ---
 
+## [2025-07-23] Work Session Summary
+- **Start Time:** From the Work Session Started block
+- **Accomplishments:** build out the front end with bolt, gave bolt the codebase and prompt and it built, claude code then reviewed and made edits and moved it all to the root. did a lot of cerebral work today thinking and brainstorming - thought a lot about a doctor paltofrm to compliment the patient directed platform as i think that will ne beeded and also help growth. did a lot of code clean up. created a lot of issues for some big security issues (github issues) via claude code full deep dive into each issue and setting up the plan for each.
+- **Blockers:** None reported
+- **Next Session Focus:** continuing to build out the rest of the file processing pipeline - a) ensure data coming out of AI model is accurate, then start work on normalizing the json data into an organization relational db so that we can then start building out the front end better.
+- **R&D Hours:** 8.0 hours
+---
+
 ## [2025-07-22] Work Session Started
 - **Start Time:** 09:37 AEST
 - **Session Goals:** Review current AI processing pipeline status, verify AI JSON output captures all medical information, progress to next pipeline stage (normalize and clean JSON output for relational database storage), work on frontend via Windsurf with Bolt (using Claude Code prompts), investigate better AI dictation tools (beyond native Mac dictation), clean up ADR documentation in architecture folder
