@@ -131,6 +131,8 @@ CREATE TABLE medications_master (
     therapeutic_category TEXT,
     is_prescription BOOLEAN NOT NULL DEFAULT true,
     rxnorm_code TEXT,
+    pbs_code TEXT, -- Australian Pharmaceutical Benefits Scheme
+    country_codes TEXT[] DEFAULT '{"AU"}',
     source TEXT NOT NULL DEFAULT 'RxNorm',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -207,12 +209,20 @@ ON patient_medications USING GIN(tags);
 CREATE TABLE patient_conditions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    condition_id UUID REFERENCES conditions_master(id),
     
-    -- Condition data
+    -- Original extracted data
+    original_condition_name TEXT NOT NULL,
+    
+    -- Normalized condition data
     condition_name TEXT NOT NULL,
     icd10_code TEXT,
+    aus_snomed_code TEXT, -- Australia-specific codes
     condition_category TEXT,
-    severity TEXT,
+    severity TEXT, -- Only if explicitly mentioned in source
+    
+    -- Healthcare encounter link
+    healthcare_encounter_id UUID REFERENCES healthcare_encounters(id),
     
     -- Lifecycle management
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'chronic', 'superseded')),
@@ -247,6 +257,8 @@ CREATE INDEX idx_patient_conditions_patient_active
 ON patient_conditions(patient_id, status) WHERE status IN ('active', 'chronic');
 CREATE INDEX idx_patient_conditions_metadata 
 ON patient_conditions USING GIN(metadata);
+CREATE INDEX idx_patient_conditions_encounter 
+ON patient_conditions(healthcare_encounter_id) WHERE healthcare_encounter_id IS NOT NULL;
 ```
 
 #### `patient_lab_results` Table
@@ -277,6 +289,10 @@ CREATE TABLE patient_lab_results (
     test_date_precision TEXT NOT NULL DEFAULT 'exact' CHECK (test_date_precision IN ('exact', 'document_date', 'upload_date')),
     ordering_provider TEXT,
     lab_facility TEXT,
+    provider_patient_ids JSONB DEFAULT '{}', -- {"hospital_a": "MRN-12345", "lab_b": "PT-67890"}
+    
+    -- Healthcare encounter link
+    healthcare_encounter_id UUID REFERENCES healthcare_encounters(id),
     
     -- Quality and audit
     confidence_score DECIMAL(3,2) CHECK (confidence_score BETWEEN 0 AND 1),
@@ -316,6 +332,10 @@ CREATE TABLE patient_allergies (
     allergen_category TEXT, -- 'medication', 'food', 'environmental'
     reaction TEXT,
     severity TEXT,
+    evidence_summary TEXT, -- Clinical evidence supporting the allergy
+    
+    -- Healthcare encounter link
+    healthcare_encounter_id UUID REFERENCES healthcare_encounters(id),
     
     -- Lifecycle management
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'superseded')),
@@ -381,6 +401,102 @@ ALTER TABLE unclassified_data ENABLE ROW LEVEL SECURITY;
 -- RLS Policy
 CREATE POLICY unclassified_data_user_isolation ON unclassified_data
     FOR ALL USING (auth.uid() = patient_id);
+```
+
+#### `healthcare_encounters` Table
+```sql
+CREATE TABLE healthcare_encounters (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Encounter details
+    encounter_type TEXT NOT NULL REFERENCES encounter_types(type),
+    encounter_date TIMESTAMPTZ,
+    encounter_date_precision TEXT NOT NULL DEFAULT 'exact' CHECK (encounter_date_precision IN ('exact', 'document_date', 'upload_date')),
+    
+    -- Provider information  
+    provider_name TEXT,
+    facility_name TEXT,
+    provider_patient_ids JSONB DEFAULT '{}', -- {"hospital_a": "MRN-12345"}
+    
+    -- Clinical details
+    chief_complaint TEXT,
+    summary TEXT,
+    outcome TEXT,
+    
+    -- Links to source documents
+    primary_document_id UUID REFERENCES documents(id),
+    related_document_ids UUID[] DEFAULT '{}',
+    
+    -- Quality and audit
+    confidence_score DECIMAL(3,2) CHECK (confidence_score BETWEEN 0 AND 1),
+    requires_review BOOLEAN DEFAULT FALSE,
+    
+    -- Metadata
+    metadata JSONB DEFAULT '{}',
+    tags TEXT[] DEFAULT '{}',
+    
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE healthcare_encounters ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+CREATE POLICY healthcare_encounters_user_isolation ON healthcare_encounters
+    FOR ALL USING (auth.uid() = patient_id);
+
+-- Performance indexes
+CREATE INDEX idx_healthcare_encounters_patient_date 
+ON healthcare_encounters(patient_id, encounter_date DESC);
+CREATE INDEX idx_healthcare_encounters_type 
+ON healthcare_encounters(encounter_type);
+```
+
+#### `encounter_types` (Controlled Vocabulary)
+```sql
+CREATE TABLE encounter_types (
+    type TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL, -- 'clinical', 'diagnostic', 'administrative'
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
+-- Insert standard encounter types
+INSERT INTO encounter_types (type, description, category) VALUES
+('emergency', 'Emergency department visit', 'clinical'),
+('outpatient', 'Outpatient clinic visit', 'clinical'),
+('specialist', 'Specialist consultation', 'clinical'),
+('inpatient', 'Hospital admission', 'clinical'),
+('diagnostic', 'Diagnostic procedure/test', 'diagnostic'),
+('telehealth', 'Virtual consultation', 'clinical'),
+('pharmacy', 'Pharmacy interaction', 'administrative'),
+('lab', 'Laboratory test', 'diagnostic');
+```
+
+#### `conditions_master` (Canonical Library)
+```sql
+CREATE TABLE conditions_master (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    condition_name TEXT NOT NULL,
+    icd10_code TEXT,
+    aus_snomed_code TEXT, -- Australia-specific SNOMED codes
+    condition_category TEXT NOT NULL,
+    severity_levels TEXT[], -- Possible severity levels for this condition
+    is_chronic BOOLEAN DEFAULT FALSE,
+    country_codes TEXT[] DEFAULT '{"AU"}',
+    source TEXT NOT NULL DEFAULT 'ICD-10',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(condition_name, icd10_code)
+);
+
+-- Full-text search support
+CREATE INDEX idx_conditions_master_search 
+ON conditions_master USING GIN(to_tsvector('english', condition_name));
 ```
 
 ### 3.4. Relationship Modeling
