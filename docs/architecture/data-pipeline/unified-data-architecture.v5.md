@@ -758,7 +758,48 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";
 */
 ```
 
-### 10.2. Bulk Operation Guidelines
+### 10.2. Enhanced Document Deletion Strategy
+
+#### Hybrid Document Deletion (O3 UX Optimization)
+```sql
+-- Prevent hard deletes, convert to instant soft deletes for better UX
+CREATE OR REPLACE FUNCTION handle_document_deletion()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Convert hard delete attempt to soft delete instantly
+    UPDATE documents
+    SET status = 'purged',
+        purged_at = NOW(),
+        -- Clear PII during purge (GDPR compliance)
+        file_name = '[REDACTED]',
+        storage_path = NULL,
+        metadata = '{}'::jsonb
+    WHERE id = OLD.id;
+
+    -- Mark patient cache as needing refresh
+    UPDATE user_dashboard_cache
+    SET cache_version = cache_version + 1,
+        summary_data = summary_data || '{"needs_refresh": true}'::jsonb
+    WHERE patient_id = OLD.user_id;
+
+    -- Cancel the actual DELETE operation (prevents hard delete)
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER; -- Ensure trigger has update rights
+
+CREATE TRIGGER document_deletion_immediate_response
+    BEFORE DELETE ON documents
+    FOR EACH ROW EXECUTE FUNCTION handle_document_deletion();
+```
+
+**Benefits of Hybrid Approach:**
+- **Instant UX Response:** Documents disappear immediately from user interface
+- **Performance Optimized:** Heavy orphan cleanup still runs in nightly batches
+- **GDPR Compliant:** PII cleared immediately on deletion request
+- **No Broken Links:** UI never shows references to deleted documents
+- **Audit Preserved:** Document UUID and core metadata retained for compliance
+
+### 10.3. Bulk Operation Guidelines
 
 #### Production Deployment Considerations
 ```sql
@@ -968,6 +1009,12 @@ $$ LANGUAGE plpgsql;
 - Enhanced cache invalidation across all clinical tables
 - Materialized views for expensive orphan detection queries
 - Configurable cleanup scheduling with performance controls
+
+**✅ User Experience Improvements (O3 Hybrid Strategy):**
+- Instant document deletion UX with hybrid soft-delete approach
+- Immediate PII clearing for GDPR compliance
+- No broken links ever shown to users
+- Performance-optimized background cleanup
 
 **✅ Operational Excellence (Production Ready):**
 - Automated partition management with pg_partman
