@@ -16,3 +16,25 @@ Neural relational database:
     That it is a medical related document, and it does have health information. 
     Flag label data point if it cant be confirmed that it is about the patient (no identifying info on the page that contains the info)
     Flag label data point if it cant be confirmed as a authentic document (written by healthcare provider)
+
+
+
+
+Ideas for future beyond MVP:
+1. Geographic data for non-relevant parts: 
+  This is actually a sophisticated idea. Current architecture only stores bounding boxes 
+  for extracted clinical facts. But storing ALL text regions with classification 
+  (relevant/irrelevant + reason) could be valuable for:
+  - AI model improvement (what gets missed?)
+  - Audit trails (why was X ignored?)
+  - Future document reconstruction
+  - Performance monitoring
+
+  However, this significantly increases storage requirements. For a typical medical 
+  document, we'd go from storing maybe 10-20 bounding boxes to potentially hundreds.
+
+  Trade-offs:
+  - Pro: Better auditability, AI improvement data, future flexibility
+  - Con: Much higher storage costs, more complex processing
+  - Decision: This feels like a "nice to have" that could be added later. For MVP, focus on
+   extracted data only.
