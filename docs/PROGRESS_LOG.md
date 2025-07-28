@@ -2,19 +2,37 @@
 
 > This file is updated at the end of every coding session. It tracks daily/weekly progress, major changes, and next steps.
 
+## [2025-07-28] Work Session Summary
+- **Start Time:** 8:50 AEST
+- **Accomplishments:** Most of the day still spent teasing out the architecture for the db schema and tyring to predict user experience to help with architecture design. Was using triad of o3, gemini and sonnet 4. Used opus 4 at the end. Spent time learning about claude code; commands, hooks. first tme really learning about hooks. 
+Also spent time thinking about setting up some internal ops agents as part of the claude code subagent feature, but have been thinking about this for a while carrying on from my thoughts on sunday about setting up a roundtable of internal agents in a seperately built out standalone product to fasciliate operation across all parts of the company in anticiation of the 0-1, 1-10, 10-100 stages. I envisage this being an alternative approach to an IDE, where the round table has some agents that will need write access to the codebase repos, but others will not. They will each have their own sublte personalities and goals and priorities. Many will recieve vast data inputs from external sources. Some will have regular activation schedules, automated activation schedules, others will only activate on stimulus from the user or other agents. Each agent has the power to raise an issue or plan to the entire table, or to just individual agents directly, with the goal of attaining expert feedback from the other domains of the company. There is one cheief of staff master agent (Charlie) who is the main contact point with the user. Charlie summarizes all items for dsicussion from across the table to the user for final decision or for awareness. The user will talk to Charlie who decides which agent to delegate to, but the user can also discusss directly with the agents. An individual agent cannot make a change without the confirmation of the user, and that submission for change is required to be reviwed and seconded before reachign Charlie's desk. @RoundTable.md
+Watched a podocast about monetization and pricing your product with Madhavan Ramanujan https://www.youtube.com/watch?v=NR85H55eYkM&pp=0gcJCccJAYcqIYzv
+- **Blockers:** Still need to finalize database architecture before proceeding to implementation
+- **Next Session Focus:** Implement final opus4 review/suggestions into architecture documentation. Re-organize documentation structure.
+- **R&D Hours:** 8.0 hours 
 ---
 
-## [2025-07-26] Work Session Started
+## [2025-07-27] Work Session Summary
+- **Start Time:** 10:30 AEST
+- **Accomplishments:** Small day today (sunday) - Mainly filled with cerebral activities, brainstormed and designed out initial sketches for RoundTable; Family of internal operations AI agents that each have their own set role and priorities and importantly their own context and knowledge base about the company. A lot of them will also have their own information sources feeding into them. Some will have codebase write abilities, but each write will need to be A) reviewed by all primary agents + any additional that the proposing agent deems prudent B) post feedback session, proposal to be again reviewed by any agent that voiced concerns in initial feedback round C) Reviwed and approced by Charlie D) Presented to User for final Review and confirmation. User primarily communicates instructions and commands through Charlie who delegates to relevant agent/s, but User can also go direct to specific agents. 
+Watched some youtube videos from antrhopics channel - not incredibly useful, but some learnings on efficiency boosts
+- **Next Session Focus:** Continue working on database architecture schema and normalization pipeline
+- **R&D Hours:** 4.0 hours 
+---
+
+## [2025-07-26] Work Session Summary
 - **Start Time:** 09:05 AEST
-- **Planned Duration:** 7 hours
 - **Claude's Session Plan:**
   - **Top Priorities:**
     - Finalize database schema architecture based on unified-data-architecture.md
     - Continue database normalization pipeline development
     - Ensure data extraction accuracy before proceeding to implementation
   - **Context:** Yesterday you worked on database schema planning and AI chat features - today continues the core data architecture work
-- **User's Verbatim Goals:**
+- **User's Sign-in Verbatim Goals:**
   > Today i plan to work 7 hours because its saturdary and i have to drive up to the city at 6 or so. will continue to work on what i was doing yesterday - really need to polish and be happy with the architectre of the database section of the pipeline before we can proceed.
+- **Accomplishments:** Spent a lot of time teasing out db shema, lots of tangents learning things, lots of questions back and forth. progress made but slow, but worth it. 
+- **Next Session Focus:** Continue working on database architecture schema and normalization pipeline
+- **R&D Hours:** 7.0 hours 
 ---
 
 ## [2025-07-25] Work Session Summary
