@@ -2,28 +2,29 @@
 
 **Module:** Implementation Strategy & Timeline  
 **Version:** 7.0  
-**Status:** Planning Phase  
+**Status:** Ready for Implementation  
 **Last Updated:** 2025-07-29
 
 ---
 
 ## Executive Summary
 
-This roadmap provides a comprehensive, phased approach to implementing Guardian v7's modular architecture, incorporating all Opus-4 recommendations while maintaining system stability and backward compatibility.
+This roadmap provides a comprehensive, phased approach to implementing Guardian v7's modular architecture from the ground up, incorporating all Opus-4 recommendations with a focus on clean, scalable implementation.
 
 **Total Timeline:** 12-16 weeks  
-**Critical Path:** FHIR Integration → Consent Management → User Experience  
+**Critical Path:** Core Schema → FHIR Integration → Consent Management → User Experience  
 **Risk Mitigation:** Feature flags, progressive rollouts, comprehensive testing
 
 ---
 
 ## 1. Implementation Phases Overview
 
-### Phase 1: Foundation & Documentation (Weeks 1-2)
-**Objective:** Establish modular architecture and core infrastructure
-- ✅ Modular documentation structure
-- ✅ Feature flags infrastructure
-- ✅ Migration framework setup
+### Phase 1: Foundation & Core Schema (Weeks 1-2)
+**Objective:** Establish database foundation and infrastructure
+- 🗄️ Core database schema implementation
+- 🏗️ Feature flags infrastructure
+- 🔒 Basic security (RLS policies)
+- 📊 Monitoring setup
 
 ### Phase 2: Core Features (Weeks 3-6) 
 **Objective:** Implement highest-impact Opus-4 recommendations
@@ -132,17 +133,17 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 3. Phase 1: Foundation & Documentation (Weeks 1-2)
+## 3. Phase 1: Foundation & Core Schema (Weeks 1-2)
 
 ### Week 1: Infrastructure Setup
 
-#### Day 1-2: Documentation Migration
+#### Day 1-2: Core Database Foundation
 - [x] Create V7 modular structure
-- [x] Archive V1-V6 documents
+- [x] Archive V1-V6 planning documents
 - [x] Create master README.md
-- [x] Extract core schema module
+- [x] Finalize core schema design
 
-#### Day 3-4: Feature Flags & Migration Framework
+#### Day 3-4: Feature Flags & Infrastructure Framework
 ```sql
 -- Implementation checklist
 CREATE TABLE implementation_checklist (
@@ -180,28 +181,28 @@ CREATE TABLE implementation_checklist (
 
 -- Insert Phase 1 tasks
 INSERT INTO implementation_checklist (phase, task_name, module, priority, estimated_hours, due_date) VALUES
+('Phase 1', 'Deploy core database schema', 'core-schema', 'critical', 16, NOW() + INTERVAL '3 days'),
 ('Phase 1', 'Setup feature flags infrastructure', 'core-schema', 'critical', 8, NOW() + INTERVAL '2 days'),
-('Phase 1', 'Create migration scripts framework', 'migration-guides', 'high', 16, NOW() + INTERVAL '4 days'),
-('Phase 1', 'Document RLS policy review', 'security-compliance', 'high', 12, NOW() + INTERVAL '3 days'),
-('Phase 1', 'Performance baseline establishment', 'performance-monitoring', 'medium', 20, NOW() + INTERVAL '5 days');
+('Phase 1', 'Implement RLS policies', 'security-compliance', 'high', 12, NOW() + INTERVAL '4 days'),
+('Phase 1', 'Setup monitoring infrastructure', 'performance-monitoring', 'medium', 20, NOW() + INTERVAL '5 days');
 ```
 
 #### Day 5: Testing Framework
 - Set up automated testing infrastructure
 - Create test data generation scripts
-- Establish performance benchmarks
+- Establish initial performance monitoring
 
-### Week 2: Core Module Implementation
+### Week 2: Core Schema Implementation
 
-#### Day 1-3: Security & Compliance Setup
-- Implement enhanced RLS policies
+#### Day 1-3: Database Schema Deployment
+- Deploy core tables (documents, patient_medications, etc.)
+- Implement clinical_fact_sources and relationships
+- Create essential indexes and constraints
+
+#### Day 4-5: Security & Monitoring Setup
+- Deploy RLS policies for all core tables
 - Set up audit infrastructure
-- Configure GDPR compliance features
-
-#### Day 4-5: Performance Monitoring Setup
-- Configure monitoring dashboards
-- Set up alert thresholds
-- Implement cache invalidation fixes
+- Configure performance monitoring dashboards
 
 ---
 

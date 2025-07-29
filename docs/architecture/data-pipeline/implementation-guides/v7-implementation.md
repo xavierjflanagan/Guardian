@@ -1,18 +1,19 @@
-# Guardian v6 to v7 Migration Guide
+# Guardian v7 Implementation Guide
 
-**Migration Version:** v6 → v7  
+**Implementation Version:** v7.0  
 **Date:** 2025-07-29  
-**Estimated Duration:** 2-4 weeks  
+**Estimated Duration:** 12-16 weeks  
 **Risk Level:** Medium
 
 ---
 
 ## Overview
 
-This guide provides step-by-step instructions for migrating from Guardian v6 to the new modular v7 architecture. The migration is designed to be backward compatible with minimal downtime.
+This guide provides step-by-step instructions for implementing Guardian v7's modular architecture from the ground up. This is the first production implementation of the Guardian healthcare data platform.
 
-**Key Changes in v7:**
-- 🏗️ Modular documentation architecture
+**Key Features in v7:**
+- 🗄️ Production-ready database schema
+- 🏗️ Modular architecture for maintainability
 - 🏥 FHIR integration capabilities
 - 🔒 Enhanced consent management
 - 👤 Advanced user preferences
@@ -20,119 +21,129 @@ This guide provides step-by-step instructions for migrating from Guardian v6 to 
 
 ---
 
-## 1. Pre-Migration Assessment
+## 1. Pre-Implementation Setup
 
-### 1.1. Current System Check
+### 1.1. Environment Preparation
 
 ```sql
--- Check current Guardian v6 installation
-CREATE OR REPLACE FUNCTION assess_v6_installation()
+-- Check PostgreSQL readiness for Guardian v7
+CREATE OR REPLACE FUNCTION assess_implementation_readiness()
 RETURNS TABLE (
     assessment_item TEXT,
     current_status TEXT,
-    migration_readiness TEXT,
+    implementation_readiness TEXT,
     action_required TEXT
 ) AS $$
 BEGIN
     RETURN QUERY
     WITH assessment AS (
-        SELECT 'Database Extensions' as item,
-               CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') 
-                    THEN 'Installed' ELSE 'Missing' END as status,
-               CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') 
-                    THEN 'Ready' ELSE 'Requires Installation' END as readiness,
-               CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') 
-                    THEN 'None' ELSE 'Install required extensions' END as action
+        SELECT 'PostgreSQL Version' as item,
+               version() as status,
+               CASE WHEN version() LIKE '%PostgreSQL 13%' OR version() LIKE '%PostgreSQL 14%' OR version() LIKE '%PostgreSQL 15%'
+                    THEN 'Compatible' ELSE 'Upgrade Required' END as readiness,
+               CASE WHEN version() LIKE '%PostgreSQL 13%' OR version() LIKE '%PostgreSQL 14%' OR version() LIKE '%PostgreSQL 15%'
+                    THEN 'None' ELSE 'Upgrade to PostgreSQL 13+' END as action
         
         UNION ALL
         
-        SELECT 'Core Tables',
-               CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') 
-                    THEN 'Present' ELSE 'Missing' END,
-               CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') 
-                    THEN 'Ready' ELSE 'Core Migration Required' END,
-               CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') 
-                    THEN 'None' ELSE 'Deploy core schema first' END
+        SELECT 'Database Extensions',
+               CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') 
+                    THEN 'Ready' ELSE 'Missing' END,
+               CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') 
+                    THEN 'Ready' ELSE 'Requires Installation' END,
+               CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') 
+                    THEN 'None' ELSE 'Install required extensions' END
         
         UNION ALL
         
-        SELECT 'User Data Count',
-               (SELECT COUNT(*)::TEXT || ' users' FROM auth.users),
-               CASE WHEN (SELECT COUNT(*) FROM auth.users) > 0 
-                    THEN 'Data Present' ELSE 'No Data' END,
-               CASE WHEN (SELECT COUNT(*) FROM auth.users) > 0 
-                    THEN 'Plan user data migration' ELSE 'None' END
+        SELECT 'Clean Database',
+               CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') 
+                    THEN 'Tables Exist' ELSE 'Clean' END,
+               CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') 
+                    THEN 'Review Existing Schema' ELSE 'Ready for Fresh Implementation' END,
+               CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') 
+                    THEN 'Review and clean if needed' ELSE 'Proceed with implementation' END
     )
     SELECT * FROM assessment;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Run assessment
-SELECT * FROM assess_v6_installation();
+SELECT * FROM assess_implementation_readiness();
 ```
 
-### 1.2. Data Backup Verification
+### 1.2. Backup Strategy Setup
 
 ```bash
-# Create complete backup before migration
-pg_dump guardian_db > guardian_v6_backup_$(date +%Y%m%d_%H%M%S).sql
+# Setup backup directory and procedures for implementation
+mkdir -p guardian_backups
+cd guardian_backups
 
-# Verify backup integrity
-pg_restore --list guardian_v6_backup_*.sql | head -20
+# Create initial backup before implementation
+pg_dump guardian_db > guardian_pre_implementation_$(date +%Y%m%d_%H%M%S).sql
 
-# Document current data volumes
-psql -d guardian_db -c "
-SELECT 
-    schemaname,
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
-    pg_stat_get_tuples_returned(pg_class.oid) as row_count
-FROM pg_tables 
-JOIN pg_class ON pg_class.relname = pg_tables.tablename
-WHERE schemaname NOT IN ('information_schema', 'pg_catalog')
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
-"
+# Setup automated backup script for implementation phase
+cat > backup_during_implementation.sh << 'EOF'
+#!/bin/bash
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+pg_dump guardian_db > "guardian_implementation_backup_${TIMESTAMP}.sql"
+echo "Backup created: guardian_implementation_backup_${TIMESTAMP}.sql"
+EOF
+
+chmod +x backup_during_implementation.sh
 ```
 
 ---
 
-## 2. Migration Timeline & Phases
+## 2. Implementation Timeline & Phases
 
-### Phase 1: Infrastructure Preparation (Week 1)
-- ✅ Documentation structure migration
-- ✅ Feature flags deployment
-- ✅ Testing environment setup
-- ✅ Backup and rollback procedures
+### Phase 1: Foundation & Core Schema (Weeks 1-2)
+- 🔄 Database foundation setup
+- 🔄 Feature flags deployment
+- 🔄 Core schema implementation
+- 🔄 Basic security (RLS policies)
 
-### Phase 2: Core Schema Enhancement (Week 2)
-- 🔄 FHIR mapping tables
+### Phase 2: Core Features (Weeks 3-6)
+- 🔄 FHIR integration layer
 - 🔄 Enhanced consent management
 - 🔄 User preferences system
 - 🔄 Document processing queue
 
-### Phase 3: Data Migration & Testing (Week 3)
-- 🔄 Existing data migration
-- 🔄 User preferences migration
-- 🔄 Integration testing
-- 🔄 Performance validation
+### Phase 3: Advanced Features (Weeks 7-10)
+- 🔄 Event sourcing infrastructure
+- 🔄 Real-time collaboration
+- 🔄 AI/ML integration points
+- 🔄 Advanced analytics
 
-### Phase 4: Production Deployment (Week 4)
-- 🔄 Production deployment
-- 🔄 User notification
-- 🔄 Monitoring and support
-- 🔄 Post-migration validation
+### Phase 4: Production Hardening (Weeks 11-16)
+- 🔄 Multi-tenancy support
+- 🔄 Mobile optimizations
+- 🔄 Data portability features
+- 🔄 Advanced security
 
 ---
 
-## 3. Step-by-Step Migration Procedure
+## 3. Step-by-Step Implementation Procedure
 
-### 3.1. Phase 1: Infrastructure Setup
+### 3.1. Phase 1: Foundation Setup
 
-#### Step 1: Deploy Feature Flags System
+#### Step 1: Deploy Database Extensions
+
+```sql
+-- Deploy required PostgreSQL extensions
+\i implementation-guides/sql-scripts/000_extensions.sql
+
+-- Verify extensions
+SELECT extname, extversion FROM pg_extension 
+WHERE extname IN ('uuid-ossp', 'pg_trgm', 'postgis', 'pg_partman', 'pgcrypto')
+ORDER BY extname;
+```
+
+#### Step 2: Deploy Feature Flags System
 
 ```sql
 -- Deploy feature flags infrastructure
-\i migration-guides/sql-migrations/001_feature_flags.sql
+\i implementation-guides/sql-scripts/001_feature_flags.sql
 
 -- Verify deployment
 SELECT feature_name, enabled, rollout_percentage 
@@ -140,21 +151,19 @@ FROM feature_flags
 ORDER BY feature_name;
 ```
 
-#### Step 2: Create Migration Tracking
+#### Step 3: Create Implementation Tracking
 
 ```sql
--- Deploy migration tracking
-\i migration-guides/sql-migrations/002_migration_tracking.sql
+-- Deploy implementation tracking
+\i implementation-guides/sql-scripts/002_implementation_tracking.sql
 
--- Initialize migration session
-INSERT INTO migration_sessions (
-    migration_type, 
-    source_version, 
+-- Initialize implementation session
+INSERT INTO implementation_sessions (
+    implementation_type, 
     target_version,
     initiated_by
 ) VALUES (
-    'v6_to_v7',
-    'v6.0',
+    'fresh_v7_implementation',
     'v7.0',
     current_user
 );
