@@ -26,6 +26,7 @@ Guardian v7 represents a major architectural evolution, transitioning from a mon
 - **[Core Schema](./core-schema.md)** - Unified clinical events architecture with O3's two-axis model
 - **[Security & Compliance](./security-compliance.md)** - RLS policies, audit trails, GDPR compliance
 - **[Performance & Monitoring](./performance-monitoring.md)** - Indexing, partitioning, metrics
+- **[Appointments & Scheduling](./appointments.md)** - Planned visits logging, verification, conflicts
 
 ### Healthcare Experience Features
 - **[Healthcare Journey](./healthcare-journey.md)** - Patient timeline system and healthcare story logging

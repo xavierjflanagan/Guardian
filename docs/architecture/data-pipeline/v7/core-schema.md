@@ -55,6 +55,8 @@ CREATE TABLE patient_clinical_events (
     method TEXT, -- 'physical_exam', 'laboratory', 'imaging', 'injection', 'surgery', 'assessment_tool'
     body_site TEXT, -- 'left_ear', 'chest', 'left_hand', 'brain'
     
+    -- Placeholder: standard code fields below will be populated by a future automated coding subsystem
+    
     -- Healthcare Standards Integration
     snomed_code TEXT, -- SNOMED CT codes for clinical concepts
     loinc_code TEXT, -- LOINC codes for observations and lab tests
