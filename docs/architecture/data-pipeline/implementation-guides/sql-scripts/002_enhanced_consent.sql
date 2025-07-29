@@ -1,5 +1,5 @@
--- Enhanced Consent Management Migration
--- Guardian v6 to v7 Migration - Step 2
+-- Enhanced Consent Management Implementation
+-- Guardian v7 Implementation - Step 2
 -- File: 002_enhanced_consent.sql
 -- Implements GDPR Article 7 compliant granular consent system
 
@@ -338,37 +338,8 @@ CREATE TRIGGER trigger_patient_consents_audit
     AFTER INSERT OR UPDATE OR DELETE ON patient_consents
     FOR EACH ROW EXECUTE FUNCTION trigger_consent_audit();
 
--- Migrate existing user data to consent system
-INSERT INTO patient_consents (
-    patient_id,
-    consent_type,
-    purpose,
-    granted,
-    legal_basis,
-    explicit_consent,
-    valid_from,
-    created_by,
-    updated_by
-)
-SELECT 
-    u.id,
-    'data_sharing',
-    'healthcare_services',
-    true, -- Assume existing users consented by using the system
-    'consent',
-    false, -- Existing consents were implicit
-    u.created_at,
-    u.id,
-    u.id
-FROM auth.users u
-WHERE u.created_at < NOW() - INTERVAL '1 hour' -- Only existing users
-ON CONFLICT DO NOTHING;
-
--- Create default consent preferences for existing users
-INSERT INTO user_consent_preferences (user_id)
-SELECT id FROM auth.users
-WHERE id NOT IN (SELECT user_id FROM user_consent_preferences)
-ON CONFLICT (user_id) DO NOTHING;
+-- Create default consent preferences for all users (fresh implementation)
+-- Note: This will be populated as users register in the system
 
 -- Create view for easy consent management
 CREATE OR REPLACE VIEW user_consent_summary AS
@@ -399,19 +370,32 @@ WHERE pc.patient_id = auth.uid(); -- RLS will enforce this
 -- Enable RLS on the view
 ALTER VIEW user_consent_summary SET (security_barrier = true);
 
--- Verify migration success
+-- Verify implementation success
 DO $$
 DECLARE
-    consent_count INTEGER;
-    user_count INTEGER;
+    consent_table_exists BOOLEAN;
+    audit_table_exists BOOLEAN;
+    preferences_table_exists BOOLEAN;
 BEGIN
-    SELECT COUNT(*) INTO consent_count FROM patient_consents;
-    SELECT COUNT(*) INTO user_count FROM auth.users;
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'patient_consents' AND table_schema = 'public'
+    ) INTO consent_table_exists;
     
-    IF consent_count = 0 THEN
-        RAISE WARNING 'No consents migrated. This may be expected for new installations.';
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'patient_consent_audit' AND table_schema = 'public'
+    ) INTO audit_table_exists;
+    
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'user_consent_preferences' AND table_schema = 'public'
+    ) INTO preferences_table_exists;
+    
+    IF consent_table_exists AND audit_table_exists AND preferences_table_exists THEN
+        RAISE NOTICE 'Enhanced consent management implementation successful!';
     ELSE
-        RAISE NOTICE 'Consent migration successful. % consents created for % users.', consent_count, user_count;
+        RAISE WARNING 'Some consent tables missing. Check implementation.';
     END IF;
 END;
 $$;
@@ -426,4 +410,4 @@ COMMIT;
 \echo '- Temporal consent controls'
 \echo '- Immutable audit trail'
 \echo '- User-friendly consent dashboard'
-\echo 'Next step: Run 003_user_preferences.sql'
+\echo 'Next step: Run 003_core_schema.sql'

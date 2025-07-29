@@ -1,5 +1,5 @@
--- Feature Flags Infrastructure Migration
--- Guardian v6 to v7 Migration - Step 1
+-- Feature Flags Infrastructure Implementation
+-- Guardian v7 Implementation - Step 1
 -- File: 001_feature_flags.sql
 
 BEGIN;
@@ -135,11 +135,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create migration tracking table
-CREATE TABLE IF NOT EXISTS migration_sessions (
+-- Create implementation tracking table
+CREATE TABLE IF NOT EXISTS implementation_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    migration_type TEXT NOT NULL,
-    source_version TEXT,
+    implementation_type TEXT NOT NULL,
     target_version TEXT,
     
     -- Status tracking
@@ -165,15 +164,15 @@ CREATE TABLE IF NOT EXISTS migration_sessions (
     
     -- Context
     initiated_by TEXT NOT NULL DEFAULT current_user,
-    migration_environment TEXT DEFAULT 'production',
+    implementation_environment TEXT DEFAULT 'production',
     
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Create index for migration tracking
-CREATE INDEX IF NOT EXISTS idx_migration_sessions_type ON migration_sessions(migration_type);
-CREATE INDEX IF NOT EXISTS idx_migration_sessions_status ON migration_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_migration_sessions_created ON migration_sessions(created_at);
+-- Create index for implementation tracking
+CREATE INDEX IF NOT EXISTS idx_implementation_sessions_type ON implementation_sessions(implementation_type);
+CREATE INDEX IF NOT EXISTS idx_implementation_sessions_status ON implementation_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_implementation_sessions_created ON implementation_sessions(created_at);
 
 -- Add Row Level Security for feature flags (admin only)
 ALTER TABLE feature_flags ENABLE ROW LEVEL SECURITY;
@@ -195,10 +194,10 @@ CREATE POLICY feature_flags_read_access ON feature_flags
     TO authenticated
     USING (true);
 
--- Add RLS for migration sessions (admin only)  
-ALTER TABLE migration_sessions ENABLE ROW LEVEL SECURITY;
+-- Add RLS for implementation sessions (admin only)  
+ALTER TABLE implementation_sessions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY migration_sessions_admin_access ON migration_sessions
+CREATE POLICY implementation_sessions_admin_access ON implementation_sessions
     FOR ALL
     TO authenticated
     USING (
@@ -259,4 +258,4 @@ COMMIT;
 
 -- Success message
 \echo 'Feature flags infrastructure deployed successfully!'
-\echo 'Next step: Run 002_migration_tracking.sql'
+\echo 'Next step: Run 002_core_schema.sql'

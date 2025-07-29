@@ -13,33 +13,33 @@ Performance benchmarks and targets for Guardian v7, establishing baselines for r
 
 ---
 
-## 1. Baseline Performance Metrics (v6)
+## 1. Target Performance Metrics
 
 ### 1.1. Core Database Operations
 
-| Operation | p50 Latency | p95 Latency | p99 Latency | Target v7 |
-|-----------|-------------|-------------|-------------|-----------|
-| User Authentication | 5ms | 15ms | 25ms | ≤ 10ms p95 |
-| Document Upload | 200ms | 800ms | 1.5s | ≤ 1s p95 |
-| Lab Result Query | 8ms | 20ms | 40ms | ≤ 15ms p95 |
-| Medication List | 12ms | 30ms | 60ms | ≤ 25ms p95 |
-| Document Search | 45ms | 120ms | 250ms | ≤ 100ms p95 |
+| Operation | Target p50 | Target p95 | Target p99 | Acceptable Range |
+|-----------|------------|------------|------------|------------------|
+| User Authentication | 5ms | 10ms | 20ms | ≤ 15ms p95 |
+| Document Upload | 150ms | 500ms | 1s | ≤ 800ms p95 |
+| Lab Result Query | 5ms | 15ms | 30ms | ≤ 20ms p95 |
+| Medication List | 8ms | 25ms | 50ms | ≤ 30ms p95 |
+| Document Search | 30ms | 80ms | 150ms | ≤ 100ms p95 |
 
-### 1.2. API Endpoint Performance
+### 1.2. API Endpoint Performance Targets
 
-| Endpoint | Method | p50 | p95 | p99 | Throughput (RPS) |
-|----------|--------|-----|-----|-----|------------------|
-| `/api/auth/login` | POST | 150ms | 400ms | 800ms | 100 |
-| `/api/documents` | GET | 80ms | 200ms | 400ms | 250 |
-| `/api/documents/upload` | POST | 1.2s | 3.5s | 8s | 20 |
-| `/api/lab-results` | GET | 25ms | 80ms | 150ms | 400 |
-| `/api/medications` | GET | 30ms | 90ms | 180ms | 350 |
+| Endpoint | Method | Target p95 | Target Throughput | Max Response |
+|----------|--------|------------|-------------------|--------------|
+| `/api/auth/login` | POST | 300ms | 150 RPS | 600ms |
+| `/api/documents` | GET | 150ms | 300 RPS | 300ms |
+| `/api/documents/upload` | POST | 2s | 50 RPS | 5s |
+| `/api/lab-results` | GET | 60ms | 500 RPS | 120ms |
+| `/api/medications` | GET | 70ms | 400 RPS | 150ms |
 
 ---
 
-## 2. v7 Performance Targets
+## 2. v7 Performance Benchmarking
 
-### 2.1. Core Performance Improvements
+### 2.1. Core Performance Tests
 
 #### FHIR Integration Performance
 ```sql
