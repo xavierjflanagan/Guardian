@@ -1602,9 +1602,315 @@ CREATE POLICY secure_data_shares_isolation ON secure_data_shares
 
 ---
 
-## 7. Patient Analytics & Insights Dashboard
+## 7. Healthcare Journey Timeline Integration
 
-### 7.1. Patient Health Analytics
+*Patient-centric healthcare timeline system providing comprehensive journey visualization and interactive exploration*
+
+### 7.1. Timeline User Preferences & Personalization
+
+```sql
+-- User preferences for healthcare timeline display and interaction
+CREATE TABLE patient_timeline_preferences (
+    patient_id UUID PRIMARY KEY REFERENCES auth.users(id),
+    
+    -- Timeline View Preferences
+    default_view_mode TEXT NOT NULL DEFAULT 'chronological' CHECK (default_view_mode IN (
+        'chronological',        -- Standard timeline view
+        'category_clustered',   -- Events grouped by category
+        'condition_focused',    -- Condition-specific timelines
+        'provider_grouped',     -- Organized by healthcare provider
+        'calendar_integration'  -- Calendar-style monthly/yearly view
+    )),
+    
+    -- Filtering Preferences
+    default_categories TEXT[] DEFAULT ARRAY['visit', 'test_result', 'treatment', 'vaccination', 'screening'],
+    show_major_events_only BOOLEAN DEFAULT FALSE,
+    default_time_range TEXT DEFAULT '1_year' CHECK (default_time_range IN ('1_month', '3_months', '6_months', '1_year', '2_years', 'all_time')),
+    
+    -- Timeline Consolidation Settings
+    enable_event_consolidation BOOLEAN DEFAULT TRUE,
+    consolidation_threshold_hours INTEGER DEFAULT 24, -- Group events within X hours
+    show_consolidation_details BOOLEAN DEFAULT TRUE,
+    
+    -- Interactive Features
+    enable_search BOOLEAN DEFAULT TRUE,
+    enable_ai_chatbot BOOLEAN DEFAULT TRUE,
+    enable_condition_journey_tracking BOOLEAN DEFAULT TRUE,
+    enable_medication_journey_tracking BOOLEAN DEFAULT TRUE,
+    
+    -- Visual Preferences
+    timeline_density TEXT DEFAULT 'normal' CHECK (timeline_density IN ('compact', 'normal', 'spacious')),
+    show_event_icons BOOLEAN DEFAULT TRUE,
+    show_provider_context BOOLEAN DEFAULT TRUE,
+    show_document_thumbnails BOOLEAN DEFAULT FALSE,
+    color_coding_enabled BOOLEAN DEFAULT TRUE,
+    
+    -- Mobile Optimization
+    mobile_compact_mode BOOLEAN DEFAULT TRUE,
+    mobile_show_summaries_only BOOLEAN DEFAULT FALSE,
+    mobile_pagination_size INTEGER DEFAULT 20,
+    
+    -- Privacy and Sharing
+    hide_sensitive_categories TEXT[] DEFAULT '{}', -- Categories to hide from timeline
+    allow_family_timeline_sharing BOOLEAN DEFAULT FALSE,
+    allow_provider_timeline_sharing BOOLEAN DEFAULT TRUE,
+    
+    -- Notification Preferences for Timeline Events
+    notify_new_timeline_events BOOLEAN DEFAULT TRUE,
+    notify_attention_required BOOLEAN DEFAULT TRUE,
+    notify_condition_milestones BOOLEAN DEFAULT TRUE,
+    
+    -- Audit
+    last_updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Performance index
+CREATE INDEX idx_timeline_preferences_view_mode ON patient_timeline_preferences(default_view_mode);
+
+-- Enable RLS
+ALTER TABLE patient_timeline_preferences ENABLE ROW LEVEL SECURITY;
+CREATE POLICY timeline_preferences_isolation ON patient_timeline_preferences
+    FOR ALL USING (patient_id = auth.uid());
+```
+
+### 7.2. Timeline Dashboard Widget Configuration
+
+```sql
+-- Enhanced dashboard widget settings specifically for healthcare timeline
+CREATE OR REPLACE FUNCTION get_timeline_widget_config(p_patient_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+    user_prefs RECORD;
+    widget_config JSONB;
+BEGIN
+    -- Get user's timeline preferences
+    SELECT * INTO user_prefs 
+    FROM patient_timeline_preferences 
+    WHERE patient_id = p_patient_id;
+    
+    -- If no preferences exist, create defaults
+    IF user_prefs IS NULL THEN
+        INSERT INTO patient_timeline_preferences (patient_id) 
+        VALUES (p_patient_id)
+        ON CONFLICT (patient_id) DO NOTHING;
+        
+        -- Get defaults
+        SELECT * INTO user_prefs 
+        FROM patient_timeline_preferences 
+        WHERE patient_id = p_patient_id;
+    END IF;
+    
+    -- Build widget configuration
+    widget_config := jsonb_build_object(
+        'view_mode', user_prefs.default_view_mode,
+        'categories_filter', user_prefs.default_categories,
+        'time_range', user_prefs.default_time_range,
+        'major_events_only', user_prefs.show_major_events_only,
+        'consolidation', jsonb_build_object(
+            'enabled', user_prefs.enable_event_consolidation,
+            'threshold_hours', user_prefs.consolidation_threshold_hours,
+            'show_details', user_prefs.show_consolidation_details
+        ),
+        'interactive_features', jsonb_build_object(
+            'search_enabled', user_prefs.enable_search,
+            'chatbot_enabled', user_prefs.enable_ai_chatbot,
+            'condition_tracking', user_prefs.enable_condition_journey_tracking,
+            'medication_tracking', user_prefs.enable_medication_journey_tracking
+        ),
+        'visual_settings', jsonb_build_object(
+            'density', user_prefs.timeline_density,
+            'show_icons', user_prefs.show_event_icons,
+            'show_provider_context', user_prefs.show_provider_context,
+            'show_thumbnails', user_prefs.show_document_thumbnails,
+            'color_coding', user_prefs.color_coding_enabled
+        ),
+        'mobile_settings', jsonb_build_object(
+            'compact_mode', user_prefs.mobile_compact_mode,
+            'summaries_only', user_prefs.mobile_show_summaries_only,
+            'pagination_size', user_prefs.mobile_pagination_size
+        ),
+        'privacy_settings', jsonb_build_object(
+            'hidden_categories', user_prefs.hide_sensitive_categories,
+            'family_sharing', user_prefs.allow_family_timeline_sharing,
+            'provider_sharing', user_prefs.allow_provider_timeline_sharing
+        )
+    );
+    
+    RETURN widget_config;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### 7.3. Timeline Event Bookmarking & Personal Notes
+
+```sql
+-- Allow patients to bookmark important timeline events and add personal notes
+CREATE TABLE patient_timeline_bookmarks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES auth.users(id),
+    timeline_event_id UUID NOT NULL REFERENCES healthcare_timeline_events(id),
+    
+    -- Bookmark details
+    bookmark_category TEXT DEFAULT 'important' CHECK (bookmark_category IN (
+        'important',        -- General importance
+        'milestone',        -- Healthcare milestone
+        'concern',         -- Something concerning
+        'achievement',     -- Health achievement/goal met
+        'reminder',        -- Future reference
+        'question'         -- To discuss with provider
+    )),
+    
+    -- Personal annotations
+    personal_note TEXT,
+    private_tags TEXT[] DEFAULT '{}', -- Personal organization tags
+    
+    -- Sharing controls
+    share_with_providers BOOLEAN DEFAULT FALSE,
+    share_with_family BOOLEAN DEFAULT FALSE,
+    
+    -- Reminders
+    reminder_date TIMESTAMPTZ,
+    reminder_message TEXT,
+    reminder_sent BOOLEAN DEFAULT FALSE,
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_timeline_bookmarks_patient ON patient_timeline_bookmarks(patient_id);
+CREATE INDEX idx_timeline_bookmarks_category ON patient_timeline_bookmarks(bookmark_category);
+CREATE INDEX idx_timeline_bookmarks_reminder ON patient_timeline_bookmarks(reminder_date) 
+    WHERE reminder_date IS NOT NULL AND reminder_sent = FALSE;
+
+-- Enable RLS
+ALTER TABLE patient_timeline_bookmarks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY timeline_bookmarks_isolation ON patient_timeline_bookmarks
+    FOR ALL USING (patient_id = auth.uid());
+
+-- Trigger for updated_at
+CREATE TRIGGER update_timeline_bookmarks_updated_at
+    BEFORE UPDATE ON patient_timeline_bookmarks
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 7.4. Timeline Export & Sharing Functions
+
+```sql
+-- Function to generate timeline export for sharing with providers
+CREATE OR REPLACE FUNCTION export_patient_timeline_summary(
+    p_patient_id UUID,
+    p_date_from TIMESTAMPTZ DEFAULT NOW() - INTERVAL '1 year',
+    p_date_to TIMESTAMPTZ DEFAULT NOW(),
+    p_categories TEXT[] DEFAULT NULL,
+    p_include_bookmarks BOOLEAN DEFAULT TRUE
+) RETURNS JSONB AS $$
+DECLARE
+    timeline_export JSONB;
+    patient_info RECORD;
+BEGIN
+    -- Get patient basic info (respecting privacy settings)
+    SELECT 
+        u.email,
+        up.display_name,
+        up.date_of_birth
+    INTO patient_info
+    FROM auth.users u
+    LEFT JOIN user_preferences up ON up.user_id = u.id
+    WHERE u.id = p_patient_id;
+    
+    -- Build comprehensive timeline export
+    SELECT jsonb_build_object(
+        'export_metadata', jsonb_build_object(
+            'patient_id', p_patient_id,
+            'patient_name', COALESCE(patient_info.display_name, 'Patient'),
+            'export_date', NOW(),
+            'date_range', jsonb_build_object(
+                'from', p_date_from,
+                'to', p_date_to
+            ),
+            'categories_included', COALESCE(p_categories, ARRAY['visit', 'test_result', 'treatment', 'vaccination', 'screening', 'diagnosis'])
+        ),
+        'timeline_events', COALESCE(events_data.events, '[]'::jsonb),
+        'bookmarks', CASE 
+            WHEN p_include_bookmarks THEN COALESCE(bookmarks_data.bookmarks, '[]'::jsonb)
+            ELSE '[]'::jsonb
+        END,
+        'summary_statistics', jsonb_build_object(
+            'total_events', COALESCE(events_data.event_count, 0),
+            'major_events', COALESCE(events_data.major_event_count, 0),
+            'providers_involved', COALESCE(events_data.provider_count, 0),
+            'conditions_tracked', COALESCE(events_data.condition_count, 0)
+        )
+    ) INTO timeline_export
+    FROM (
+        -- Timeline events data
+        SELECT 
+            jsonb_agg(
+                jsonb_build_object(
+                    'event_id', hte.id,
+                    'title', hte.title,
+                    'summary', hte.summary,
+                    'category', hte.display_category,
+                    'subcategory', hte.display_subcategory,
+                    'tertiary', hte.display_tertiary,
+                    'date', hte.event_date,
+                    'is_major', hte.is_major_event,
+                    'tags', hte.event_tags,
+                    'requires_attention', COALESCE(hte.requires_attention, false),
+                    'encounter_context', CASE 
+                        WHEN he.id IS NOT NULL THEN
+                            jsonb_build_object(
+                                'provider', he.provider_name,
+                                'facility', he.facility_name,
+                                'specialty', he.specialty
+                            )
+                        ELSE NULL
+                    END
+                ) ORDER BY hte.event_date DESC
+            ) as events,
+            COUNT(*) as event_count,
+            COUNT(*) FILTER (WHERE hte.is_major_event = TRUE) as major_event_count,
+            COUNT(DISTINCT he.provider_name) as provider_count,
+            COUNT(DISTINCT hte.condition_id) FILTER (WHERE hte.condition_id IS NOT NULL) as condition_count
+        FROM healthcare_timeline_events hte
+        LEFT JOIN healthcare_encounters he ON he.id = hte.encounter_id
+        WHERE hte.patient_id = p_patient_id
+        AND hte.event_date BETWEEN p_date_from AND p_date_to
+        AND hte.archived IS NOT TRUE
+        AND (p_categories IS NULL OR hte.display_category = ANY(p_categories))
+    ) events_data,
+    (
+        -- Bookmarks data (if requested)
+        SELECT 
+            jsonb_agg(
+                jsonb_build_object(
+                    'timeline_event_id', ptb.timeline_event_id,
+                    'category', ptb.bookmark_category,
+                    'note', ptb.personal_note,
+                    'tags', ptb.private_tags,
+                    'created_at', ptb.created_at
+                ) ORDER BY ptb.created_at DESC
+            ) as bookmarks
+        FROM patient_timeline_bookmarks ptb
+        JOIN healthcare_timeline_events hte ON hte.id = ptb.timeline_event_id
+        WHERE ptb.patient_id = p_patient_id
+        AND hte.event_date BETWEEN p_date_from AND p_date_to
+        AND (p_categories IS NULL OR hte.display_category = ANY(p_categories))
+    ) bookmarks_data;
+    
+    RETURN timeline_export;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+---
+
+## 8. Patient Analytics & Insights Dashboard
+
+### 8.1. Patient Health Analytics
 
 ```sql
 -- Patient health analytics and trend tracking
@@ -1676,7 +1982,7 @@ CREATE POLICY patient_analytics_isolation ON patient_health_analytics
     FOR ALL USING (patient_id = auth.uid());
 ```
 
-### 7.2. Personalized Health Goals
+### 8.2. Personalized Health Goals
 
 ```sql
 -- Patient-set health goals with progress tracking
@@ -1769,7 +2075,7 @@ CREATE POLICY patient_goals_isolation ON patient_health_goals
     FOR ALL USING (patient_id = auth.uid());
 ```
 
-### 7.3. Dashboard Configuration
+### 8.3. Dashboard Configuration
 
 ```sql
 -- Customizable dashboard widgets and layouts
@@ -1782,16 +2088,26 @@ CREATE TABLE patient_dashboard_config (
     
     -- Widget configuration
     enabled_widgets JSONB NOT NULL DEFAULT '[
-        {"widget": "health_summary", "position": 1, "size": "large"},
-        {"widget": "recent_documents", "position": 2, "size": "medium"}, 
-        {"widget": "medications", "position": 3, "size": "medium"},
-        {"widget": "conditions", "position": 4, "size": "medium"},
-        {"widget": "upcoming_reminders", "position": 5, "size": "small"},
-        {"widget": "health_trends", "position": 6, "size": "large"}
+        {"widget": "healthcare_timeline", "position": 1, "size": "full_width"},
+        {"widget": "health_summary", "position": 2, "size": "large"},
+        {"widget": "recent_documents", "position": 3, "size": "medium"}, 
+        {"widget": "medications", "position": 4, "size": "medium"},
+        {"widget": "conditions", "position": 5, "size": "medium"},
+        {"widget": "upcoming_reminders", "position": 6, "size": "small"},
+        {"widget": "health_trends", "position": 7, "size": "large"}
     ]',
     
     -- Widget-specific settings
     widget_settings JSONB DEFAULT '{
+        "healthcare_timeline": {
+            "default_view": "chronological", 
+            "show_major_events_only": false,
+            "default_time_range": "6_months",
+            "categories_filter": ["visit", "test_result", "treatment"],
+            "consolidation_enabled": true,
+            "search_enabled": true,
+            "chatbot_enabled": true
+        },
         "health_summary": {"show_trends": true, "time_period": "6_months"},
         "recent_documents": {"max_items": 5, "show_thumbnails": true},
         "medications": {"show_inactive": false, "group_by_type": true},
@@ -1833,11 +2149,11 @@ CREATE POLICY dashboard_config_isolation ON patient_dashboard_config
 
 ---
 
-## 8. Multi-Tenancy & Organization Management (Opus-4 Gap #8)
+## 9. Multi-Tenancy & Organization Management (Opus-4 Gap #8)
 
 *Addressing the lack of multi-tenancy strategy for scaling to multiple healthcare organizations*
 
-### 8.1. Organization-Level Data Isolation
+### 9.1. Organization-Level Data Isolation
 
 ```sql
 -- Healthcare organizations and multi-tenancy support
@@ -2030,7 +2346,7 @@ CREATE POLICY membership_visibility ON organization_memberships
     );
 ```
 
-### 8.2. Cross-Organization Data Access Controls
+### 9.2. Cross-Organization Data Access Controls
 
 ```sql
 -- Enhanced consent validation with organization context
@@ -2183,9 +2499,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 9. RLS Policies & Security Integration
+## 10. RLS Policies & Security Integration
 
-### 8.1. Comprehensive RLS Policies
+### 10.1. Comprehensive RLS Policies
 
 ```sql
 -- Enable RLS on all user experience tables
@@ -2234,7 +2550,7 @@ CREATE POLICY emergency_access_override ON patient_health_analytics
     );
 ```
 
-### 8.2. Audit Trail Integration
+### 10.2. Audit Trail Integration
 
 ```sql
 -- Unified audit trail for all user experience interactions
@@ -2316,9 +2632,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 9. Database Functions & Triggers
+## 11. Database Functions & Triggers
 
-### 9.1. Automatic Consent Validation
+### 11.1. Automatic Consent Validation
 
 ```sql
 -- Trigger function for automatic consent validation
@@ -2355,7 +2671,7 @@ CREATE TRIGGER consent_validation_shares
     FOR EACH ROW EXECUTE FUNCTION validate_consent_requirements();
 ```
 
-### 9.2. Smart Notification Triggers
+### 11.2. Smart Notification Triggers
 
 ```sql
 -- Trigger function for automatic notification generation
@@ -2419,9 +2735,9 @@ CREATE TRIGGER auto_notification_consent_changes
 
 ---
 
-## 10. Implementation Considerations
+## 12. Implementation Considerations
 
-### 10.1. Performance Optimization
+### 12.1. Performance Optimization
 
 ```sql
 -- Materialized view for fast dashboard loading
@@ -2472,7 +2788,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 10.2. Data Migration Helpers
+### 12.2. Data Migration Helpers
 
 ```sql
 -- Helper function for migrating existing users to new user experience features
@@ -2520,9 +2836,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 11. Testing & Validation
+## 13. Testing & Validation
 
-### 11.1. Test Data Generation
+### 13.1. Test Data Generation
 
 ```sql
 -- Function to generate test consent scenarios

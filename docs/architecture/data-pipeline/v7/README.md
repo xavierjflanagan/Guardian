@@ -12,6 +12,7 @@ Guardian v7 represents a major architectural evolution, transitioning from a mon
 
 **Key Improvements in v7:**
 - 🏗️ **Modular Architecture**: Split into focused, maintainable modules
+- 🕒 **Healthcare Journey**: Comprehensive patient timeline and healthcare story logging
 - 🏥 **Healthcare Standards**: FHIR/HL7 integration for interoperability
 - 👤 **User-Centric**: Enhanced consent management and personalization
 - 🚀 **Performance**: Advanced queuing and real-time capabilities
@@ -22,17 +23,19 @@ Guardian v7 represents a major architectural evolution, transitioning from a mon
 ## Architecture Modules
 
 ### Core Foundation
-- **[Core Schema](./core-schema.md)** - Database foundation, relationships, and core tables
+- **[Core Schema](./core-schema.md)** - Unified clinical events architecture with O3's two-axis model
 - **[Security & Compliance](./security-compliance.md)** - RLS policies, audit trails, GDPR compliance
 - **[Performance & Monitoring](./performance-monitoring.md)** - Indexing, partitioning, metrics
 
-### Modern Healthcare Features
+### Healthcare Experience Features
+- **[Healthcare Journey](./healthcare-journey.md)** - Patient timeline system and healthcare story logging
 - **[Healthcare Interoperability](./healthcare-interoperability.md)** - FHIR/HL7 integration and mappings
 - **[User Experience](./user-experience.md)** - Consent management, preferences, notifications
 
 ### Implementation & Operations
 - **[Implementation Roadmap](./implementation-roadmap.md)** - Phased rollout plan and timelines
-- **[Testing](./testing/)** - Test scenarios, benchmarks, and security cases
+- **[Testing Scenarios](./testing/test-scenarios.md)** - Comprehensive testing framework and validation
+- **[Performance Benchmarks](./testing/performance-benchmarks.md)** - Performance targets and monitoring
 
 ---
 
@@ -42,7 +45,7 @@ Guardian v7 represents the first production implementation of the Guardian archi
 
 - **[Implementation Guide](../implementation-guides/v7-implementation.md)** - Step-by-step deployment instructions
 - **[SQL Implementation Scripts](../implementation-guides/sql-scripts/)** - Database schema deployment
-- **[Testing & Validation](../implementation-guides/testing-validation/)** - Implementation verification procedures
+- **[Testing & Validation](./testing/)** - Implementation verification procedures
 
 ---
 
@@ -51,6 +54,7 @@ Guardian v7 represents the first production implementation of the Guardian archi
 | Module | Status | Priority | Target Week |
 |--------|--------|----------|-------------|
 | Core Schema | ✅ Ready | High | Week 1 |
+| Healthcare Journey | ✅ Ready | High | Week 1 |
 | Security & Compliance | ✅ Ready | High | Week 1 |
 | Healthcare Interoperability | 🚧 In Progress | High | Week 2 |
 | User Experience | 📋 Planned | High | Week 3 |
@@ -79,23 +83,16 @@ Multi-layered security with RLS, field-level encryption options, and comprehensi
 ---
 
 ## Getting Started
-
 1. **Review Core Schema** - Start with the foundational database design
 2. **Understand Security Model** - Review RLS policies and compliance features  
-3. **Plan Migration** - Follow the migration guide for v6 to v7 transition
-4. **Implement Features** - Use the roadmap for phased implementation
+3. **Plan Implementation** - Follow the implementation guide for fresh deployment
+4. **Deploy Features** - Use the roadmap for phased rollout
 
 ---
 
-## Version History
-
-- **v7.0** (2025-07-28): Modular architecture with FHIR integration
-- **v6.0** (2025-07-28): Production-ready with security fixes
-- **v5.0** (2025-07-28): Performance optimizations and monitoring
-- **v4.0** (2025-07-28): Enhanced relationships and bulk operations
-- **v3.0** (2025-07-26): Relationship normalization and provenance
-- **v2.0**: Clinical fact extraction and controlled vocabularies
-- **v1.0**: Initial unified architecture
+## Design Evolution
+- **v7.0** (2025-07-29): Production-ready modular architecture with FHIR integration
+- **v6.0-v1.0** (2025-07-26 to 2025-07-28): Design and planning phases (archived)
 
 ---
 
