@@ -33,57 +33,355 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- Enhanced GIN indexing capabi
 
 ---
 
-## 2. Core Clinical Tables
+## 2. Unified Clinical Events Architecture
 
-### 2.1. Patient Medications
+*Based on O3's two-axis classification model: **Activity Type** (observation/intervention) × **Clinical Purpose** (screening/diagnostic/therapeutic/monitoring/preventive)*
 
+### 2.1. Core Clinical Events System
+
+#### Central Events Table - Everything is an Event
 ```sql
-CREATE TABLE patient_medications (
+CREATE TABLE patient_clinical_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    encounter_id UUID REFERENCES healthcare_encounters(id),
     
-    -- Core medication data
-    medication_name TEXT NOT NULL,
-    generic_name TEXT,
-    dosage TEXT,
-    frequency TEXT,
-    route TEXT,
-    strength TEXT,
+    -- O3's Two-Axis Classification System
+    activity_type TEXT NOT NULL CHECK (activity_type IN ('observation', 'intervention')),
+    clinical_purposes TEXT[] NOT NULL, -- Multi-purpose support: ['screening', 'diagnostic']
     
-    -- Status and lifecycle
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'discontinued', 'completed')),
-    start_date DATE,
-    end_date DATE,
-    prescribed_by TEXT,
+    -- Event Details
+    event_name TEXT NOT NULL, -- "Blood Pressure Measurement", "Wart Cryotherapy", "HIV Test"
+    method TEXT, -- 'physical_exam', 'laboratory', 'imaging', 'injection', 'surgery', 'assessment_tool'
+    body_site TEXT, -- 'left_ear', 'chest', 'left_hand', 'brain'
     
-    -- Quality control
+    -- Healthcare Standards Integration
+    snomed_code TEXT, -- SNOMED CT codes for clinical concepts
+    loinc_code TEXT, -- LOINC codes for observations and lab tests
+    cpt_code TEXT, -- CPT codes for procedures and services
+    
+    -- Timing and Context
+    event_date TIMESTAMPTZ NOT NULL,
+    performed_by TEXT, -- Healthcare provider or facility
+    
+    -- Data Quality and Provenance
     confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
     requires_review BOOLEAN DEFAULT FALSE,
-    review_reason TEXT,
+    source_document_id UUID REFERENCES documents(id),
     
-    -- Normalization and original data
-    raw_value TEXT,
-    
-    -- Audit and soft delete
+    -- Audit and Lifecycle Management
     archived BOOLEAN NOT NULL DEFAULT FALSE,
     archived_reason TEXT,
     archived_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
-    -- User tracking
+    -- User Review Tracking
     reviewed_by UUID REFERENCES auth.users(id),
     reviewed_at TIMESTAMPTZ
 );
 
--- Essential indexes
-CREATE INDEX idx_patient_medications_patient ON patient_medications(patient_id) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_medications_status ON patient_medications(status) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_medications_review ON patient_medications(requires_review) WHERE requires_review = TRUE AND archived IS NOT TRUE;
+-- Performance indexes for clinical events
+CREATE INDEX idx_patient_clinical_events_patient ON patient_clinical_events(patient_id) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_clinical_events_type ON patient_clinical_events(activity_type) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_clinical_events_purposes ON patient_clinical_events USING GIN(clinical_purposes) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_clinical_events_date ON patient_clinical_events(patient_id, event_date DESC) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_clinical_events_encounter ON patient_clinical_events(encounter_id) WHERE encounter_id IS NOT NULL AND archived IS NOT TRUE;
+CREATE INDEX idx_patient_clinical_events_review ON patient_clinical_events(requires_review) WHERE requires_review = TRUE AND archived IS NOT TRUE;
 ```
 
-### 2.2. Patient Conditions
+### 2.2. Observation Details (Information Gathering)
 
+```sql
+CREATE TABLE patient_observations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE,
+    
+    -- Classification
+    observation_type TEXT NOT NULL, -- 'vital_sign', 'lab_result', 'physical_finding', 'assessment_score'
+    
+    -- Measurement Values (flexible value storage)
+    value_text TEXT, -- Original extracted text value
+    value_numeric NUMERIC, -- Normalized numeric value
+    value_boolean BOOLEAN, -- For yes/no findings
+    unit TEXT, -- Measurement unit
+    
+    -- Reference Ranges and Interpretation
+    reference_range_text TEXT, -- "Normal: 120-140 mg/dL"
+    reference_range_low NUMERIC,
+    reference_range_high NUMERIC,
+    interpretation TEXT, -- 'normal', 'high', 'low', 'critical', 'abnormal'
+    
+    -- Assessment/Screening Specific Fields
+    assessment_tool TEXT, -- 'MMSE', 'PHQ-9', 'Glasgow Coma Scale'
+    score_max NUMERIC, -- Maximum possible score (e.g., 30 for MMSE)
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for observation queries
+CREATE INDEX idx_patient_observations_event ON patient_observations(event_id);
+CREATE INDEX idx_patient_observations_type ON patient_observations(observation_type);
+CREATE INDEX idx_patient_observations_interpretation ON patient_observations(interpretation) WHERE interpretation IN ('high', 'low', 'critical', 'abnormal');
+```
+
+### 2.3. Intervention Details (Actions Performed)
+
+```sql
+CREATE TABLE patient_interventions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE,
+    
+    -- Classification
+    intervention_type TEXT NOT NULL, -- 'medication_admin', 'vaccination', 'minor_procedure', 'surgery', 'therapy'
+    
+    -- Substance/Medication Details (for drugs, vaccines, etc.)
+    substance_name TEXT, -- "Influenza A Vaccine", "Lidocaine", "Atorvastatin"
+    manufacturer TEXT,
+    lot_number TEXT,
+    dose_amount NUMERIC,
+    dose_unit TEXT,
+    route TEXT, -- 'oral', 'intramuscular', 'topical', 'intravenous'
+    
+    -- Technique and Equipment
+    technique TEXT, -- 'cryotherapy', 'excision', 'injection', 'suture'
+    equipment_used TEXT, -- "Liquid nitrogen", "10-blade scalpel"
+    
+    -- Outcomes and Follow-up
+    immediate_outcome TEXT, -- 'successful', 'partial', 'complications'
+    complications TEXT, -- Description of any complications
+    followup_required BOOLEAN DEFAULT FALSE,
+    followup_instructions TEXT,
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for intervention queries
+CREATE INDEX idx_patient_interventions_event ON patient_interventions(event_id);
+CREATE INDEX idx_patient_interventions_type ON patient_interventions(intervention_type);
+CREATE INDEX idx_patient_interventions_substance ON patient_interventions(substance_name) WHERE substance_name IS NOT NULL;
+```
+
+### 2.4. Healthcare Encounters (Visit Context)
+
+```sql
+CREATE TABLE healthcare_encounters (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Encounter Classification
+    encounter_type TEXT NOT NULL, -- 'outpatient', 'inpatient', 'emergency', 'specialist', 'telehealth', 'diagnostic'
+    encounter_date TIMESTAMPTZ,
+    
+    -- Provider and Facility Information
+    provider_name TEXT,
+    provider_type TEXT, -- 'primary_care', 'specialist', 'hospital', 'urgent_care'
+    facility_name TEXT,
+    specialty TEXT, -- 'cardiology', 'dermatology', 'family_medicine'
+    
+    -- Clinical Context
+    chief_complaint TEXT, -- Patient's main concern
+    summary TEXT, -- Visit summary
+    clinical_impression TEXT, -- Provider's assessment
+    plan TEXT, -- Treatment plan
+    
+    -- Administrative
+    visit_duration_minutes INTEGER,
+    billing_codes TEXT[], -- CPT codes for billing
+    
+    -- Document Links
+    primary_document_id UUID REFERENCES documents(id),
+    related_document_ids UUID[] DEFAULT '{}',
+    
+    -- Quality and Audit
+    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
+    requires_review BOOLEAN DEFAULT FALSE,
+    archived BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for encounter queries
+CREATE INDEX idx_healthcare_encounters_patient ON healthcare_encounters(patient_id) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_healthcare_encounters_date ON healthcare_encounters(patient_id, encounter_date DESC) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_healthcare_encounters_type ON healthcare_encounters(encounter_type) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_healthcare_encounters_provider ON healthcare_encounters USING GIN(to_tsvector('english', provider_name)) WHERE archived IS NOT TRUE;
+```
+
+### 2.5. Imaging Reports (New Clinical Data Type)
+
+```sql
+CREATE TABLE patient_imaging_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Imaging Study Details
+    imaging_type TEXT NOT NULL, -- 'x_ray', 'ct_scan', 'mri', 'ultrasound', 'mammogram', 'pet_scan'
+    body_region TEXT, -- 'chest', 'abdomen', 'brain', 'left_knee', 'pelvis'
+    study_date TIMESTAMPTZ,
+    
+    -- Clinical Context
+    indication TEXT, -- Reason for imaging study
+    clinical_history TEXT, -- Relevant patient history
+    
+    -- Findings and Results
+    findings TEXT, -- Detailed radiologist findings
+    impression TEXT, -- Radiologist's conclusion/diagnosis
+    recommendations TEXT, -- Follow-up recommendations
+    
+    -- Technical Parameters
+    contrast_used BOOLEAN DEFAULT FALSE,
+    contrast_type TEXT, -- 'iodinated', 'gadolinium', 'barium'
+    technique_notes TEXT,
+    
+    -- Provider Information
+    facility_name TEXT,
+    radiologist_name TEXT,
+    referring_physician TEXT,
+    
+    -- Healthcare Standards
+    cpt_code TEXT, -- Imaging procedure code
+    icd10_codes TEXT[], -- Associated diagnosis codes
+    dicom_study_uid TEXT, -- DICOM unique identifier
+    
+    -- Links and Context
+    encounter_id UUID REFERENCES healthcare_encounters(id),
+    source_document_id UUID REFERENCES documents(id),
+    
+    -- Quality Control
+    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
+    requires_review BOOLEAN DEFAULT FALSE,
+    
+    -- Audit
+    archived BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for imaging queries
+CREATE INDEX idx_patient_imaging_patient ON patient_imaging_reports(patient_id) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_imaging_type ON patient_imaging_reports(imaging_type) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_imaging_date ON patient_imaging_reports(patient_id, study_date DESC) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_imaging_body_region ON patient_imaging_reports(body_region) WHERE archived IS NOT TRUE;
+```
+
+### 2.6. Backward Compatibility Views
+
+*Maintains existing API compatibility while leveraging unified clinical events architecture*
+
+```sql
+-- Patient Medications View (from clinical events + interventions)
+CREATE MATERIALIZED VIEW patient_medications AS
+SELECT 
+    pi.id,
+    pce.patient_id,
+    pce.event_name as medication_name,
+    pi.substance_name as generic_name,
+    CONCAT(pi.dose_amount, ' ', pi.dose_unit) as dosage,
+    'active' as status, -- Derived from event recency and context
+    pce.event_date as start_date,
+    pce.performed_by as prescribed_by,
+    pce.confidence_score,
+    pce.requires_review,
+    CONCAT(pi.substance_name, ' ', pi.dose_amount, ' ', pi.dose_unit) as raw_value,
+    pce.archived,
+    pce.created_at,
+    pce.updated_at,
+    pce.reviewed_by,
+    pce.reviewed_at
+FROM patient_clinical_events pce
+JOIN patient_interventions pi ON pi.event_id = pce.id
+WHERE pce.activity_type = 'intervention'
+AND pi.intervention_type = 'medication_admin'
+AND pce.archived IS NOT TRUE;
+
+-- Patient Vitals View (from clinical events + observations)
+CREATE MATERIALIZED VIEW patient_vitals AS
+SELECT 
+    po.id,
+    pce.patient_id,
+    pce.event_name as measurement_type,
+    po.value_numeric,
+    po.value_text,
+    po.unit as units,
+    DATE(pce.event_date) as measurement_date,
+    EXTRACT(TIME FROM pce.event_date) as measurement_time,
+    pce.performed_by as measured_by,
+    pce.method as measurement_method,
+    pce.confidence_score,
+    pce.requires_review,
+    po.value_text as raw_value,
+    pce.archived,
+    pce.created_at,
+    pce.updated_at,
+    pce.reviewed_by,
+    pce.reviewed_at
+FROM patient_clinical_events pce
+JOIN patient_observations po ON po.event_id = pce.id
+WHERE pce.activity_type = 'observation'
+AND po.observation_type = 'vital_sign'
+AND pce.archived IS NOT TRUE;
+
+-- Patient Lab Results View (from clinical events + observations)
+CREATE MATERIALIZED VIEW patient_lab_results AS
+SELECT 
+    po.id,
+    pce.patient_id,
+    pce.event_name as test_name,
+    pce.loinc_code as test_code,
+    po.value_text as result_value,
+    po.value_numeric as result_numeric,
+    po.reference_range_text as reference_range,
+    po.unit as units,
+    CASE po.interpretation 
+        WHEN 'high' THEN 'high'
+        WHEN 'low' THEN 'low' 
+        WHEN 'critical' THEN 'critical_high'
+        ELSE 'normal' 
+    END as abnormal_flag,
+    DATE(pce.event_date) as test_date,
+    pce.performed_by as ordered_by,
+    pce.encounter_id as healthcare_encounter_id,
+    pce.confidence_score,
+    pce.requires_review,
+    po.value_text as raw_value,
+    pce.archived,
+    pce.created_at,
+    pce.updated_at,
+    pce.reviewed_by,
+    pce.reviewed_at
+FROM patient_clinical_events pce
+JOIN patient_observations po ON po.event_id = pce.id
+WHERE pce.activity_type = 'observation'
+AND po.observation_type = 'lab_result'
+AND pce.archived IS NOT TRUE;
+
+-- Create unique indexes for materialized views
+CREATE UNIQUE INDEX idx_patient_medications_mv_id ON patient_medications(id);
+CREATE UNIQUE INDEX idx_patient_vitals_mv_id ON patient_vitals(id);
+CREATE UNIQUE INDEX idx_patient_lab_results_mv_id ON patient_lab_results(id);
+
+-- Auto-refresh materialized views when clinical events change
+CREATE OR REPLACE FUNCTION refresh_clinical_compatibility_views()
+RETURNS TRIGGER AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY patient_medications;
+    REFRESH MATERIALIZED VIEW CONCURRENTLY patient_vitals;
+    REFRESH MATERIALIZED VIEW CONCURRENTLY patient_lab_results;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER refresh_clinical_views_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON patient_clinical_events
+    FOR EACH STATEMENT EXECUTE FUNCTION refresh_clinical_compatibility_views();
+```
+
+### 2.7. Traditional Clinical Record Tables
+
+*Certain clinical data types remain as dedicated tables due to their unique data patterns and lifecycle requirements*
+
+#### Patient Conditions (Diagnoses and Health Issues)
 ```sql
 CREATE TABLE patient_conditions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,6 +398,10 @@ CREATE TABLE patient_conditions (
     diagnosis_date DATE,
     resolved_date DATE,
     diagnosed_by TEXT,
+    
+    -- Link to clinical events (when condition discovered via observation)
+    discovery_event_id UUID REFERENCES patient_clinical_events(id),
+    encounter_id UUID REFERENCES healthcare_encounters(id),
     
     -- Quality control
     confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
@@ -124,11 +426,11 @@ CREATE TABLE patient_conditions (
 -- Essential indexes
 CREATE INDEX idx_patient_conditions_patient ON patient_conditions(patient_id) WHERE archived IS NOT TRUE;
 CREATE INDEX idx_patient_conditions_status ON patient_conditions(status) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_conditions_discovery_event ON patient_conditions(discovery_event_id) WHERE discovery_event_id IS NOT NULL;
 CREATE INDEX idx_patient_conditions_review ON patient_conditions(requires_review) WHERE requires_review = TRUE AND archived IS NOT TRUE;
 ```
 
-### 2.3. Patient Allergies
-
+#### Patient Allergies (Adverse Reactions)
 ```sql
 CREATE TABLE patient_allergies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -144,6 +446,10 @@ CREATE TABLE patient_allergies (
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'resolved')),
     onset_date DATE,
     identified_by TEXT,
+    
+    -- Link to clinical events (when allergy discovered)
+    discovery_event_id UUID REFERENCES patient_clinical_events(id),
+    encounter_id UUID REFERENCES healthcare_encounters(id),
     
     -- Quality control
     confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
@@ -168,140 +474,56 @@ CREATE TABLE patient_allergies (
 -- Essential indexes
 CREATE INDEX idx_patient_allergies_patient ON patient_allergies(patient_id) WHERE archived IS NOT TRUE;
 CREATE INDEX idx_patient_allergies_severity ON patient_allergies(severity) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_patient_allergies_discovery_event ON patient_allergies(discovery_event_id) WHERE discovery_event_id IS NOT NULL;
 CREATE INDEX idx_patient_allergies_review ON patient_allergies(requires_review) WHERE requires_review = TRUE AND archived IS NOT TRUE;
-```
-
-### 2.4. Patient Lab Results
-
-```sql
-CREATE TABLE patient_lab_results (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID NOT NULL REFERENCES auth.users(id),
-    
-    -- Core lab data
-    test_name TEXT NOT NULL,
-    test_code TEXT,
-    result_value TEXT,
-    result_numeric NUMERIC,
-    reference_range TEXT,
-    units TEXT,
-    abnormal_flag TEXT CHECK (abnormal_flag IN ('normal', 'high', 'low', 'critical_high', 'critical_low')),
-    
-    -- Timing and context
-    test_date DATE,
-    collection_date DATE,
-    ordered_by TEXT,
-    lab_name TEXT,
-    
-    -- Quality control
-    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
-    requires_review BOOLEAN DEFAULT FALSE,
-    review_reason TEXT,
-    
-    -- Normalization and original data
-    raw_value TEXT,
-    
-    -- Audit and soft delete
-    archived BOOLEAN NOT NULL DEFAULT FALSE,
-    archived_reason TEXT,
-    archived_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    -- User tracking
-    reviewed_by UUID REFERENCES auth.users(id),
-    reviewed_at TIMESTAMPTZ
-);
-
--- Essential indexes
-CREATE INDEX idx_patient_lab_results_patient ON patient_lab_results(patient_id) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_lab_results_date ON patient_lab_results(test_date) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_lab_results_abnormal ON patient_lab_results(abnormal_flag) WHERE abnormal_flag IN ('high', 'low', 'critical_high', 'critical_low') AND archived IS NOT TRUE;
-CREATE INDEX idx_patient_lab_results_review ON patient_lab_results(requires_review) WHERE requires_review = TRUE AND archived IS NOT TRUE;
-```
-
-### 2.5. Patient Vitals
-
-```sql
-CREATE TABLE patient_vitals (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID NOT NULL REFERENCES auth.users(id),
-    
-    -- Core vital signs
-    measurement_type TEXT NOT NULL CHECK (measurement_type IN ('blood_pressure', 'heart_rate', 'temperature', 'weight', 'height', 'bmi', 'oxygen_saturation')),
-    value_numeric NUMERIC,
-    value_text TEXT,
-    units TEXT,
-    
-    -- Context
-    measurement_date DATE,
-    measurement_time TIME,
-    measured_by TEXT,
-    measurement_method TEXT,
-    
-    -- Quality control
-    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
-    requires_review BOOLEAN DEFAULT FALSE,
-    review_reason TEXT,
-    
-    -- Normalization and original data
-    raw_value TEXT,
-    
-    -- Audit and soft delete
-    archived BOOLEAN NOT NULL DEFAULT FALSE,
-    archived_reason TEXT,
-    archived_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    -- User tracking
-    reviewed_by UUID REFERENCES auth.users(id),
-    reviewed_at TIMESTAMPTZ
-);
-
--- Essential indexes
-CREATE INDEX idx_patient_vitals_patient ON patient_vitals(patient_id) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_vitals_type ON patient_vitals(measurement_type) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_vitals_date ON patient_vitals(measurement_date) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_patient_vitals_review ON patient_vitals(requires_review) WHERE requires_review = TRUE AND archived IS NOT TRUE;
 ```
 
 ---
 
 ## 3. Enhanced Provenance Layer
 
-### 3.1. Clinical Fact Sources
+### 3.1. Clinical Fact Sources (Updated for Unified Events)
+
+*Links all clinical data back to source documents with spatial precision for click-to-zoom functionality*
 
 ```sql
 CREATE TABLE clinical_fact_sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    fact_table TEXT NOT NULL,
+    fact_table TEXT NOT NULL, -- 'patient_clinical_events', 'patient_conditions', 'patient_allergies', 'patient_imaging_reports'
     fact_id UUID NOT NULL,
     document_id UUID NOT NULL REFERENCES documents(id),
     representation_id UUID REFERENCES document_representations(id),
     
-    -- Geographic precision for click-to-zoom
+    -- Geographic precision for click-to-zoom functionality
     page_number INTEGER,
-    bounding_box GEOMETRY(POLYGON, 4326), -- PostGIS for proper spatial indexing
-    source_text TEXT, -- Original extracted text
+    bounding_box GEOMETRY(POLYGON, 4326), -- PostGIS spatial indexing for precise document regions
+    source_text TEXT, -- Original extracted text that led to this clinical fact
     
-    -- Extraction metadata
+    -- Extraction methodology and quality
     extraction_method TEXT NOT NULL CHECK (extraction_method IN ('ai_vision', 'ocr', 'manual', 'api_import')),
-    extraction_model_version TEXT,
+    extraction_model_version TEXT, -- Track AI model versions for confidence recalibration
     confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
+    
+    -- Clinical event specific context (for unified events system)
+    clinical_event_type TEXT, -- 'observation', 'intervention', 'encounter'
+    extraction_context JSONB, -- Additional metadata about extraction context
     
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
-    -- Allow multiple sources per fact (medication can appear on multiple pages/documents)
-    UNIQUE(fact_table, fact_id, document_id, page_number, md5(ST_AsBinary(bounding_box)))
+    -- Allow multiple sources per fact - same clinical fact can appear across multiple documents/pages
+    UNIQUE(fact_table, fact_id, document_id, page_number, md5(ST_AsText(bounding_box)))
 );
 
--- Essential indexes
+-- Spatial and performance indexes
 CREATE INDEX idx_clinical_fact_sources_spatial ON clinical_fact_sources USING GIST(bounding_box);
 CREATE INDEX idx_clinical_fact_sources_document ON clinical_fact_sources(document_id);
 CREATE INDEX idx_clinical_fact_sources_fact ON clinical_fact_sources(fact_table, fact_id);
 CREATE INDEX idx_clinical_fact_sources_method ON clinical_fact_sources(extraction_method);
+CREATE INDEX idx_clinical_fact_sources_clinical_event_type ON clinical_fact_sources(clinical_event_type) WHERE clinical_event_type IS NOT NULL;
+
+-- Full-text search on source text for document exploration
+CREATE INDEX idx_clinical_fact_sources_text_search ON clinical_fact_sources USING GIN(to_tsvector('english', source_text));
 ```
 
 ---
@@ -638,31 +860,43 @@ $$ LANGUAGE plpgsql;
 
 ## 8. Core Schema Summary
 
-This core schema provides the essential foundation for Guardian's healthcare data management:
+This unified core schema provides the essential foundation for Guardian's healthcare data management using O3's two-axis classification model:
 
-**Clinical Data Tables:**
-- `patient_medications` - Medication records with dosage, frequency, and status
-- `patient_conditions` - Medical conditions with ICD-10 codes and severity
-- `patient_allergies` - Allergy information with reaction and severity details
-- `patient_lab_results` - Laboratory test results with reference ranges
-- `patient_vitals` - Vital signs measurements
+**Unified Clinical Events Architecture:**
+- `patient_clinical_events` - Central events table using activity_type (observation/intervention) × clinical_purposes classification
+- `patient_observations` - Detailed observation results (lab results, vital signs, assessments, physical findings)
+- `patient_interventions` - Detailed intervention records (medications, procedures, vaccinations, treatments)
+- `healthcare_encounters` - Healthcare visit context and provider information
+- `patient_imaging_reports` - Imaging studies and radiological findings
+
+**Traditional Clinical Records:**
+- `patient_conditions` - Medical diagnoses and health conditions with ICD-10 codes
+- `patient_allergies` - Allergy information with reaction severity and clinical context
+
+**Backward Compatibility:**
+- `patient_medications` (materialized view) - Maintains existing medication API compatibility
+- `patient_lab_results` (materialized view) - Maintains existing lab results API compatibility  
+- `patient_vitals` (materialized view) - Maintains existing vitals API compatibility
 
 **Relationship System:**
-- `medical_data_relationships` - Polymorphic relationships between clinical entities
+- `medical_data_relationships` - Polymorphic relationships between all clinical entities
 - `relationship_types` - Controlled vocabulary for relationship definitions
 
-**Provenance Tracking:**
-- `clinical_fact_sources` - Links clinical facts to source documents with spatial precision
+**Enhanced Provenance Tracking:**
+- `clinical_fact_sources` - Links all clinical data to source documents with PostGIS spatial precision
+- Support for unified clinical events system with extraction context
 
 **Security & Compliance:**
-- Row Level Security (RLS) ensures complete user data isolation
-- Secure polymorphic relationship access control
-- Comprehensive audit trails with soft delete patterns
+- Row Level Security (RLS) ensures complete user data isolation across all tables
+- Secure polymorphic relationship access control with user ownership validation
+- Comprehensive audit trails with soft delete patterns throughout
 
-**Essential Features:**
-- Quality control flags for AI-extracted data requiring human review
-- Confidence scoring for all extracted medical facts
-- Flexible status management with vocabulary evolution support
-- Spatial indexing for document provenance with click-to-zoom capability
+**Key Architectural Benefits:**
+- **O3's Two-Axis Model**: Clear separation of observations vs interventions with flexible clinical purposes
+- **Healthcare Standards**: SNOMED-CT, LOINC, and CPT code integration throughout
+- **Spatial Provenance**: PostGIS-powered click-to-zoom document regions for all clinical facts
+- **Quality Control**: AI confidence scoring and human review workflows for all extracted data
+- **Backward Compatibility**: Existing APIs continue working through materialized views
+- **Performance Optimized**: Strategic indexing for timeline queries, filtering, and clinical event access patterns
 
-This schema serves as the foundation for all Guardian healthcare data operations, providing a secure, compliant, and scalable base for advanced features like performance optimization, monitoring, and analytics.
+This schema serves as the foundation for Guardian's healthcare journey logging system and provides a secure, compliant, and scalable base for advanced features like performance optimization, monitoring, and AI-powered healthcare insights.
