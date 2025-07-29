@@ -32,7 +32,7 @@ CREATE TABLE healthcare_timeline_events (
     patient_id UUID NOT NULL REFERENCES auth.users(id),
     
     -- Hierarchical categorization for multi-level filtering
-    display_category TEXT NOT NULL, -- 'visit', 'test_result', 'treatment', 'vaccination', 'screening', 'diagnosis'
+    display_category TEXT NOT NULL, -- 'visit', 'test_result', 'treatment', 'vaccination', 'screening', 'diagnosis', 'appointment'
     display_subcategory TEXT, -- 'annual_physical', 'blood_test', 'minor_procedure', 'emergency_visit'
     display_tertiary TEXT, -- 'blood_pressure', 'glucose_test', 'wart_removal', 'chest_xray'
     
