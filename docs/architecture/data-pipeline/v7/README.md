@@ -38,6 +38,9 @@ Guardian v7 represents a major architectural evolution, transitioning from a mon
 - **[Testing Scenarios](./testing/test-scenarios.md)** - Comprehensive testing framework and validation
 - **[Performance Benchmarks](./testing/performance-benchmarks.md)** - Performance targets and monitoring
 
+### Future Platform Extensions
+- **[Doctor Portal Architecture Analysis](./Doctor_portal_architecture_analysis.md)** - Provider portal planning and future integration architecture
+
 ---
 
 ## Implementation Guide
@@ -72,8 +75,8 @@ Each module is self-contained with clear interfaces and dependencies, enabling p
 ### 2. **Healthcare-First**
 Built with FHIR standards and healthcare compliance requirements as first-class citizens, not afterthoughts.
 
-### 3. **User Ownership**
-Patients have granular control over their data with comprehensive consent management and audit trails.
+### 3. **User Ownership**  
+Patients have granular control over their data with comprehensive consent management and audit trails. Architecture designed for future provider portal integration while maintaining patient data sovereignty.
 
 ### 4. **Performance by Design**
 Optimized for healthcare data patterns with appropriate indexing, partitioning, and caching strategies.
@@ -93,6 +96,7 @@ Multi-layered security with RLS, field-level encryption options, and comprehensi
 
 ## Design Evolution
 - **v7.0** (2025-07-29): Production-ready modular architecture with FHIR integration
+- **v7.1 (Planned)**: Provider portal integration with universal provider registry and access control
 - **v6.0-v1.0** (2025-07-26 to 2025-07-28): Design and planning phases (archived)
 
 ---
