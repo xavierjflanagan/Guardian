@@ -15,6 +15,7 @@ This document defines the foundational database schema for Guardian v7. It conta
 - Healthcare compliance with comprehensive audit trails
 - Flexible relationship modeling between clinical entities
 - Provenance tracking for all extracted medical facts
+- **Future-ready architecture**: Designed for provider portal integration while maintaining patient data sovereignty
 
 ---
 
@@ -902,3 +903,40 @@ This unified core schema provides the essential foundation for Guardian's health
 - **Performance Optimized**: Strategic indexing for timeline queries, filtering, and clinical event access patterns
 
 This schema serves as the foundation for Guardian's healthcare journey logging system and provides a secure, compliant, and scalable base for advanced features like performance optimization, monitoring, and AI-powered healthcare insights.
+
+---
+
+## 9. Future Provider Portal Integration Points
+
+The v7 core schema is designed with extensibility for future provider portal integration. Key architectural decisions that support this:
+
+### 9.1. Provider-Ready Clinical Events
+The `patient_clinical_events` table includes fields that support provider integration:
+- `performed_by` field can reference provider information
+- `clinical_purposes` array supports provider-driven clinical decision support
+- Audit framework tracks all provider interactions
+
+### 9.2. Healthcare Encounters Extension Points
+The `healthcare_encounters` table is designed to accommodate:
+- Provider authentication and verification
+- Clinical decision support workflows
+- Inter-provider referral tracking
+- Provider-patient access control
+
+### 9.3. Extensible Audit System
+The existing audit framework in `audit_log` supports:
+- Provider access logging
+- Patient-provider consent tracking
+- Clinical decision audit trails
+- Provider data contribution tracking
+
+### 9.4. Future Provider Tables (v7.1 Planned)
+The schema is designed to accommodate these future additions:
+- `provider_registry` - Universal provider identification system
+- `patient_provider_access` - Granular access control
+- `provider_action_items` - Clinical decision support tasks
+- `registered_doctors_au` - AHPRA registry integration
+
+**Design Philosophy**: The v7 core schema provides the foundation for a true healthcare platform that connects patients and providers while maintaining patient control and data sovereignty. All provider functionality will build upon these existing clinical events and audit systems rather than creating parallel structures.
+
+**Reference**: See [`Doctor_portal_architecture_analysis.md`](./Doctor_portal_architecture_analysis.md) for comprehensive provider portal planning.

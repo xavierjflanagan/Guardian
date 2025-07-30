@@ -1583,3 +1583,187 @@ This Guardian v7 Security & Compliance Framework provides:
 - Supports the healthcare interoperability features in other v7 modules
 
 This framework ensures Guardian meets the highest standards for healthcare data security and regulatory compliance while providing the tools and automation needed for ongoing security operations.
+
+---
+
+## 8. Future Provider Portal Security Considerations
+
+The v7 security framework is designed to accommodate future provider portal integration. Key architectural decisions that support secure provider access:
+
+### 8.1. Provider-Specific RLS Policies (v7.1 Planned)
+
+Extension of existing RLS framework for provider access:
+
+```sql
+-- Provider access to patient clinical events
+CREATE POLICY provider_can_view_consented_patients ON patient_clinical_events
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM patient_provider_access ppa
+            WHERE ppa.patient_id = patient_clinical_events.patient_id
+            AND ppa.provider_id = auth.uid()
+            AND ppa.status = 'active'
+            AND (ppa.expires_at IS NULL OR ppa.expires_at > NOW())
+            AND 'clinical_events' = ANY(ppa.access_scope)
+        )
+    );
+
+-- Provider audit log access (providers can only see their own actions)
+CREATE POLICY provider_audit_isolation ON audit_log
+    FOR SELECT USING (
+        changed_by = auth.uid() 
+        OR changed_on_behalf_of = auth.uid()
+    );
+```
+
+### 8.2. Enhanced Audit Requirements for Provider Access
+
+Provider interactions require additional audit context:
+
+```sql
+-- Enhanced audit fields for provider actions
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS provider_context JSONB DEFAULT '{}';
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS patient_consent_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS provider_pledge_acknowledged BOOLEAN DEFAULT FALSE;
+
+-- Provider-specific audit triggers
+CREATE OR REPLACE FUNCTION provider_audit_trigger_function()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Enhanced audit for provider-patient interactions
+    IF current_setting('app.user_role', true) = 'healthcare_provider' THEN
+        INSERT INTO audit_log (
+            -- ... existing fields
+            provider_context,
+            patient_consent_verified,
+            provider_pledge_acknowledged
+        ) VALUES (
+            -- ... existing values
+            current_setting('app.provider_context', true)::JSONB,
+            current_setting('app.consent_verified', true)::BOOLEAN,
+            current_setting('app.pledge_acknowledged', true)::BOOLEAN
+        );
+    END IF;
+    
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 8.3. Provider Authentication Security Requirements
+
+Enhanced authentication for healthcare providers:
+
+- **Multi-Factor Authentication (MFA)**: Mandatory for all provider accounts
+- **Registry Verification**: AHPRA/professional registry verification required
+- **Device Trust**: Provider devices must be registered and trusted
+- **Session Management**: Shorter session timeouts (15 minutes) for provider accounts
+- **IP Restrictions**: Optional IP allowlisting for practice locations
+
+### 8.4. Zero-Trust Architecture for Providers
+
+Provider access follows zero-trust principles:
+
+```sql
+-- Provider zero-trust validation
+CREATE OR REPLACE FUNCTION validate_provider_zero_trust_access(
+    p_provider_id UUID,
+    p_patient_id UUID,
+    p_resource_type TEXT,
+    p_context JSONB DEFAULT '{}'
+) RETURNS BOOLEAN AS $$
+DECLARE
+    access_granted BOOLEAN := FALSE;
+BEGIN
+    -- Verify active patient consent
+    IF NOT EXISTS (
+        SELECT 1 FROM patient_provider_access 
+        WHERE provider_id = p_provider_id 
+        AND patient_id = p_patient_id
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > NOW())
+        AND p_resource_type = ANY(access_scope)
+    ) THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- Verify provider has acknowledged data sharing pledge
+    IF NOT EXISTS (
+        SELECT 1 FROM patient_provider_access
+        WHERE provider_id = p_provider_id
+        AND patient_id = p_patient_id
+        AND provider_pledged_data_return = TRUE
+    ) THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- Verify MFA for sensitive data access
+    IF p_resource_type IN ('medications', 'conditions', 'lab_results') THEN
+        IF (p_context->>'mfa_verified')::BOOLEAN IS NOT TRUE THEN
+            RETURN FALSE;
+        END IF;
+    END IF;
+    
+    -- Verify session is within allowed time
+    IF (p_context->>'session_age_minutes')::INTEGER > 15 THEN
+        RETURN FALSE;
+    END IF;
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### 8.5. Provider Data Security Classifications
+
+Enhanced data classification for provider access:
+
+```sql
+-- Provider access data classifications
+CREATE TABLE provider_data_classifications (
+    data_type TEXT PRIMARY KEY,
+    classification TEXT NOT NULL CHECK (classification IN ('public', 'restricted', 'confidential', 'highly_confidential')),
+    provider_access_level TEXT NOT NULL CHECK (provider_access_level IN ('none', 'read_only', 'read_write', 'full_access')),
+    requires_explicit_consent BOOLEAN NOT NULL DEFAULT TRUE,
+    requires_mfa BOOLEAN NOT NULL DEFAULT FALSE,
+    audit_level TEXT NOT NULL CHECK (audit_level IN ('basic', 'detailed', 'comprehensive')),
+    retention_period_days INTEGER DEFAULT 2555 -- 7 years
+);
+
+-- Standard healthcare data classifications
+INSERT INTO provider_data_classifications VALUES
+('demographics', 'restricted', 'read_only', TRUE, FALSE, 'basic', 2555),
+('medications', 'confidential', 'read_write', TRUE, TRUE, 'comprehensive', 2555),
+('conditions', 'confidential', 'read_write', TRUE, TRUE, 'comprehensive', 2555),
+('lab_results', 'highly_confidential', 'read_only', TRUE, TRUE, 'comprehensive', 2555),
+('imaging_reports', 'highly_confidential', 'read_only', TRUE, TRUE, 'comprehensive', 2555),
+('clinical_notes', 'highly_confidential', 'read_write', TRUE, TRUE, 'comprehensive', 2555);
+```
+
+### 8.6. Provider Security Monitoring
+
+Enhanced monitoring for provider activities:
+
+- **Real-time anomaly detection** for unusual provider access patterns
+- **Cross-patient access monitoring** to detect potential privacy violations
+- **Provider behavior analytics** to identify suspicious activities
+- **Automated alerts** for high-risk provider actions
+- **Compliance dashboards** for healthcare organizations
+
+### 8.7. Provider-Specific Compliance Requirements
+
+Additional compliance considerations for provider portal:
+
+#### HIPAA Compliance:
+- **Minimum Necessary Rule**: Providers see only data necessary for their clinical purpose
+- **Business Associate Agreements**: Required for healthcare organizations using Guardian
+- **Breach Notification**: Enhanced procedures for provider-related incidents
+
+#### Professional Standards:
+- **Medical Board Reporting**: Integration with medical licensing board requirements
+- **Professional Liability**: Clear documentation of provider access and actions
+- **Clinical Guidelines**: Adherence to specialty-specific clinical practice guidelines
+
+**Future Implementation**: These security enhancements will be implemented as part of Guardian v7.1 (provider portal phase).
+
+**Reference**: See [`Doctor_portal_architecture_analysis.md`](./Doctor_portal_architecture_analysis.md) for comprehensive provider portal security architecture from Opus4.

@@ -47,6 +47,14 @@ This roadmap provides a comprehensive, phased approach to implementing Guardian 
 - 🔄 Data portability features
 - 🛡️ Advanced security
 
+### Phase 5 (Future - v7.1): Provider Portal Integration
+**Objective:** Extend platform for healthcare provider access (Post-Patient Platform Launch)
+- 🏥 Universal provider registry with AHPRA integration
+- 🔐 Patient-provider access control system
+- 👨‍⚕️ Provider authentication and verification
+- 📊 Clinical decision support for providers
+- 🤝 Inter-provider collaboration features
+
 ---
 
 ## 2. Feature Flags Strategy
@@ -72,7 +80,14 @@ INSERT INTO feature_flags (feature_name, enabled, configuration) VALUES
 ('multi_tenancy', false, '{"tenant_isolation_level": "complete"}'),
 ('mobile_optimization', false, '{"offline_capability": false}'),
 ('data_portability_v2', false, '{"export_formats": ["fhir", "cda", "pdf"]}'),
-('zero_trust_security', false, '{"mfa_required": true}');
+('zero_trust_security', false, '{"mfa_required": true}'),
+
+-- Phase 5 (v7.1) - Provider Portal Features
+('provider_registry', false, '{"ahpra_integration": true, "universal_id_system": true}'),
+('provider_authentication', false, '{"verification_required": true, "2fa_mandatory": true}'),
+('patient_provider_access', false, '{"granular_permissions": true, "time_based_access": true}'),
+('clinical_decision_support', false, '{"medication_reviews": true, "screening_alerts": true}'),
+('provider_collaboration', false, '{"referral_system": true, "shared_notes": true}');
 
 -- Feature flag management functions
 CREATE OR REPLACE FUNCTION enable_feature_for_user(
@@ -747,6 +762,149 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-This implementation roadmap provides a structured, risk-managed approach to delivering Guardian v7's enhanced capabilities while maintaining system stability and user satisfaction. The phased approach ensures that critical features (FHIR integration, consent management) are prioritized while building a foundation for advanced capabilities that will position Guardian as a leader in patient-owned healthcare data platforms.
+## 12. Phase 5 (v7.1): Provider Portal Detailed Implementation Plan
 
-**Ready to begin implementation of Phase 1 upon approval.**
+**Timeline:** Post-patient platform launch (Estimated 6-8 months after Phase 4 completion)  
+**Status:** Future Planning Phase  
+**Dependencies:** Guardian v7 patient platform fully operational
+
+### 12.1. Provider Portal Implementation Overview
+
+The provider portal represents Guardian's evolution into a true healthcare ecosystem platform. This phase builds upon the robust v7 foundation to create secure, compliant provider access while maintaining patient data sovereignty.
+
+#### Core Architecture Strategy:
+- **Extend, Don't Replace**: All provider functionality builds on existing v7 clinical events and audit systems
+- **Patient-Controlled Access**: Providers access patient data only with explicit, granular consent
+- **Unified Database**: Single source of truth with enhanced RLS policies for provider access
+- **Monorepo Structure**: Provider portal as workspace within existing Guardian repository
+
+### 12.2. Provider Portal Implementation Phases
+
+#### Phase 5.1: Foundation (Weeks 1-4)
+**Universal Provider Registry & Access Control**
+
+```sql
+-- Core provider registry extending v7 architecture
+CREATE TABLE provider_registry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    guardian_provider_id TEXT UNIQUE NOT NULL, -- "GP-AU-MED0001234567"
+    
+    -- Links to existing AHPRA system (from original o3 ticket)
+    external_registries JSONB DEFAULT '[]',
+    ahpra_verification_id TEXT, -- Links to registered_doctors_au when available
+    
+    -- Guardian platform engagement
+    has_guardian_account BOOLEAN DEFAULT FALSE,
+    guardian_verified_badge BOOLEAN DEFAULT FALSE,
+    pledged_data_sharing BOOLEAN DEFAULT FALSE,
+    
+    -- Audit (using existing v7 audit framework)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+) PARTITION BY HASH(id); -- Use v7's partitioning strategy
+
+-- Patient-Provider access control extending existing RLS
+CREATE TABLE patient_provider_access (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES auth.users(id),
+    provider_id UUID NOT NULL REFERENCES provider_registry(id),
+    
+    -- Granular access control
+    access_scope TEXT[] NOT NULL, -- ['medications', 'conditions', 'lab_results']
+    access_type TEXT NOT NULL CHECK (access_type IN ('full', 'limited', 'emergency')),
+    
+    -- Time-based access
+    granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    status TEXT NOT NULL DEFAULT 'active',
+    
+    -- Provider pledge acknowledgment
+    provider_pledged_data_return BOOLEAN DEFAULT FALSE,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+#### Phase 5.2: AHPRA Integration & Authentication (Weeks 5-8)
+**Complete Original O3 Ticket Within Provider Portal Context**
+
+- Enhanced AHPRA ETL with provider registry integration
+- Provider authentication flow with 2FA requirement
+- Registry verification pipeline
+- Provider onboarding workflow
+
+#### Phase 5.3: Provider Portal MVP (Weeks 9-12)
+**Core Provider Interface**
+
+- Provider dashboard with active patient list
+- Patient data access with audit logging
+- Basic clinical decision support alerts
+- Provider profile management
+
+#### Phase 5.4: Advanced Clinical Features (Weeks 13-16)
+**Clinical Decision Support & Collaboration**
+
+- Medication optimization suggestions
+- Screening due alerts with billing codes
+- Inter-provider referral system
+- Provider-to-provider data sharing
+
+### 12.3. Key Integration Points with v7
+
+1. **Clinical Events**: Provider actions create entries in existing `patient_clinical_events`
+2. **Audit System**: Provider access logged in existing partitioned `audit_log`
+3. **Security Framework**: Provider RLS policies extend existing user isolation
+4. **Feature Flags**: Provider features use existing `feature_flags` infrastructure
+5. **FHIR Integration**: Provider data uses existing FHIR transformation functions
+
+### 12.4. Repository Structure (Monorepo Approach)
+
+```
+guardian-web/
+├── apps/
+│   ├── patient-portal/          # Existing patient app
+│   ├── provider-portal/         # New provider app (Phase 5)
+│   └── admin-portal/           # Future admin interface
+├── packages/
+│   ├── database/               # Shared v7 schema + provider extensions
+│   ├── auth/                   # Enhanced auth for providers
+│   ├── clinical-logic/         # Shared clinical algorithms
+│   └── ui/                     # Shared components
+└── services/
+    ├── document-processor/     # Existing service
+    ├── provider-registry-etl/  # New AHPRA service (Phase 5)
+    └── clinical-alerts/        # Provider notifications (Phase 5)
+```
+
+### 12.5. Success Criteria for Provider Portal
+
+#### Technical Milestones:
+- [ ] Universal provider registry operational with AHPRA integration
+- [ ] Patient-provider access control system with granular permissions
+- [ ] Provider authentication with registry verification
+- [ ] Clinical decision support generating actionable alerts
+- [ ] Complete audit trail of all provider-patient interactions
+
+#### Business Impact:
+- [ ] 10+ healthcare providers verified and active
+- [ ] 100+ patients have granted provider access
+- [ ] Clinical decision support reducing medication optimization opportunities by 30%
+- [ ] Provider satisfaction score >4.5/5
+- [ ] Zero security incidents or data breaches
+
+### 12.6. Future Provider Portal Extensions (Post-v7.1)
+
+- **Provider ratings and reviews system**
+- **Advanced analytics and population health insights**
+- **EMR integration APIs**
+- **Multi-country provider registry expansion**
+- **AI-powered clinical recommendations**
+
+---
+
+This implementation roadmap provides a structured, risk-managed approach to delivering Guardian v7's enhanced capabilities while maintaining system stability and user satisfaction. The phased approach ensures that critical patient-facing features are prioritized while building a foundation for the future provider portal that will position Guardian as a comprehensive healthcare platform.
+
+**Patient Platform Ready:** Begin implementation of Phase 1 upon approval.  
+**Provider Portal Ready:** Detailed architecture and implementation plan documented for future development.
+
+**Reference:** See [`Doctor_portal_architecture_analysis.md`](./Doctor_portal_architecture_analysis.md) for comprehensive provider portal analysis from Opus4.
