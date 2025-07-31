@@ -58,20 +58,29 @@ interface RelationshipType {
 
 ### 2.1. Authentication Levels
 
+ User has three options upon app download to start building out their account:
+   1. Do nothing, no personal details entered (intial state)
+   2. Manually enter personal details, or with smart tech UI, such as drivers license photo upload. (Soft Authentication)
+   3. Simply upload their first healthcare document, which, if containing patient personal contact details will subsequently be auto-populated (Soft Authentication)
+
 **None Authentication (Initial State)**
 - New profiles start with no authentication
+- Entering in personal details optional at this stage.
 - Can view basic interface and educational content
+- Can view demo of messy common file being uploaded and transformed into pretty dashboard profile.
 - Cannot upload documents or access advanced features
 
 **Soft Authentication (First Document Upload)**
-- Activated when first document is uploaded and processed
+- Activated when first document is uploaded and processed.
 - Patient details extracted from document (name, DOB, address, etc.)
-- User confirms extracted details belong to them
+- User confirms extracted details belong to them. 
+- User able to manually contribute further personal contact details.
 - Confidence score calculated based on data completeness
 - Enables basic healthcare data management
 
 **Hard Authentication (Pre-Export/Sharing)**
 - Required before data export, sharing, or ecosystem features
+- Suggested post soft authentication, however, easily skippable following consequence warning.
 - Multiple verification methods available:
   - ID document verification (passport, driver's license)
   - Bank relationship verification (modern identity services)
@@ -91,13 +100,13 @@ Key functions:
 
 | Feature | None | Soft | Hard |
 |---------|------|------|------|
-| Document Upload | ❌ | ✅ | ✅ |
+| Document Upload | ✅ | ✅ | ✅ |
 | Timeline Viewing | ❌ | ✅ | ✅ |
 | Data Export | ❌ | ❌ | ✅ |
 | Provider Sharing | ❌ | ❌ | ✅ |
 | Ecosystem Features | ❌ | ❌ | ✅ |
 | Profile Management | ❌ | ✅ | ✅ |
-| Family Coordination | ❌ | ✅ | ✅ |
+| Family Coordination | ❌ | ❌  | ✅ |
 
 ---
 
@@ -148,6 +157,35 @@ Key functions:
 - Future date detection and flagging
 - Appointment date reasonableness checking
 - Medical history timeline consistency
+
+### 3.4. Enhanced Data Quality Guardian System
+
+Building on the existing contamination prevention system, the Quality Guardian adds user validation and correction capabilities for detected issues. This system ensures data accuracy while providing users with clear, actionable feedback.
+
+**Quality Flag Categories**
+- **Temporal**: Date inconsistencies, future dates, timeline issues
+- **Demographic**: Name mismatches, age inconsistencies, contact format issues
+- **Clinical**: Age-inappropriate conditions, impossible vital ranges, species-specific validation
+- **Profile Mismatch**: Document assigned to wrong profile type
+- **Extraction Quality**: Low OCR confidence, incomplete extraction, conflicting data
+
+**Severity Levels**
+- **Critical**: Issues that block processing or require immediate attention
+- **Warning**: Issues that should be reviewed but don't block processing
+- **Info**: Minor issues or suggestions for improvement
+
+**User Resolution Workflow**
+1. **Detection**: AI identifies potential issues during document processing
+2. **Flag Creation**: Issues stored in database with confidence scores and explanations
+3. **User Notification**: Gentle, contextual flags displayed in UI with clear explanations
+4. **Resolution Options**: Multiple resolution paths provided (confirm, edit, delete, ignore)
+5. **ML Feedback**: User corrections improve future detection accuracy
+
+**Integration Points**
+- Extends existing `check_document_profile_compatibility()` function
+- Enhances `verify_document_before_processing()` with user validation layer
+- Builds on temporal/demographic validation with ML-powered suggestions
+- Seamlessly integrates with document processing pipeline
 
 ---
 

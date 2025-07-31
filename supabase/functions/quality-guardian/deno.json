@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-read --allow-env --allow-ffi --unstable-ffi index.ts"
+  },
+  "imports": {
+    "@supabase/functions-js": "https://deno.land/x/supabase@1.1.0/functions-js/edge.ts",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}

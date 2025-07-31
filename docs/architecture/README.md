@@ -9,8 +9,7 @@
 
 This directory contains:
 - System design overview
-- Data pipeline architecture
-- Security and compliance documentation
-- MVP prototype and long-term vision
-- Core functionality and frontend workflow
+- Long-term product vision
+- Frontend design and architecture
 - Architecture decision records (see adr/)
+- **Current Implementation**: See data-pipeline/v7/ for the latest Guardian v7 architecture

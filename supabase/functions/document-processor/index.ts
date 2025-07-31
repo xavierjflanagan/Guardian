@@ -2,6 +2,12 @@ import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
 import OpenAI from 'openai'
 
+// Quality Guardian Engine import (will be loaded dynamically)
+interface QualityGuardianEngine {
+  checkDataQuality(extractedData: any, documentId: string, profileId: string, profile: any): Promise<any[]>;
+  storeFlags(flags: any[]): Promise<string[]>;
+}
+
 // Initialize Supabase client
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -246,6 +252,199 @@ function validateFileFormat(buffer: Uint8Array, filePath: string): boolean {
   return true;
 }
 
+// Quality checking with data quality flags
+async function performQualityChecks(
+  extractedData: any, 
+  documentId: string, 
+  document: any
+): Promise<{
+  flags: any[];
+  shouldBlock: boolean;
+  flagIds: string[];
+}> {
+  console.log('🛡️ Starting data quality validation...');
+  
+  try {
+    // Get profile information for quality checking
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('profile_id', document.profile_id)
+      .single();
+
+    if (profileError || !profile) {
+      console.warn('⚠️ Could not load profile for quality checking, skipping validation');
+      return { flags: [], shouldBlock: false, flagIds: [] };
+    }
+
+    // Dynamic import of QualityGuardianEngine (simulate with basic checks for now)
+    const flags = await performBasicQualityChecks(extractedData, documentId, document.profile_id, profile);
+    
+    // Check if any critical flags should block processing
+    const criticalFlags = flags.filter(flag => flag.severity === 'critical');
+    const shouldBlock = criticalFlags.length > 0;
+    
+    // Store flags in database
+    const flagIds: string[] = [];
+    for (const flag of flags) {
+      const { data: flagId, error } = await supabase.rpc('create_data_quality_flag', {
+        p_profile_id: flag.profile_id,
+        p_document_id: flag.document_id,
+        p_record_table: flag.record_table,
+        p_record_id: flag.record_id,
+        p_severity: flag.severity,
+        p_category: flag.category,
+        p_problem_code: flag.problem_code,
+        p_field_name: flag.field_name,
+        p_raw_value: flag.raw_value,
+        p_suggested_correction: flag.suggested_correction,
+        p_confidence_score: flag.confidence_score,
+        p_auto_resolvable: flag.auto_resolvable
+      });
+      
+      if (!error && flagId) {
+        flagIds.push(flagId);
+      }
+    }
+    
+    if (flags.length > 0) {
+      console.log(`🚩 Quality validation completed: ${flags.length} flags created (${criticalFlags.length} critical)`);
+    } else {
+      console.log('✅ Quality validation passed: no issues detected');
+    }
+    
+    return { flags, shouldBlock, flagIds };
+    
+  } catch (error) {
+    console.error('❌ Quality validation error:', error);
+    // Don't block processing on quality check errors
+    return { flags: [], shouldBlock: false, flagIds: [] };
+  }
+}
+
+// Basic quality checks (simplified version of QualityGuardianEngine)
+async function performBasicQualityChecks(
+  extractedData: any,
+  documentId: string,
+  profileId: string,
+  profile: any
+): Promise<any[]> {
+  const flags = [];
+  const currentDate = new Date();
+  
+  // Check for future dates in extracted data
+  if (extractedData.dates) {
+    if (extractedData.dates.documentDate) {
+      const docDate = new Date(extractedData.dates.documentDate);
+      if (docDate > currentDate) {
+        const monthsAhead = (docDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        if (monthsAhead > 1) {
+          flags.push({
+            profile_id: profileId,
+            document_id: documentId,
+            record_table: 'documents',
+            record_id: documentId,
+            severity: 'warning',
+            category: 'temporal',
+            problem_code: 'future_date_check',
+            field_name: 'document_date',
+            raw_value: extractedData.dates.documentDate,
+            suggested_correction: currentDate.toISOString().split('T')[0],
+            confidence_score: 0.85,
+            auto_resolvable: false
+          });
+        }
+      }
+    }
+  }
+  
+  // Check for name mismatch between document and profile
+  if (extractedData.patientInfo?.name && profile.display_name) {
+    const similarity = calculateSimpleNameSimilarity(
+      extractedData.patientInfo.name.toLowerCase(),
+      profile.display_name.toLowerCase()
+    );
+    
+    if (similarity < 0.6) {
+      flags.push({
+        profile_id: profileId,
+        document_id: documentId,
+        record_table: 'documents',
+        record_id: documentId,
+        severity: 'critical',
+        category: 'demographic',
+        problem_code: 'name_similarity_check',
+        field_name: 'patient_name',
+        raw_value: extractedData.patientInfo.name,
+        suggested_correction: profile.display_name,
+        confidence_score: 1 - similarity,
+        auto_resolvable: false
+      });
+    }
+  }
+  
+  // Check for incomplete extraction
+  const completenessScore = calculateExtractionCompleteness(extractedData);
+  if (completenessScore < 0.4) {
+    flags.push({
+      profile_id: profileId,
+      document_id: documentId,
+      record_table: 'documents',
+      record_id: documentId,
+      severity: 'warning',
+      category: 'extraction_quality',
+      problem_code: 'incomplete_extraction',
+      field_name: 'extraction_completeness',
+      raw_value: completenessScore,
+      suggested_correction: null,
+      confidence_score: 0.8,
+      auto_resolvable: false
+    });
+  }
+  
+  return flags;
+}
+
+// Helper function for simple name similarity
+function calculateSimpleNameSimilarity(name1: string, name2: string): number {
+  const words1 = name1.split(' ');
+  const words2 = name2.split(' ');
+  let matches = 0;
+  
+  for (const word1 of words1) {
+    for (const word2 of words2) {
+      if (word1.includes(word2) || word2.includes(word1)) {
+        matches++;
+        break;
+      }
+    }
+  }
+  
+  return matches / Math.max(words1.length, words2.length);
+}
+
+// Helper function to calculate extraction completeness
+function calculateExtractionCompleteness(extractedData: any): number {
+  let totalFields = 0;
+  let filledFields = 0;
+  
+  const sections = [
+    { data: extractedData.patientInfo, weight: 2 },
+    { data: extractedData.medicalData, weight: 1.5 },
+    { data: extractedData.dates, weight: 1 },
+    { data: extractedData.provider, weight: 1 }
+  ];
+  
+  for (const section of sections) {
+    totalFields += section.weight;
+    if (section.data && Object.keys(section.data).some(key => section.data[key] !== null && section.data[key] !== '')) {
+      filledFields += section.weight;
+    }
+  }
+  
+  return totalFields > 0 ? filledFields / totalFields : 0;
+}
+
 // New vision + OCR safety net pipeline
 async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: string): Promise<{
   extractedText: string;
@@ -383,13 +582,26 @@ Deno.serve(async (req: Request) => {
         visionConfidence
       } = await processWithVisionPlusOCR(uint8Array, filePath);
       
-      console.log(`✅ Processing completed with ${confidence.toFixed(1)}% overall confidence`);
+      console.log(`✅ Processing completed with ${confidence?.toFixed(1) || 'N/A'}% overall confidence`);
 
-      // Update document with results
+      // Perform quality validation checks
+      const { flags, shouldBlock, flagIds } = await performQualityChecks(medicalData, data.id, data);
+      
+      // Determine final status based on quality validation
+      let finalStatus = 'completed';
+      if (shouldBlock) {
+        finalStatus = 'flagged_critical';
+        console.log('🚫 Document processing blocked due to critical quality issues');
+      } else if (flags.length > 0) {
+        finalStatus = 'flagged_review';
+        console.log(`⚠️ Document completed with ${flags.length} quality flags for review`);
+      }
+
+      // Update document with results including quality flag information
       const { data: updatedDoc, error: updateError } = await supabase
         .from('documents')
         .update({ 
-          status: 'completed',
+          status: finalStatus,
           extracted_text: extractedText,
           medical_data: medicalData,
           ocr_confidence: ocrConfidence,
@@ -397,6 +609,9 @@ Deno.serve(async (req: Request) => {
           overall_confidence: confidence,
           processed_at: new Date().toISOString(),
           processing_method: 'vision_plus_ocr',
+          quality_flags_count: flags.length,
+          has_critical_flags: shouldBlock,
+          quality_flag_ids: flagIds.length > 0 ? flagIds : null,
           error_log: null // Clear any previous errors
         })
         .eq('s3_key', filePath)
@@ -422,6 +637,12 @@ Deno.serve(async (req: Request) => {
           ocrConfidence,
           visionConfidence,
           processingMethod: 'vision_plus_ocr'
+        },
+        qualityValidation: {
+          flagsCount: flags.length,
+          hasCriticalFlags: shouldBlock,
+          flagIds: flagIds,
+          status: finalStatus
         }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
