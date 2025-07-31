@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import QualityChatBot from '@/components/quality/QualityChatBot';
 
 export const metadata: Metadata = {
   title: "Guardian - Healthcare Management",
@@ -25,6 +26,9 @@ export default function MainLayout({
         </div>
       </header>
       <main>{children}</main>
+      
+      {/* Quality Assistant Chat Bot */}
+      <QualityChatBot />
     </div>
   );
 }

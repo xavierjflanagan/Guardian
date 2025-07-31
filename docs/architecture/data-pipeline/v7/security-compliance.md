@@ -118,6 +118,10 @@ CREATE POLICY encrypted_patient_data_user_isolation ON encrypted_patient_data
 
 ### 1.2. Zero-Trust Architecture Implementation
 
+**What it is:** Implements a _zero-trust_ security posture where every access request is explicitly authenticated, authorised, and validated in real-time – no implicit trust is granted based on network location or static roles.
+
+**Why it matters:** Ensures that sensitive healthcare data is only accessible when runtime conditions (MFA, device trust, location, time-of-day, etc.) satisfy predefined policies, drastically limiting the impact of compromised credentials.
+
 ```sql
 -- Zero-trust access control framework
 CREATE TABLE access_policies (
@@ -223,6 +227,10 @@ CREATE INDEX idx_access_attempts_denied ON access_attempts(access_granted, attem
 ```
 
 ### 1.3. Anomaly Detection for Access Patterns
+
+**What it is:** Behaviour-based analytics that continuously scrutinise access and audit logs for unusual temporal, geographic, or volume-based patterns.
+
+**Why it matters:** Detects suspicious activity early (e.g., rapid exports, late-night logins) so that security teams can respond before a minor incident becomes a breach.
 
 ```sql
 -- Anomaly detection patterns table
@@ -489,6 +497,10 @@ $$ LANGUAGE plpgsql;
 
 ### 2.2. Audit Reporting and Compliance Views
 
+**What it is:** Curated SQL views that transform raw audit events into human-readable summaries for investigators, auditors, and compliance officers.
+
+**Why it matters:** Accelerates incident triage and regulatory reporting (HIPAA, GDPR, etc.) by providing ready-made dashboards without querying raw tables.
+
 ```sql
 -- Comprehensive audit reporting views
 CREATE VIEW audit_summary_by_user AS
@@ -552,6 +564,10 @@ ORDER BY access_count DESC;
 ## 3. GDPR and Healthcare Compliance
 
 ### 3.1. GDPR Compliance Framework
+
+**What it is:** Database structures and functions that manage EU data-subject rights – consent, access, portability, rectification, and erasure.
+
+**Why it matters:** Demonstrates “privacy by design” and makes it straightforward to prove compliance with the GDPR’s legal deadlines (e.g., 30-day response windows) and accountability principles.
 
 ```sql
 -- GDPR consent and rights management
@@ -759,6 +775,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ### 3.2. HIPAA Compliance Features
 
+**What it is:** Schema and procedures that capture U.S. HIPAA requirements such as authorization tracking, minimum-necessary assessments, and breach notification workflows.
+
+**Why it matters:** Provides the auditability and safeguards mandated for handling Protected Health Information (PHI) in the United States, lowering legal risk and strengthening patient trust.
+
 ```sql
 -- HIPAA authorization tracking
 CREATE TABLE hipaa_authorizations (
@@ -886,6 +906,10 @@ CREATE TABLE security_breaches (
 ## 4. Security Monitoring and Alerting
 
 ### 4.1. Comprehensive Security Audit Dashboard
+
+**What it is:** A materialised view that aggregates login attempts, audit events, security alerts, and GDPR requests into a single operational dashboard.
+
+**Why it matters:** Gives security and compliance teams real-time visibility into the system’s risk posture and highlights hotspots that need immediate attention.
 
 ```sql
 -- Security metrics materialized view
@@ -1032,6 +1056,10 @@ $$ LANGUAGE plpgsql;
 
 ### 4.2. Automated Security Response
 
+**What it is:** Incident-response playbooks that automatically trigger predefined actions (e.g., lock accounts, notify DPO) when security thresholds are breached.
+
+**Why it matters:** Shrinks mean-time-to-response by automating containment and escalation steps, ensuring consistent, auditable handling of security events.
+
 ```sql
 -- Automated incident response system
 CREATE TABLE incident_response_playbooks (
@@ -1150,6 +1178,10 @@ $$ LANGUAGE plpgsql;
 
 ### 5.1. Key Management and Rotation
 
+**What it is:** Tables and procedures that monitor cryptographic keys, their lifecycle, scheduled rotations, and associated audit logs.
+
+**Why it matters:** Reduces the attack surface by enforcing regular key rotation and providing full traceability for encryption keys that protect PHI.
+
 ```sql
 -- Encryption key management
 CREATE TABLE encryption_keys (
@@ -1251,6 +1283,10 @@ $$ LANGUAGE plpgsql;
 
 ### 5.2. Backup and Recovery Security
 
+**What it is:** Secure metadata and verification routines that ensure all backups are encrypted, integrity-checked, and subject to strict retention controls.
+
+**Why it matters:** Guarantees that disaster-recovery copies uphold the same security standards as production data, preventing leakage via backup channels.
+
 ```sql
 -- Secure backup metadata tracking
 CREATE TABLE backup_security_log (
@@ -1336,6 +1372,10 @@ $$ LANGUAGE plpgsql;
 
 ### 6.1. Security Configuration Management
 
+**What it is:** A central registry for critical security settings along with a compliance checker that evaluates each value against policy baselines.
+
+**Why it matters:** Detects configuration drift early and provides actionable recommendations, safeguarding against misconfigurations that could weaken defences.
+
 ```sql
 -- Security configuration registry
 CREATE TABLE security_configurations (
@@ -1408,6 +1448,10 @@ $$ LANGUAGE plpgsql;
 
 ### 6.2. Security Training and Awareness
 
+**What it is:** Tables that track mandatory training modules, completion status, and simulated security exercises (e.g., phishing tests).
+
+**Why it matters:** Provides evidence that all users receive regular security education, a common requirement in HIPAA, GDPR, and ISO frameworks.
+
 ```sql
 -- Security training tracking
 CREATE TABLE security_training (
@@ -1474,6 +1518,10 @@ CREATE TABLE security_simulations (
 
 ### 7.1. Security Deployment Checklist
 
+**What it is:** A deployment-phase checklist that enumerates critical security tasks (enabling RLS, verifying encryption, penetration testing, etc.).
+
+**Why it matters:** Ensures every environment rolls out with consistent, verified security controls, preventing gaps introduced during deployments or migrations.
+
 ```sql
 -- Security deployment tracking
 CREATE TABLE security_deployment_checklist (
@@ -1520,6 +1568,10 @@ INSERT INTO security_deployment_checklist (deployment_phase, checklist_item, pri
 ```
 
 ### 7.2. Ongoing Security Maintenance
+
+**What it is:** A scheduler for recurring security tasks such as patch reviews, access audits, key rotations, and disaster-recovery tests.
+
+**Why it matters:** Embeds security into day-to-day operations, ensuring that controls remain effective as the system and threat landscape evolve.
 
 ```sql
 -- Security maintenance schedule
