@@ -173,7 +173,7 @@ AND routine_schema = 'public';
 
 ```sql
 -- Deploy feature flags infrastructure
-\i implementation-guides/sql-scripts/002_feature_flags.sql
+\i implementation-guides/sql-scripts/001_feature_flags.sql
 
 -- Verify deployment
 SELECT feature_name, enabled, rollout_percentage 
@@ -181,11 +181,21 @@ FROM feature_flags
 ORDER BY feature_name;
 ```
 
-#### Step 4: Create Implementation Tracking
+#### Step 4: Deploy Enhanced Consent Management
 
 ```sql
--- Deploy implementation tracking
-\i implementation-guides/sql-scripts/003_implementation_tracking.sql
+-- Deploy GDPR-compliant consent management system
+\i implementation-guides/sql-scripts/002_enhanced_consent.sql
+
+-- Verify consent system deployment
+SELECT 
+    'Consent Management' as deployment_step,
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'patient_consents')
+        THEN 'Successfully Deployed'
+        ELSE 'Deployment Failed'
+    END as status,
+    (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_name LIKE '%consent%') as triggers_created;
 
 -- Initialize implementation session
 INSERT INTO implementation_sessions (
@@ -312,7 +322,34 @@ WHERE table_name IN ('patient_timeline_preferences', 'patient_timeline_bookmarks
 COMMIT;
 ```
 
-### 3.3. Phase 3: Data Integration & Testing
+### 3.3. Phase 3: Hybrid Infrastructure Integration
+
+#### Step 1: Deploy Job Queue System
+
+```sql
+-- Deploy job queue for hybrid Supabase + Render architecture
+\i implementation-guides/sql-scripts/009_job_queue.sql
+
+-- Verify job queue deployment
+SELECT 
+    'Job Queue System' as deployment_step,
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_queue')
+        THEN 'Successfully Deployed'
+        ELSE 'Deployment Failed'
+    END as status,
+    (SELECT COUNT(*) FROM information_schema.routines WHERE routine_name LIKE '%job%') as functions_created;
+
+-- Test job enqueueing
+SELECT enqueue_job(
+    'test_job',
+    jsonb_build_object('test', true),
+    0,
+    NOW()
+) as test_job_id;
+```
+
+### 3.4. Phase 4: Data Integration & Testing
 
 #### Step 1: Verify Healthcare Journey Data Flow
 
@@ -344,7 +381,28 @@ AND created_at > NOW() - INTERVAL '1 minute';
 ROLLBACK; -- Clean up test data
 ```
 
-#### Step 2: Test Timeline Filtering Functions
+#### Step 2: Test Job Queue Integration
+
+```sql
+-- Test document processing job flow
+SELECT enqueue_document_processing(
+    gen_random_uuid(), -- Mock document ID
+    5 -- High priority
+) as queued_job;
+
+-- Verify job was queued
+SELECT 
+    'Job Queue Test' as test_name,
+    CASE 
+        WHEN COUNT(*) > 0 THEN 'PASS - Jobs can be queued successfully'
+        ELSE 'FAIL - Job queue not working'
+    END as result
+FROM job_queue 
+WHERE type = 'process_document'
+AND created_at > NOW() - INTERVAL '1 minute';
+```
+
+#### Step 3: Test Timeline Filtering Functions
 
 ```sql
 -- Test multi-level timeline filtering
@@ -372,7 +430,7 @@ FROM process_healthcare_chatbot_query(auth.uid(), 'show me my recent test result
 LIMIT 1;
 ```
 
-#### Step 3: Performance Verification
+#### Step 4: Performance Verification
 
 ```sql
 -- Verify indexing performance for timeline queries
@@ -393,9 +451,21 @@ WHERE archived IS NOT TRUE;
 
 ---
 
-## 4. Post-Implementation Validation
+## 4. Future Features (v7.1) - Do Not Deploy
 
-### 4.1. Healthcare Journey System Validation
+**The following scripts are prepared for future v7.1 provider portal features:**
+
+- `006_provider_registry.sql` - Universal provider registry
+- `007_patient_provider_access.sql` - Patient-provider access control  
+- `008_clinical_decision_support.sql` - Clinical decision support system
+
+**Status:** These features are planned for v7.1 after the patient platform is operational. Do not deploy these scripts in the current v7.0 implementation.
+
+---
+
+## 5. Post-Implementation Validation
+
+### 5.1. Healthcare Journey System Validation
 
 #### Complete Healthcare Journey Flow Test
 
@@ -452,7 +522,7 @@ END;
 $$;
 ```
 
-### 4.2. Implementation Success Criteria
+### 5.2. Implementation Success Criteria
 
 The Guardian v7 healthcare journey implementation is complete when all of the following criteria are met:
 
@@ -461,21 +531,30 @@ The Guardian v7 healthcare journey implementation is complete when all of the fo
 ```sql
 -- Run comprehensive system verification
 SELECT 
-    'Guardian v7 Healthcare Journey Implementation Status' as system_status,
+    'Guardian v7 Implementation Status' as system_status,
     CASE 
         WHEN (
             -- Core tables exist
-            (SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('patient_clinical_events', 'healthcare_encounters', 'healthcare_timeline_events')) = 3
+            (SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN (
+                'patient_clinical_events', 'healthcare_timeline_events', 'user_profiles', 
+                'patient_consents', 'job_queue', 'feature_flags'
+            )) = 6
             AND
             -- Timeline triggers are active
             (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_name LIKE '%timeline%') >= 2
             AND
-            -- Timeline functions exist
-            (SELECT COUNT(*) FROM information_schema.routines WHERE routine_name LIKE '%timeline%' OR routine_name LIKE '%journey%') >= 3
+            -- Essential functions exist
+            (SELECT COUNT(*) FROM information_schema.routines WHERE routine_name IN (
+                'filter_patient_timeline', 'enqueue_job', 'grant_patient_consent', 
+                'is_feature_enabled_for_user'
+            )) = 4
             AND
             -- RLS policies are enabled
-            (SELECT COUNT(*) FROM pg_policies WHERE tablename LIKE '%timeline%' OR tablename LIKE '%clinical%') >= 3
-        ) THEN '✅ IMPLEMENTATION COMPLETE - Healthcare Journey System Ready'
+            (SELECT COUNT(*) FROM pg_policies WHERE tablename IN (
+                'healthcare_timeline_events', 'patient_clinical_events', 'user_profiles', 
+                'patient_consents', 'job_queue'
+            )) >= 5
+        ) THEN '✅ IMPLEMENTATION COMPLETE - Guardian v7 Ready for Production'
         ELSE '❌ IMPLEMENTATION INCOMPLETE - Review deployment steps'
     END as implementation_status;
 
@@ -490,6 +569,18 @@ FROM (
     SELECT 'Healthcare Timeline System' as feature_name,
            EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'healthcare_timeline_events') as feature_check
     UNION ALL
+    SELECT 'Multi-Profile Management' as feature_name,
+           EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'user_profiles') as feature_check
+    UNION ALL
+    SELECT 'Enhanced Consent Management' as feature_name,
+           EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'patient_consents') as feature_check
+    UNION ALL
+    SELECT 'Feature Flags System' as feature_name,
+           EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'feature_flags') as feature_check
+    UNION ALL
+    SELECT 'Job Queue System (Hybrid)' as feature_name,
+           EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'job_queue') as feature_check
+    UNION ALL
     SELECT 'Timeline Auto-Generation' as feature_name,
            EXISTS(SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'generate_timeline_from_clinical_events') as feature_check
     UNION ALL
@@ -499,9 +590,6 @@ FROM (
     SELECT 'AI Chatbot Integration' as feature_name,
            EXISTS(SELECT 1 FROM information_schema.routines WHERE routine_name = 'process_healthcare_chatbot_query') as feature_check
     UNION ALL
-    SELECT 'Condition Journey Tracking' as feature_name,
-           EXISTS(SELECT 1 FROM information_schema.routines WHERE routine_name = 'get_condition_journey') as feature_check
-    UNION ALL
     SELECT 'Imaging Timeline Integration' as feature_name,
            EXISTS(SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'generate_timeline_from_imaging_reports') as feature_check
 ) features
@@ -510,9 +598,9 @@ ORDER BY feature_name;
 
 ---
 
-## 5. Next Steps & Recommendations
+## 6. Next Steps & Recommendations
 
-### 5.1. Frontend Integration
+### 6.1. Frontend Integration
 
 With the healthcare journey backend now deployed, the next phase involves frontend development:
 
@@ -531,7 +619,7 @@ With the healthcare journey backend now deployed, the next phase involves fronte
    - Add touch-friendly navigation
    - Optimize for offline timeline browsing
 
-### 5.2. AI Integration Readiness
+### 6.2. AI Integration Readiness
 
 The system is now prepared for AI enhancement:
 
@@ -539,7 +627,7 @@ The system is now prepared for AI enhancement:
 - **Natural Language Processing**: Chatbot query infrastructure ready for LLM integration
 - **Pattern Recognition**: Timeline data structured for health trend analysis
 
-### 5.3. Healthcare Standards Compliance
+### 6.3. Healthcare Standards Compliance
 
 The implementation provides foundation for:
 
@@ -547,9 +635,28 @@ The implementation provides foundation for:
 - **HL7 Messaging**: Timeline events can be exported in HL7 format
 - **Clinical Decision Support**: Timeline data ready for CDS rule integration
 
+### 6.4. Hybrid Infrastructure Integration
+
+With the job queue system deployed, integrate with Render backend:
+
+1. **Render Worker Setup**
+   - Deploy Node.js worker service on Render
+   - Configure PostgreSQL connection to Supabase
+   - Implement job polling from `job_queue` table
+
+2. **Document Processing Migration**
+   - Update Edge Functions to enqueue instead of process
+   - Move AI processing logic to Render workers
+   - Test end-to-end document processing pipeline
+
+3. **Background Jobs**
+   - Set up cron jobs on Render for periodic tasks
+   - Implement email ingestion workers
+   - Configure My Health Record sync processes
+
 ---
 
-## 6. Support & Troubleshooting
+## 7. Support & Troubleshooting
 
 ### Common Issues and Solutions
 
@@ -561,7 +668,22 @@ The implementation provides foundation for:
    WHERE trigger_name LIKE '%timeline%';
    ```
 
-2. **Performance Issues with Large Timelines**
+2. **Job Queue Issues**
+   ```sql
+   -- Check job queue status
+   SELECT status, COUNT(*) as count, MIN(created_at) as oldest_job
+   FROM job_queue 
+   GROUP BY status;
+   
+   -- Check for stuck processing jobs
+   SELECT id, type, started_at, 
+          EXTRACT(minutes FROM NOW() - started_at) as minutes_running
+   FROM job_queue 
+   WHERE status = 'processing' 
+   AND started_at < NOW() - INTERVAL '1 hour';
+   ```
+
+3. **Performance Issues with Large Timelines**
    ```sql
    -- Verify indexing
    SELECT schemaname, tablename, indexname, indexdef 
@@ -569,7 +691,7 @@ The implementation provides foundation for:
    WHERE tablename LIKE '%timeline%';
    ```
 
-3. **RLS Policy Conflicts**
+4. **RLS Policy Conflicts**
    ```sql
    -- Check policy status
    SELECT schemaname, tablename, policyname, permissive, cmd, qual 
@@ -577,4 +699,13 @@ The implementation provides foundation for:
    WHERE tablename LIKE '%timeline%' OR tablename LIKE '%clinical%';
    ```
 
-The Guardian v7 healthcare journey system is now ready for production use, providing patients with comprehensive visibility into their healthcare story while maintaining clinical rigor and data security.
+The Guardian v7 system is now ready for production use with:
+
+- ✅ **Complete Healthcare Journey System** - Unified timeline and clinical events
+- ✅ **Multi-Profile Management** - Family healthcare with profile switching
+- ✅ **Enhanced Consent Management** - GDPR-compliant granular consent
+- ✅ **Hybrid Infrastructure** - Supabase + Render for unlimited processing
+- ✅ **Feature Flags System** - Progressive rollout capabilities
+- ✅ **Production Security** - RLS policies and audit trails
+
+The system provides patients with comprehensive visibility into their healthcare story while maintaining clinical rigor, data security, and preparing for future provider portal integration.
