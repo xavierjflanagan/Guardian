@@ -9,7 +9,7 @@
 
 ## Overview
 
-This guide provides step-by-step instructions for implementing Guardian v7's modular architecture from the ground up. This is the first production implementation of the Guardian healthcare data platform.
+This guide provides step-by-step instructions for implementing Guardian v7's modular architecture from the ground up. This is a fresh implementation with multi-profile support integrated from day one - no existing users or data to migrate.
 
 **Key Features in v7:**
 - 🗄️ Production-ready database schema
@@ -97,29 +97,32 @@ chmod +x backup_during_implementation.sh
 
 ## 2. Implementation Timeline & Phases
 
-### Phase 1: Foundation & Core Schema (Weeks 1-2)
+### Phase 1: Foundation & Multi-Profile Infrastructure (Weeks 1-2)  
 - 🔄 Database foundation setup
-- 🔄 Feature flags deployment
-- 🔄 Core schema implementation
-- 🔄 Basic security (RLS policies)
+- 🔄 Feature flags deployment  
+- 🔄 Multi-profile management tables deployment
+- 🔄 Core schema implementation with profile support
+- 🔄 Profile-aware RLS policies
 
-### Phase 2: Core Features (Weeks 3-6)
-- 🔄 FHIR integration layer
-- 🔄 Enhanced consent management
-- 🔄 User preferences system
-- 🔄 Document processing queue
+### Phase 2: Profile Management & Smart Features (Weeks 3-6)
+- 🔄 Profile switching and context management
+- 🔄 Smart health feature detection system
+- 🔄 Family planning & pregnancy tab infrastructure
+- 🔄 Progressive authentication system
+- 🔄 Profile contamination prevention
 
-### Phase 3: Advanced Features (Weeks 7-10)
-- 🔄 Event sourcing infrastructure
-- 🔄 Real-time collaboration
-- 🔄 AI/ML integration points
-- 🔄 Advanced analytics
+### Phase 3: Healthcare Coordination Features (Weeks 7-10)
+- 🔄 Unified family appointment management
+- 🔄 Profile-aware healthcare timeline
+- 🔄 AI-powered document profile detection
+- 🔄 Cross-profile relationship management
+- 🔄 Pregnancy journey & profile transitions
 
-### Phase 4: Production Hardening (Weeks 11-16)
-- 🔄 Multi-tenancy support
-- 🔄 Mobile optimizations
-- 🔄 Data portability features
-- 🔄 Advanced security
+### Phase 4: Production Hardening & Advanced Features (Weeks 11-16)
+- 🔄 Multi-profile data portability
+- 🔄 Advanced security and audit trails
+- 🔄 Mobile profile switching optimizations  
+- 🔄 Provider integration with family profiles
 
 ---
 
@@ -139,11 +142,38 @@ WHERE extname IN ('uuid-ossp', 'pg_trgm', 'postgis', 'pg_partman', 'pgcrypto')
 ORDER BY extname;
 ```
 
-#### Step 2: Deploy Feature Flags System
+#### Step 2: Deploy Multi-Profile Management System
+
+```sql
+-- Deploy multi-profile management tables
+\i implementation-guides/sql-scripts/001_multi_profile_management.sql
+
+-- Verify profile management tables
+SELECT 
+    'Multi-Profile Tables' as deployment_step,
+    COUNT(*) as tables_created,
+    string_agg(table_name, ', ' ORDER BY table_name) as created_tables
+FROM information_schema.tables 
+WHERE table_name IN (
+    'user_profiles', 'profile_access_permissions', 'user_profile_context',
+    'smart_health_features', 'pregnancy_journey_events', 'profile_verification_rules'
+) AND table_schema = 'public';
+
+-- Verify profile management functions
+SELECT 
+    'Profile Functions' as deployment_step,
+    COUNT(*) as functions_created,
+    string_agg(routine_name, ', ' ORDER BY routine_name) as created_functions
+FROM information_schema.routines 
+WHERE routine_name LIKE '%profile%' OR routine_name LIKE '%pregnancy%'
+AND routine_schema = 'public';
+```
+
+#### Step 3: Deploy Feature Flags System
 
 ```sql
 -- Deploy feature flags infrastructure
-\i implementation-guides/sql-scripts/001_feature_flags.sql
+\i implementation-guides/sql-scripts/002_feature_flags.sql
 
 -- Verify deployment
 SELECT feature_name, enabled, rollout_percentage 
@@ -151,11 +181,11 @@ FROM feature_flags
 ORDER BY feature_name;
 ```
 
-#### Step 3: Create Implementation Tracking
+#### Step 4: Create Implementation Tracking
 
 ```sql
 -- Deploy implementation tracking
-\i implementation-guides/sql-scripts/002_implementation_tracking.sql
+\i implementation-guides/sql-scripts/003_implementation_tracking.sql
 
 -- Initialize implementation session
 INSERT INTO implementation_sessions (
@@ -163,7 +193,7 @@ INSERT INTO implementation_sessions (
     target_version,
     initiated_by
 ) VALUES (
-    'fresh_v7_implementation',
+    'v7_multi_profile_implementation',
     'v7.0',
     current_user
 );
