@@ -30,6 +30,7 @@ The Healthcare Journey system provides patients with a comprehensive, chronologi
 CREATE TABLE healthcare_timeline_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- Multi-profile support
     
     -- Hierarchical categorization for multi-level filtering
     display_category TEXT NOT NULL, -- 'visit', 'test_result', 'treatment', 'vaccination', 'screening', 'diagnosis', 'appointment'
@@ -167,11 +168,11 @@ BEGIN
     
     -- Insert timeline event
     INSERT INTO healthcare_timeline_events (
-        patient_id, display_category, display_subcategory, display_tertiary,
+        patient_id, profile_id, display_category, display_subcategory, display_tertiary,
         title, summary, icon, event_date, encounter_id, clinical_event_ids,
         is_major_event, display_priority, searchable_content, event_tags
     ) VALUES (
-        NEW.patient_id, timeline_category, timeline_subcategory, timeline_tertiary,
+        NEW.patient_id, NEW.profile_id, timeline_category, timeline_subcategory, timeline_tertiary,
         timeline_title, timeline_summary, timeline_icon, NEW.event_date, 
         NEW.encounter_id, ARRAY[NEW.id], is_major, priority_score, 
         searchable_content, event_tags
@@ -290,11 +291,170 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## 3. Condition-Specific Healthcare Journeys
+## 3. Unified Family Appointment Management
+
+*Cross-profile appointment viewing and family healthcare coordination*
+
+### 3.1. Profile-Aware Appointment System
+
+```sql
+-- Enhanced appointments table with profile support
+CREATE TABLE profile_appointments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id),
+    account_owner_id UUID NOT NULL REFERENCES auth.users(id), -- Denormalized for performance
+    
+    -- Appointment details
+    appointment_date TIMESTAMPTZ NOT NULL,
+    appointment_type TEXT NOT NULL,
+    provider_name TEXT,
+    facility_name TEXT,
+    appointment_duration_minutes INTEGER,
+    
+    -- Status tracking
+    status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show')),
+    
+    -- Appointment details
+    chief_complaint TEXT,
+    appointment_notes TEXT,
+    reminder_preferences JSONB DEFAULT '{}',
+    
+    -- Visibility settings
+    visible_to_primary_account BOOLEAN DEFAULT TRUE,
+    requires_guardian_consent BOOLEAN DEFAULT FALSE,
+    
+    -- Integration
+    calendar_event_id TEXT, -- External calendar integration
+    provider_system_id TEXT, -- Provider's appointment system ID
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Function to get all family appointments
+CREATE OR REPLACE FUNCTION get_family_appointments(
+    p_user_id UUID,
+    p_include_profiles UUID[] DEFAULT NULL, -- Specific profiles to include
+    p_date_from DATE DEFAULT CURRENT_DATE,
+    p_date_to DATE DEFAULT NULL
+) RETURNS TABLE (
+    appointment_id UUID,
+    profile_id UUID,
+    profile_name TEXT,
+    profile_type TEXT,
+    appointment_date TIMESTAMPTZ,
+    provider_name TEXT,
+    appointment_type TEXT,
+    status TEXT,
+    theme_color TEXT,
+    profile_icon TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        pa.id,
+        pa.profile_id,
+        up.display_name,
+        up.profile_type,
+        pa.appointment_date,
+        pa.provider_name,
+        pa.appointment_type,
+        pa.status,
+        up.theme_color,
+        up.profile_icon
+    FROM profile_appointments pa
+    JOIN user_profiles up ON up.id = pa.profile_id
+    WHERE pa.account_owner_id = p_user_id
+    AND pa.visible_to_primary_account = TRUE
+    AND (p_include_profiles IS NULL OR pa.profile_id = ANY(p_include_profiles))
+    AND pa.appointment_date >= p_date_from
+    AND (p_date_to IS NULL OR pa.appointment_date <= p_date_to)
+    ORDER BY pa.appointment_date ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Family calendar view with color coding
+CREATE OR REPLACE VIEW family_appointment_calendar AS
+SELECT 
+    pa.id,
+    pa.appointment_date,
+    up.display_name,
+    up.theme_color, -- For calendar color coding
+    up.profile_icon,
+    pa.appointment_type,
+    pa.provider_name,
+    pa.status,
+    CASE 
+        WHEN pa.appointment_date < NOW() THEN 'past'
+        WHEN pa.appointment_date < NOW() + INTERVAL '24 hours' THEN 'upcoming_soon'
+        WHEN pa.appointment_date < NOW() + INTERVAL '7 days' THEN 'upcoming_week'
+        ELSE 'future'
+    END as urgency,
+    CASE up.profile_type
+        WHEN 'child' THEN 1
+        WHEN 'self' THEN 2
+        WHEN 'pet' THEN 3
+        ELSE 4
+    END as display_priority
+FROM profile_appointments pa
+JOIN user_profiles up ON up.id = pa.profile_id
+WHERE pa.status NOT IN ('cancelled', 'completed')
+ORDER BY pa.appointment_date ASC, display_priority ASC;
+
+-- Essential indexes for appointment queries
+CREATE INDEX idx_profile_appointments_owner_date ON profile_appointments(account_owner_id, appointment_date);
+CREATE INDEX idx_profile_appointments_profile ON profile_appointments(profile_id) WHERE status NOT IN ('cancelled', 'completed');
+CREATE INDEX idx_profile_appointments_status ON profile_appointments(status, appointment_date) WHERE appointment_date >= CURRENT_DATE;
+```
+
+### 3.2. Appointment Timeline Integration
+
+```sql
+-- Function to create timeline events from appointments
+CREATE OR REPLACE FUNCTION generate_timeline_event_from_appointment()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Create timeline event for appointment
+    INSERT INTO healthcare_timeline_events (
+        patient_id, profile_id, display_category, display_subcategory,
+        title, summary, icon, event_date, 
+        is_major_event, display_priority, event_tags
+    ) VALUES (
+        NEW.account_owner_id,
+        NEW.profile_id,
+        'appointment',
+        NEW.appointment_type,
+        NEW.appointment_type || ' - ' || COALESCE(NEW.provider_name, 'Healthcare Provider'),
+        'Appointment scheduled with ' || COALESCE(NEW.provider_name, 'provider') || 
+        CASE WHEN NEW.chief_complaint IS NOT NULL THEN ' for ' || NEW.chief_complaint ELSE '' END,
+        'calendar',
+        NEW.appointment_date,
+        CASE WHEN NEW.appointment_type IN ('specialist', 'surgery', 'emergency') THEN TRUE ELSE FALSE END,
+        CASE 
+            WHEN NEW.appointment_type = 'emergency' THEN 10
+            WHEN NEW.appointment_type = 'surgery' THEN 20
+            WHEN NEW.appointment_type = 'specialist' THEN 30
+            ELSE 50
+        END,
+        ARRAY['scheduled', 'appointment']
+    );
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER generate_timeline_from_appointments
+    AFTER INSERT ON profile_appointments
+    FOR EACH ROW EXECUTE FUNCTION generate_timeline_event_from_appointment();
+```
+
+---
+
+## 4. Condition-Specific Healthcare Journeys
 
 *Complete healthcare journey views for individual conditions, medications, and health concerns*
 
-### 3.1. Condition Journey View
+### 4.1. Condition Journey View
 
 ```sql
 -- Complete condition journey including discovery, progression, treatments, and monitoring
@@ -430,7 +590,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 3.2. Medication Journey Tracking
+### 4.2. Medication Journey Tracking
 
 ```sql
 -- Complete medication lifecycle from initiation to current status
@@ -493,11 +653,11 @@ GROUP BY pce.id, pce.patient_id, pi.substance_name, pi.dose_amount, pi.dose_unit
 
 ---
 
-## 4. AI Chatbot Integration
+## 5. AI Chatbot Integration
 
 *Natural language querying over healthcare timeline data*
 
-### 4.1. Chatbot Query Processing
+### 5.1. Chatbot Query Processing
 
 ```sql
 -- Natural language query processing for healthcare timeline
@@ -599,7 +759,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 4.2. Common Chatbot Query Patterns
+### 5.2. Common Chatbot Query Patterns
 
 **Temporal Queries:**
 - "What happened in March last year?"
@@ -623,9 +783,9 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## 5. Mobile-Responsive Timeline Design
+## 6. Mobile-Responsive Timeline Design
 
-### 5.1. Timeline UI Components
+### 6.1. Timeline UI Components
 
 **Compact Mobile View:**
 ```typescript
@@ -662,7 +822,7 @@ interface TimelineFilter {
 - **Offline Capable:** Timeline cache for offline browsing
 - **Performance Optimized:** Virtualized scrolling for large timelines
 
-### 5.2. Timeline Visualization Options
+### 6.2. Timeline Visualization Options
 
 **View Modes:**
 1. **Chronological List** - Default scrollable timeline
@@ -680,12 +840,14 @@ interface TimelineFilter {
 
 ---
 
-## 6. Healthcare Journey Summary
+## 7. Healthcare Journey Summary
 
 The Healthcare Journey system transforms Guardian's clinical data into an intuitive, patient-centric timeline experience:
 
 **🎯 Key Benefits:**
-- **Complete Healthcare Story:** Chronological view of all healthcare interactions and outcomes
+- **Complete Healthcare Story:** Chronological view of all healthcare interactions and outcomes across all profiles
+- **Multi-Profile Support:** Seamless management of dependent profiles (children, pets) with unified timeline views
+- **Family Appointment Coordination:** Centralized appointment management with color-coded family calendar
 - **Intelligent Organization:** Smart categorization and consolidation prevents information overload  
 - **Deep Context:** Every timeline event links back to source documents and related clinical data
 - **Flexible Exploration:** Multi-level filtering enables both broad overviews and detailed analysis
@@ -694,10 +856,12 @@ The Healthcare Journey system transforms Guardian's clinical data into an intuit
 - **Mobile Optimized:** Responsive design ensures healthcare data access anywhere, anytime
 
 **🔗 Integration Points:**
-- **Clinical Events:** Built on unified clinical events architecture from Core Schema
-- **Document Provenance:** Every timeline event traceable to source documents
+- **Multi-Profile Architecture:** Built on comprehensive profile management system from Core Schema
+- **Clinical Events:** Built on unified clinical events architecture with profile awareness
+- **Document Provenance:** Every timeline event traceable to source documents with profile context
 - **User Experience:** Timeline components integrate with broader UX framework  
 - **FHIR Compatibility:** Timeline data exportable in standard healthcare formats
 - **Provider Collaboration:** Timeline sharing capabilities for healthcare coordination
+- **Family Coordination:** Unified appointment and timeline management across all profiles
 
-This healthcare journey system empowers patients with comprehensive visibility into their healthcare story while maintaining the clinical rigor and data integrity required for medical decision-making.
+This healthcare journey system empowers patients and families with comprehensive visibility into their healthcare story while maintaining the clinical rigor, data integrity, and security required for multi-profile medical decision-making.

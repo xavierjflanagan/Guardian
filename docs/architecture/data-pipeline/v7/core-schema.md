@@ -15,6 +15,8 @@ This document defines the foundational database schema for Guardian v7. It conta
 - Healthcare compliance with comprehensive audit trails
 - Flexible relationship modeling between clinical entities
 - Provenance tracking for all extracted medical facts
+- **Multi-profile architecture**: Support for dependent profiles (children, pets, etc.) under primary accounts
+- **Smart feature detection**: Context-aware UI features that activate based on health data
 - **Future-ready architecture**: Designed for provider portal integration while maintaining patient data sovereignty
 
 ---
@@ -34,7 +36,198 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- Enhanced GIN indexing capabi
 
 ---
 
-## 2. Unified Clinical Events Architecture
+## 2. Multi-Profile Management System
+
+### 2.1. Profile Management Tables
+
+*Support for dependent profiles (children, pets, etc.) under primary user accounts with granular access control*
+
+```sql
+-- Primary table for all profiles (including main user profile)
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_owner_id UUID NOT NULL REFERENCES auth.users(id), -- The primary account holder
+    
+    -- Profile Identity
+    profile_type TEXT NOT NULL CHECK (profile_type IN ('self', 'child', 'pet', 'dependent')),
+    profile_status TEXT NOT NULL DEFAULT 'active' CHECK (profile_status IN ('active', 'inactive', 'pending_transfer')),
+    
+    -- Profile Details
+    display_name TEXT NOT NULL,
+    full_name TEXT,
+    date_of_birth DATE,
+    species TEXT, -- For pets: 'dog', 'cat', 'bird', etc.
+    breed TEXT, -- For pets
+    
+    -- Relationship to Account Owner
+    relationship TEXT, -- 'self', 'daughter', 'son', 'mother', 'father', 'dog', 'cat', etc.
+    legal_status TEXT CHECK (legal_status IN ('guardian', 'parent', 'caregiver', 'self', 'owner')),
+    
+    -- Profile Customization
+    theme_color TEXT DEFAULT '#2563eb',
+    avatar_url TEXT,
+    custom_theme JSONB DEFAULT '{}', -- Extended theme customization
+    profile_icon TEXT, -- Icon identifier for quick visual recognition
+    
+    -- Authentication Level
+    auth_level TEXT NOT NULL DEFAULT 'soft' CHECK (auth_level IN ('none', 'soft', 'hard')),
+    auth_verified_at TIMESTAMPTZ,
+    auth_method TEXT, -- 'document_extraction', 'manual_entry', 'id_verification', 'bank_verification'
+    
+    -- Profile Lifecycle
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    transferred_from UUID REFERENCES user_profiles(id), -- For profile transfers
+    transferred_to UUID REFERENCES user_profiles(id),
+    archived BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Pregnancy Feature Support
+    is_pregnancy_profile BOOLEAN DEFAULT FALSE,
+    expected_due_date DATE,
+    transitioned_to_child_profile_id UUID REFERENCES user_profiles(id)
+);
+
+-- Profile access permissions
+CREATE TABLE profile_access_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id),
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Permission Levels
+    permission_level TEXT NOT NULL CHECK (permission_level IN ('owner', 'full_access', 'read_write', 'read_only', 'emergency')),
+    
+    -- Granular Permissions
+    can_upload_documents BOOLEAN NOT NULL DEFAULT FALSE,
+    can_view_documents BOOLEAN NOT NULL DEFAULT FALSE,
+    can_edit_medical_data BOOLEAN NOT NULL DEFAULT FALSE,
+    can_share_data BOOLEAN NOT NULL DEFAULT FALSE,
+    can_manage_permissions BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Time-based Access
+    access_start_date TIMESTAMPTZ DEFAULT NOW(),
+    access_end_date TIMESTAMPTZ,
+    
+    -- Audit
+    granted_by UUID REFERENCES auth.users(id),
+    granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at TIMESTAMPTZ,
+    revoke_reason TEXT
+);
+
+-- Profile switching context
+CREATE TABLE user_profile_context (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id),
+    current_profile_id UUID NOT NULL REFERENCES user_profiles(id),
+    last_switched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    -- Quick access profiles (recently used)
+    recent_profile_ids UUID[] DEFAULT '{}',
+    pinned_profile_ids UUID[] DEFAULT '{}', -- User's favorite profiles for quick access
+    
+    -- Preferences
+    auto_detect_profile_from_uploads BOOLEAN DEFAULT TRUE,
+    prompt_threshold NUMERIC(3,2) DEFAULT 0.8 -- Confidence threshold for auto-switching
+);
+
+-- Essential indexes for profile management
+CREATE INDEX idx_user_profiles_owner ON user_profiles(account_owner_id) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_user_profiles_type ON user_profiles(profile_type) WHERE archived IS NOT TRUE;
+CREATE INDEX idx_profile_access_user ON profile_access_permissions(user_id) WHERE revoked_at IS NULL;
+CREATE INDEX idx_profile_access_profile ON profile_access_permissions(profile_id) WHERE revoked_at IS NULL;
+```
+
+### 2.2. Smart Health Features Detection
+
+*Context-aware UI features that automatically activate based on detected health data*
+
+```sql
+-- Feature detection table for smart tabs (family planning, pregnancy, etc.)
+CREATE TABLE smart_health_features (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id),
+    feature_type TEXT NOT NULL CHECK (feature_type IN ('family_planning', 'pregnancy', 'chronic_condition', 'mental_health', 'pediatric')),
+    
+    -- Activation triggers
+    activated_by_event_id UUID REFERENCES patient_clinical_events(id),
+    activation_confidence NUMERIC(3,2) NOT NULL,
+    activation_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    -- Feature state
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_visible BOOLEAN NOT NULL DEFAULT TRUE, -- User can hide tabs
+    last_relevant_event TIMESTAMPTZ,
+    
+    -- Feature-specific data
+    feature_data JSONB DEFAULT '{}',
+    
+    -- For pregnancy specifically
+    pregnancy_stage TEXT CHECK (pregnancy_stage IN ('planning', 'trying', 'pregnant', 'postpartum', 'completed')),
+    estimated_conception_date DATE,
+    estimated_due_date DATE,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    -- Unique constraint: one feature type per profile
+    UNIQUE(profile_id, feature_type)
+);
+
+-- Pregnancy-specific timeline events
+CREATE TABLE pregnancy_journey_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id),
+    smart_feature_id UUID REFERENCES smart_health_features(id),
+    
+    -- Event categorization
+    event_category TEXT NOT NULL CHECK (event_category IN (
+        'fertility_test', 'ovulation_tracking', 'conception_attempt',
+        'pregnancy_test', 'prenatal_visit', 'ultrasound', 'genetic_screening',
+        'labor_delivery', 'postpartum_checkup', 'milestone'
+    )),
+    
+    -- Event details
+    event_date TIMESTAMPTZ NOT NULL,
+    event_title TEXT NOT NULL,
+    event_data JSONB DEFAULT '{}',
+    
+    -- Links to source data
+    clinical_event_id UUID REFERENCES patient_clinical_events(id),
+    document_id UUID REFERENCES documents(id),
+    
+    -- Pregnancy-specific metrics
+    gestational_week INTEGER,
+    baby_measurements JSONB, -- weight, length, head circumference
+    maternal_metrics JSONB, -- weight, blood pressure, etc.
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Profile contamination prevention
+CREATE TABLE profile_verification_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    rule_type TEXT NOT NULL CHECK (rule_type IN ('demographic', 'clinical', 'logical', 'temporal')),
+    rule_name TEXT NOT NULL,
+    rule_definition JSONB NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'critical')),
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Sample contamination prevention rules
+INSERT INTO profile_verification_rules (rule_type, rule_name, rule_definition, severity) VALUES
+('demographic', 'name_mismatch', '{"check": "name_similarity", "threshold": 0.7}', 'warning'),
+('clinical', 'gender_condition_mismatch', '{"incompatible_pairs": {"male": ["pregnancy", "hysterectomy"], "female": ["prostate_cancer"]}}', 'critical'),
+('clinical', 'age_condition_mismatch', '{"age_restrictions": {"COPD": {"min_age": 40}, "alzheimers": {"min_age": 60}}}', 'warning'),
+('temporal', 'future_date_check', '{"max_future_days": 30}', 'warning');
+
+-- Indexes for smart features
+CREATE INDEX idx_smart_features_profile ON smart_health_features(profile_id) WHERE is_active = TRUE;
+CREATE INDEX idx_smart_features_type ON smart_health_features(feature_type) WHERE is_active = TRUE;
+CREATE INDEX idx_pregnancy_events_profile ON pregnancy_journey_events(profile_id);
+CREATE INDEX idx_pregnancy_events_date ON pregnancy_journey_events(profile_id, event_date DESC);
+```
+
+---
+
+## 3. Unified Clinical Events Architecture
 
 *Based on O3's two-axis classification model: **Activity Type** (observation/intervention) × **Clinical Purpose** (screening/diagnostic/therapeutic/monitoring/preventive)*
 
@@ -45,6 +238,7 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- Enhanced GIN indexing capabi
 CREATE TABLE patient_clinical_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- Multi-profile support
     encounter_id UUID REFERENCES healthcare_encounters(id),
     
     -- O3's Two-Axis Classification System
@@ -173,6 +367,7 @@ CREATE INDEX idx_patient_interventions_substance ON patient_interventions(substa
 CREATE TABLE healthcare_encounters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- Multi-profile support
     
     -- Encounter Classification
     encounter_type TEXT NOT NULL, -- 'outpatient', 'inpatient', 'emergency', 'specialist', 'telehealth', 'diagnostic'
@@ -218,6 +413,7 @@ CREATE INDEX idx_healthcare_encounters_provider ON healthcare_encounters USING G
 CREATE TABLE patient_imaging_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- Multi-profile support
     
     -- Imaging Study Details
     imaging_type TEXT NOT NULL, -- 'x_ray', 'ct_scan', 'mri', 'ultrasound', 'mammogram', 'pet_scan'
@@ -389,6 +585,7 @@ CREATE TRIGGER refresh_clinical_views_trigger
 CREATE TABLE patient_conditions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- Multi-profile support
     
     -- Core condition data
     condition_name TEXT NOT NULL,
@@ -438,6 +635,7 @@ CREATE INDEX idx_patient_conditions_review ON patient_conditions(requires_review
 CREATE TABLE patient_allergies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- Multi-profile support
     
     -- Core allergy data
     allergen TEXT NOT NULL,
@@ -708,10 +906,48 @@ CREATE TRIGGER validate_relationship_references_trigger
 
 ## 6. Row Level Security (RLS)
 
-### 6.1. User Isolation Security Function
+### 6.1. Profile-Aware Security Functions
 
 ```sql
--- Secure relationship access control function
+-- Enhanced RLS function that checks both direct user access and profile permissions
+CREATE OR REPLACE FUNCTION can_access_profile_data(
+    p_profile_id UUID,
+    p_required_permission TEXT DEFAULT 'read_only'
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_user_id UUID := auth.uid();
+    v_has_access BOOLEAN := FALSE;
+BEGIN
+    -- Check if user owns the profile or has permissions
+    SELECT EXISTS(
+        SELECT 1 
+        FROM user_profiles up
+        LEFT JOIN profile_access_permissions pap ON pap.profile_id = up.id
+        WHERE up.id = p_profile_id
+        AND (
+            -- User owns the account
+            up.account_owner_id = v_user_id
+            OR
+            -- User has explicit permissions
+            (
+                pap.user_id = v_user_id 
+                AND pap.revoked_at IS NULL
+                AND (pap.access_end_date IS NULL OR pap.access_end_date > NOW())
+                AND (
+                    pap.permission_level = 'owner'
+                    OR (p_required_permission = 'read_only' AND pap.can_view_documents = TRUE)
+                    OR (p_required_permission = 'read_write' AND pap.can_edit_medical_data = TRUE)
+                    OR (p_required_permission = 'upload' AND pap.can_upload_documents = TRUE)
+                )
+            )
+        )
+    ) INTO v_has_access;
+    
+    RETURN v_has_access;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Secure relationship access control function (updated for profiles)
 CREATE OR REPLACE FUNCTION can_access_relationship(
     source_table TEXT, 
     source_id UUID, 
@@ -722,35 +958,47 @@ RETURNS BOOLEAN AS $$
 DECLARE
     source_patient_id UUID;
     target_patient_id UUID;
+    source_profile_id UUID;
+    target_profile_id UUID;
     user_id UUID := auth.uid();
 BEGIN
-    -- Handle different table structures for patient_id extraction
+    -- Handle different table structures for patient_id and profile_id extraction
     CASE source_table
         WHEN 'patient_medications', 'patient_conditions', 'patient_allergies', 
-             'patient_lab_results', 'patient_vitals' THEN
-            EXECUTE format('SELECT patient_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', source_table)
-            INTO source_patient_id USING source_id;
+             'patient_lab_results', 'patient_vitals', 'patient_clinical_events',
+             'patient_imaging_reports' THEN
+            EXECUTE format('SELECT patient_id, profile_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', source_table)
+            INTO source_patient_id, source_profile_id USING source_id;
         WHEN 'documents' THEN
-            EXECUTE format('SELECT user_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', source_table)
-            INTO source_patient_id USING source_id;
+            EXECUTE format('SELECT user_id, profile_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', source_table)
+            INTO source_patient_id, source_profile_id USING source_id;
         ELSE
             RETURN FALSE; -- Unknown table type
     END CASE;
     
     CASE target_table
         WHEN 'patient_medications', 'patient_conditions', 'patient_allergies', 
-             'patient_lab_results', 'patient_vitals' THEN
-            EXECUTE format('SELECT patient_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', target_table)
-            INTO target_patient_id USING target_id;
+             'patient_lab_results', 'patient_vitals', 'patient_clinical_events',
+             'patient_imaging_reports' THEN
+            EXECUTE format('SELECT patient_id, profile_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', target_table)
+            INTO target_patient_id, target_profile_id USING target_id;
         WHEN 'documents' THEN
-            EXECUTE format('SELECT user_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', target_table)
-            INTO target_patient_id USING target_id;
+            EXECUTE format('SELECT user_id, profile_id FROM %I WHERE id = $1 AND archived IS NOT TRUE', target_table)
+            INTO target_patient_id, target_profile_id USING target_id;
         ELSE
             RETURN FALSE; -- Unknown table type
     END CASE;
     
-    -- User can access relationship if they own either the source or target record
-    RETURN (source_patient_id = user_id OR target_patient_id = user_id);
+    -- User can access relationship if:
+    -- 1. They own either the source or target record directly, OR
+    -- 2. They have profile access to either the source or target profile
+    RETURN (
+        (source_patient_id = user_id OR target_patient_id = user_id)
+        OR
+        (source_profile_id IS NOT NULL AND can_access_profile_data(source_profile_id))
+        OR
+        (target_profile_id IS NOT NULL AND can_access_profile_data(target_profile_id))
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
@@ -758,23 +1006,102 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 ### 6.2. RLS Policies
 
 ```sql
--- Enable RLS on all tables
+-- Enable RLS on all tables including new profile tables
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profile_access_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profile_context ENABLE ROW LEVEL SECURITY;
+ALTER TABLE smart_health_features ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pregnancy_journey_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_medications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_conditions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_allergies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_lab_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_vitals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_clinical_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_imaging_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE healthcare_encounters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medical_data_relationships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clinical_fact_sources ENABLE ROW LEVEL SECURITY;
 
--- User isolation policies
+-- Profile management policies
+CREATE POLICY user_profiles_owner_access ON user_profiles
+    FOR ALL USING (account_owner_id = auth.uid() AND archived IS NOT TRUE);
+
+CREATE POLICY profile_access_permissions_owner ON profile_access_permissions
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles up 
+            WHERE up.id = profile_access_permissions.profile_id 
+            AND up.account_owner_id = auth.uid()
+        )
+        OR user_id = auth.uid()
+    );
+
+CREATE POLICY user_profile_context_owner ON user_profile_context
+    FOR ALL USING (user_id = auth.uid());
+
+-- Smart health features policies
+CREATE POLICY smart_health_features_profile_access ON smart_health_features
+    FOR ALL USING (can_access_profile_data(profile_id, 'read_only'));
+
+CREATE POLICY pregnancy_journey_events_profile_access ON pregnancy_journey_events
+    FOR ALL USING (can_access_profile_data(profile_id, 'read_only'));
+
+-- Profile-aware clinical data policies
+CREATE POLICY patient_clinical_events_profile_isolation ON patient_clinical_events
+    FOR ALL USING (
+        archived IS NOT TRUE 
+        AND (
+            -- Legacy: direct patient access
+            (profile_id IS NULL AND auth.uid() = patient_id)
+            OR
+            -- New: profile-based access
+            (profile_id IS NOT NULL AND can_access_profile_data(profile_id, 'read_only'))
+        )
+    );
+
+CREATE POLICY patient_conditions_profile_isolation ON patient_conditions
+    FOR ALL USING (
+        archived IS NOT TRUE 
+        AND (
+            (profile_id IS NULL AND auth.uid() = patient_id)
+            OR
+            (profile_id IS NOT NULL AND can_access_profile_data(profile_id, 'read_only'))
+        )
+    );
+
+CREATE POLICY patient_allergies_profile_isolation ON patient_allergies
+    FOR ALL USING (
+        archived IS NOT TRUE 
+        AND (
+            (profile_id IS NULL AND auth.uid() = patient_id)
+            OR
+            (profile_id IS NOT NULL AND can_access_profile_data(profile_id, 'read_only'))
+        )
+    );
+
+CREATE POLICY patient_imaging_reports_profile_isolation ON patient_imaging_reports
+    FOR ALL USING (
+        archived IS NOT TRUE 
+        AND (
+            (profile_id IS NULL AND auth.uid() = patient_id)
+            OR
+            (profile_id IS NOT NULL AND can_access_profile_data(profile_id, 'read_only'))
+        )
+    );
+
+CREATE POLICY healthcare_encounters_profile_isolation ON healthcare_encounters
+    FOR ALL USING (
+        archived IS NOT TRUE 
+        AND (
+            (profile_id IS NULL AND auth.uid() = patient_id)
+            OR
+            (profile_id IS NOT NULL AND can_access_profile_data(profile_id, 'read_only'))
+        )
+    );
+
+-- Maintain existing materialized view policies
 CREATE POLICY patient_medications_user_isolation ON patient_medications
-    FOR ALL USING (auth.uid() = patient_id AND archived IS NOT TRUE);
-
-CREATE POLICY patient_conditions_user_isolation ON patient_conditions
-    FOR ALL USING (auth.uid() = patient_id AND archived IS NOT TRUE);
-
-CREATE POLICY patient_allergies_user_isolation ON patient_allergies
     FOR ALL USING (auth.uid() = patient_id AND archived IS NOT TRUE);
 
 CREATE POLICY patient_lab_results_user_isolation ON patient_lab_results
@@ -783,20 +1110,23 @@ CREATE POLICY patient_lab_results_user_isolation ON patient_lab_results
 CREATE POLICY patient_vitals_user_isolation ON patient_vitals
     FOR ALL USING (auth.uid() = patient_id AND archived IS NOT TRUE);
 
--- Secure relationship access control
+-- Secure relationship access control (updated for profiles)
 CREATE POLICY medical_relationships_secure_isolation ON medical_data_relationships
     FOR ALL USING (
         archived IS NOT TRUE 
         AND can_access_relationship(source_table, source_id, target_table, target_id)
     );
 
--- Provenance data access (tied to document ownership)
-CREATE POLICY clinical_fact_sources_user_isolation ON clinical_fact_sources
+-- Provenance data access (tied to document ownership and profile access)
+CREATE POLICY clinical_fact_sources_profile_isolation ON clinical_fact_sources
     FOR ALL USING (
         EXISTS (
             SELECT 1 FROM documents d 
             WHERE d.id = clinical_fact_sources.document_id 
-            AND d.user_id = auth.uid() 
+            AND (
+                d.user_id = auth.uid() 
+                OR (d.profile_id IS NOT NULL AND can_access_profile_data(d.profile_id, 'read_only'))
+            )
             AND d.archived IS NOT TRUE
         )
     );
@@ -865,16 +1195,23 @@ $$ LANGUAGE plpgsql;
 
 This unified core schema provides the essential foundation for Guardian's healthcare data management using O3's two-axis classification model:
 
+**Multi-Profile Management System:**
+- `user_profiles` - Primary account with dependent profiles (children, pets, etc.)
+- `profile_access_permissions` - Granular access control with time-based restrictions
+- `user_profile_context` - Profile switching and context management
+- `smart_health_features` - Auto-activating UI features based on health data detection
+- `pregnancy_journey_events` - Specialized pregnancy and family planning tracking
+
 **Unified Clinical Events Architecture:**
-- `patient_clinical_events` - Central events table using activity_type (observation/intervention) × clinical_purposes classification
+- `patient_clinical_events` - Central events table using activity_type (observation/intervention) × clinical_purposes classification (now profile-aware)
 - `patient_observations` - Detailed observation results (lab results, vital signs, assessments, physical findings)
 - `patient_interventions` - Detailed intervention records (medications, procedures, vaccinations, treatments)
-- `healthcare_encounters` - Healthcare visit context and provider information
-- `patient_imaging_reports` - Imaging studies and radiological findings
+- `healthcare_encounters` - Healthcare visit context and provider information (profile-aware)
+- `patient_imaging_reports` - Imaging studies and radiological findings (profile-aware)
 
 **Traditional Clinical Records:**
-- `patient_conditions` - Medical diagnoses and health conditions with ICD-10 codes
-- `patient_allergies` - Allergy information with reaction severity and clinical context
+- `patient_conditions` - Medical diagnoses and health conditions with ICD-10 codes (profile-aware)
+- `patient_allergies` - Allergy information with reaction severity and clinical context (profile-aware)
 
 **Backward Compatibility:**
 - `patient_medications` (materialized view) - Maintains existing medication API compatibility
@@ -882,19 +1219,24 @@ This unified core schema provides the essential foundation for Guardian's health
 - `patient_vitals` (materialized view) - Maintains existing vitals API compatibility
 
 **Relationship System:**
-- `medical_data_relationships` - Polymorphic relationships between all clinical entities
+- `medical_data_relationships` - Polymorphic relationships between all clinical entities (profile-aware)
 - `relationship_types` - Controlled vocabulary for relationship definitions
 
 **Enhanced Provenance Tracking:**
-- `clinical_fact_sources` - Links all clinical data to source documents with PostGIS spatial precision
+- `clinical_fact_sources` - Links all clinical data to source documents with PostGIS spatial precision (profile-aware)
 - Support for unified clinical events system with extraction context
 
-**Security & Compliance:**
-- Row Level Security (RLS) ensures complete user data isolation across all tables
-- Secure polymorphic relationship access control with user ownership validation
-- Comprehensive audit trails with soft delete patterns throughout
+**Profile Security & Data Integrity:**
+- `profile_verification_rules` - Automated contamination prevention system
+- Profile-aware Row Level Security (RLS) with granular permissions
+- Progressive authentication system (soft → hard authentication)
+- Cross-profile access control and audit trails
 
 **Key Architectural Benefits:**
+- **Multi-Profile Architecture**: Complete support for dependent profiles (children, pets) with seamless data management
+- **Smart Feature Detection**: Context-aware UI features that auto-activate based on health data (family planning, pregnancy)
+- **Progressive Authentication**: Frictionless onboarding with soft → hard authentication progression
+- **Profile Contamination Prevention**: AI-powered data integrity protection across profiles
 - **O3's Two-Axis Model**: Clear separation of observations vs interventions with flexible clinical purposes
 - **Healthcare Standards**: SNOMED-CT, LOINC, and CPT code integration throughout
 - **Spatial Provenance**: PostGIS-powered click-to-zoom document regions for all clinical facts
@@ -902,7 +1244,7 @@ This unified core schema provides the essential foundation for Guardian's health
 - **Backward Compatibility**: Existing APIs continue working through materialized views
 - **Performance Optimized**: Strategic indexing for timeline queries, filtering, and clinical event access patterns
 
-This schema serves as the foundation for Guardian's healthcare journey logging system and provides a secure, compliant, and scalable base for advanced features like performance optimization, monitoring, and AI-powered healthcare insights.
+This schema serves as the foundation for Guardian's comprehensive healthcare data platform, designed from the ground up to support single users through complex family health management while maintaining the clinical rigor, security, and scalability required for healthcare applications. All multi-profile features are integrated from initial deployment with no migration requirements.
 
 ---
 

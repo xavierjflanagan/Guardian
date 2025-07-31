@@ -1297,9 +1297,279 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 6. Patient Data Portability & Export
+## 6. Smart Health Features & Context-Aware UI
 
-### 6.1. Data Export Management
+*Auto-activating UI features based on health data detection, including family planning and pregnancy tracking*
+
+### 6.1. Smart Health Feature Detection System
+
+This system automatically detects relevant health contexts from uploaded documents and clinical events, activating specialized UI features like family planning tabs, pregnancy tracking, chronic condition management, and pediatric care panels.
+
+```sql
+-- Enhanced smart health features from core schema with UI integration
+-- (References smart_health_features table from core-schema.md)
+
+-- Family planning and pregnancy UI configuration
+CREATE TABLE family_planning_ui_config (
+    profile_id UUID PRIMARY KEY REFERENCES user_profiles(id),
+    smart_feature_id UUID NOT NULL REFERENCES smart_health_features(id),
+    
+    -- UI Customization
+    tab_visibility BOOLEAN DEFAULT TRUE,
+    dashboard_widget_enabled BOOLEAN DEFAULT TRUE,
+    
+    -- Feature-specific UI settings
+    show_ovulation_calendar BOOLEAN DEFAULT TRUE,
+    show_fertility_tracking BOOLEAN DEFAULT TRUE,
+    show_pregnancy_timeline BOOLEAN DEFAULT TRUE,
+    show_prenatal_schedule BOOLEAN DEFAULT TRUE,
+    show_educational_resources BOOLEAN DEFAULT TRUE,
+    
+    -- Pregnancy-specific UI
+    show_baby_development BOOLEAN DEFAULT TRUE,
+    show_milestone_tracking BOOLEAN DEFAULT TRUE,
+    show_appointment_reminders BOOLEAN DEFAULT TRUE,
+    
+    -- Privacy and sharing
+    share_with_partner BOOLEAN DEFAULT FALSE,
+    partner_user_id UUID REFERENCES auth.users(id),
+    
+    -- Notification preferences
+    weekly_progress_notifications BOOLEAN DEFAULT TRUE,
+    appointment_reminders BOOLEAN DEFAULT TRUE,
+    milestone_celebrations BOOLEAN DEFAULT TRUE,
+    
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Function to activate family planning features
+CREATE OR REPLACE FUNCTION activate_family_planning_features(
+    p_profile_id UUID,
+    p_feature_type TEXT, -- 'family_planning' or 'pregnancy'
+    p_activation_data JSONB DEFAULT '{}'
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_feature_id UUID;
+BEGIN
+    -- Insert or update smart health feature
+    INSERT INTO smart_health_features (
+        profile_id, feature_type, activation_confidence, feature_data
+    ) VALUES (
+        p_profile_id, p_feature_type, 0.9, p_activation_data
+    )
+    ON CONFLICT (profile_id, feature_type) DO UPDATE
+    SET is_active = TRUE,
+        last_relevant_event = NOW(),
+        feature_data = p_activation_data
+    RETURNING id INTO v_feature_id;
+    
+    -- Configure UI settings
+    INSERT INTO family_planning_ui_config (
+        profile_id, smart_feature_id
+    ) VALUES (
+        p_profile_id, v_feature_id
+    )
+    ON CONFLICT (profile_id) DO UPDATE
+    SET tab_visibility = TRUE,
+        updated_at = NOW();
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get active UI features for a profile
+CREATE OR REPLACE FUNCTION get_active_ui_features(
+    p_profile_id UUID
+) RETURNS TABLE (
+    feature_type TEXT,
+    feature_data JSONB,
+    ui_config JSONB,
+    activation_date TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        shf.feature_type,
+        shf.feature_data,
+        CASE 
+            WHEN shf.feature_type IN ('family_planning', 'pregnancy') THEN
+                jsonb_build_object(
+                    'tab_visibility', fpui.tab_visibility,
+                    'dashboard_widget_enabled', fpui.dashboard_widget_enabled,
+                    'show_ovulation_calendar', fpui.show_ovulation_calendar,
+                    'show_fertility_tracking', fpui.show_fertility_tracking,
+                    'show_pregnancy_timeline', fpui.show_pregnancy_timeline,
+                    'show_prenatal_schedule', fpui.show_prenatal_schedule,
+                    'show_educational_resources', fpui.show_educational_resources,
+                    'show_baby_development', fpui.show_baby_development,
+                    'milestone_tracking', fpui.show_milestone_tracking
+                )
+            ELSE '{}'::jsonb
+        END as ui_config,
+        shf.activation_date
+    FROM smart_health_features shf
+    LEFT JOIN family_planning_ui_config fpui ON fpui.profile_id = shf.profile_id
+    WHERE shf.profile_id = p_profile_id
+    AND shf.is_active = TRUE
+    AND shf.is_visible = TRUE;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 6.2. Family Planning & Pregnancy Tab Architecture
+
+```sql
+-- Pregnancy dashboard widget configuration
+CREATE TABLE pregnancy_dashboard_widgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id),
+    widget_type TEXT NOT NULL CHECK (widget_type IN (
+        'pregnancy_progress', 'baby_development', 'appointment_schedule',
+        'milestone_tracker', 'health_metrics', 'educational_content',
+        'partner_sharing', 'symptom_logger', 'contraction_timer'
+    )),
+    
+    -- Widget configuration
+    is_enabled BOOLEAN DEFAULT TRUE,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    widget_size TEXT DEFAULT 'medium' CHECK (widget_size IN ('small', 'medium', 'large')),
+    
+    -- Widget-specific settings
+    widget_config JSONB DEFAULT '{}',
+    
+    -- Visibility
+    visible_to_partner BOOLEAN DEFAULT FALSE,
+    visible_to_care_team BOOLEAN DEFAULT TRUE,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(profile_id, widget_type)
+);
+
+-- Function to initialize pregnancy dashboard
+CREATE OR REPLACE FUNCTION initialize_pregnancy_dashboard(
+    p_profile_id UUID,
+    p_estimated_due_date DATE DEFAULT NULL
+) RETURNS VOID AS $$
+DECLARE
+    widget_types TEXT[] := ARRAY[
+        'pregnancy_progress', 'baby_development', 'appointment_schedule',
+        'milestone_tracker', 'health_metrics', 'educational_content'
+    ];
+    widget_type TEXT;
+    display_order INTEGER := 0;
+BEGIN
+    -- Create default pregnancy dashboard widgets
+    FOREACH widget_type IN ARRAY widget_types
+    LOOP
+        INSERT INTO pregnancy_dashboard_widgets (
+            profile_id, widget_type, display_order, widget_config
+        ) VALUES (
+            p_profile_id, 
+            widget_type, 
+            display_order,
+            CASE widget_type
+                WHEN 'pregnancy_progress' THEN jsonb_build_object(
+                    'show_week_progress', true,
+                    'show_size_comparison', true,
+                    'due_date', p_estimated_due_date
+                )
+                WHEN 'baby_development' THEN jsonb_build_object(
+                    'show_milestones', true,
+                    'show_3d_model', true
+                )
+                WHEN 'appointment_schedule' THEN jsonb_build_object(
+                    'show_upcoming', true,
+                    'show_reminders', true
+                )
+                ELSE '{}'::jsonb
+            END
+        )
+        ON CONFLICT (profile_id, widget_type) DO NOTHING;
+        
+        display_order := display_order + 1;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Essential indexes for smart features
+CREATE INDEX idx_family_planning_ui_config_profile ON family_planning_ui_config(profile_id);
+CREATE INDEX idx_pregnancy_dashboard_widgets_profile ON pregnancy_dashboard_widgets(profile_id) WHERE is_enabled = TRUE;
+CREATE INDEX idx_pregnancy_dashboard_widgets_order ON pregnancy_dashboard_widgets(profile_id, display_order) WHERE is_enabled = TRUE;
+```
+
+### 6.3. Smart Feature Activation Triggers
+
+```sql
+-- Enhanced trigger to detect and activate family planning features
+CREATE OR REPLACE FUNCTION detect_and_activate_smart_features()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_profile_id UUID;
+    v_feature_detected BOOLEAN := FALSE;
+    v_feature_type TEXT;
+    v_feature_data JSONB := '{}';
+BEGIN
+    -- Get profile ID (use profile_id if available, otherwise patient_id as fallback)
+    v_profile_id := COALESCE(NEW.profile_id, NEW.patient_id);
+    
+    -- Family planning detection
+    IF NEW.event_name ILIKE ANY(ARRAY[
+        '%fertility%', '%ovulation%', '%IVF%', '%conception%', 
+        '%trying to conceive%', '%family planning%'
+    ]) THEN
+        v_feature_detected := TRUE;
+        v_feature_type := 'family_planning';
+        v_feature_data := jsonb_build_object(
+            'trigger_event', NEW.event_name,
+            'detection_confidence', 0.9,
+            'stage', 'planning'
+        );
+    
+    -- Pregnancy detection
+    ELSIF NEW.event_name ILIKE ANY(ARRAY[
+        '%pregnancy test%', '%prenatal%', '%obstetric%', '%gestational%',
+        '%ultrasound%', '%baby%', '%fetal%'
+    ]) OR NEW.loinc_code IN ('82810-3', '21440-3', '11881-0') THEN
+        v_feature_detected := TRUE;
+        v_feature_type := 'pregnancy';
+        v_feature_data := jsonb_build_object(
+            'trigger_event', NEW.event_name,
+            'detection_confidence', 0.95,
+            'stage', 'pregnant'
+        );
+    END IF;
+    
+    -- Activate feature if detected
+    IF v_feature_detected THEN
+        PERFORM activate_family_planning_features(
+            v_profile_id, 
+            v_feature_type, 
+            v_feature_data
+        );
+        
+        -- Initialize dashboard for pregnancy
+        IF v_feature_type = 'pregnancy' THEN
+            PERFORM initialize_pregnancy_dashboard(v_profile_id);
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply trigger to clinical events
+CREATE TRIGGER detect_smart_features_from_clinical_events
+    AFTER INSERT ON patient_clinical_events
+    FOR EACH ROW EXECUTE FUNCTION detect_and_activate_smart_features();
+```
+
+---
+
+## 7. Patient Data Portability & Export
+
+### 7.1. Data Export Management
 
 ```sql
 -- Comprehensive data export system for patient data portability
@@ -1415,7 +1685,7 @@ CREATE POLICY patient_exports_isolation ON patient_data_exports
     FOR ALL USING (patient_id = auth.uid() OR requested_by = auth.uid());
 ```
 
-### 6.2. Export Processing Functions
+### 7.2. Export Processing Functions
 
 ```sql
 -- Function to generate comprehensive patient data export
@@ -1519,7 +1789,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
-### 6.3. Secure Data Sharing
+### 7.3. Secure Data Sharing
 
 ```sql
 -- Secure data sharing system for provider-to-provider transfers
@@ -1602,11 +1872,11 @@ CREATE POLICY secure_data_shares_isolation ON secure_data_shares
 
 ---
 
-## 7. Healthcare Journey Timeline Integration
+## 8. Healthcare Journey Timeline Integration
 
 *Patient-centric healthcare timeline system providing comprehensive journey visualization and interactive exploration*
 
-### 7.1. Timeline User Preferences & Personalization
+### 8.1. Timeline User Preferences & Personalization
 
 ```sql
 -- User preferences for healthcare timeline display and interaction
@@ -1674,7 +1944,7 @@ CREATE POLICY timeline_preferences_isolation ON patient_timeline_preferences
     FOR ALL USING (patient_id = auth.uid());
 ```
 
-### 7.2. Timeline Dashboard Widget Configuration
+### 8.2. Timeline Dashboard Widget Configuration
 
 ```sql
 -- Enhanced dashboard widget settings specifically for healthcare timeline
@@ -1742,7 +2012,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
-### 7.3. Timeline Event Bookmarking & Personal Notes
+### 8.3. Timeline Event Bookmarking & Personal Notes
 
 ```sql
 -- Allow patients to bookmark important timeline events and add personal notes
@@ -1796,7 +2066,7 @@ CREATE TRIGGER update_timeline_bookmarks_updated_at
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
-### 7.4. Timeline Export & Sharing Functions
+### 8.4. Timeline Export & Sharing Functions
 
 ```sql
 -- Function to generate timeline export for sharing with providers
@@ -1908,9 +2178,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 8. Patient Analytics & Insights Dashboard
+## 9. Patient Analytics & Insights Dashboard
 
-### 8.1. Patient Health Analytics
+### 9.1. Patient Health Analytics
 
 ```sql
 -- Patient health analytics and trend tracking
@@ -1982,7 +2252,7 @@ CREATE POLICY patient_analytics_isolation ON patient_health_analytics
     FOR ALL USING (patient_id = auth.uid());
 ```
 
-### 8.2. Personalized Health Goals
+### 9.2. Personalized Health Goals
 
 ```sql
 -- Patient-set health goals with progress tracking
@@ -2075,7 +2345,7 @@ CREATE POLICY patient_goals_isolation ON patient_health_goals
     FOR ALL USING (patient_id = auth.uid());
 ```
 
-### 8.3. Dashboard Configuration
+### 9.3. Dashboard Configuration
 
 ```sql
 -- Customizable dashboard widgets and layouts
@@ -2149,11 +2419,11 @@ CREATE POLICY dashboard_config_isolation ON patient_dashboard_config
 
 ---
 
-## 9. Multi-Tenancy & Organization Management (Opus-4 Gap #8)
+## 10. Multi-Tenancy & Organization Management (Opus-4 Gap #8)
 
 *Addressing the lack of multi-tenancy strategy for scaling to multiple healthcare organizations*
 
-### 9.1. Organization-Level Data Isolation
+### 10.1. Organization-Level Data Isolation
 
 ```sql
 -- Healthcare organizations and multi-tenancy support
@@ -2346,7 +2616,7 @@ CREATE POLICY membership_visibility ON organization_memberships
     );
 ```
 
-### 9.2. Cross-Organization Data Access Controls
+### 10.2. Cross-Organization Data Access Controls
 
 ```sql
 -- Enhanced consent validation with organization context
@@ -2499,9 +2769,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 10. RLS Policies & Security Integration
+## 11. RLS Policies & Security Integration
 
-### 10.1. Comprehensive RLS Policies
+### 11.1. Comprehensive RLS Policies
 
 ```sql
 -- Enable RLS on all user experience tables
@@ -2550,7 +2820,7 @@ CREATE POLICY emergency_access_override ON patient_health_analytics
     );
 ```
 
-### 10.2. Audit Trail Integration
+### 11.2. Audit Trail Integration
 
 ```sql
 -- Unified audit trail for all user experience interactions
@@ -2632,9 +2902,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 11. Database Functions & Triggers
+## 12. Database Functions & Triggers
 
-### 11.1. Automatic Consent Validation
+### 12.1. Automatic Consent Validation
 
 ```sql
 -- Trigger function for automatic consent validation
@@ -2671,7 +2941,7 @@ CREATE TRIGGER consent_validation_shares
     FOR EACH ROW EXECUTE FUNCTION validate_consent_requirements();
 ```
 
-### 11.2. Smart Notification Triggers
+### 12.2. Smart Notification Triggers
 
 ```sql
 -- Trigger function for automatic notification generation
@@ -2735,9 +3005,9 @@ CREATE TRIGGER auto_notification_consent_changes
 
 ---
 
-## 12. Implementation Considerations
+## 13. Implementation Considerations
 
-### 12.1. Performance Optimization
+### 13.1. Performance Optimization
 
 ```sql
 -- Materialized view for fast dashboard loading
@@ -2788,7 +3058,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 12.2. Data Migration Helpers
+### 13.2. Data Migration Helpers
 
 ```sql
 -- Helper function for migrating existing users to new user experience features
@@ -2836,9 +3106,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ---
 
-## 13. Testing & Validation
+## 14. Testing & Validation
 
-### 13.1. Test Data Generation
+### 14.1. Test Data Generation
 
 ```sql
 -- Function to generate test consent scenarios
