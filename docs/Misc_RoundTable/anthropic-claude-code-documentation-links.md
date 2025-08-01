@@ -1,0 +1,9 @@
+https://docs.anthropic.com/en/docs/claude-code/common-workflows
+https://docs.anthropic.com/en/docs/claude-code/sdk
+https://docs.anthropic.com/en/docs/claude-code/sub-agents
+https://docs.anthropic.com/en/docs/claude-code/hooks-guide
+https://docs.anthropic.com/en/docs/claude-code/hooks
+https://docs.anthropic.com/en/docs/claude-code/hooks-guide
+https://docs.anthropic.com/en/docs/claude-code/mcp
+https://docs.anthropic.com/en/docs/mcp
+https://docs.anthropic.com/en/docs/claude-code/slash-commands
