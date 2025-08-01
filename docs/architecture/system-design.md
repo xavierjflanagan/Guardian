@@ -1,7 +1,7 @@
 # Architecture Overview
 
 **Purpose:** High-level overview of the Guardian technical architecture, stack, and modular design.
-**Last updated:** January 2025
+**Last updated:** July 31, 2025
 **Audience:** Developers, architects, contributors
 **Prerequisites:** Familiarity with web application architecture
 
