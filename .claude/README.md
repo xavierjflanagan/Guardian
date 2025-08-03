@@ -34,7 +34,7 @@ Instead of having one generalist AI, we have **7 specialized AI experts** that u
 │   ├── ai-processing-tessa.md
 │   ├── frontend-prue.md
 │   ├── quality-quinn.md
-│   ├── healthcare-data-cleo.md
+│   ├── Data-security-auditor-dušan.md
 │   ├── analytics-ana.md
 │   └── growth-groot.md
 ├── memory/                      # Agent memory banks
@@ -42,7 +42,7 @@ Instead of having one generalist AI, we have **7 specialized AI experts** that u
 │   ├── tessa/                   # Tessa's private learnings
 │   ├── prue/                    # Prue's private learnings
 │   ├── quinn/                   # Quinn's private learnings
-│   ├── cleo/                    # Cleo's private learnings
+│   ├── dušan/                   # Data-security-auditor-dušan
 │   ├── ana/                     # Ana's private learnings
 │   ├── groot/                   # Groot's private learnings
 │   └── shared/                  # Cross-agent communication
