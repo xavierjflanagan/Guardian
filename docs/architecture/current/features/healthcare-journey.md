@@ -27,6 +27,10 @@ The Healthcare Journey system provides patients with a comprehensive, chronologi
 ### 1.1. Core Timeline Events Table
 
 ```sql
+-- ⚠️  REFERENCE ONLY ⚠️
+-- The canonical schema is defined in /supabase/migrations/
+-- This SQL is for documentation context only.
+
 CREATE TABLE healthcare_timeline_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
@@ -100,6 +104,7 @@ DECLARE
     is_major BOOLEAN DEFAULT FALSE;
     priority_score INTEGER DEFAULT 100;
     event_tags TEXT[] DEFAULT '{}';
+    searchable_content TEXT; -- Fix: Missing variable declaration
 BEGIN
     -- Determine timeline representation based on clinical event classification
     IF NEW.activity_type = 'observation' THEN

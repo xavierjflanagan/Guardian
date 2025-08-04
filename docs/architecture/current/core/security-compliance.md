@@ -28,8 +28,13 @@ This document defines Guardian v7's comprehensive security and compliance framew
 Based on Opus-4's recommendation for enhanced data protection:
 
 ```sql
+-- ⚠️  REFERENCE ONLY ⚠️
+-- The canonical schema is defined in /supabase/migrations/
+-- This SQL is for documentation context only.
+
 -- Field-level encryption extension
-CREATE EXTENSION IF NOT EXISTS "pgp_sym_encrypt" CASCADE;
+-- Fix: Correct extension name is 'pgcrypto', not 'pgp_sym_encrypt'
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" CASCADE;
 
 -- Encrypted sensitive data storage
 CREATE TABLE encrypted_patient_data (
@@ -57,22 +62,117 @@ CREATE TABLE encrypted_patient_data (
     archived_at TIMESTAMPTZ
 );
 
--- Encryption/decryption helper functions
+-- Security events audit table for encryption operations
+CREATE TABLE security_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'high', 'critical')),
+    
+    -- Event details
+    details JSONB NOT NULL DEFAULT '{}',
+    resource_type TEXT,
+    resource_id UUID,
+    
+    -- User context
+    user_id UUID REFERENCES auth.users(id),
+    session_id TEXT,
+    ip_address INET,
+    user_agent TEXT,
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+) PARTITION BY RANGE (created_at);
+
+-- Create initial partition for current month
+CREATE TABLE security_events_current PARTITION OF security_events
+    FOR VALUES FROM (date_trunc('month', CURRENT_DATE)) 
+    TO (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month');
+
+-- Essential indexes for security_events performance
+CREATE INDEX idx_security_events_user_time ON security_events(user_id, created_at);
+CREATE INDEX idx_security_events_severity ON security_events(severity, created_at) WHERE severity IN ('high', 'critical');
+CREATE INDEX idx_security_events_type ON security_events(event_type, created_at);
+
+-- Enhanced encryption/decryption helper functions with secure key management
 CREATE OR REPLACE FUNCTION encrypt_sensitive_field(
     plaintext TEXT,
     field_type TEXT
 ) RETURNS TEXT AS $$
 DECLARE
     encryption_key TEXT;
+    key_source TEXT := 'unknown';
 BEGIN
-    -- Get field-specific encryption key from secure config
-    encryption_key := current_setting('app.encryption_key_' || field_type, true);
+    -- Input validation
+    IF plaintext IS NULL OR trim(plaintext) = '' THEN
+        RETURN NULL;
+    END IF;
+    
+    -- Try Supabase secret store first (secure)
+    BEGIN
+        -- Check if vault extension is available
+        IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'supabase_vault') THEN
+            encryption_key := vault.decrypt_secret(field_type || '_encryption_key');
+            key_source := 'vault';
+        ELSE
+            encryption_key := NULL;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        encryption_key := NULL;
+        -- Log vault access failure for debugging
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('vault_access_failed', 'warning', jsonb_build_object(
+            'field_type', field_type,
+            'error', SQLERRM
+        ), auth.uid());
+    END;
+    
+    -- Fall back to current_setting during deprecation window
+    IF encryption_key IS NULL THEN
+        encryption_key := current_setting('app.encryption_key_' || field_type, true);
+        key_source := 'config_deprecated';
+        
+        -- Log deprecation warning
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('encryption_key_deprecated_source', 'warning', jsonb_build_object(
+            'field_type', field_type,
+            'message', 'Using deprecated config-based key. Migrate to Supabase vault.',
+            'key_source', key_source
+        ), auth.uid());
+    END IF;
     
     IF encryption_key IS NULL THEN
+        -- Log critical security event
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('encryption_key_missing', 'critical', jsonb_build_object(
+            'field_type', field_type,
+            'operation', 'encrypt'
+        ), auth.uid());
+        
         RAISE EXCEPTION 'Encryption key not configured for field type: %', field_type;
     END IF;
     
-    RETURN pgp_sym_encrypt(plaintext, encryption_key);
+    -- Log encryption operation
+    INSERT INTO security_events (event_type, severity, details, user_id)
+    VALUES ('field_encryption', 'info', jsonb_build_object(
+        'field_type', field_type,
+        'key_source', key_source,
+        'operation', 'encrypt'
+    ), auth.uid());
+    
+    -- Perform encryption with error handling
+    BEGIN
+        RETURN pgp_sym_encrypt(plaintext, encryption_key);
+    EXCEPTION WHEN OTHERS THEN
+        -- Log encryption failure
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('encryption_failure', 'high', jsonb_build_object(
+            'field_type', field_type,
+            'error', SQLERRM,
+            'key_source', key_source
+        ), auth.uid());
+        
+        RAISE EXCEPTION 'Encryption failed for field type %: %', field_type, SQLERRM;
+    END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -82,15 +182,80 @@ CREATE OR REPLACE FUNCTION decrypt_sensitive_field(
 ) RETURNS TEXT AS $$
 DECLARE
     encryption_key TEXT;
+    key_source TEXT := 'unknown';
 BEGIN
-    -- Get field-specific encryption key from secure config
-    encryption_key := current_setting('app.encryption_key_' || field_type, true);
-    
-    IF encryption_key IS NULL THEN
-        RAISE EXCEPTION 'Encryption key not configured for field type: %', field_type;
+    -- Input validation
+    IF encrypted_text IS NULL OR trim(encrypted_text) = '' THEN
+        RETURN NULL;
     END IF;
     
-    RETURN pgp_sym_decrypt(encrypted_text, encryption_key);
+    -- Try Supabase secret store first (secure)
+    BEGIN
+        -- Check if vault extension is available
+        IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'supabase_vault') THEN
+            encryption_key := vault.decrypt_secret(field_type || '_encryption_key');
+            key_source := 'vault';
+        ELSE
+            encryption_key := NULL;
+        END IF;
+    EXCEPTION WHEN OTHERS THEN
+        encryption_key := NULL;
+        -- Log vault access failure for debugging
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('vault_access_failed', 'warning', jsonb_build_object(
+            'field_type', field_type,
+            'error', SQLERRM
+        ), auth.uid());
+    END;
+    
+    -- Fall back to current_setting during deprecation window
+    IF encryption_key IS NULL THEN
+        encryption_key := current_setting('app.encryption_key_' || field_type, true);
+        key_source := 'config_deprecated';
+        
+        -- Log deprecation warning
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('decryption_key_deprecated_source', 'warning', jsonb_build_object(
+            'field_type', field_type,
+            'message', 'Using deprecated config-based key. Migrate to Supabase vault.',
+            'key_source', key_source
+        ), auth.uid());
+    END IF;
+    
+    IF encryption_key IS NULL THEN
+        -- Log critical security event
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('decryption_key_missing', 'critical', jsonb_build_object(
+            'field_type', field_type,
+            'operation', 'decrypt'
+        ), auth.uid());
+        
+        RAISE EXCEPTION 'Decryption key not configured for field type: %', field_type;
+    END IF;
+    
+    -- Log decryption operation
+    INSERT INTO security_events (event_type, severity, details, user_id)
+    VALUES ('field_decryption', 'info', jsonb_build_object(
+        'field_type', field_type,
+        'key_source', key_source,
+        'operation', 'decrypt'
+    ), auth.uid());
+    
+    -- Perform decryption with error handling
+    BEGIN
+        RETURN pgp_sym_decrypt(encrypted_text, encryption_key);
+    EXCEPTION WHEN OTHERS THEN
+        -- Log decryption failure (potential tampering indicator)
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('decryption_failure', 'high', jsonb_build_object(
+            'field_type', field_type,
+            'error', SQLERRM,
+            'key_source', key_source,
+            'potential_tampering', true
+        ), auth.uid());
+        
+        RAISE EXCEPTION 'Decryption failed for field type %: %', field_type, SQLERRM;
+    END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -114,6 +279,55 @@ ALTER TABLE encrypted_patient_data ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY encrypted_patient_data_user_isolation ON encrypted_patient_data
     FOR ALL USING (auth.uid() = patient_id AND archived IS NOT TRUE);
+```
+
+### 1.1.1. Encryption Key Migration Guide
+
+**IMPORTANT:** The enhanced encryption functions now prioritize Supabase Vault over deprecated config-based keys.
+
+#### Migration Steps:
+
+1. **Prepare Supabase Vault Keys:**
+   ```bash
+   # For each field type (ssn, dob, phone, email, address), create vault secrets:
+   supabase secrets set ssn_encryption_key="your-strong-ssn-key"
+   supabase secrets set dob_encryption_key="your-strong-dob-key" 
+   supabase secrets set phone_encryption_key="your-strong-phone-key"
+   supabase secrets set email_encryption_key="your-strong-email-key"
+   supabase secrets set address_encryption_key="your-strong-address-key"
+   ```
+
+2. **Test Migration:**
+   ```sql
+   -- Test decryption with new vault keys on existing data
+   SELECT decrypt_sensitive_field(ssn_encrypted, 'ssn') as test_ssn 
+   FROM encrypted_patient_data LIMIT 1;
+   ```
+
+3. **Monitor Migration:**
+   ```sql
+   -- Check for deprecated key usage warnings
+   SELECT event_type, details, created_at 
+   FROM security_events 
+   WHERE event_type LIKE '%deprecated_source%' 
+   ORDER BY created_at DESC;
+   ```
+
+4. **Remove Deprecated Config Keys:**
+   ```sql
+   -- After successful migration, remove old config settings
+   ALTER DATABASE guardian RESET app.encryption_key_ssn;
+   ALTER DATABASE guardian RESET app.encryption_key_dob;
+   -- ... repeat for all field types
+   ```
+
+#### Key Rotation Process:
+```bash
+# Generate new keys periodically
+supabase secrets set ssn_encryption_key="new-rotated-key" --override
+
+# Note: Key rotation requires re-encrypting existing data
+# See Future Enhancement ticket below
 ```
 
 ### 1.2. Zero-Trust Architecture Implementation
@@ -224,6 +438,225 @@ CREATE TABLE access_attempts (
 -- Index for security monitoring
 CREATE INDEX idx_access_attempts_user_time ON access_attempts(user_id, attempted_at);
 CREATE INDEX idx_access_attempts_denied ON access_attempts(access_granted, attempted_at) WHERE access_granted = false;
+
+-- Device fingerprinting and trust validation
+CREATE TABLE device_registry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Device identification
+    device_fingerprint TEXT NOT NULL, -- Browser/device fingerprint hash
+    device_name TEXT, -- User-assigned device name
+    device_type TEXT CHECK (device_type IN ('desktop', 'mobile', 'tablet')),
+    
+    -- Device attributes
+    user_agent TEXT,
+    screen_resolution TEXT,
+    timezone TEXT,
+    platform TEXT,
+    browser_version TEXT,
+    
+    -- Trust status
+    trust_status TEXT NOT NULL DEFAULT 'untrusted' CHECK (trust_status IN ('untrusted', 'pending', 'trusted', 'revoked')),
+    trust_established_at TIMESTAMPTZ,
+    trust_method TEXT, -- 'sms_verification', 'email_confirmation', 'admin_approval'
+    
+    -- Security
+    last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    last_ip_address INET,
+    suspicious_activity_count INTEGER DEFAULT 0,
+    
+    -- Lifecycle
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at TIMESTAMPTZ,
+    revoked_reason TEXT
+);
+
+-- Geographic anomaly detection
+CREATE TABLE user_location_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Location data
+    ip_address INET NOT NULL,
+    country_code TEXT,
+    region TEXT,
+    city TEXT,
+    latitude DECIMAL(10,8),
+    longitude DECIMAL(11,8),
+    
+    -- Detection
+    is_anomaly BOOLEAN DEFAULT FALSE,
+    anomaly_score DECIMAL(5,2), -- 0.0 to 100.0
+    distance_from_usual_km INTEGER,
+    
+    -- Context
+    session_id TEXT,
+    device_fingerprint TEXT,
+    
+    -- Audit
+    detected_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+) PARTITION BY RANGE (detected_at);
+
+-- Create initial partition for current month
+CREATE TABLE user_location_history_current PARTITION OF user_location_history
+    FOR VALUES FROM (date_trunc('month', CURRENT_DATE)) 
+    TO (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month');
+
+-- Active sessions for automatic termination
+CREATE TABLE active_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    
+    -- Session identification
+    session_token TEXT NOT NULL UNIQUE,
+    refresh_token TEXT,
+    device_fingerprint TEXT,
+    
+    -- Session context
+    ip_address INET NOT NULL,
+    user_agent TEXT,
+    location_data JSONB,
+    
+    -- Security monitoring
+    risk_score DECIMAL(5,2) DEFAULT 0.0, -- 0.0 = safe, 100.0 = maximum risk
+    suspicious_activity_flags TEXT[] DEFAULT '{}',
+    
+    -- Lifecycle
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    terminated_at TIMESTAMPTZ,
+    termination_reason TEXT
+);
+
+-- Enhanced zero-trust validation with device and location checks
+CREATE OR REPLACE FUNCTION validate_enhanced_zero_trust_access(
+    p_resource_type TEXT,
+    p_resource_id UUID,
+    p_operation TEXT,
+    p_context JSONB DEFAULT '{}'
+) RETURNS BOOLEAN AS $$
+DECLARE
+    current_user_id UUID := auth.uid(); -- FIXED: renamed to avoid variable shadowing
+    session_record RECORD;
+    device_record RECORD;
+    location_record RECORD;
+    risk_score DECIMAL(5,2) := 0.0;
+    device_fingerprint TEXT;
+    current_ip INET;
+    basic_access_granted BOOLEAN;
+BEGIN
+    -- First check basic zero-trust policies
+    basic_access_granted := validate_zero_trust_access(p_resource_type, p_resource_id, p_operation, p_context);
+    
+    IF NOT basic_access_granted THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- Extract context
+    device_fingerprint := p_context->>'device_fingerprint';
+    current_ip := (p_context->>'ip_address')::INET;
+    
+    -- Device trust validation
+    IF device_fingerprint IS NOT NULL THEN
+        SELECT * INTO device_record 
+        FROM device_registry 
+        WHERE user_id = current_user_id  -- FIXED: use renamed variable
+        AND device_fingerprint = device_fingerprint
+        AND trust_status = 'trusted'
+        AND (revoked_at IS NULL OR revoked_at > NOW());
+        
+        IF NOT FOUND THEN
+            risk_score := risk_score + 30.0; -- Untrusted device adds significant risk
+            
+            -- Log security event
+            INSERT INTO security_events (event_type, severity, details, user_id)
+            VALUES ('untrusted_device_access', 'high', jsonb_build_object(
+                'device_fingerprint', device_fingerprint,
+                'resource_type', p_resource_type,
+                'operation', p_operation
+            ), current_user_id); -- FIXED: use renamed variable
+        END IF;
+    END IF;
+    
+    -- Geographic anomaly check
+    IF current_ip IS NOT NULL THEN
+        -- Check recent location pattern
+        SELECT * INTO location_record 
+        FROM user_location_history 
+        WHERE user_id = current_user_id  -- FIXED: use renamed variable
+        AND detected_at > NOW() - INTERVAL '7 days'
+        ORDER BY detected_at DESC 
+        LIMIT 1;
+        
+        -- If this IP is significantly different from recent patterns
+        IF FOUND AND location_record.is_anomaly THEN
+            risk_score := risk_score + (location_record.anomaly_score * 0.5);
+            
+            -- Log geographic anomaly
+            INSERT INTO security_events (event_type, severity, details, user_id)
+            VALUES ('geographic_anomaly_detected', 'warning', jsonb_build_object(
+                'current_ip', current_ip,
+                'anomaly_score', location_record.anomaly_score,
+                'distance_km', location_record.distance_from_usual_km
+            ), current_user_id); -- FIXED: use renamed variable
+        END IF;
+    END IF;
+    
+    -- Check active session risk score
+    SELECT * INTO session_record 
+    FROM active_sessions 
+    WHERE user_id = current_user_id  -- FIXED: use renamed variable
+    AND terminated_at IS NULL 
+    AND expires_at > NOW()
+    ORDER BY last_activity_at DESC 
+    LIMIT 1;
+    
+    IF FOUND THEN
+        risk_score := risk_score + session_record.risk_score;
+        
+        -- Auto-terminate high-risk sessions
+        IF session_record.risk_score > 80.0 THEN
+            UPDATE active_sessions 
+            SET terminated_at = NOW(),
+                termination_reason = 'high_risk_score_auto_termination'
+            WHERE id = session_record.id;
+            
+            -- Log security event
+            INSERT INTO security_events (event_type, severity, details, user_id)
+            VALUES ('session_auto_terminated', 'critical', jsonb_build_object(
+                'session_id', session_record.id,
+                'risk_score', session_record.risk_score,
+                'reason', 'high_risk_score'
+            ), current_user_id); -- FIXED: use renamed variable
+            
+            RETURN FALSE; -- Deny access due to terminated session
+        END IF;
+    END IF;
+    
+    -- High-risk operations require additional validation
+    IF p_operation IN ('export', 'bulk_download', 'share_external') AND risk_score > 40.0 THEN
+        -- Log high-risk operation attempt
+        INSERT INTO security_events (event_type, severity, details, user_id)
+        VALUES ('high_risk_operation_blocked', 'high', jsonb_build_object(
+            'operation', p_operation,
+            'resource_type', p_resource_type,
+            'risk_score', risk_score,
+            'reason', 'elevated_risk_score'
+        ), current_user_id); -- FIXED: use renamed variable
+        
+        RETURN FALSE;
+    END IF;
+    
+    -- Log successful enhanced validation
+    INSERT INTO access_attempts (user_id, resource_type, resource_id, operation, context, access_granted, policy_applied)
+    VALUES (current_user_id, p_resource_type, p_resource_id, p_operation, p_context || jsonb_build_object('risk_score', risk_score), TRUE, 'enhanced_zero_trust');
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 ### 1.3. Anomaly Detection for Access Patterns
@@ -348,6 +781,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 ```
+
+### 1.1.2. Future Enhancement: Enterprise Key Management
+
+**Ticket:** Integrate AWS KMS/Azure Key Vault for Enterprise Key Management  
+**Priority:** Medium (Post-v7)  
+**Scope:** Replace Supabase Vault with enterprise-grade key management system
+
+#### Goals:
+- **Key Rotation:** Automated key rotation with zero-downtime re-encryption
+- **Hardware Security:** HSM-backed key generation and storage  
+- **Compliance:** SOC2/FedRAMP compliance for enterprise healthcare clients
+- **Multi-Region:** Key replication for global healthcare deployments
+- **Audit Integration:** Enhanced key usage auditing with immutable logs
+
+#### Technical Requirements:
+- Replace `vault.decrypt_secret()` calls with KMS API integration
+- Implement versioned key management with automatic rotation
+- Add key escrow for disaster recovery scenarios  
+- Integrate with enterprise identity providers (AD, Okta)
+- Support for bring-your-own-key (BYOK) scenarios
+
+#### Migration Path:
+1. Implement KMS integration alongside existing Supabase Vault
+2. Add dual-key decryption support during migration window
+3. Re-encrypt all sensitive data with KMS-managed keys
+4. Remove Supabase Vault dependency
+
+**Estimated Effort:** 4-6 weeks  
+**Dependencies:** Enterprise client requirements, compliance audit results
 
 ---
 
@@ -559,6 +1021,274 @@ OR EXTRACT(EPOCH FROM (MAX(changed_at) - MIN(changed_at))) < 3600 -- Very rapid 
 ORDER BY access_count DESC;
 ```
 
+### 2.2. Tamper-Proof Audit Trail Enhancements
+
+**Critical Security Issue:** The current audit log can be modified by service roles, lacks immutability, and doesn't track RLS policy bypasses.
+
+```sql
+-- Immutable audit log with cryptographic integrity
+CREATE TABLE immutable_audit_log (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    
+    -- Chain integrity (blockchain-inspired)
+    sequence_number BIGSERIAL,
+    previous_hash TEXT, -- Hash of previous record for chain integrity  
+    record_hash TEXT NOT NULL, -- Hash of this record's data
+    signature TEXT, -- Digital signature of the record
+    
+    -- Audit data (encrypted sensitive fields)
+    table_name TEXT NOT NULL,
+    record_id UUID NOT NULL,  
+    operation TEXT NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE', 'ARCHIVE', 'VIEW', 'EXPORT', 'RLS_BYPASS')),
+    
+    -- Tamper detection
+    data_fingerprint TEXT NOT NULL, -- Merkle tree hash of all changed data
+    integrity_verified BOOLEAN DEFAULT TRUE,
+    tamper_detected BOOLEAN DEFAULT FALSE,
+    
+    -- Enhanced context for forensics
+    user_id UUID REFERENCES auth.users(id),
+    role_used TEXT, -- What role was used (service_role, authenticated, etc.)
+    rls_bypassed BOOLEAN DEFAULT FALSE, -- Critical: track when RLS is bypassed
+    bypass_justification TEXT, -- Required if RLS bypassed
+    
+    -- Full forensic context
+    ip_address INET NOT NULL,
+    user_agent TEXT,
+    session_id TEXT,
+    request_id TEXT, -- Correlate with application logs
+    
+    -- Immutability metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    write_protected BOOLEAN DEFAULT TRUE, -- Prevent modifications
+    retention_locked BOOLEAN DEFAULT FALSE, -- Legal hold protection
+    
+    -- Partition key
+    audit_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    
+    PRIMARY KEY (id, audit_date),
+    
+    -- Enforce write-only (no updates allowed)
+    CONSTRAINT no_updates_allowed CHECK (created_at IS NOT NULL)
+) PARTITION BY RANGE (audit_date);
+
+-- Create current partition
+CREATE TABLE immutable_audit_log_current PARTITION OF immutable_audit_log
+    FOR VALUES FROM (date_trunc('month', CURRENT_DATE)) 
+    TO (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month');
+
+-- Cryptographic integrity functions
+CREATE OR REPLACE FUNCTION generate_audit_hash(
+    p_table_name TEXT,
+    p_record_id UUID,
+    p_operation TEXT,
+    p_user_id UUID,
+    p_data_fingerprint TEXT,
+    p_timestamp TIMESTAMPTZ
+) RETURNS TEXT AS $$
+BEGIN
+    -- Generate SHA-256 hash of critical audit data
+    RETURN encode(digest(
+        p_table_name || '|' || 
+        p_record_id::TEXT || '|' || 
+        p_operation || '|' || 
+        COALESCE(p_user_id::TEXT, 'null') || '|' || 
+        p_data_fingerprint || '|' || 
+        p_timestamp::TEXT, 
+        'sha256'
+    ), 'hex');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Chain integrity validation
+CREATE OR REPLACE FUNCTION validate_audit_chain() RETURNS TABLE(
+    record_id UUID,
+    sequence_num BIGINT,
+    integrity_status TEXT,
+    issue_description TEXT
+) AS $$
+DECLARE
+    current_record RECORD;
+    previous_record RECORD;
+    expected_hash TEXT;
+BEGIN
+    -- Check each record in sequence
+    FOR current_record IN 
+        SELECT * FROM immutable_audit_log 
+        ORDER BY sequence_number
+    LOOP
+        -- Verify record hash
+        expected_hash := generate_audit_hash(
+            current_record.table_name,
+            current_record.record_id,
+            current_record.operation,
+            current_record.user_id,
+            current_record.data_fingerprint,
+            current_record.created_at
+        );
+        
+        IF current_record.record_hash != expected_hash THEN
+            record_id := current_record.id;
+            sequence_num := current_record.sequence_number;
+            integrity_status := 'COMPROMISED';
+            issue_description := 'Record hash mismatch - possible tampering';
+            RETURN NEXT;
+        END IF;
+        
+        -- Verify chain linkage (except for first record)
+        IF current_record.sequence_number > 1 THEN
+            SELECT * INTO previous_record 
+            FROM immutable_audit_log 
+            WHERE sequence_number = current_record.sequence_number - 1;
+            
+            IF FOUND AND current_record.previous_hash != previous_record.record_hash THEN
+                record_id := current_record.id;
+                sequence_num := current_record.sequence_number;
+                integrity_status := 'CHAIN_BROKEN';
+                issue_description := 'Chain linkage broken - audit trail compromised';
+                RETURN NEXT;
+            END IF;
+        END IF;
+    END LOOP;
+    
+    RETURN;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- RLS bypass detection and logging
+CREATE OR REPLACE FUNCTION log_rls_bypass(
+    p_table_name TEXT,
+    p_record_id UUID,
+    p_operation TEXT,
+    p_justification TEXT
+) RETURNS VOID AS $$
+DECLARE
+    previous_hash_val TEXT;
+    current_data_hash TEXT;
+    current_record_hash TEXT;
+BEGIN
+    -- Get hash of previous record for chain integrity
+    SELECT record_hash INTO previous_hash_val 
+    FROM immutable_audit_log 
+    ORDER BY sequence_number DESC 
+    LIMIT 1;
+    
+    -- Generate data fingerprint
+    current_data_hash := encode(digest(
+        p_table_name || p_record_id::TEXT || p_operation || COALESCE(p_justification, ''), 
+        'sha256'
+    ), 'hex');
+    
+    -- Generate record hash
+    current_record_hash := generate_audit_hash(
+        p_table_name,
+        p_record_id,
+        'RLS_BYPASS',
+        auth.uid(),
+        current_data_hash,
+        NOW()
+    );
+    
+    -- Insert immutable audit record
+    INSERT INTO immutable_audit_log (
+        table_name,
+        record_id,
+        operation,
+        data_fingerprint,
+        record_hash,
+        previous_hash,
+        user_id,
+        role_used,
+        rls_bypassed,
+        bypass_justification,
+        ip_address,
+        user_agent,
+        session_id
+    ) VALUES (
+        p_table_name,
+        p_record_id,
+        'RLS_BYPASS',
+        current_data_hash,
+        current_record_hash,
+        previous_hash_val,
+        auth.uid(),
+        current_setting('role'),
+        TRUE,
+        p_justification,
+        inet_client_addr(),
+        current_setting('request.headers', true)::JSONB->>'user-agent',
+        current_setting('request.jwt.claims', true)::JSONB->>'session_id'
+    );
+    
+    -- Also log to security events
+    INSERT INTO security_events (event_type, severity, details, user_id)
+    VALUES ('rls_policy_bypassed', 'critical', jsonb_build_object(
+        'table_name', p_table_name,
+        'record_id', p_record_id,
+        'operation', p_operation,
+        'justification', p_justification,
+        'role_used', current_setting('role')
+    ), auth.uid());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Prevent modifications to immutable audit log
+CREATE OR REPLACE FUNCTION prevent_audit_modifications()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        RAISE EXCEPTION 'Immutable audit log cannot be modified. Record ID: %', OLD.id;
+    ELSIF TG_OP = 'DELETE' THEN
+        -- Only allow deletion if not under legal hold and past retention period
+        IF OLD.retention_locked = TRUE THEN
+            RAISE EXCEPTION 'Cannot delete audit record - legal hold in effect. Record ID: %', OLD.id;
+        END IF;
+        
+        IF OLD.created_at > (CURRENT_DATE - INTERVAL '7 years') THEN
+            RAISE EXCEPTION 'Cannot delete audit record - within retention period. Record ID: %', OLD.id;
+        END IF;
+    END IF;
+    
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply immutability trigger
+CREATE TRIGGER immutable_audit_protection
+    BEFORE UPDATE OR DELETE ON immutable_audit_log
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_audit_modifications();
+
+-- Monitor for audit integrity issues
+CREATE OR REPLACE FUNCTION monitor_audit_integrity()
+RETURNS VOID AS $$
+DECLARE
+    integrity_issues INTEGER;
+BEGIN
+    -- Check for integrity violations
+    SELECT COUNT(*) INTO integrity_issues
+    FROM validate_audit_chain()
+    WHERE integrity_status != 'OK';
+    
+    IF integrity_issues > 0 THEN
+        -- Log critical security event
+        INSERT INTO security_events (event_type, severity, details)
+        VALUES ('audit_integrity_violation', 'critical', jsonb_build_object(
+            'issues_found', integrity_issues,
+            'check_time', NOW(),
+            'action_required', 'Immediate investigation required'
+        ));
+        
+        -- Could also send alerts, disable system, etc.
+        RAISE WARNING 'Audit integrity violations detected: % issues found', integrity_issues;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Schedule periodic integrity checks (would be called by cron)
+-- SELECT cron.schedule('audit-integrity-check', '0 */6 * * *', 'SELECT monitor_audit_integrity();');
+```
+
 ---
 
 ## 3. GDPR and Healthcare Compliance
@@ -571,34 +1301,10 @@ ORDER BY access_count DESC;
 
 ```sql
 -- GDPR consent and rights management
-CREATE TABLE gdpr_consents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID NOT NULL REFERENCES auth.users(id),
-    
-    -- Consent details
-    consent_type TEXT NOT NULL CHECK (consent_type IN ('data_processing', 'data_sharing', 'marketing', 'research')),
-    purpose TEXT NOT NULL,
-    legal_basis TEXT NOT NULL CHECK (legal_basis IN ('consent', 'contract', 'legal_obligation', 'vital_interests', 'public_task', 'legitimate_interests')),
-    
-    -- Consent lifecycle
-    granted BOOLEAN NOT NULL DEFAULT false,
-    granted_at TIMESTAMPTZ,
-    withdrawn_at TIMESTAMPTZ,
-    
-    -- Consent context
-    consent_method TEXT NOT NULL CHECK (consent_method IN ('explicit_opt_in', 'implied', 'pre_ticked_box')),
-    consent_text TEXT NOT NULL, -- Exact text shown to user
-    consent_version TEXT NOT NULL,
-    
-    -- Data subject rights
-    data_categories TEXT[] NOT NULL, -- Categories of data covered
-    retention_period INTEGER, -- Days
-    sharing_restrictions JSONB DEFAULT '{}',
-    
-    -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- P2.2 CONSOLIDATION: gdpr_consents table removed - functionality consolidated into patient_consents
+-- The comprehensive patient_consents table in user-experience.md includes all GDPR Article 6/7 compliance
+-- and provides more granular consent management than this basic GDPR table.
+-- All GDPR requirements are met by the unified patient_consents system.
 
 -- GDPR data subject requests
 CREATE TABLE gdpr_requests (
@@ -644,11 +1350,11 @@ DECLARE
 BEGIN
     -- Verify patient consent for data export
     SELECT EXISTS(
-        SELECT 1 FROM gdpr_consents 
+        SELECT 1 FROM patient_consents 
         WHERE patient_id = p_patient_id 
-        AND consent_type = 'data_processing'
-        AND granted = true
-        AND withdrawn_at IS NULL
+        AND consent_type = 'data_sharing'  -- Updated to match patient_consents schema
+        AND consent_granted = true
+        AND revoked_at IS NULL
     ) INTO consent_check;
     
     IF NOT consent_check THEN
@@ -1040,7 +1746,7 @@ BEGIN
                 'gdpr_requests_received', COUNT(*),
                 'gdpr_requests_completed', COUNT(*) FILTER (WHERE status = 'completed'),
                 'breach_incidents', (SELECT COUNT(*) FROM security_breaches WHERE discovered_at >= start_time),
-                'consent_withdrawals', (SELECT COUNT(*) FROM gdpr_consents WHERE withdrawn_at >= start_time)
+                'consent_withdrawals', (SELECT COUNT(*) FROM patient_consents WHERE revoked_at >= start_time)
             )
             FROM gdpr_requests
             WHERE received_at >= start_time

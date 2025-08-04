@@ -310,7 +310,7 @@ Stores each status transition for analytics and audit.
    **Appointment Creation**:
    ```sql
    INSERT INTO user_appointments (
-       user_id, scheduled_start, purpose, appointment_type,
+       patient_id, scheduled_start, purpose, appointment_type,  -- Fix: Column name is patient_id
        provider_name, specialty, facility_name,
        location_address, contact_phone, 
        -- Pre-filled from historical data
@@ -507,7 +507,7 @@ CREATE OR REPLACE FUNCTION check_appointment_conflict(
     _new_end    timestamptz)
 RETURNS integer AS $$
 SELECT COUNT(*) FROM user_appointments
- WHERE user_id = _user_id
+ WHERE patient_id = _user_id  -- Fix: Column name is patient_id, not user_id
    AND tstzrange(_new_start, _new_end, '[)') && scheduled_range
    AND status IN ('logged','confirmed','checked_in');
 $$ LANGUAGE sql STABLE;
@@ -520,7 +520,7 @@ CREATE OR REPLACE FUNCTION flag_conflict() RETURNS trigger AS $$
 BEGIN
     NEW.has_conflict := EXISTS (
         SELECT 1 FROM user_appointments
-         WHERE user_id = NEW.user_id
+         WHERE patient_id = NEW.patient_id  -- Fix: Column name is patient_id, not user_id
            AND scheduled_range && NEW.scheduled_range
            AND id <> NEW.id
            AND status IN ('logged','confirmed','checked_in'));
