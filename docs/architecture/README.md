@@ -9,7 +9,7 @@
 **Active production architecture** - Guardian Healthcare Journey System
 
 - **[Overview](current/README.md)** - v7 system overview and key features
-- **[Core Components](current/core/)** - Database schema, security, performance
+- **[Core Components](current/core/)** - Database schema, security, performance, optimization
 - **[Features](current/features/)** - Healthcare journey, appointments, user experience  
 - **[Integration](current/integration/)** - FHIR/HL7, infrastructure integration
 - **[Implementation](current/implementation/)** - Deployment guide, SQL scripts, testing
