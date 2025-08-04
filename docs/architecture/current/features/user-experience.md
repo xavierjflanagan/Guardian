@@ -29,6 +29,10 @@ This module implements comprehensive user experience infrastructure that puts pa
 ### 1.1. Patient Consent Core Schema
 
 ```sql
+-- ⚠️  REFERENCE ONLY ⚠️
+-- The canonical schema is defined in /supabase/migrations/
+-- This SQL is for documentation context only.
+
 -- Core consent management with temporal and granular controls (Enhanced per Opus-4 recommendations)
 CREATE TABLE patient_consents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

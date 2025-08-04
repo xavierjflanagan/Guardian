@@ -9,6 +9,7 @@ BEGIN;
 CREATE TABLE healthcare_timeline_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
+    profile_id UUID REFERENCES user_profiles(id), -- FIXED: Multi-profile support missing from SQL implementation
     
     -- Hierarchical categorization for multi-level filtering
     display_category TEXT NOT NULL, -- 'visit', 'test_result', 'treatment', 'vaccination', 'screening', 'diagnosis'

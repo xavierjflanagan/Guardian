@@ -34,6 +34,10 @@ This document provides the complete performance optimization and monitoring stra
 
 #### Core Performance Indexes
 ```sql
+-- ⚠️  REFERENCE ONLY ⚠️
+-- The canonical schema is defined in /supabase/migrations/
+-- This SQL is for documentation context only.
+
 -- Spatial indexing for document provenance
 CREATE INDEX idx_clinical_fact_sources_spatial 
 ON clinical_fact_sources USING GIST(bounding_box);
@@ -361,9 +365,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Schedule debounced cache processing every 30 seconds
-SELECT cron.schedule('process-cache-invalidation-queue', '*/30 * * * * *', 
+-- Schedule debounced cache processing every 30 seconds  
+-- Fix: pg_cron uses 5 fields, not 6 (removed seconds field)
+SELECT cron.schedule('process-cache-invalidation-queue', '*/1 * * * *', 
                      'SELECT process_cache_invalidation_queue();');
+
+-- Schedule materialized view refresh processing every 5 minutes
+-- This processes the queue created by the performance fix in schema.md
+SELECT cron.schedule('process-materialized-view-refresh-queue', '*/5 * * * *', 
+                     'SELECT process_materialized_view_refresh_queue();');
 ```
 
 ### 3.2. Multi-Layer Dashboard Cache
