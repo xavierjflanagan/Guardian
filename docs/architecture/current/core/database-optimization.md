@@ -197,9 +197,9 @@ SELECT * FROM medical_data_volume_stats;
 ### Performance Improvements Expected
 
 #### Query Performance
-- **Dashboard Load**: 2-3 seconds ’ 0.3-0.5 seconds (85% improvement)
-- **Medical Search**: 5-10 seconds ’ 0.5-1 second (90% improvement)
-- **Quality Flags**: 3-5 seconds ’ 0.5-1 second (80% improvement)
+- **Dashboard Load**: 2-3 seconds ï¿½ 0.3-0.5 seconds (85% improvement)
+- **Medical Search**: 5-10 seconds ï¿½ 0.5-1 second (90% improvement)
+- **Quality Flags**: 3-5 seconds ï¿½ 0.5-1 second (80% improvement)
 
 #### Infrastructure Efficiency
 - **Connection Usage**: 30-40% reduction in connection pressure
