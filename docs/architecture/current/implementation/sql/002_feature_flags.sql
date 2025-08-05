@@ -106,13 +106,11 @@ CREATE OR REPLACE FUNCTION enable_feature_for_user(
 ) RETURNS BOOLEAN AS $$
 BEGIN
     UPDATE feature_flags 
-    SET enabled_for_users = array_append(
+    SET enabled_for_users = 
             CASE 
                 WHEN p_user_id = ANY(enabled_for_users) THEN enabled_for_users
                 ELSE array_append(enabled_for_users, p_user_id)
-            END, 
-            p_user_id
-        ),
+            END,
         rollout_percentage = COALESCE(p_percentage, rollout_percentage),
         updated_at = NOW()
     WHERE feature_name = p_feature_name;
@@ -180,13 +178,7 @@ ALTER TABLE feature_flags ENABLE ROW LEVEL SECURITY;
 CREATE POLICY feature_flags_admin_access ON feature_flags
     FOR ALL
     TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM auth.users 
-            WHERE auth.users.id = auth.uid() 
-            AND auth.users.role = 'admin'
-        )
-    );
+    USING (is_admin());
 
 -- Allow all authenticated users to read feature flags for their own checks
 CREATE POLICY feature_flags_read_access ON feature_flags
@@ -200,35 +192,22 @@ ALTER TABLE implementation_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY implementation_sessions_admin_access ON implementation_sessions
     FOR ALL
     TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM auth.users 
-            WHERE auth.users.id = auth.uid() 
-            AND auth.users.role IN ('admin', 'developer')
-        )
-    );
+    USING (is_admin() OR is_developer());
 
--- Create audit trigger for feature flags
+-- Create audit trigger for feature flags (using system audit infrastructure)
 CREATE OR REPLACE FUNCTION audit_feature_flags_changes()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Log feature flag changes to audit table
-    INSERT INTO audit_log (
-        table_name,
-        record_id,
-        operation,
-        old_values,
-        new_values,
-        changed_by,
-        changed_at
-    ) VALUES (
+    -- Log feature flag changes using system audit function
+    PERFORM log_audit_event(
         'feature_flags',
         COALESCE(NEW.feature_name, OLD.feature_name),
         TG_OP,
         CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
         CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
-        current_user,
-        NOW()
+        'Feature flag configuration change',
+        'feature_flag',
+        NULL -- Feature flags are not patient-specific
     );
     
     RETURN COALESCE(NEW, OLD);
@@ -258,4 +237,4 @@ COMMIT;
 
 -- Success message
 \echo 'Feature flags infrastructure deployed successfully!'
-\echo 'Next step: Run 002_core_schema.sql'
+\echo 'Next step: Run 001_multi_profile_management.sql'
