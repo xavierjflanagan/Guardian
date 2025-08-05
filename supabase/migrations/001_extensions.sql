@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/001_extensions.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- PostgreSQL Extensions Setup
 -- Guardian v7 Implementation - Step 0
 -- File: 000_extensions.sql

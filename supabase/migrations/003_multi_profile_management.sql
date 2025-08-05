@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/003_multi_profile_management.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Guardian v7 Multi-Profile Management System Deployment
 -- File: 001_multi_profile_management.sql
 -- Purpose: Deploy complete multi-profile management infrastructure

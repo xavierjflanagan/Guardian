@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/011_job_queue.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- 009_job_queue.sql
 -- Job Queue for Hybrid Infrastructure (Supabase + Render)
 -- Enables background processing without Edge Function time limits

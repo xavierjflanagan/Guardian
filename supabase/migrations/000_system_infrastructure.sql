@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/000_system_infrastructure.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- System Infrastructure Setup
 -- Guardian v7 Implementation - Foundation
 -- File: 000_system_infrastructure.sql

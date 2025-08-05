@@ -3,14 +3,16 @@ import { createClient } from "@/lib/supabaseClientSSR";
 /**
  * Uploads a file to the 'medical-docs' bucket in Supabase Storage under the user's folder.
  * Also creates a document record in the database.
+ * Updated for Guardian v7 canonical schema.
+ * 
  * @param file The file to upload
- * @param userId The user's unique ID (used as folder prefix)
+ * @param patientId The patient's unique ID (references auth.users)
  * @returns The file path in storage if successful
  * @throws Error if upload fails
  */
-export async function uploadFile(file: File, userId: string): Promise<string> {
+export async function uploadFile(file: File, patientId: string): Promise<string> {
   const supabase = createClient();
-  const filePath = `${userId}/${Date.now()}_${file.name}`;
+  const filePath = `${patientId}/${Date.now()}_${file.name}`;
   
   // 1. Upload file to storage
   const { error: uploadError } = await supabase.storage
@@ -19,15 +21,19 @@ export async function uploadFile(file: File, userId: string): Promise<string> {
   
   if (uploadError) throw uploadError;
   
-  // 2. Create document record in database
+  // 2. Create document record in database (using canonical schema fields + future-proofing)
   const { error: dbError } = await supabase
     .from("documents")
     .insert({
-      user_id: userId,
-      original_name: file.name,
-      s3_key: filePath,
+      patient_id: patientId,
+      filename: `${Date.now()}_${file.name}`,
+      original_filename: file.name,
+      file_size_bytes: file.size,
       mime_type: file.type,
-      status: 'uploaded'
+      storage_path: filePath,
+      status: 'uploaded',
+      source_system: 'guardian_native',
+      raw_source: {}
     });
   
   if (dbError) {

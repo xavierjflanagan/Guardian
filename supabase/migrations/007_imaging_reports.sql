@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/007_imaging_reports.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Imaging Reports Enhancement & Timeline Integration
 -- Guardian v7 Implementation - Step 5
 -- File: 005_imaging_reports.sql

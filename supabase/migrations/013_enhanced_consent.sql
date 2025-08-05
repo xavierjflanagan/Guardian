@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/013_enhanced_consent.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Enhanced Consent Management Implementation
 -- Guardian v7 Implementation - Step 2
 -- File: 002_enhanced_consent.sql

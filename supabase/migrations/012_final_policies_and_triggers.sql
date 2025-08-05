@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/012_final_policies_and_triggers.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Final Policies and Triggers
 -- Guardian v7 Implementation - Final Dependencies
 -- File: 012_final_policies_and_triggers.sql  

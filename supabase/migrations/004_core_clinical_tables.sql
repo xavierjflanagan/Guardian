@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/004_core_clinical_tables.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Core Clinical Tables Implementation
 -- Guardian v7 Implementation - Core Foundation
 -- File: 004_core_clinical_tables.sql
