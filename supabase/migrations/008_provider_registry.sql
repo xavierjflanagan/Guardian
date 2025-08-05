@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/008_provider_registry.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Guardian v7.1 Provider Portal: Universal Provider Registry
 -- This migration creates the foundation for the provider portal system
 -- Status: Future (v7.1) - Deploy after Guardian v7 patient platform is operational

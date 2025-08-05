@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/010_clinical_decision_support.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Guardian v7.1 Provider Portal: Clinical Decision Support System
 -- This migration creates provider-directed clinical alerts and action items
 -- Status: Future (v7.1) - Deploy after patient-provider access control is operational

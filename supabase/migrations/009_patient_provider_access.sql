@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/009_patient_provider_access.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Guardian v7.1 Provider Portal: Patient-Provider Access Control
 -- This migration creates granular access control between patients and providers
 -- Status: Future (v7.1) - Deploy after provider registry is operational

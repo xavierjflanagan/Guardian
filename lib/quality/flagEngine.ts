@@ -873,30 +873,39 @@ export class QualityGuardianEngine {
   }
 
   /**
-   * Store flags in database
+   * Store flags in audit system (Updated for Guardian v7 canonical schema)
+   * Uses the new log_audit_event function instead of separate quality flags table
    */
   async storeFlags(flags: DataQualityFlag[]): Promise<string[]> {
     const flagIds: string[] = [];
     
     for (const flag of flags) {
+      // Use the canonical audit system to store quality flags
       const { data, error } = await this.supabase
-        .rpc('create_data_quality_flag', {
-          p_profile_id: flag.profile_id,
-          p_document_id: flag.document_id,
-          p_record_table: flag.record_table,
-          p_record_id: flag.record_id,
-          p_severity: flag.severity,
-          p_category: flag.category,
-          p_problem_code: flag.problem_code,
-          p_field_name: flag.field_name,
-          p_raw_value: flag.raw_value,
-          p_suggested_correction: flag.suggested_correction,
-          p_confidence_score: flag.confidence_score,
-          p_auto_resolvable: flag.auto_resolvable
+        .rpc('log_audit_event', {
+          p_table_name: flag.record_table,
+          p_record_id: flag.document_id,
+          p_operation: 'QUALITY_FLAG',
+          p_old_values: null,
+          p_new_values: {
+            severity: flag.severity,
+            category: flag.category,
+            problem_code: flag.problem_code,
+            field_name: flag.field_name,
+            raw_value: flag.raw_value,
+            suggested_correction: flag.suggested_correction,
+            confidence_score: flag.confidence_score,
+            auto_resolvable: flag.auto_resolvable,
+            explanation: flag.explanation,
+            resolution_options: flag.resolution_options
+          },
+          p_reason: `Quality validation flag: ${flag.problem_code}`,
+          p_compliance_category: 'clinical_data',
+          p_patient_id: flag.profile_id
         });
       
       if (error) {
-        console.error('Error storing flag:', error);
+        console.error('Error storing quality flag in audit system:', error);
         continue;
       }
       

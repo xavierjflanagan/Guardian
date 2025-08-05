@@ -1,8 +1,3 @@
--- ⚠️  DOCUMENTATION REFERENCE COPY - DO NOT EDIT
--- 📍 SINGLE SOURCE OF TRUTH: /supabase/migrations/006_healthcare_journey.sql
--- 🔄 This file is for architectural documentation only
--- ✏️  All changes must be made in /supabase/migrations/ directory
--- 
 -- Healthcare Journey & Timeline Implementation
 -- Guardian v7 Implementation - Step 4
 -- File: 004_healthcare_journey.sql
