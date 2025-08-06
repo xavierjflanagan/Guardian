@@ -192,7 +192,9 @@ ORDER BY routine_name;
 
 -- Verify extensions
 SELECT extname, extversion FROM pg_extension 
-WHERE extname IN ('uuid-ossp', 'pg_trgm', 'postgis', 'pg_partman', 'pgcrypto')
+-- Note: Supabase does not support the pg_partman extension.
+-- We will instead schedule a monthly task to create the next partition manually.
+WHERE extname IN ('uuid-ossp', 'pg_trgm', 'postgis', 'pgcrypto')
 ORDER BY extname;
 ```
 
@@ -467,6 +469,23 @@ SELECT
         THEN '✅ Atomic consent management deployed'
         ELSE '❌ Consent system incomplete'
     END as status;
+```
+
+#### Step 15: Deploy Future-Proofing FHIR Hooks
+
+```sql
+-- Deploy FHIR integration hooks and future-proofing enhancements
+\i docs/architecture/current/implementation/sql/014_future_proofing_fhir_hooks.sql
+
+-- Verify FHIR hooks deployment
+SELECT 
+    'FHIR Hooks System' as deployment_step,
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'documents' AND column_name = 'fhir_resource_id')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'patient_conditions' AND column_name = 'fhir_resource_type')
+        THEN '✅ FHIR integration hooks deployed'
+        ELSE '❌ FHIR hooks incomplete'
+    END as status;
 
 -- Initialize implementation session tracking
 INSERT INTO implementation_sessions (
@@ -484,7 +503,7 @@ INSERT INTO implementation_sessions (
 
 ### 3.4. Phase 4: Comprehensive Validation
 
-#### Step 15: Complete System Validation
+#### Step 16: Complete System Validation
 
 ```sql
 -- Run comprehensive system health check
@@ -531,7 +550,7 @@ SELECT
     END as status;
 ```
 
-#### Step 16: Performance Verification
+#### Step 17: Performance Verification
 
 ```sql
 -- Verify indexing performance for core queries

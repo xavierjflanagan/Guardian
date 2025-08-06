@@ -1,5 +1,5 @@
 -- Guardian v7 Multi-Profile Management System Deployment
--- File: 001_multi_profile_management.sql
+-- x 001_multi_profile_management.sql
 -- Purpose: Deploy complete multi-profile management infrastructure
 
 BEGIN;
@@ -267,7 +267,9 @@ CREATE INDEX idx_profile_detection_patterns_type ON profile_detection_patterns(p
 -- Appointment indexes
 CREATE INDEX idx_profile_appointments_owner_date ON profile_appointments(account_owner_id, appointment_date);
 CREATE INDEX idx_profile_appointments_profile ON profile_appointments(profile_id) WHERE status NOT IN ('cancelled', 'completed');
-CREATE INDEX idx_profile_appointments_status ON profile_appointments(status, appointment_date) WHERE appointment_date >= CURRENT_DATE;
+-- Supabase note: cannot use CURRENT_DATE in index predicate (requires IMMUTABLE).
+-- Create a broader index instead; we can add a partial index later if needed.
+CREATE INDEX idx_profile_appointments_status ON profile_appointments(status, appointment_date);
 
 -- =============================================================================
 -- 6. ROW LEVEL SECURITY POLICIES

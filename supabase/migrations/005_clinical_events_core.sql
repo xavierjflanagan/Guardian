@@ -9,7 +9,7 @@ BEGIN;
 CREATE TABLE patient_clinical_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
-    encounter_id UUID REFERENCES healthcare_encounters(id),
+    encounter_id UUID, -- Foreign key will be added later via ALTER once healthcare_encounters is created
     
     -- O3's Two-Axis Classification System
     activity_type TEXT NOT NULL CHECK (activity_type IN ('observation', 'intervention')),
@@ -130,6 +130,9 @@ CREATE INDEX idx_patient_interventions_type ON patient_interventions(interventio
 CREATE INDEX idx_patient_interventions_substance ON patient_interventions(substance_name) WHERE substance_name IS NOT NULL;
 
 -- Create healthcare encounters table for visit context
+-- -----------------------------------------------------------------------------
+-- Create healthcare encounters table BEFORE we add a foreign key to it later
+-- -----------------------------------------------------------------------------
 CREATE TABLE healthcare_encounters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES auth.users(id),
@@ -294,6 +297,11 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- Add the deferred foreign key constraint now that both tables exist
+ALTER TABLE patient_clinical_events 
+ADD CONSTRAINT fk_clinical_events_encounter 
+FOREIGN KEY (encounter_id) REFERENCES healthcare_encounters(id);
 
 COMMIT;
 

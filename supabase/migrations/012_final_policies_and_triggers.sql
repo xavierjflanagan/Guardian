@@ -48,7 +48,7 @@ CREATE POLICY provider_registry_patient_access_enhanced ON provider_registry
             WHERE ppa.provider_id = provider_registry.id
             AND ppa.patient_id = auth.uid()
             AND ppa.status = 'active'
-            AND NOW() BETWEEN ppa.valid_from AND COALESCE(ppa.valid_until, 'infinity'::timestamptz)
+            AND (ppa.expires_at IS NULL OR ppa.expires_at > NOW())
         )
     );
 
@@ -65,8 +65,8 @@ BEGIN
         TG_TABLE_NAME,
         COALESCE(NEW.id::text, OLD.id::text),
         TG_OP,
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
         'Enhanced audit trigger',
         'provider_registry',
         -- Try to extract patient_id from various possible fields

@@ -56,8 +56,8 @@ CREATE TABLE IF NOT EXISTS patient_consents (
         (granted = true AND revoked_at IS NULL)
     ),
     
-    -- Unique constraint to support atomic operations
-    UNIQUE (patient_id, consent_type, purpose, COALESCE(granted_to, '00000000-0000-0000-0000-000000000000'::uuid), COALESCE(resource_type, ''))
+    -- Note: Unique constraint simplified due to PostgreSQL limitations with COALESCE in constraints
+    UNIQUE (patient_id, consent_type, purpose, granted_to, resource_type)
 );
 
 -- Create consent audit table for immutable history
@@ -314,8 +314,8 @@ BEGIN
             WHEN TG_OP = 'DELETE' THEN 'deleted'
         END,
         auth.uid(),
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END
     );
     
     RETURN COALESCE(NEW, OLD);

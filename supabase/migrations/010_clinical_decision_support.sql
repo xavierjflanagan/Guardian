@@ -592,19 +592,19 @@ INSERT INTO clinical_alert_rules (rule_name, rule_type, rule_description, trigge
  '{"medication_count": {">=": 5}}', 'moderate',
  'Polypharmacy increases risk of adverse drug events and drug interactions.',
  'Review medications for interactions, duplications, and optimization opportunities.',
- '["99213", "99214", "99215"]', '["HEDIS-MPM"]'),
+ '{"99213", "99214", "99215"}', '{"HEDIS-MPM"}'),
 
 ('mammography_screening_due', 'screening', 'Women aged 50-74 due for mammography screening',
  '{"age": {">=": 50, "<=": 74}, "gender": "female", "last_mammography": {"months_ago": {">=": 24}}}', 'routine',
  'USPSTF recommends biennial mammography screening for women aged 50-74.',
  'Order mammography screening for breast cancer detection.',
- '["77067"]', '["HEDIS-BCS"]'),
+ '{"77067"}', '{"HEDIS-BCS"}'),
 
 ('colonoscopy_screening_due', 'screening', 'Adults aged 50-75 due for colorectal cancer screening',
  '{"age": {">=": 50, "<=": 75}, "last_colonoscopy": {"years_ago": {">=": 10}}}', 'routine',
  'USPSTF recommends colorectal cancer screening for adults aged 50-75.',
  'Order appropriate colorectal cancer screening (colonoscopy, FIT, etc.).',
- '["45380", "45385"]', '["HEDIS-COL"]');
+ '{"45380", "45385"}', '{"HEDIS-COL"}');
 
 -- =============================================================================
 -- 8. COMMENTS AND DOCUMENTATION

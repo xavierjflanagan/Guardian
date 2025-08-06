@@ -132,7 +132,30 @@ CREATE INDEX IF NOT EXISTS idx_system_configuration_sensitive ON system_configur
 -- ROW LEVEL SECURITY POLICIES
 -- =============================================================================
 
--- Enable RLS on all system tables
+-- -----------------------------------------------------------------------------
+-- TEMPORARY STUB SECURITY FUNCTIONS
+-- These lightweight implementations allow policy creation to succeed even though
+-- the full canonical versions are defined later in this script.  They are
+-- immediately replaced by the more complete CREATE OR REPLACE statements in the
+-- "CANONICAL SECURITY FUNCTIONS" section.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION is_admin(user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN AS $$
+    SELECT FALSE;
+$$ LANGUAGE sql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION is_developer(user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN AS $$
+    SELECT FALSE;
+$$ LANGUAGE sql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION is_healthcare_provider(user_id UUID DEFAULT auth.uid())
+RETURNS BOOLEAN AS $$
+    SELECT FALSE;
+$$ LANGUAGE sql SECURITY DEFINER;
+-- -----------------------------------------------------------------------------
+
+-- Enable ROW-LEVEL SECURITY (RLS) on system tables
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_configuration ENABLE ROW LEVEL SECURITY;

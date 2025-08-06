@@ -114,7 +114,14 @@ SELECT cron.schedule('maintain-indexes', '0 4 * * 0',
                      'SELECT maintain_database_indexes();');
 ```
 
-### 2.2. Automated Partitioning Strategy
+### 2.2. Partitioning Strategy (Supabase-Friendly)
+
+> Supabase doesn’t support the `pg_partman` extension.  Replace the
+> pg_partman examples below with a simple **scheduled task** (cron job or
+> edge function) that runs once a month and executes `CREATE TABLE
+> audit_log_yymm … PARTITION OF audit_log …`.
+> The sample `pg_partman` code is left for reference if we ever migrate to
+> a host that allows the extension.
 
 #### Audit Log Partitioning (7-Year Retention)
 ```sql

@@ -68,8 +68,7 @@ CREATE TABLE registered_doctors_au (
     loaded_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Link AHPRA to provider registry
-ALTER TABLE provider_registry ADD COLUMN ahpra_verification_id TEXT REFERENCES registered_doctors_au(ahpra_id);
+-- Link AHPRA to provider registry (moved to end after both tables exist)
 
 -- =============================================================================
 -- 2. PERFORMANCE INDEXES
@@ -102,17 +101,18 @@ CREATE POLICY provider_registry_self_access ON provider_registry
         AND auth.uid()::TEXT = id::TEXT
     );
 
--- Patients can see basic provider info for providers they've granted access
-CREATE POLICY provider_registry_patient_access ON provider_registry
-    FOR SELECT USING (
-        auth.uid() IS NOT NULL 
-        AND EXISTS (
-            SELECT 1 FROM patient_provider_access ppa
-            WHERE ppa.provider_id = provider_registry.id
-            AND ppa.patient_id = auth.uid()
-            AND ppa.status = 'active'
-        )
-    );
+-- Patients can see basic provider info (patient_provider_access table created in script 009)
+-- This policy will be enabled after script 009 runs
+-- CREATE POLICY provider_registry_patient_access ON provider_registry
+--     FOR SELECT USING (
+--         auth.uid() IS NOT NULL 
+--         AND EXISTS (
+--             SELECT 1 FROM patient_provider_access ppa
+--             WHERE ppa.provider_id = provider_registry.id
+--             AND ppa.patient_id = auth.uid()
+--             AND ppa.status = 'active'
+--         )
+--     );
 
 -- AHPRA data is publicly readable for verification purposes
 CREATE POLICY registered_doctors_au_public_read ON registered_doctors_au
@@ -123,7 +123,7 @@ CREATE POLICY registered_doctors_au_public_read ON registered_doctors_au
 -- =============================================================================
 
 -- AHPRA lookup RPC (from original O3 ticket)
-CREATE OR REPLACE FUNCTION get_doctor_by_ahpra(ahpra_id TEXT)
+CREATE OR REPLACE FUNCTION get_doctor_by_ahpra(p_ahpra_id TEXT)
 RETURNS TABLE(
     ahpra_id TEXT,
     family_name TEXT,
@@ -135,7 +135,7 @@ BEGIN
     RETURN QUERY
     SELECT rd.ahpra_id, rd.family_name, rd.given_names, rd.registration_status, rd.specialty
     FROM registered_doctors_au rd
-    WHERE rd.ahpra_id = get_doctor_by_ahpra.ahpra_id;
+    WHERE rd.ahpra_id = p_ahpra_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -185,10 +185,10 @@ CREATE TRIGGER update_provider_registry_updated_at
     BEFORE UPDATE ON provider_registry
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Audit trigger for provider registry changes
-CREATE TRIGGER provider_registry_audit_trigger
-    AFTER INSERT OR UPDATE OR DELETE ON provider_registry
-    FOR EACH ROW EXECUTE FUNCTION enhanced_audit_trigger_function();
+-- Audit trigger for provider registry changes (enhanced_audit_trigger_function will be added in script 012)
+-- CREATE TRIGGER provider_registry_audit_trigger
+--     AFTER INSERT OR UPDATE OR DELETE ON provider_registry
+--     FOR EACH ROW EXECUTE FUNCTION enhanced_audit_trigger_function();
 
 -- =============================================================================
 -- 6. INITIAL DATA AND CONFIGURATION
@@ -217,3 +217,10 @@ COMMENT ON COLUMN provider_registry.guardian_verified_badge IS 'Provider has com
 
 COMMENT ON FUNCTION get_doctor_by_ahpra(TEXT) IS 'Look up Australian doctor by AHPRA ID (original O3 ticket requirement)';
 COMMENT ON FUNCTION search_providers(TEXT, TEXT, TEXT, BOOLEAN) IS 'Search providers with optional filters for country, specialty, and verification status';
+
+-- =============================================================================
+-- 8. DEFERRED FOREIGN KEY CONSTRAINTS
+-- =============================================================================
+
+-- Link AHPRA to provider registry (executed after both tables exist)
+ALTER TABLE provider_registry ADD COLUMN ahpra_verification_id TEXT REFERENCES registered_doctors_au(ahpra_id);
