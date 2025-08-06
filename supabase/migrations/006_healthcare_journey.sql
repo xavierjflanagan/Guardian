@@ -27,7 +27,7 @@ CREATE TABLE healthcare_timeline_events (
     event_duration_minutes INTEGER, -- For encounters with known duration
     
     -- Source Links (Comprehensive Provenance)
-    encounter_id UUID REFERENCES healthcare_encounters(id), -- Healthcare visit context
+    encounter_id UUID, -- FK constraint already exists from script 005
     clinical_event_ids UUID[] DEFAULT '{}', -- Multiple related clinical events
     condition_id UUID REFERENCES patient_conditions(id), -- Related condition
     document_id UUID REFERENCES documents(id), -- Source document
@@ -338,7 +338,7 @@ SELECT
     pc.patient_id,
     pc.condition_name,
     pc.status as condition_status,
-    pc.diagnosis_date,
+    pc.diagnosed_date,
     
     -- Discovery context
     discovery_encounter.encounter_date as discovery_encounter_date,
@@ -347,25 +347,19 @@ SELECT
     
     -- Related timeline events
     COALESCE(
-        ARRAY_AGG(
-            DISTINCT hte.id ORDER BY hte.event_date DESC
-        ) FILTER (WHERE hte.id IS NOT NULL), 
+        ARRAY_AGG(DISTINCT hte.id) FILTER (WHERE hte.id IS NOT NULL), 
         '{}'
     ) as related_timeline_events,
     
     -- Treatment events
     COALESCE(
-        ARRAY_AGG(
-            DISTINCT treatment_events.id ORDER BY treatment_events.event_date DESC
-        ) FILTER (WHERE treatment_events.id IS NOT NULL AND treatment_events.display_category = 'treatment'), 
+        ARRAY_AGG(DISTINCT treatment_events.id) FILTER (WHERE treatment_events.id IS NOT NULL AND treatment_events.display_category = 'treatment'), 
         '{}'
     ) as treatment_events,
     
     -- Monitoring events  
     COALESCE(
-        ARRAY_AGG(
-            DISTINCT monitoring_events.id ORDER BY monitoring_events.event_date DESC
-        ) FILTER (WHERE monitoring_events.id IS NOT NULL AND 'monitoring' = ANY(monitoring_events.event_tags)), 
+        ARRAY_AGG(DISTINCT monitoring_events.id) FILTER (WHERE monitoring_events.id IS NOT NULL AND 'monitoring' = ANY(monitoring_events.event_tags)), 
         '{}'
     ) as monitoring_events,
     
@@ -381,8 +375,8 @@ LEFT JOIN healthcare_timeline_events treatment_events ON treatment_events.condit
     AND treatment_events.display_category = 'treatment' AND treatment_events.archived IS NOT TRUE
 LEFT JOIN healthcare_timeline_events monitoring_events ON monitoring_events.condition_id = pc.id 
     AND 'monitoring' = ANY(monitoring_events.event_tags) AND monitoring_events.archived IS NOT TRUE
-WHERE pc.archived IS NOT TRUE
-GROUP BY pc.id, pc.patient_id, pc.condition_name, pc.status, pc.diagnosis_date,
+WHERE pc.archived_at IS NULL
+GROUP BY pc.id, pc.patient_id, pc.condition_name, pc.status, pc.diagnosed_date,
          discovery_encounter.encounter_date, discovery_encounter.provider_name, discovery_encounter.facility_name;
 
 -- Function to get complete condition journey

@@ -111,7 +111,9 @@ SELECT version();
 
 -- Verify extension availability
 SELECT * FROM pg_available_extensions 
-WHERE name IN ('uuid-ossp', 'pg_trgm', 'postgis', 'pg_partman', 'pgcrypto');
+-- Supabase note: pg_partman is not available; schedule a recurring task to create partitions instead.
+SELECT * FROM pg_available_extensions 
+WHERE name IN ('uuid-ossp', 'pg_trgm', 'postgis', 'pgcrypto');
 ```
 
 ### **Post-Execution Validation**

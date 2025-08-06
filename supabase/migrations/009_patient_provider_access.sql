@@ -300,19 +300,44 @@ CREATE POLICY provider_can_view_consented_patients ON patient_clinical_events
         )
     );
 
--- Provider access to patient medications (materialized view)
-CREATE POLICY provider_can_view_patient_medications ON patient_medications
-    FOR SELECT USING (
-        is_healthcare_provider()
-        AND EXISTS (
-            SELECT 1 FROM patient_provider_access ppa
-            WHERE ppa.patient_id = patient_medications.patient_id
-            AND ppa.provider_id = auth.uid()
-            AND ppa.status = 'active'
-            AND (ppa.expires_at IS NULL OR ppa.expires_at > NOW())
-            AND 'medications' = ANY(ppa.access_scope)
-        )
+-- Provider access to patient medications (secure function for materialized view)
+-- NOTE: RLS cannot be applied to materialized views, so we create a secure function instead
+CREATE OR REPLACE FUNCTION get_patient_medications_for_provider(p_patient_id UUID DEFAULT NULL)
+RETURNS TABLE (
+    id UUID,
+    patient_id UUID,
+    medication_name TEXT,
+    dosage TEXT,
+    frequency TEXT,
+    start_date DATE,
+    end_date DATE,
+    prescribed_by TEXT,
+    status TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+) SECURITY DEFINER AS $$
+BEGIN
+    -- Check if user is a healthcare provider with access
+    IF NOT is_healthcare_provider() THEN
+        RAISE EXCEPTION 'Access denied: Healthcare provider credentials required';
+    END IF;
+    
+    -- Return filtered results based on provider access
+    RETURN QUERY
+    SELECT pm.*
+    FROM patient_medications pm
+    WHERE (p_patient_id IS NULL OR pm.patient_id = p_patient_id)
+    AND EXISTS (
+        SELECT 1 FROM patient_provider_access ppa
+        WHERE ppa.patient_id = pm.patient_id
+        AND ppa.provider_id = auth.uid()
+        AND ppa.status = 'active'
+        AND (ppa.expires_at IS NULL OR ppa.expires_at > NOW())
+        AND 'medications' = ANY(ppa.access_scope)
     );
+END;
+$$ LANGUAGE plpgsql;
 
 -- Provider access to patient conditions
 CREATE POLICY provider_can_view_patient_conditions ON patient_conditions
@@ -328,19 +353,47 @@ CREATE POLICY provider_can_view_patient_conditions ON patient_conditions
         )
     );
 
--- Provider access to patient lab results
-CREATE POLICY provider_can_view_patient_lab_results ON patient_lab_results
-    FOR SELECT USING (
-        is_healthcare_provider()
-        AND EXISTS (
-            SELECT 1 FROM patient_provider_access ppa
-            WHERE ppa.patient_id = patient_lab_results.patient_id
-            AND ppa.provider_id = auth.uid()
-            AND ppa.status = 'active'
-            AND (ppa.expires_at IS NULL OR ppa.expires_at > NOW())
-            AND 'lab_results' = ANY(ppa.access_scope)
-        )
+-- Provider access to patient lab results (secure function for materialized view)
+-- NOTE: RLS cannot be applied to materialized views, so we create a secure function instead
+CREATE OR REPLACE FUNCTION get_patient_lab_results_for_provider(p_patient_id UUID DEFAULT NULL)
+RETURNS TABLE (
+    id UUID,
+    patient_id UUID,
+    test_name TEXT,
+    test_category TEXT,
+    result_value NUMERIC,
+    result_unit TEXT,
+    reference_range TEXT,
+    status TEXT,
+    abnormal_flag TEXT,
+    test_date DATE,
+    ordered_by TEXT,
+    lab_name TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+) SECURITY DEFINER AS $$
+BEGIN
+    -- Check if user is a healthcare provider with access
+    IF NOT is_healthcare_provider() THEN
+        RAISE EXCEPTION 'Access denied: Healthcare provider credentials required';
+    END IF;
+    
+    -- Return filtered results based on provider access
+    RETURN QUERY
+    SELECT plr.*
+    FROM patient_lab_results plr
+    WHERE (p_patient_id IS NULL OR plr.patient_id = p_patient_id)
+    AND EXISTS (
+        SELECT 1 FROM patient_provider_access ppa
+        WHERE ppa.patient_id = plr.patient_id
+        AND ppa.provider_id = auth.uid()
+        AND ppa.status = 'active'
+        AND (ppa.expires_at IS NULL OR ppa.expires_at > NOW())
+        AND 'lab_results' = ANY(ppa.access_scope)
     );
+END;
+$$ LANGUAGE plpgsql;
 
 -- Provider access to patient vitals
 CREATE POLICY provider_can_view_patient_vitals ON patient_vitals

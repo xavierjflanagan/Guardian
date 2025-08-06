@@ -8,7 +8,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";      -- UUID generation
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";        -- Fuzzy string matching for relationship normalization
 CREATE EXTENSION IF NOT EXISTS "postgis";        -- Spatial data for bounding box operations
-CREATE EXTENSION IF NOT EXISTS "pg_partman";     -- Automated partition management
+-- CREATE EXTENSION IF NOT EXISTS "pg_partman";     -- Automated partition management (Not supported on Supabase, skipped)
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";       -- Enhanced cryptographic functions
 
 -- Performance and text search extensions
@@ -19,7 +19,7 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- Enhanced GIN indexing capabi
 DO $$
 DECLARE
     extension_record RECORD;
-    expected_extensions TEXT[] := ARRAY['uuid-ossp', 'pg_trgm', 'postgis', 'pg_partman', 'pgcrypto', 'pg_stat_statements', 'btree_gin'];
+    expected_extensions TEXT[] := ARRAY['uuid-ossp', 'pg_trgm', 'postgis', 'pgcrypto', 'pg_stat_statements', 'btree_gin']; -- pg_partman skipped on Supabase
     installed_count INTEGER := 0;
 BEGIN
     FOR extension_record IN 

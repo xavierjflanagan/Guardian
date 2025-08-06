@@ -203,8 +203,8 @@ BEGIN
         'feature_flags',
         COALESCE(NEW.feature_name, OLD.feature_name),
         TG_OP,
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
         'Feature flag configuration change',
         'feature_flag',
         NULL -- Feature flags are not patient-specific
@@ -237,4 +237,3 @@ COMMIT;
 
 -- Success message
 \echo 'Feature flags infrastructure deployed successfully!'
-\echo 'Next step: Run 001_multi_profile_management.sql'

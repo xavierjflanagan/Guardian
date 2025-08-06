@@ -863,8 +863,8 @@ CREATE TABLE audit_log (
     PRIMARY KEY (id, audit_date)
 ) PARTITION BY RANGE (audit_date);
 
--- Setup automated partitioning with pg_partman (assuming extension available)
--- Note: This would require pg_partman extension
+-- Supabase note: pg_partman extension is unavailable.
+-- Plan: schedule a monthly task to create the next `audit_log` partition until we migrate to an environment where pg_partman is allowed.
 /*
 SELECT partman.create_parent(
     p_parent_table => 'public.audit_log',

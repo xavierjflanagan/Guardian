@@ -334,8 +334,8 @@ BEGIN
         TG_TABLE_NAME,
         COALESCE(NEW.id::text, OLD.id::text),
         TG_OP,
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
         'Document management change',
         'clinical_data',
         COALESCE(NEW.patient_id, OLD.patient_id)
@@ -354,8 +354,8 @@ BEGIN
         TG_TABLE_NAME,
         COALESCE(NEW.id::text, OLD.id::text),
         TG_OP,
-        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
-        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
         'Core clinical data change',
         'clinical_data',
         COALESCE(NEW.patient_id, OLD.patient_id)
