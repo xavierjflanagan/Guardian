@@ -51,8 +51,7 @@ CREATE POLICY "Users can insert own profile events" ON user_events
 
 -- Indexes for performance and cleanup
 CREATE INDEX user_events_profile_created_idx ON user_events(profile_id, created_at DESC);
-CREATE INDEX user_events_cleanup_idx ON user_events(created_at) 
-    WHERE created_at < NOW() - INTERVAL '60 days';
+CREATE INDEX user_events_created_at_idx ON user_events(created_at);
 CREATE INDEX user_events_action_idx ON user_events(action, timestamp DESC);
 
 -- =============================================================================
@@ -305,14 +304,4 @@ SELECT
          THEN '✅ Created' ELSE '❌ Missing' END as status;
 
 -- Success message
-\echo '==================================================================='
-\echo 'Phase 0 Critical Fixes Migration Complete!'
-\echo 'Created:'
-\echo '- user_events table with RLS policies'
-\echo '- get_allowed_patient_ids() function for profile-patient resolution'
-\echo '- profile_patients_mapping view for ID resolution'  
-\echo '- log_profile_audit_event() function for proper audit context'
-\echo '- Document compatibility analysis and views'
-\echo '- User events cleanup function with 90-day retention'
-\echo 'Next: Run frontend implementation (ProfileProvider, hooks, fixes)'
-\echo '==================================================================='
+-- (removed psql-specific echo lines for Studio/CLI compatibility)

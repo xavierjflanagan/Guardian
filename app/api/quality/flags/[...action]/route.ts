@@ -1,24 +1,22 @@
 import { createClient } from '@/lib/supabaseServerClient';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // Proxy to Supabase Edge Function
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { action: string[] } }
-) {
+export async function GET(request: Request, context: any) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const action = params.action.join('/');
-    const searchParams = request.nextUrl.searchParams;
+    const action = (context?.params?.action as string[]).join('/');
+    const urlObj = new URL(request.url);
+    const searchParams = urlObj.searchParams;
     
     const url = new URL(`${SUPABASE_URL}/functions/v1/quality-guardian/${action}`);
     searchParams.forEach((value, key) => {
@@ -44,19 +42,16 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { action: string[] } }
-) {
+export async function POST(request: Request, context: any) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const action = params.action.join('/');
+    const action = (context?.params?.action as string[]).join('/');
     const body = await request.json();
     
     const url = `${SUPABASE_URL}/functions/v1/quality-guardian/${action}`;
