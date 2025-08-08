@@ -4,10 +4,12 @@ export interface Document {
   original_name: string | null;
   s3_key: string;
   mime_type: string | null;
-  status: 'uploaded' | 'processing' | 'completed' | 'failed';
+  status: 'uploaded' | 'processing' | 'completed' | 'failed' | 'flagged_critical' | 'flagged_review';
   created_at: string;
   processed_at?: string | null;
   error_log?: string | null;
+  // Optional count of unresolved quality flags for this document (denormalized/aggregated field)
+  quality_flags_count?: number;
   medical_data?: {
     documentType?: string;
     patientInfo?: {
