@@ -98,6 +98,74 @@ guardian-web/
 - User data isolation in both database and storage
 - Input validation on file uploads
 
+## ⚠️ CRITICAL: ID Semantics and Data Access Patterns
+
+### ID Types and Their Meanings
+
+**NEVER mix these ID types - they serve different purposes in Guardian's multi-profile architecture:**
+
+- **`profile_id`**: References `user_profiles.id` - represents a specific profile (self, child, pet)
+- **`patient_id`**: References `auth.users.id` - represents the clinical data subject
+- **`user_id`**: References `auth.users.id` - represents the account owner (same as patient_id in v7.0)
+
+### Current v7.0 Semantics
+In Guardian v7.0: **Profile IS the patient** (`profile_id === patient_id`)
+- Documents table uses `patient_id` (NOT `user_id`)
+- Clinical data uses `patient_id` for data isolation
+- Frontend components use `profile_id` for user experience
+- `get_allowed_patient_ids(profile_id)` resolves profile→patient mapping
+
+### Critical Database Tables
+```sql
+-- CORRECT queries (post Phase 0 fixes):
+SELECT * FROM documents WHERE patient_id = ?     -- ✅ Correct
+SELECT * FROM user_events WHERE profile_id = ?   -- ✅ Correct 
+
+-- INCORRECT queries (would fail):
+SELECT * FROM documents WHERE user_id = ?        -- ❌ Wrong column name
+SELECT * FROM user_events WHERE patient_id = ?   -- ❌ Wrong context
+```
+
+### Frontend Data Access Pattern
+```typescript
+// ✅ CORRECT: Use ProfileProvider + resolution
+const { currentProfile } = useProfile();
+const { patientIds } = useAllowedPatients(); // Resolves profile→patient
+await supabase.from('documents').select('*').in('patient_id', patientIds);
+
+// ❌ INCORRECT: Direct user ID usage
+await supabase.from('documents').select('*').eq('user_id', user.id);
+```
+
+### Audit Logging Pattern
+```typescript
+// ✅ CORRECT: Use profile-aware audit function
+await supabase.rpc('log_profile_audit_event', {
+  p_profile_id: currentProfile.id,  // Function resolves to patient_id
+  p_operation: 'DOCUMENT_VIEW',
+  // ... other params
+});
+
+// ❌ INCORRECT: Direct patient_id assignment
+await supabase.rpc('log_audit_event', {
+  p_patient_id: currentProfile.id,  // Wrong! profile_id ≠ patient_id
+  // ... other params  
+});
+```
+
+### TypeScript Type Safety
+Use branded types to prevent ID mix-ups:
+```typescript
+import { ProfileId, PatientId } from '@/types/ids';
+
+// ✅ CORRECT: Function signature enforces correct ID type
+function fetchDocuments(patientId: PatientId) { /* ... */ }
+function switchProfile(profileId: ProfileId) { /* ... */ }
+
+// ❌ INCORRECT: Generic string allows wrong ID usage
+function fetchDocuments(id: string) { /* ... */ }
+```
+
 ## Current Status
 
 The core infrastructure is complete and production-ready:
@@ -106,6 +174,7 @@ The core infrastructure is complete and production-ready:
 - ✅ Document processing pipeline operational (Vision + OCR)
 - ✅ User interface polished and responsive
 - ✅ AI/OCR integration complete - **POC ready for testing**
+- ✅ Phase 0 Critical Fixes implemented (ID semantics, ProfileProvider, missing tables)
 
 ### Document Processing Pipeline
 
