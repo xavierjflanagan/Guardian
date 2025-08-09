@@ -1,0 +1,21 @@
+{
+  "name": "@guardian/admin-portal",
+  "version": "1.0.0", 
+  "private": true,
+  "description": "Guardian Healthcare Admin Portal - Administrative interface",
+  "scripts": {
+    "dev": "echo 'Admin portal not yet implemented'",
+    "build": "echo 'Admin portal build not yet configured'",
+    "start": "echo 'Admin portal not yet implemented'",
+    "test": "echo 'Admin portal tests not yet implemented'"
+  },
+  "dependencies": {
+    "@guardian/ui": "workspace:*",
+    "@guardian/auth": "workspace:*",
+    "@guardian/database": "workspace:*",
+    "@guardian/clinical-logic": "workspace:*"
+  },
+  "devDependencies": {},
+  "keywords": ["nextjs", "healthcare", "admin-portal", "web"],
+  "author": "Guardian Healthcare Platform"
+}

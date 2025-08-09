@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Guardian Shell Layout - CSS Grid for flexible layouts */
+.guardian-shell {
+  display: grid;
+  grid-template-areas: 
+    "header header"
+    "sidebar main";
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.guardian-header {
+  grid-area: header;
+}
+
+.guardian-sidebar {
+  grid-area: sidebar;
+}
+
+.guardian-main {
+  grid-area: main;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .guardian-shell {
+    grid-template-areas:
+      "header"
+      "main"
+      "sidebar";
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 1fr;
+  }
+  
+  .guardian-sidebar {
+    order: 3;
+    border-right: none;
+    border-top: 1px solid #e5e7eb;
+  }
+}
