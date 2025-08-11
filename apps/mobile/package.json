@@ -1,0 +1,21 @@
+{
+  "name": "@guardian/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Guardian Healthcare Mobile App - React Native patient portal",
+  "main": "index.js",
+  "scripts": {
+    "start": "echo 'Mobile app not yet implemented'",
+    "android": "echo 'React Native Android build not yet configured'",
+    "ios": "echo 'React Native iOS build not yet configured'",
+    "test": "echo 'Mobile tests not yet implemented'"
+  },
+  "dependencies": {
+    "@guardian/ui": "workspace:*",
+    "@guardian/auth": "workspace:*",
+    "@guardian/database": "workspace:*"
+  },
+  "devDependencies": {},
+  "keywords": ["react-native", "healthcare", "mobile", "patient-portal"],
+  "author": "Guardian Healthcare Platform"
+}
