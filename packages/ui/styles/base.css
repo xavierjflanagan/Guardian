@@ -1,0 +1,411 @@
+/* Guardian UI Base Styles */
+/* Healthcare-focused design system foundation */
+
+/* Import Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Guardian CSS Custom Properties */
+:root {
+  /* Primary color scale */
+  --guardian-primary-50: #eff6ff;
+  --guardian-primary-500: #3b82f6;
+  --guardian-primary-600: #2563eb;
+  --guardian-primary-700: #1d4ed8;
+  
+  /* Secondary color scale */
+  --guardian-secondary-500: #14b8a6;
+  --guardian-secondary-600: #0d9488;
+  
+  /* Status colors */
+  --guardian-success: #22c55e;
+  --guardian-warning: #f59e0b;
+  --guardian-error: #ef4444;
+  
+  /* Profile colors */
+  --guardian-profile-self: #3b82f6;
+  --guardian-profile-child: #22c55e;
+  --guardian-profile-pet: #f97316;
+  --guardian-profile-dependent: #a855f7;
+  --guardian-profile-guardian: #14b8a6;
+  
+  /* Medical severity */
+  --guardian-severity-critical: #dc2626;
+  --guardian-severity-high: #f59e0b;
+  --guardian-severity-medium: #3b82f6;
+  --guardian-severity-low: #6b7280;
+  --guardian-severity-resolved: #22c55e;
+  
+  /* Neutral scale */
+  --guardian-neutral-0: #ffffff;
+  --guardian-neutral-50: #f9fafb;
+  --guardian-neutral-100: #f3f4f6;
+  --guardian-neutral-200: #e5e7eb;
+  --guardian-neutral-400: #9ca3af;
+  --guardian-neutral-500: #6b7280;
+  --guardian-neutral-600: #4b5563;
+  --guardian-neutral-700: #374151;
+  --guardian-neutral-800: #1f2937;
+  --guardian-neutral-900: #111827;
+  
+  /* Spacing */
+  --guardian-card-padding: 1rem;
+  --guardian-section-gap: 1.5rem;
+  --guardian-form-gap: 1rem;
+  --guardian-timeline-gap: 0.75rem;
+  
+  /* Typography */
+  --guardian-font-sans: 'Inter', system-ui, sans-serif;
+  --guardian-font-mono: 'JetBrains Mono', monospace;
+  
+  /* Shadows */
+  --guardian-shadow-medical-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --guardian-shadow-floating: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --guardian-shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Animations */
+  --guardian-duration-fast: 150ms;
+  --guardian-duration-base: 200ms;
+  --guardian-duration-slow: 300ms;
+  --guardian-easing-base: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base typography styles */
+@layer base {
+  html {
+    font-family: var(--guardian-font-sans);
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  
+  body {
+    @apply text-neutral-800 bg-neutral-0 antialiased;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+  
+  /* Healthcare-appropriate headings */
+  h1, .guardian-h1 {
+    @apply text-3xl font-semibold text-neutral-900 leading-tight;
+  }
+  
+  h2, .guardian-h2 {
+    @apply text-2xl font-semibold text-neutral-800 leading-tight;
+  }
+  
+  h3, .guardian-h3 {
+    @apply text-xl font-semibold text-neutral-800 leading-snug;
+  }
+  
+  h4, .guardian-h4 {
+    @apply text-lg font-medium text-neutral-700 leading-snug;
+  }
+  
+  /* Medical text styles */
+  .diagnostic-code {
+    font-family: var(--guardian-font-mono);
+    @apply text-sm font-medium text-neutral-600 bg-neutral-100 px-2 py-1 rounded;
+  }
+  
+  .medication-name {
+    @apply font-semibold text-primary-700;
+  }
+  
+  .clinical-note {
+    @apply text-sm text-neutral-700 leading-relaxed;
+  }
+  
+  /* Form elements */
+  .form-input {
+    @apply w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm;
+    @apply focus:ring-primary-500 focus:border-primary-500;
+    @apply placeholder:text-neutral-400;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-neutral-700 mb-1;
+  }
+  
+  .form-error {
+    @apply text-sm text-error-600 mt-1;
+  }
+}
+
+/* Component layer styles */
+@layer components {
+  /* Guardian Shell Layout */
+  .guardian-shell {
+    display: grid;
+    grid-template-areas: 
+      "header header"
+      "sidebar main";
+    grid-template-rows: auto 1fr;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+
+  .guardian-header {
+    grid-area: header;
+    @apply bg-white border-b border-neutral-200 px-6 py-4;
+  }
+
+  .guardian-sidebar {
+    grid-area: sidebar;
+    @apply bg-neutral-50 border-r border-neutral-200;
+  }
+
+  .guardian-main {
+    grid-area: main;
+    @apply bg-white;
+  }
+
+  /* Responsive shell layout */
+  @media (max-width: 768px) {
+    .guardian-shell {
+      grid-template-areas:
+        "header"
+        "main"
+        "sidebar";
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr;
+    }
+    
+    .guardian-sidebar {
+      @apply border-r-0 border-t border-neutral-200;
+    }
+  }
+
+  /* Medical Cards */
+  .medical-card {
+    @apply bg-neutral-50 border border-neutral-200 rounded-lg;
+    padding: var(--guardian-card-padding);
+    box-shadow: var(--guardian-shadow-medical-card);
+  }
+
+  .medical-card-header {
+    @apply flex items-center justify-between mb-3 pb-2 border-b border-neutral-200;
+  }
+
+  .medical-card-title {
+    @apply font-semibold text-neutral-800;
+  }
+
+  .medical-card-subtitle {
+    @apply text-sm text-neutral-600;
+  }
+
+  .medical-card-content {
+    @apply text-neutral-700 text-sm leading-relaxed;
+  }
+
+  .medical-card-footer {
+    @apply mt-3 pt-3 border-t border-neutral-200 text-xs text-neutral-500;
+  }
+
+  /* Profile Indicators */
+  .profile-indicator {
+    @apply inline-flex items-center justify-center rounded-full font-semibold text-white;
+  }
+
+  .profile-indicator-self {
+    background-color: var(--guardian-profile-self);
+  }
+
+  .profile-indicator-child {
+    background-color: var(--guardian-profile-child);
+  }
+
+  .profile-indicator-pet {
+    background-color: var(--guardian-profile-pet);
+  }
+
+  .profile-indicator-dependent {
+    background-color: var(--guardian-profile-dependent);
+  }
+
+  .profile-indicator-guardian {
+    background-color: var(--guardian-profile-guardian);
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md;
+    @apply transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary-600 text-white hover:bg-secondary-700 focus:ring-secondary-500;
+  }
+
+  .btn-outline {
+    @apply btn border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 focus:ring-primary-500;
+  }
+
+  .btn-ghost {
+    @apply btn text-neutral-600 hover:bg-neutral-100 focus:ring-primary-500;
+  }
+
+  /* Status indicators */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .status-success {
+    @apply status-badge bg-success-100 text-success-800;
+  }
+
+  .status-warning {
+    @apply status-badge bg-warning-100 text-warning-800;
+  }
+
+  .status-error {
+    @apply status-badge bg-error-100 text-error-800;
+  }
+
+  /* Timeline components */
+  .timeline-container {
+    @apply relative space-y-4;
+  }
+
+  .timeline-item {
+    @apply relative pl-6;
+  }
+
+  .timeline-marker {
+    @apply absolute left-0 top-1 w-2 h-2 bg-primary-500 rounded-full;
+  }
+
+  .timeline-line {
+    @apply absolute left-1 top-3 bottom-0 w-px bg-neutral-200;
+  }
+
+  .timeline-content {
+    @apply space-y-2;
+  }
+
+  .timeline-header {
+    @apply flex items-center justify-between;
+  }
+
+  .timeline-title {
+    @apply font-medium text-neutral-800;
+  }
+
+  .timeline-date {
+    @apply text-sm text-neutral-500;
+  }
+
+  .timeline-description {
+    @apply text-sm text-neutral-600 leading-relaxed;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  /* Healthcare-specific spacing */
+  .gap-section {
+    gap: var(--guardian-section-gap);
+  }
+
+  .gap-form {
+    gap: var(--guardian-form-gap);
+  }
+
+  .gap-timeline {
+    gap: var(--guardian-timeline-gap);
+  }
+
+  /* Medical severity colors */
+  .text-severity-critical {
+    color: var(--guardian-severity-critical);
+  }
+
+  .text-severity-high {
+    color: var(--guardian-severity-high);
+  }
+
+  .text-severity-medium {
+    color: var(--guardian-severity-medium);
+  }
+
+  .text-severity-low {
+    color: var(--guardian-severity-low);
+  }
+
+  .text-severity-resolved {
+    color: var(--guardian-severity-resolved);
+  }
+
+  .bg-severity-critical {
+    background-color: var(--guardian-severity-critical);
+  }
+
+  .bg-severity-high {
+    background-color: var(--guardian-severity-high);
+  }
+
+  .bg-severity-medium {
+    background-color: var(--guardian-severity-medium);
+  }
+
+  .bg-severity-low {
+    background-color: var(--guardian-severity-low);
+  }
+
+  .bg-severity-resolved {
+    background-color: var(--guardian-severity-resolved);
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn var(--guardian-duration-base) var(--guardian-easing-base);
+  }
+
+  .animate-slide-up {
+    animation: slideUp var(--guardian-duration-base) var(--guardian-easing-base);
+  }
+
+  .animate-pulse-gentle {
+    animation: pulseGentle 2s var(--guardian-easing-base) infinite;
+  }
+}
+
+/* Keyframe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGentle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

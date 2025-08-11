@@ -1,0 +1,21 @@
+{
+  "name": "@guardian/provider-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Guardian Healthcare Provider Portal - Web application for healthcare providers",
+  "scripts": {
+    "dev": "echo 'Provider portal not yet implemented'",
+    "build": "echo 'Provider portal build not yet configured'",
+    "start": "echo 'Provider portal not yet implemented'",
+    "test": "echo 'Provider portal tests not yet implemented'"
+  },
+  "dependencies": {
+    "@guardian/ui": "workspace:*",
+    "@guardian/auth": "workspace:*",
+    "@guardian/database": "workspace:*",
+    "@guardian/clinical-logic": "workspace:*"
+  },
+  "devDependencies": {},
+  "keywords": ["nextjs", "healthcare", "provider-portal", "web"],
+  "author": "Guardian Healthcare Platform"
+}

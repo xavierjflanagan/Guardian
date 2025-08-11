@@ -1,0 +1,13 @@
+export { guardianTheme, colors, spacing, typography } from './themes/guardian-theme';
+export { guardianTailwindConfig, guardianColors, guardianSpacing, guardianTypography } from './themes/tailwind-config';
+export * from './styles/base.css';
+export * from './components';
+export type { GuardianTheme, ColorScale, ProfileColor, SeverityLevel } from './themes/guardian-theme';
+export declare const UI_PACKAGE_VERSION = "1.0.0";
+export declare const getProfileColor: (profileType: string) => string;
+export declare const getSeverityColor: (severity: string) => string;
+export declare const profileIndicatorClass: (profileType: string, size?: "sm" | "md" | "lg") => string;
+export declare const medicalCardClass: (variant?: "default" | "elevated" | "minimal") => string;
+export declare const fadeInClass = "animate-fade-in";
+export declare const slideUpClass = "animate-slide-up";
+export declare const pulseGentleClass = "animate-pulse-gentle";
