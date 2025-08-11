@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch: {}
 
 env:
   NODE_VERSION: '18'
@@ -24,17 +25,17 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       
-      - name: Install dependencies (root workspaces)
+      - name: Install dependencies (root)
         run: npm ci
       
-      - name: TypeScript type check (apps/web)
-        run: npm run -w apps/web typecheck
+      - name: TypeScript type check
+        run: npm run typecheck
       
-      - name: ESLint code quality (apps/web)
-        run: npm run -w apps/web lint
+      - name: ESLint code quality
+        run: npm run lint
       
-      - name: Build application (apps/web)
-        run: npm run -w apps/web build
+      - name: Build application
+        run: npm run build
         env:
           ANALYZE: true
       
@@ -42,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: apps/web/.next
+          path: .next
           retention-days: 1
 
   # Performance and accessibility testing
@@ -60,23 +61,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       
-      - name: Install dependencies (root workspaces)
+      - name: Install dependencies (root)
         run: npm ci
       
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
-          path: apps/web/.next
+          path: .next
       
       - name: Install Lighthouse CI
         run: npm install -g @lhci/cli@0.12.x
       
-      - name: Build for production (apps/web)
-        run: npm run -w apps/web build
+      - name: Build for production
+        run: npm run build
       
-      - name: Start production server (apps/web)
-        run: npm run -w apps/web start &
+      - name: Start production server
+        run: npm start &
         env:
           PORT: 3000
       
@@ -104,11 +105,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       
-      - name: Install dependencies (root workspaces)
+      - name: Install dependencies (root)
         run: npm ci
       
-      - name: Analyze bundle size (apps/web)
-        run: npm run -w apps/web analyze
+      - name: Analyze bundle size
+        run: npm run analyze
         env:
           ANALYZE: true
       
@@ -116,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bundle-analysis
-          path: apps/web/.next/analyze
+          path: .next/analyze
           retention-days: 7
       
       - name: Comment bundle size
@@ -128,7 +129,7 @@ jobs:
             const path = require('path');
             
             try {
-              const statsPath = path.join('apps/web/.next/analyze', 'bundle-analyzer-report.json');
+              const statsPath = path.join('.next/analyze', 'bundle-analyzer-report.json');
               if (fs.existsSync(statsPath)) {
                 const stats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
                 const totalSize = Math.round(stats.totalSize / 1024);
@@ -167,17 +168,17 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       
-      - name: Install dependencies (root workspaces)
+      - name: Install dependencies (root)
         run: npm ci
       
-      - name: Build application (apps/web)
-        run: npm run -w apps/web build
+      - name: Build application
+        run: npm run build
       
       - name: Install axe-core CLI
         run: npm install -g @axe-core/cli
       
-      - name: Start server (apps/web)
-        run: npm run -w apps/web start &
+      - name: Start server
+        run: npm start &
         env:
           PORT: 3000
       
@@ -242,7 +243,7 @@ jobs:
         run: |
           echo "Checking for potential PII leaks..."
           ! grep -r -i --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
-            -E "(social.security|ssn|medical.record|patient.id|date.of.birth)" apps/web/app/ apps/web/components/ apps/web/lib/ || \
+            -E "(social.security|ssn|medical.record|patient.id|date.of.birth|phone|email|address|[0-9]{3}-[0-9]{2}-[0-9]{4})" app/ components/ lib/ || \
           (echo "❌ Potential PII found in code" && exit 1)
           echo "✅ No PII patterns found"
       
