@@ -8,12 +8,12 @@
     "services/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspaces --if-present",
-    "start": "npm run start --workspace=apps/web",
-    "lint": "npm run lint --workspaces --if-present",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules services/*/node_modules",
-    "fresh-install": "npm run clean && npm install"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "analyze": "ANALYZE=true next build"
   },
   "repository": {
     "type": "git",
