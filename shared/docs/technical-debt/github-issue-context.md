@@ -72,7 +72,7 @@ This becomes critical when we reach **100+ active users** or before public launc
 
 ## Related Documentation
 
-- [Technical Debt Registry](docs/project/technical-debt.md)
+- [Technical Debt Registry](README.md)
 - [Performance Monitoring Details](docs/technical-debt/performance-monitoring.md)
 - [Implementation Guide](docs/architecture/current/implementation/guide.md)
 

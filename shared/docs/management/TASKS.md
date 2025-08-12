@@ -95,7 +95,7 @@
 
 ## **Technical Debt Tracking**
 
-**Registry:** [docs/project/technical-debt.md](../project/technical-debt.md)  
+**Registry:** [docs/technical-debt/README.md](../technical-debt/README.md)  
 **Detailed Items:** [docs/technical-debt/](../technical-debt/)
 
 ### **Current Debt Items**
