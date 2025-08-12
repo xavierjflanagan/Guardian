@@ -589,7 +589,7 @@ Phase 3 incorporates medium-priority technical debt items identified in external
 - **Advanced PII Detection** → Task 3.2 (Security Hardening)
 - **Audit Event Integrity** → Task 3.2 (Edge Functions for critical events)
 
-**Technical Debt Registry**: See [technical-debt.md](../../project/technical-debt.md) for detailed tracking
+**Technical Debt Registry**: See [technical-debt/README.md](../../technical-debt/README.md) for detailed tracking
 
 ---
 

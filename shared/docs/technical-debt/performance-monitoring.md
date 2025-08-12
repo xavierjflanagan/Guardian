@@ -146,7 +146,7 @@ Alert Levels:
 
 ## **Related Documentation**
 
-- [Main Technical Debt Registry](../project/technical-debt.md)
+- [Main Technical Debt Registry](README.md)
 - [Testing Strategy](../project/testing.md) 
 - [Implementation Guide](../architecture/current/implementation/guide.md#step-17-performance-verification)
 - [Database Schema](../architecture/current/core/schema.md)
