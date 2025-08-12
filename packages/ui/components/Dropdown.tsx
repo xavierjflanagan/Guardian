@@ -315,12 +315,4 @@ export function MenuDropdown({ items, trigger, className = '', disabled = false 
   );
 }
 
-// Export types
-export type { 
-  DropdownProps, 
-  DropdownItemProps, 
-  DropdownDividerProps, 
-  DropdownHeaderProps,
-  SelectDropdownProps,
-  MenuDropdownProps
-};
+// Types are already exported with their interface definitions above

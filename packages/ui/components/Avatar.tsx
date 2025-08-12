@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 
-// Types for Avatar component
+// Types for Avatar component - using flexible profile_type
 export interface Profile {
   id: string;
   display_name: string;
-  profile_type: 'self' | 'child' | 'pet' | 'dependent' | 'guardian';
+  profile_type: string; // Flexible to match app Profile type
   avatar_url?: string;
 }
 

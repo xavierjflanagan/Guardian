@@ -341,13 +341,4 @@ export function StatusBadgeGroup({
   );
 }
 
-// Export types
-export type {
-  StatusBadgeProps,
-  MedicalStatusBadgeProps,
-  MedicationStatusBadgeProps,
-  AppointmentStatusBadgeProps,
-  SeverityBadgeProps,
-  ConfidenceBadgeProps,
-  StatusBadgeGroupProps
-};
+// Types are already exported with their interface definitions above

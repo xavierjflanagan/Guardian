@@ -14,7 +14,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [loadingDocs, setLoadingDocs] = useState(false);
+  // Remove unused loading state - documents loading handled by useDocuments hook
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export default function DashboardPage() {
       return;
     }
 
-    setLoadingDocs(true);
+    // Loading state now handled by useDocuments hook
     try {
       const { data, error } = await supabase
         .from("documents")
@@ -62,7 +62,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error fetching documents:", error);
     } finally {
-      setLoadingDocs(false);
+      // Loading state now handled by useDocuments hook
     }
   }, [user]);
 

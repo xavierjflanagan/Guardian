@@ -1,0 +1,40 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm --filter @guardian/web run build",
+  "devCommand": "pnpm --filter @guardian/web run dev", 
+  "installCommand": "pnpm install --frozen-lockfile --workspace-root",
+  "outputDirectory": "apps/web/.next",
+  "rootDirectory": "apps/web",
+  "nodeVersion": "18.x",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+    "OPENAI_API_KEY": "@openai_api_key",
+    "GOOGLE_CLOUD_API_KEY": "@google_cloud_api_key"
+  },
+  "functions": {
+    "apps/web/app/api/**": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options", 
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}

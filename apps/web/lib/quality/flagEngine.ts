@@ -494,7 +494,7 @@ export class QualityGuardianEngine {
     data: ExtractedData,
     documentId: string,
     profileId: string,
-    profile: Profile
+    _profile: Profile
   ): Promise<DataQualityFlag[]> {
     const flags: DataQualityFlag[] = [];
 
@@ -624,7 +624,7 @@ export class QualityGuardianEngine {
     return phone;
   }
 
-  private isAgeAppropriateCondition(condition: string, age: number, profileType: string): {
+  private isAgeAppropriateCondition(condition: string, age: number, _profileType: string): {
     appropriate: boolean;
     severity: string;
     confidence: number;

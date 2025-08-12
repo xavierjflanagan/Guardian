@@ -72,7 +72,7 @@ function sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
 export function useEventLogging() {
   const { currentProfile } = useProfile()
   const supabase = createClient()
-  const sessionIdRef = useRef<string>()
+  const sessionIdRef = useRef<string | undefined>(undefined)
 
   // Generate or reuse session ID
   const getSessionId = useCallback(() => {

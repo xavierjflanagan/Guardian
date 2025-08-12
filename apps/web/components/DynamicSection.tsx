@@ -10,7 +10,7 @@ import {
   Clipboard,
   LucideIcon
 } from 'lucide-react';
-import { MedicalCard } from './shared/MedicalCard';
+import { MedicalCard } from '@guardian/ui';
 
 interface DynamicSectionProps {
   title: string;

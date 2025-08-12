@@ -65,7 +65,7 @@ export default function QualityChatBot({
     try {
       const response = await processQualityCommand(userMessage);
       addMessage(response.text, false, response.action);
-    } catch (error) {
+    } catch (_error) {
       addMessage('Sorry, I encountered an error processing your request. Please try again.', false);
     } finally {
       setIsProcessing(false);

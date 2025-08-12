@@ -16,22 +16,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: TypeScript type check
-        run: npm run typecheck || npm run -w apps/web typecheck
+        run: pnpm --filter @guardian/web run typecheck
 
       - name: ESLint code quality
-        run: npm run lint || npm run -w apps/web lint
+        run: pnpm --filter @guardian/web run lint
+
+      - name: Run tests
+        run: pnpm --filter @guardian/web run test -- --passWithNoTests --watchAll=false
 
       - name: Build application
-        run: npm run build || npm run -w apps/web build
+        run: pnpm --filter @guardian/web run build
         env:
           ANALYZE: true
 
@@ -39,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: .next
+          path: apps/web/.next
           retention-days: 1
 
   performance-tests:
@@ -47,24 +53,32 @@ jobs:
     needs: frontend-quality
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - name: Verify no conflicting lockfiles
+        run: |
+          if [ -f package-lock.json ] || [ -f yarn.lock ]; then
+            echo "❌ Unexpected lockfile present (should use pnpm-lock.yaml only)"
+            exit 1
+          fi
+      - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v4
         with:
           name: build-artifacts
-          path: .next
-      - run: npm install -g @lhci/cli@0.12.x
+          path: apps/web/.next
       - name: Build for production
-        run: npm run build || npm run -w apps/web build
+        run: pnpm --filter @guardian/web run build
       - name: Start production server
-        run: npm start & || npm run -w apps/web start &
+        run: pnpm --filter @guardian/web run start &
         env:
           PORT: 3000
       - run: npx wait-on http://localhost:3000
-      - run: lhci autorun
+      - run: pnpm dlx @lhci/cli@0.12.x autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
@@ -74,13 +88,16 @@ jobs:
     needs: frontend-quality
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
       - name: Analyze bundle size
-        run: npm run analyze || npm run -w apps/web analyze
+        run: pnpm --filter @guardian/web run analyze
         env:
           ANALYZE: true
       - uses: actions/upload-artifact@v4
@@ -112,22 +129,24 @@ jobs:
     needs: frontend-quality
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
       - name: Build application
-        run: npm run build || npm run -w apps/web build
-      - run: npm install -g @axe-core/cli
+        run: pnpm --filter @guardian/web run build
       - name: Start server
-        run: npm start & || npm run -w apps/web start &
+        run: pnpm --filter @guardian/web run start &
         env:
           PORT: 3000
       - run: npx wait-on http://localhost:3000
       - name: Run accessibility tests
         run: |
-          axe http://localhost:3000 \
+          pnpm dlx @axe-core/cli http://localhost:3000 \
             --tags wcag2a,wcag2aa \
             --exit \
             --save accessibility-results.json
@@ -142,25 +161,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
       - name: Run security audit (high severity threshold)
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level=high
       - name: Check for known vulnerabilities (non-blocking supplemental)
-        run: npx better-npm-audit audit --production || echo "Non-blocking: better-npm-audit reported issues"
+        run: |
+          npx better-npm-audit audit --production || echo "Non-blocking: better-npm-audit reported issues"
 
   healthcare-compliance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
       - name: Check for PII in code (App Router paths)
         run: |
           echo "Checking for potential PII leaks..."

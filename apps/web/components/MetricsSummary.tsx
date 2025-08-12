@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Pill, AlertTriangle, Activity, Beaker } from 'lucide-react';
-import { ConfidenceIndicator } from './shared/ConfidenceIndicator';
+import { ConfidenceIndicator } from '@guardian/ui';
 
 interface MetricsSummaryProps {
   medicalData: any;

@@ -8,22 +8,35 @@ Guardian is an AI-powered healthcare application designed to help users aggregat
 
 ## Development Commands
 
-### Core Web Application (guardian-web/)
+### Monorepo Commands (PNPM)
 ```bash
-# Install dependencies
-cd guardian-web && npm install
+# Install dependencies (from root)
+pnpm install
 
 # Development server
-npm run dev  # Starts Next.js dev server on http://localhost:3000
+pnpm --filter @guardian/web run dev  # Starts Next.js dev server on http://localhost:3000
 
 # Build and deployment
-npm run build  # Production build
-npm start      # Production server
-npm run lint   # ESLint code linting
+pnpm --filter @guardian/web run build  # Production build
+pnpm --filter @guardian/web run start  # Production server
+pnpm --filter @guardian/web run lint   # ESLint code linting
+pnpm --filter @guardian/web run typecheck  # TypeScript checking
+pnpm --filter @guardian/web run test   # Jest test suite
+```
+
+### Environment Setup (PNPM)
+```bash
+corepack enable
+corepack prepare pnpm@9.15.1 --activate
+pnpm install
 ```
 
 ### Testing
-No test framework is currently configured. Check with the user before adding testing infrastructure.
+Jest + React Testing Library configured with healthcare-specific patterns:
+- PII sanitization in test data
+- Console warning suppression for rate limiting
+- Healthcare-compliant error boundary testing
+- Profile and patient ID isolation testing
 
 ## Architecture Overview
 
@@ -82,10 +95,10 @@ guardian-web/
 - Excludes Supabase functions from main TypeScript compilation
 
 ### Environment Setup
-1. Clone repository and navigate to `guardian-web/`
-2. Install dependencies with `npm install`
+1. Clone repository (monorepo structure with PNPM)
+2. Install dependencies with `pnpm install` from root
 3. Configure Supabase project and environment variables
-4. Run `npm run dev` for local development
+4. Run `pnpm --filter @guardian/web run dev` for local development
 
 ### Supabase Integration
 - **Local development**: Uses `supabase/config.toml` for auth and function configuration

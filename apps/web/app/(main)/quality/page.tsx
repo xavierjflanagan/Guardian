@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabaseClientSSR';
-import FlagBadge, { FlagSummaryBadge } from '@/components/quality/FlagBadge';
+import FlagBadge from '@/components/quality/FlagBadge';
 import FlagResolutionPanel from '@/components/quality/FlagResolutionPanel';
 import { DataQualityFlag } from '@/lib/quality/flagEngine';
 
@@ -37,7 +37,7 @@ export default function DataQualityCenterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
   const [selectedFlags, setSelectedFlags] = useState<Set<string>>(new Set());
-  const [showBatchActions, setShowBatchActions] = useState(false);
+  // Remove unused batch actions state - not implemented in current UI
 
   const supabase = createClient();
 
@@ -172,7 +172,7 @@ export default function DataQualityCenterPage() {
       if (response.ok) {
         await Promise.all([loadFlags(), loadStats()]);
         setSelectedFlags(new Set());
-        setShowBatchActions(false);
+        // Batch actions state removed - not implemented in UI
       } else {
         const error = await response.json();
         throw new Error(error.error || 'Batch operation failed');
