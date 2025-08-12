@@ -5,16 +5,20 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 // Remove unused service role key - using createClient() instead
 
 // Proxy to Supabase Edge Function
-export async function GET(request: Request, context: any) {
+export async function GET(
+  request: Request, 
+  { params }: { params: Promise<{ action: string[] }> }
+) {
   try {
+    const { action: actionArray } = await params
+    const action = actionArray.join('/');
+    
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const action = (context?.params?.action as string[]).join('/');
     const urlObj = new URL(request.url);
     const searchParams = urlObj.searchParams;
     
@@ -42,16 +46,20 @@ export async function GET(request: Request, context: any) {
   }
 }
 
-export async function POST(request: Request, context: any) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ action: string[] }> }
+) {
   try {
+    const { action: actionArray } = await params
+    const action = actionArray.join('/');
+    
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const action = (context?.params?.action as string[]).join('/');
     const body = await request.json();
     
     const url = `${SUPABASE_URL}/functions/v1/quality-guardian/${action}`;

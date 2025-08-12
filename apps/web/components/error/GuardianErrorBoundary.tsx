@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabaseClientSSR'
 interface Props {
   children: ReactNode
   fallback?: ReactNode
-  onError?: (error: Error, errorInfo: any) => void
+  onError?: (error: Error, errorInfo: { componentStack: string }) => void
   level?: 'app' | 'page' | 'component'
 }
 
@@ -33,7 +33,7 @@ export class GuardianErrorBoundary extends Component<Props, State> {
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: { componentStack: string }) {
     const { onError, level = 'component' } = this.props
     
     // Log error to event system
@@ -52,7 +52,7 @@ export class GuardianErrorBoundary extends Component<Props, State> {
     return btoa(userAgent).substring(0, 16);
   }
 
-  private async logError(error: Error, errorInfo: any, level: string) {
+  private async logError(error: Error, errorInfo: { componentStack: string }, level: string) {
     try {
       const supabase = createClient()
       await supabase.from('user_events').insert({

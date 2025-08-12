@@ -1,7 +1,7 @@
 # Technical Debt Registry
 
 **Purpose:** Centralized tracking of technical debt items for Guardian v7  
-**Last updated:** 2025-08-12 (Phase 1.1 + Phase 3 healthcare testing resolution)  
+**Last updated:** 2025-08-12 (Phase 3.1 Performance Optimization completion)  
 **Audience:** Solo founder, future developers  
 **Status:** Active tracking system
 
@@ -17,9 +17,10 @@
 | ✅ RESOLVED | [Next.js Build Export Failure](resolved/nextjs-build-export.md) | Blocks production deployment | 30 min | Immediate | ✅ **COMPLETED 2025-08-12** |
 | 🔴 HIGH | [Performance Monitoring](performance-monitoring.md) | Can't detect production issues | 2-3 days | 100+ active users | 📋 Documented |
 | 🟡 MEDIUM | [Event Logging Security](event-logging-security.md) | Audit event integrity | 1-2 hours | Production launch | 📋 Phase 3 |
-| 🟡 MEDIUM | [Realtime Scaling](realtime-scaling.md) | Performance with large patient lists | 2-3 hours | 50+ patients | 📋 Phase 3 |
+| ✅ RESOLVED | [Patient Portal Realtime Optimization](resolved/realtime-scaling.md) | Family profile switching performance | 1-2 hours | Patient portal launch | ✅ **COMPLETED 2025-08-12** |
+| ⏳ DEFERRED | [Provider Portal Realtime Scaling](provider-portal-realtime-scaling.md) | Future provider portal architecture | 1-2 weeks | Provider portal Phase 4+ | 📋 Research needed |
 | 🟡 MEDIUM | [Security Hardening Audit](security-hardening.md) | Compliance gaps | 1-2 days | Before production launch | 📋 Planned |
-| 🟢 LOW | [Healthcare Testing Edge Cases](healthcare-testing-edge-cases.md) | Jest mock scope isolation | 1-2 hours | 100% test coverage goal | 📋 Documented |
+| ✅ RESOLVED | [Healthcare Testing Edge Cases](resolved/healthcare-testing-edge-cases.md) | Jest mock scope isolation | 1-2 hours | 100% test coverage goal | ✅ **COMPLETED 2025-08-12** |
 | 🟢 LOW | [Scalability Architecture Review](scalability-planning.md) | Future scaling concerns | 1 week | 10,000+ users | 📋 Planned |
 | 🟢 LOW | [Import Path Consistency](import-path-consistency.md) | Bundle bloat risk | 1 hour | Ongoing | 📋 Monitoring |
 

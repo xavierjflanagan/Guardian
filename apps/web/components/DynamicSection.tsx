@@ -12,10 +12,79 @@ import {
 } from 'lucide-react';
 import { MedicalCard } from '@guardian/ui';
 
+// Healthcare data type definitions
+interface Medication {
+  name?: string;
+  medication?: string;
+  dosage?: string;
+  frequency?: string;
+  route?: string;
+  prescriber?: string;
+  instructions?: string;
+}
+
+interface Allergy {
+  allergen?: string;
+  substance?: string;
+  severity?: string;
+  reaction?: string;
+  type?: string;
+}
+
+interface LabResult {
+  test?: string;
+  test_name?: string;
+  name?: string;
+  value?: string | number;
+  result?: string | number;
+  reference_range?: string;
+  referenceRange?: string;
+  reference?: string;
+  status?: string;
+  flag?: string;
+  units?: string;
+  unit?: string;
+}
+
+interface Condition {
+  condition?: string;
+  diagnosis?: string;
+  name?: string;
+  status?: string;
+  onset?: string;
+  date?: string;
+  severity?: string;
+  notes?: string;
+  icd_code?: string;
+}
+
+interface Vital {
+  name?: string;
+  vital?: string;
+  value?: string | number;
+  units?: string;
+  date?: string;
+  timestamp?: string;
+  normal_range?: string;
+}
+
+interface Procedure {
+  procedure?: string;
+  name?: string;
+  date?: string;
+  provider?: string;
+  location?: string;
+  outcome?: string;
+  notes?: string;
+  status?: string;
+}
+
+type HealthcareData = Medication[] | Allergy[] | LabResult[] | Condition[] | Vital[] | Procedure[];
+
 interface DynamicSectionProps {
   title: string;
   icon: string;
-  data: any;
+  data: HealthcareData;
   type: 'medications' | 'allergies' | 'labResults' | 'conditions' | 'vitals' | 'procedures';
   sourceDocument?: string | null;
 }
@@ -32,7 +101,7 @@ const iconMap: Record<string, LucideIcon> = {
 export function DynamicSection({ title, icon, data, type, sourceDocument }: DynamicSectionProps) {
   const Icon = iconMap[icon] || Clipboard;
 
-  const renderMedications = (medications: any[]) => {
+  const renderMedications = (medications: Medication[]) => {
     return medications.map((med, index) => (
       <MedicalCard key={index} sourceDocument={sourceDocument}>
         <div className="space-y-2">
@@ -71,7 +140,7 @@ export function DynamicSection({ title, icon, data, type, sourceDocument }: Dyna
     ));
   };
 
-  const renderAllergies = (allergies: any[]) => {
+  const renderAllergies = (allergies: Allergy[]) => {
     return allergies.map((allergy, index) => (
       <MedicalCard key={index} sourceDocument={sourceDocument}>
         <div className="space-y-2">
@@ -106,7 +175,7 @@ export function DynamicSection({ title, icon, data, type, sourceDocument }: Dyna
     ));
   };
 
-  const renderLabResults = (labResults: any[]) => {
+  const renderLabResults = (labResults: LabResult[]) => {
     return (
       <MedicalCard sourceDocument={sourceDocument}>
         <div className="overflow-x-auto">
@@ -161,7 +230,7 @@ export function DynamicSection({ title, icon, data, type, sourceDocument }: Dyna
     );
   };
 
-  const renderConditions = (conditions: any[]) => {
+  const renderConditions = (conditions: Condition[]) => {
     return conditions.map((condition, index) => (
       <MedicalCard key={index} sourceDocument={sourceDocument}>
         <div className="space-y-2">
@@ -200,7 +269,25 @@ export function DynamicSection({ title, icon, data, type, sourceDocument }: Dyna
     ));
   };
 
-  const renderVitals = (vitals: any) => {
+  const renderVitals = (vitals: Record<string, string | number> | Vital[]) => {
+    if (Array.isArray(vitals)) {
+      return vitals.map((vital, index) => (
+        <MedicalCard key={index} sourceDocument={sourceDocument}>
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-500 capitalize mb-1">
+              {vital.name || vital.vital || 'Unknown Vital'}
+            </div>
+            <div className="text-lg font-semibold text-gray-900">
+              {vital.value} {vital.units && <span className="text-sm text-gray-500">{vital.units}</span>}
+            </div>
+            {vital.date && (
+              <div className="text-xs text-gray-400 mt-1">{new Date(vital.date).toLocaleDateString()}</div>
+            )}
+          </div>
+        </MedicalCard>
+      ));
+    }
+    
     const vitalEntries = Object.entries(vitals).filter(([_, value]) => value != null);
     
     return (
@@ -219,7 +306,7 @@ export function DynamicSection({ title, icon, data, type, sourceDocument }: Dyna
     );
   };
 
-  const renderProcedures = (procedures: any[]) => {
+  const renderProcedures = (procedures: Procedure[]) => {
     return procedures.map((procedure, index) => (
       <MedicalCard key={index} sourceDocument={sourceDocument}>
         <div className="space-y-2">
@@ -257,17 +344,17 @@ export function DynamicSection({ title, icon, data, type, sourceDocument }: Dyna
 
     switch (type) {
       case 'medications':
-        return Array.isArray(data) ? renderMedications(data) : renderMedications([data]);
+        return Array.isArray(data) ? renderMedications(data as Medication[]) : renderMedications([data as Medication]);
       case 'allergies':
-        return Array.isArray(data) ? renderAllergies(data) : renderAllergies([data]);
+        return Array.isArray(data) ? renderAllergies(data as Allergy[]) : renderAllergies([data as Allergy]);
       case 'labResults':
-        return Array.isArray(data) ? renderLabResults(data) : renderLabResults([data]);
+        return Array.isArray(data) ? renderLabResults(data as LabResult[]) : renderLabResults([data as LabResult]);
       case 'conditions':
-        return Array.isArray(data) ? renderConditions(data) : renderConditions([data]);
+        return Array.isArray(data) ? renderConditions(data as Condition[]) : renderConditions([data as Condition]);
       case 'vitals':
-        return renderVitals(data);
+        return renderVitals(data as Record<string, string | number> | Vital[]);
       case 'procedures':
-        return Array.isArray(data) ? renderProcedures(data) : renderProcedures([data]);
+        return Array.isArray(data) ? renderProcedures(data as Procedure[]) : renderProcedures([data as Procedure]);
       default:
         return (
           <MedicalCard sourceDocument={sourceDocument}>
