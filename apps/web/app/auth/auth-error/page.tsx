@@ -1,17 +1,18 @@
 import Link from 'next/link'
 
-export default function AuthErrorPage({
+export default async function AuthErrorPage({
   searchParams,
 }: {
-  searchParams: { message?: string }
+  searchParams: Promise<{ message?: string }>
 }) {
+  const params = await searchParams
   
   return (
     <div className="flex h-screen w-screen items-center justify-center">
       <div className="max-w-md mx-auto p-6 border rounded shadow">
         <h1 className="text-2xl font-bold mb-4 text-red-600">Authentication Error</h1>
         <p className="text-red-600 mb-4">
-          {searchParams.message || 'An error occurred during authentication. Please try again.'}
+          {params.message || 'An error occurred during authentication. Please try again.'}
         </p>
         <Link
           href="/sign-in"

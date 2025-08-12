@@ -4,8 +4,17 @@ import React from 'react';
 import { Pill, AlertTriangle, Activity, Beaker } from 'lucide-react';
 import { ConfidenceIndicator } from '@guardian/ui';
 
+interface MedicalData {
+  medications?: unknown[] | unknown;
+  allergies?: unknown[] | unknown;
+  labResults?: unknown[] | unknown;
+  conditions?: unknown[] | unknown;
+  vitals?: Record<string, unknown> | unknown[];
+  procedures?: unknown[] | unknown;
+}
+
 interface MetricsSummaryProps {
-  medicalData: any;
+  medicalData: MedicalData;
   confidence?: number | null;
 }
 

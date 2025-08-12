@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Document } from '@/types/guardian';
 import { FileText, Clock, CheckCircle, XCircle, Loader2, Eye, AlertTriangle } from 'lucide-react';
 import { ConfidenceIndicator } from '@guardian/ui';
@@ -22,14 +22,7 @@ export function DocumentItem({ document, isSelected, onSelect, onFlagsUpdated }:
   // Remove unused flags loading state - handled internally by loadDocumentFlags
   const supabase = createClient();
 
-  // Load quality flags for this document
-  useEffect(() => {
-    if (document.quality_flags_count && document.quality_flags_count > 0) {
-      loadDocumentFlags();
-    }
-  }, [document.id, document.quality_flags_count]);
-
-  const loadDocumentFlags = async () => {
+  const loadDocumentFlags = useCallback(async () => {
     // Loading state removed - flags loaded asynchronously
     try {
       const { data: flagsData, error } = await supabase
@@ -46,9 +39,16 @@ export function DocumentItem({ document, isSelected, onSelect, onFlagsUpdated }:
     } finally {
       // Loading state removed - flags loaded asynchronously
     }
-  };
+  }, [supabase, document.id]);
 
-  const handleResolveFlag = async (flagId: string, resolution: any) => {
+  // Load quality flags for this document
+  useEffect(() => {
+    if (document.quality_flags_count && document.quality_flags_count > 0) {
+      loadDocumentFlags();
+    }
+  }, [document.id, document.quality_flags_count, loadDocumentFlags]);
+
+  const handleResolveFlag = async (flagId: string, resolution: { action: string; notes?: string; corrected_value?: string }) => {
     try {
       const response = await fetch(`/functions/v1/quality-guardian/flags/${flagId}/resolve`, {
         method: 'POST',

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef, startTransition } from 'react'
 import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabaseClientSSR'
 
@@ -27,9 +27,21 @@ type ProfileContextValue = {
   refreshProfiles: () => Promise<void>
   isLoading: boolean
   error: string | null
+  // Performance optimization additions
+  isSwitchingProfile: boolean
+  lastSwitchTime: number | null
+  switchPerformance: {
+    averageSwitchTime: number
+    totalSwitches: number
+  }
+  // New additions for prefetching
+  prefetchAllowedPatients: (profileId: string) => Promise<void>
 }
 
 const ProfileContext = createContext<ProfileContextValue | null>(null)
+// Exporting the context enables tests to provide a controlled value without
+// relying on module-level hook mocks
+export { ProfileContext }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [supabase] = useState(() => createClient())
@@ -40,6 +52,37 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [allowedPatients, setAllowedPatients] = useState<AllowedPatient[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Performance optimization state
+  const [isSwitchingProfile, setIsSwitchingProfile] = useState<boolean>(false)
+  const [lastSwitchTime, setLastSwitchTime] = useState<number | null>(null)
+  const [switchPerformance, setSwitchPerformance] = useState({
+    averageSwitchTime: 0,
+    totalSwitches: 0
+  })
+  
+  // Fix #3: Use useRef for cache to avoid expensive re-renders
+  const allowedPatientsCache = useRef<Map<string, AllowedPatient[]>>(new Map())
+  const LRU_CACHE_SIZE = 50 // Cap at 50 profiles to prevent unbounded growth
+
+  // Cache helpers with LRU eviction
+  const cacheHelpers = useMemo(() => ({
+    get: (profileId: string) => allowedPatientsCache.current.get(profileId),
+    set: (profileId: string, patients: AllowedPatient[]) => {
+      // LRU eviction if at capacity
+      if (allowedPatientsCache.current.size >= LRU_CACHE_SIZE) {
+        const firstKey = allowedPatientsCache.current.keys().next().value
+        allowedPatientsCache.current.delete(firstKey)
+        console.log(`Evicted profile ${firstKey} from cache (LRU)`)
+      }
+      allowedPatientsCache.current.set(profileId, patients)
+    },
+    clear: () => {
+      allowedPatientsCache.current.clear()
+      console.log('Cleared profile cache')
+    },
+    size: () => allowedPatientsCache.current.size
+  }), [])
 
   // Load auth user id (client-side)
   useEffect(() => {
@@ -55,17 +98,49 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, [supabase])
 
   const loadAllowedPatients = useCallback(
-    async (profileId: string) => {
+    async (profileId: string, useCache: boolean = true) => {
+      // Check cache first for family profile switching optimization
+      const cachedData = cacheHelpers.get(profileId)
+      if (useCache && cachedData) {
+        setAllowedPatients(cachedData)
+        console.log(`Loading allowed patients from cache for profile ${profileId}`)
+        return
+      }
+
       try {
+        console.log(`Loading allowed patients from database for profile ${profileId}`)
         const { data, error } = await supabase.rpc('get_allowed_patient_ids', { p_profile_id: profileId })
         if (error) throw error
-        setAllowedPatients(Array.isArray(data) ? data : [])
-      } catch {
+        
+        const patients = Array.isArray(data) ? data : []
+        setAllowedPatients(patients)
+        
+        // Cache with LRU eviction
+        cacheHelpers.set(profileId, patients)
+      } catch (error) {
+        console.warn(`Failed to load allowed patients for profile ${profileId}:`, error)
         setAllowedPatients([])
+        throw error // Re-throw for switchProfile rollback handling
       }
     },
-    [supabase]
+    [supabase, cacheHelpers]
   )
+
+  // Prefetch function for hover/idle optimization
+  const prefetchAllowedPatients = useCallback(async (profileId: string) => {
+    // Only prefetch if not already cached
+    if (!cacheHelpers.get(profileId)) {
+      try {
+        const { data, error } = await supabase.rpc('get_allowed_patient_ids', { p_profile_id: profileId })
+        if (!error && Array.isArray(data)) {
+          cacheHelpers.set(profileId, data)
+          console.log(`Prefetched allowed patients for profile ${profileId}`)
+        }
+      } catch (error) {
+        console.warn(`Failed to prefetch allowed patients for ${profileId}:`, error)
+      }
+    }
+  }, [supabase, cacheHelpers])
 
   const loadProfiles = useCallback(async () => {
     if (!userId) return
@@ -114,31 +189,97 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     async (profileId: string) => {
       const next = profiles.find((p) => p.id === profileId)
       if (!next) return
-      setIsLoading(true)
+      
+      // Don't switch if already current profile (no-op optimization)
+      if (currentProfile?.id === profileId) return
+      
+      // Store previous state for rollback protection
+      const previousProfile = currentProfile
+      const previousAllowedPatients = allowedPatients
+      
+      const switchStartTime = performance.now()
+      setIsSwitchingProfile(true)
+      setError(null)
+      
       try {
-        setCurrentProfile(next)
-        await loadAllowedPatients(profileId)
-        await supabase.from('user_events').insert({
+        // Optimistic update with startTransition to avoid blocking UI
+        startTransition(() => {
+          setCurrentProfile(next)
+        })
+        
+        console.log(`Switching to profile: ${next.display_name} (${profileId})`)
+        
+        // Load allowed patients with rollback protection
+        await loadAllowedPatients(profileId, true)
+        
+        // Log the profile switch asynchronously to avoid blocking UX
+        supabase.from('user_events').insert({
           profile_id: profileId,
           action: 'profile_switch',
-          metadata: { to_profile: profileId, profile_name: next.display_name },
+          metadata: { 
+            to_profile: profileId, 
+            profile_name: next.display_name,
+            switch_time_ms: Math.round(performance.now() - switchStartTime)
+          },
           session_id: crypto.randomUUID(),
           privacy_level: 'internal'
+        }).then(({ error }) => {
+          if (error) console.warn('Failed to log profile switch:', error)
         })
+        
+        // Update performance tracking
+        const switchTime = performance.now() - switchStartTime
+        setLastSwitchTime(switchTime)
+        setSwitchPerformance(prev => ({
+          totalSwitches: prev.totalSwitches + 1,
+          averageSwitchTime: ((prev.averageSwitchTime * prev.totalSwitches) + switchTime) / (prev.totalSwitches + 1)
+        }))
+        
+        console.log(`Profile switch completed in ${Math.round(switchTime)}ms`)
+        
+      } catch (error) {
+        // ROLLBACK: Restore previous state on failure
+        console.error('Profile switch failed, rolling back:', error)
+        startTransition(() => {
+          setCurrentProfile(previousProfile)
+          setAllowedPatients(previousAllowedPatients)
+        })
+        setError('Failed to switch profile. Please try again.')
       } finally {
-        setIsLoading(false)
+        setIsSwitchingProfile(false)
       }
     },
-    [profiles, loadAllowedPatients, supabase]
+    [profiles, loadAllowedPatients, supabase, currentProfile, allowedPatients]
   )
 
   const refreshProfiles = useCallback(async () => {
     await loadProfiles()
   }, [loadProfiles])
 
+  // Cache invalidation on sign-out or profile archive
+  useEffect(() => {
+    if (!userId) {
+      cacheHelpers.clear()
+    }
+  }, [userId, cacheHelpers])
+
   const value: ProfileContextValue = useMemo(
-    () => ({ currentProfile, profiles, allowedPatients, switchProfile, refreshProfiles, isLoading, error }),
-    [currentProfile, profiles, allowedPatients, switchProfile, refreshProfiles, isLoading, error]
+    () => ({ 
+      currentProfile, 
+      profiles, 
+      allowedPatients, 
+      switchProfile, 
+      refreshProfiles, 
+      isLoading, 
+      error,
+      // Performance optimization properties
+      isSwitchingProfile,
+      lastSwitchTime,
+      switchPerformance,
+      // Prefetching functionality
+      prefetchAllowedPatients
+    }),
+    [currentProfile, profiles, allowedPatients, switchProfile, refreshProfiles, isLoading, error, isSwitchingProfile, lastSwitchTime, switchPerformance, prefetchAllowedPatients]
   )
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>

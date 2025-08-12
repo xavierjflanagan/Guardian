@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabaseClientSSR';
 import FlagBadge from '@/components/quality/FlagBadge';
 import FlagResolutionPanel from '@/components/quality/FlagResolutionPanel';
@@ -41,19 +41,7 @@ export default function DataQualityCenterPage() {
 
   const supabase = createClient();
 
-  // Load initial data
-  useEffect(() => {
-    loadProfiles();
-    loadStats();
-    loadFlags();
-  }, []);
-
-  // Reload flags when filters change
-  useEffect(() => {
-    loadFlags();
-  }, [selectedProfile, statusFilter, severityFilter, categoryFilter]);
-
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     try {
       const { data: profilesData, error } = await supabase
         .from('user_profiles')
@@ -65,9 +53,9 @@ export default function DataQualityCenterPage() {
     } catch (error) {
       console.error('Error loading profiles:', error);
     }
-  };
+  }, [supabase]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (selectedProfile !== 'all') {
@@ -88,9 +76,9 @@ export default function DataQualityCenterPage() {
     } catch (error) {
       console.error('Error loading stats:', error);
     }
-  };
+  }, [selectedProfile, supabase]);
 
-  const loadFlags = async () => {
+  const loadFlags = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -121,9 +109,21 @@ export default function DataQualityCenterPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedProfile, statusFilter, severityFilter, categoryFilter, supabase]);
 
-  const handleResolveFlag = async (flagId: string, resolution: any) => {
+  // Load initial data
+  useEffect(() => {
+    loadProfiles();
+    loadStats();
+    loadFlags();
+  }, [loadProfiles, loadStats, loadFlags]);
+
+  // Reload flags when filters change
+  useEffect(() => {
+    loadFlags();
+  }, [loadFlags]);
+
+  const handleResolveFlag = async (flagId: string, resolution: { action: string; notes?: string; corrected_value?: string }) => {
     setIsResolving(true);
     try {
       const response = await fetch(`/functions/v1/quality-guardian/flags/${flagId}/resolve`, {

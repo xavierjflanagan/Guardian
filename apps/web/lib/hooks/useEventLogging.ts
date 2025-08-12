@@ -4,9 +4,59 @@ import { useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabaseClientSSR'
 import { useProfile } from '@/app/providers/ProfileProvider'
 
+// Healthcare-specific metadata types
+export interface BaseEventMetadata {
+  category: string
+  user_agent: string
+  timestamp: string
+}
+
+export interface NavigationMetadata extends BaseEventMetadata {
+  page?: string
+  from?: string
+  to?: string
+  route?: string
+}
+
+export interface InteractionMetadata extends BaseEventMetadata {
+  element?: string
+  action_type?: string
+  component?: string
+}
+
+export interface DataAccessMetadata extends BaseEventMetadata {
+  document_id?: string
+  patient_id?: string
+  data_type?: string
+  access_level?: string
+}
+
+export interface ProfileMetadata extends BaseEventMetadata {
+  to_profile?: string
+  profile_name?: string
+  profile_type?: string
+}
+
+export interface SystemMetadata extends BaseEventMetadata {
+  version?: string
+  error?: string
+  performance_metric?: string
+  // Test and development fields
+  long_field?: string
+  count?: number
+}
+
+export type EventMetadata = 
+  | NavigationMetadata 
+  | InteractionMetadata 
+  | DataAccessMetadata 
+  | ProfileMetadata 
+  | SystemMetadata 
+  | BaseEventMetadata
+
 export interface UserEvent {
   action: string
-  metadata: Record<string, any>
+  metadata: EventMetadata
   profile_id: string
   session_id: string
   privacy_level: 'public' | 'internal' | 'sensitive'
@@ -48,21 +98,22 @@ class EventLogger {
 const eventLogger = new EventLogger()
 
 // Privacy-aware metadata sanitization
-function sanitizeMetadata(metadata: Record<string, any>): Record<string, any> {
-  const sanitized = { ...metadata }
+function sanitizeMetadata(metadata: Partial<EventMetadata>): EventMetadata {
+  const sanitized = { ...metadata } as EventMetadata
   
   // Remove potential PII fields
   const piiFields = ['email', 'phone', 'ssn', 'medical_record_number', 'name', 'address']
   piiFields.forEach(field => {
     if (field in sanitized) {
-      delete sanitized[field]
+      delete (sanitized as unknown as Record<string, unknown>)[field]
     }
   })
   
   // Truncate long strings to prevent data leaks
   Object.keys(sanitized).forEach(key => {
-    if (typeof sanitized[key] === 'string' && sanitized[key].length > 200) {
-      sanitized[key] = sanitized[key].substring(0, 200) + '...[truncated]'
+    const value = (sanitized as unknown as Record<string, unknown>)[key]
+    if (typeof value === 'string' && value.length > 200) {
+      (sanitized as unknown as Record<string, unknown>)[key] = value.substring(0, 200) + '...[truncated]'
     }
   })
   
@@ -85,7 +136,7 @@ export function useEventLogging() {
   const logEvent = useCallback(async (
     category: EventCategory,
     action: string, 
-    metadata: Record<string, any> = {},
+    metadata: Partial<EventMetadata> = {},
     privacyLevel: 'public' | 'internal' | 'sensitive' = 'internal'
   ) => {
     if (!currentProfile) {
@@ -119,23 +170,23 @@ export function useEventLogging() {
   }, [currentProfile, supabase, getSessionId])
 
   // Convenience methods for different event categories
-  const logNavigation = useCallback((action: string, metadata?: Record<string, any>) => {
+  const logNavigation = useCallback((action: string, metadata?: Partial<NavigationMetadata>) => {
     return logEvent('navigation', action, metadata, 'internal')
   }, [logEvent])
 
-  const logInteraction = useCallback((action: string, metadata?: Record<string, any>) => {
+  const logInteraction = useCallback((action: string, metadata?: Partial<InteractionMetadata>) => {
     return logEvent('interaction', action, metadata, 'internal')
   }, [logEvent])
 
-  const logDataAccess = useCallback((action: string, metadata?: Record<string, any>) => {
+  const logDataAccess = useCallback((action: string, metadata?: Partial<DataAccessMetadata>) => {
     return logEvent('data_access', action, metadata, 'sensitive')
   }, [logEvent])
 
-  const logProfile = useCallback((action: string, metadata?: Record<string, any>) => {
+  const logProfile = useCallback((action: string, metadata?: Partial<ProfileMetadata>) => {
     return logEvent('profile', action, metadata, 'internal')
   }, [logEvent])
 
-  const logSystem = useCallback((action: string, metadata?: Record<string, any>) => {
+  const logSystem = useCallback((action: string, metadata?: Partial<SystemMetadata>) => {
     return logEvent('system', action, metadata, 'public')
   }, [logEvent])
 

@@ -1,7 +1,8 @@
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
+import React from 'react'
 import { useEventLogging } from '@/lib/hooks/useEventLogging'
-import { ProfileProvider } from '@/app/providers/ProfileProvider'
-import { ReactNode } from 'react'
+import { ProfileContext } from '@/app/providers/ProfileProvider'
+import type { ProfileContextValue } from '@/app/providers/ProfileProvider'
 
 // Mock profile data
 const mockProfile = {
@@ -37,40 +38,71 @@ const mockSupabaseClient = {
   from: mockFrom,
 }
 
+// Mock useProfile hook before any imports
+jest.mock('@/app/providers/ProfileProvider', () => ({
+  ...jest.requireActual('@/app/providers/ProfileProvider'),
+  useProfile: jest.fn(),
+}))
+
+// Get reference to the mocked function
+import { useProfile } from '@/app/providers/ProfileProvider'
+const mockUseProfile = useProfile as jest.MockedFunction<typeof useProfile>
+
 jest.mock('@/lib/supabaseClientSSR', () => ({
   createClient: jest.fn(() => mockSupabaseClient),
 }))
 
-// Create a mock useProfile hook that can be controlled per test
-let mockUseProfile: jest.Mock
+// Helper function to create ProfileContextValue with all required properties
+const createMockProfileContextValue = (overrides?: Partial<ProfileContextValue>): ProfileContextValue => ({
+  currentProfile: mockProfile,
+  profiles: [mockProfile],
+  allowedPatients: [],
+  switchProfile: jest.fn(),
+  refreshProfiles: jest.fn(),
+  isLoading: false,
+  error: null,
+  isSwitchingProfile: false,
+  lastSwitchTime: null,
+  switchPerformance: { averageSwitchTime: 0, totalSwitches: 0 },
+  prefetchAllowedPatients: jest.fn(),
+  ...overrides,
+})
 
-jest.mock('@/app/providers/ProfileProvider', () => ({
-  ...jest.requireActual('@/app/providers/ProfileProvider'),
-  useProfile: () => mockUseProfile(),
-}))
+// Helper function to create a test wrapper with ProfileContext
+const createTestWrapper = (contextValue?: Partial<ProfileContextValue>) => {
+  const value = createMockProfileContextValue(contextValue)
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(ProfileContext.Provider, { value }, children)
+}
+
+// Helper function to render hook with profile context and reset rate limit
+const renderHookWithContext = (contextOverrides?: Partial<ProfileContextValue>) => {
+  const Wrapper = createTestWrapper(contextOverrides)
+  const { result } = renderHook(() => useEventLogging(), { wrapper: Wrapper })
+  
+  // Reset rate limiter for clean slate - use synchronous act
+  act(() => {
+    result.current.resetRateLimit()
+  })
+  
+  return { result }
+}
 
 describe('useEventLogging', () => {
   beforeEach(() => {
-    // Clear all mocks including the persistent ones
-    jest.clearAllMocks()
+    // Clear database mocks
     mockInsert.mockClear()
     mockFrom.mockClear()
     
-    // Initialize mock function
-    mockUseProfile = jest.fn().mockReturnValue({
-      currentProfile: mockProfile,
-      profiles: [mockProfile],
-      allowedPatients: [],
-      switchProfile: jest.fn(),
-      refreshProfiles: jest.fn(),
-      isLoading: false,
-      error: null,
-    })
+    // Set up mock useProfile return value
+    mockUseProfile.mockReturnValue(createMockProfileContextValue())
+    
+    // Ensure consistent session ID
     ;(global.crypto.randomUUID as jest.Mock).mockReturnValue('test-session-id')
   })
 
   it('should log events with correct structure', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     await act(async () => {
       await result.current.logEvent('navigation', 'page_view', { page: '/dashboard' })
@@ -92,7 +124,7 @@ describe('useEventLogging', () => {
   })
 
   it('should sanitize PII from metadata', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     const metadataWithPII = {
       page: '/dashboard',
@@ -120,7 +152,7 @@ describe('useEventLogging', () => {
   })
 
   it('should truncate long strings to prevent data leaks', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     const longString = 'A'.repeat(300) // 300 characters
     
@@ -134,7 +166,7 @@ describe('useEventLogging', () => {
   })
 
   it('should provide convenience methods for different event categories', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     // Test navigation logging
     await act(async () => {
@@ -174,7 +206,7 @@ describe('useEventLogging', () => {
   })
 
   it('should implement rate limiting', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     // Should allow logging initially
     expect(result.current.canLog()).toBe(true)
@@ -195,7 +227,7 @@ describe('useEventLogging', () => {
   })
 
   it('should handle database errors gracefully', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     // Mock database error
     mockInsert.mockRejectedValueOnce(new Error('DB Error'))
@@ -209,17 +241,10 @@ describe('useEventLogging', () => {
   })
 
   it('should not log when no current profile', async () => {
-    // Mock useProfile to return no current profile
-    mockUseProfile.mockReturnValue({
-      currentProfile: null,
-      profiles: [],
-      allowedPatients: [],
-      switchProfile: jest.fn(),
-      refreshProfiles: jest.fn(),
-      isLoading: false,
-      error: null,
-    })
-
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    // Override the mockUseProfile to return null currentProfile
+    mockUseProfile.mockReturnValueOnce(createMockProfileContextValue({ currentProfile: null }))
+    
     const { result } = renderHook(() => useEventLogging())
 
     await act(async () => {
@@ -228,31 +253,25 @@ describe('useEventLogging', () => {
 
     // Should not attempt to insert
     expect(mockInsert).not.toHaveBeenCalled()
+    warnSpy.mockRestore()
   })
 })
 
 describe('Healthcare compliance for event logging', () => {
   beforeEach(() => {
-    // Clear all mocks and reset
-    jest.clearAllMocks()
+    // Clear database mocks
     mockInsert.mockClear()
     mockFrom.mockClear()
     
-    // Ensure we have a valid profile for healthcare tests
-    mockUseProfile = jest.fn().mockReturnValue({
-      currentProfile: mockProfile,
-      profiles: [mockProfile],
-      allowedPatients: [],
-      switchProfile: jest.fn(),
-      refreshProfiles: jest.fn(),
-      isLoading: false,
-      error: null,
-    })
+    // Set up mock useProfile return value
+    mockUseProfile.mockReturnValue(createMockProfileContextValue())
+    
+    // Ensure consistent session ID
     ;(global.crypto.randomUUID as jest.Mock).mockReturnValue('test-session-id')
   })
 
   it('should maintain session consistency for audit trails', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     // Log multiple events in same session
     await act(async () => {
@@ -271,7 +290,7 @@ describe('Healthcare compliance for event logging', () => {
   })
 
   it('should categorize healthcare events with appropriate privacy levels', async () => {
-    const { result } = renderHook(() => useEventLogging())
+    const { result } = renderHookWithContext()
 
     const testCases = [
       { method: 'logNavigation', expectedPrivacy: 'internal', params: ['tab_switch', {}] },
@@ -281,9 +300,7 @@ describe('Healthcare compliance for event logging', () => {
       { method: 'logSystem', expectedPrivacy: 'public', params: ['app_start', {}] },
     ]
 
-    for (let i = 0; i < testCases.length; i++) {
-      const { method, expectedPrivacy, params } = testCases[i]
-      
+    for (const { method, params } of testCases) {
       await act(async () => {
         await (result.current as any)[method](...params)
       })
@@ -293,10 +310,9 @@ describe('Healthcare compliance for event logging', () => {
     expect(mockInsert.mock.calls).toHaveLength(5)
     
     // Check each call's privacy level
-    for (let i = 0; i < testCases.length; i++) {
-      const { expectedPrivacy } = testCases[i]
-      const currentCall = mockInsert.mock.calls[i][0]
+    testCases.forEach(({ expectedPrivacy }, index) => {
+      const currentCall = mockInsert.mock.calls[index][0]
       expect(currentCall.privacy_level).toBe(expectedPrivacy)
-    }
+    })
   })
 })

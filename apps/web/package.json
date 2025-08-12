@@ -2,6 +2,10 @@
   "name": "@guardian/web",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +15,10 @@
     "analyze": "ANALYZE=true next build",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "performance:check": "node scripts/check-bundle-size.js",
+    "performance:monitor": "pnpm analyze && pnpm performance:check",
+    "healthcare:quality-gates": "pnpm typecheck && pnpm lint && pnpm test && pnpm performance:check"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -26,6 +33,7 @@
     "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.4.6",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
