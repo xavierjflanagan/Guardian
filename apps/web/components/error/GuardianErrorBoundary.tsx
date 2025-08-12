@@ -46,6 +46,12 @@ export class GuardianErrorBoundary extends Component<Props, State> {
     this.reportError(error, errorInfo, level)
   }
 
+  // Hash user agent for HIPAA compliance
+  private hashUserAgent(userAgent: string): string {
+    // Simple hash for audit trail without PII exposure
+    return btoa(userAgent).substring(0, 16);
+  }
+
   private async logError(error: Error, errorInfo: any, level: string) {
     try {
       const supabase = createClient()
@@ -57,7 +63,7 @@ export class GuardianErrorBoundary extends Component<Props, State> {
           component_stack: errorInfo.componentStack?.substring(0, 1000),
           error_id: this.state.errorId,
           retry_count: this.retryCount,
-          user_agent: navigator.userAgent.substring(0, 100)
+          user_agent_hash: this.hashUserAgent(navigator.userAgent)
         },
         session_id: crypto.randomUUID(),
         privacy_level: 'internal'

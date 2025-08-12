@@ -2,11 +2,7 @@
   "name": "guardian-monorepo",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "services/*"
-  ],
+  "packageManager": "pnpm@9.15.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -27,6 +23,10 @@
   },
   "homepage": "https://github.com/xavierjflanagan/Guardian#readme",
   "description": "Guardian Healthcare Platform - Patient-owned medical record management system",
+  "engines": {
+    "node": ">=18.0.0 <=20.x.x",
+    "pnpm": ">=9.0.0"
+  },
   "devDependencies": {
     "@turbo/gen": "^1.10.0",
     "turbo": "^1.10.0"

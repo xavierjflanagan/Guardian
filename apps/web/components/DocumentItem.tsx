@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Document } from '@/types/guardian';
 import { FileText, Clock, CheckCircle, XCircle, Loader2, Eye, AlertTriangle } from 'lucide-react';
-import { ConfidenceIndicator } from './shared/ConfidenceIndicator';
-import FlagBadge, { FlagSummaryBadge } from './quality/FlagBadge';
+import { ConfidenceIndicator } from '@guardian/ui';
+import { FlagSummaryBadge } from './quality/FlagBadge';
 import FlagResolutionPanel from './quality/FlagResolutionPanel';
 import { DataQualityFlag } from '@/lib/quality/flagEngine';
 import { createClient } from '@/lib/supabaseClientSSR';
@@ -19,7 +19,7 @@ interface DocumentItemProps {
 export function DocumentItem({ document, isSelected, onSelect, onFlagsUpdated }: DocumentItemProps) {
   const [flags, setFlags] = useState<DataQualityFlag[]>([]);
   const [selectedFlag, setSelectedFlag] = useState<DataQualityFlag | null>(null);
-  const [isLoadingFlags, setIsLoadingFlags] = useState(false);
+  // Remove unused flags loading state - handled internally by loadDocumentFlags
   const supabase = createClient();
 
   // Load quality flags for this document
@@ -30,7 +30,7 @@ export function DocumentItem({ document, isSelected, onSelect, onFlagsUpdated }:
   }, [document.id, document.quality_flags_count]);
 
   const loadDocumentFlags = async () => {
-    setIsLoadingFlags(true);
+    // Loading state removed - flags loaded asynchronously
     try {
       const { data: flagsData, error } = await supabase
         .from('data_quality_flags')
@@ -44,7 +44,7 @@ export function DocumentItem({ document, isSelected, onSelect, onFlagsUpdated }:
     } catch (error) {
       console.error('Error loading document flags:', error);
     } finally {
-      setIsLoadingFlags(false);
+      // Loading state removed - flags loaded asynchronously
     }
   };
 

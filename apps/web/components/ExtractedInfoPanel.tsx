@@ -36,7 +36,7 @@ export function ExtractedInfoPanel({ selectedDocument }: ExtractedInfoPanelProps
             <AlertTriangle className="mx-auto h-12 w-12 text-yellow-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Medical Data Available</h3>
             <p className="text-sm text-gray-500 max-w-sm">
-              This document hasn't been processed yet or no medical information was extracted.
+              This document hasn&apos;t been processed yet or no medical information was extracted.
             </p>
             {selectedDocument.status === 'processing' && (
               <p className="text-sm text-blue-600 mt-2">Processing in progress...</p>

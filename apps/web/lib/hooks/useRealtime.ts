@@ -148,7 +148,8 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
     cleanup,
     reconnect: () => {
       cleanup()
-      // Re-trigger the effect by updating a dependency
+      // Re-trigger re-subscription by forcing cleanup and re-initialization
+      // The next useEffect cycle will re-establish connections
     }
   }
 }
@@ -161,7 +162,7 @@ export function useRealtimeStatus() {
     statusRef.current = status
   }, [])
 
-  const realtime = useRealtime({
+  useRealtime({
     onStatusChange: handleStatusChange,
     enabled: true
   })

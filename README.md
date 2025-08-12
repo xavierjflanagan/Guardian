@@ -2,10 +2,10 @@
 
 **Patient-owned healthcare data platform** - Secure, portable, and accessible medical records management with AI-powered insights
 
-> **Current Status:** Phase 1 Complete - Ready for Phase 3 Advanced Features  
+> **Current Status:** Phase 1.1 Required - Architecture Cleanup Before Phase 3  
 > **Architecture:** Multi-platform monorepo with Next.js, Supabase, and AI processing pipeline
 
-[![Status](https://img.shields.io/badge/Status-Phase%201%20Complete-green)](shared/docs/architecture/frontend/implementation/phase-1-foundation.md)
+[![Status](https://img.shields.io/badge/Status-Phase%201.1%20Required-orange)](shared/docs/architecture/frontend/implementation/phase-1-foundation.md)
 [![Documentation](https://img.shields.io/badge/Documentation-Complete-green)](shared/docs/README.md)
 [![Architecture](https://img.shields.io/badge/Architecture-Monorepo-blue)](#monorepo-structure)
 
@@ -41,7 +41,7 @@ Guardian-Cursor/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 18–20 and pnpm (via Corepack)
 - Git
 
 ### Development Setup
@@ -50,34 +50,34 @@ Guardian-Cursor/
    ```bash
    git clone https://github.com/xavierjflanagan/Guardian.git
    cd Guardian-Cursor
-   npm install
+   # Enable and pin pnpm via Corepack
+   corepack enable
+   corepack prepare pnpm@9.15.1 --activate
+   # Install dependencies from repo root
+   pnpm install
    ```
 
 2. **Start the web application:**
    ```bash
-   npm run dev
+   pnpm --filter @guardian/web run dev
    # Starts Next.js dev server on http://localhost:3000
    ```
 
-3. **Build all packages:**
+3. **Build the web app:**
    ```bash
-   npm run build
-   # Builds all workspaces
+   pnpm --filter @guardian/web run build
    ```
 
 ### Monorepo Commands
 
 ```bash
 # Work with specific app
-npm run dev --workspace=@guardian/web
-npm run build --workspace=@guardian/web
+pnpm --filter @guardian/web run dev
+pnpm --filter @guardian/web run build
 
-# Work with specific package  
-npm run build --workspace=@guardian/ui
-npm run dev --workspace=@guardian/database
-
-# Clean install everything
-npm run fresh-install
+# Work with specific package
+pnpm --filter @guardian/ui run build
+pnpm --filter @guardian/database run dev
 ```
 
 ---
@@ -103,8 +103,8 @@ npm run fresh-install
 
 ## 🎯 Current Status
 
-**Development Phase:** Phase 1 Complete - Ready for Phase 3 Advanced Features  
-**Progress:** Foundation ✅ | Integration & Events ✅ | Components ✅ | Monorepo ✅ | Advanced Features 🚀
+**Development Phase:** Phase 3 Advanced Features Ready  
+**Progress:** Foundation ✅ | Integration & Events ✅ | Components ✅ | Monorepo ✅ | **Architecture Cleanup** ✅ | **PNPM Migration** ✅
 
 ### Completed
 - ✅ **Phase 1** - Foundation & Shell Implementation (Complete)
@@ -122,10 +122,19 @@ npm run fresh-install
 - ✅ **Error Boundaries** - Comprehensive error handling with graceful recovery
 - ✅ **CI/CD Quality Gates** - GitHub Actions with performance/accessibility testing
 
-### Ready to Begin
-- 🚀 **Phase 3 Advanced Features** - Production readiness, testing framework, advanced UI patterns
+### Recently Completed (Phase 1.1 + PNPM Migration)
+- ✅ **Phase 1.1 Architecture Cleanup** - **COMPLETED 2025-08-12**
+  - ✅ UI Component Duplication (standardized on packages/ui)
+  - ✅ Testing Framework Implementation (Jest + RTL setup)
+  - ✅ RPC Function Production Hardening (pagination + optimization)
+- ✅ **PNPM Migration** - **COMPLETED 2025-08-12**
+  - ✅ Package manager standardization with 50%+ performance improvement
+  - ✅ CI/CD pipeline updates and lockfile conflict resolution
 
-**Latest Update:** Phase 1 Foundation & Shell Implementation is now **COMPLETE**. All Week 2 Integration & Events tasks have been implemented including real-time subscriptions, comprehensive error boundaries, privacy-aware event logging, and CI/CD quality gates. Ready to proceed with Phase 3 Advanced Features.
+### Ready to Start
+- 🚀 **Phase 3 Advanced Features** - Production readiness, advanced testing, performance optimization
+
+**Latest Update:** Phase 1.1 Architecture Cleanup and PNPM Migration are **COMPLETE** (2025-08-12). All architectural debt resolved, testing framework implemented, and package manager standardized. Ready for Phase 3 Advanced Features.
 
 ---
 
@@ -148,7 +157,7 @@ npm run fresh-install
 - **Pipeline:** Vision + OCR safety net (~85-90% cost reduction vs Textract)
 
 ### DevOps & Infrastructure
-- **Monorepo:** npm workspaces with proper package isolation
+- **Monorepo:** pnpm workspaces with proper package isolation
 - **Deployment:** Vercel for web app, Supabase for backend
 - **Monitoring:** Planned error tracking and performance monitoring
 

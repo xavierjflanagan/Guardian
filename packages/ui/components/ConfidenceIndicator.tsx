@@ -346,5 +346,4 @@ export function ConfidenceComparison({
   );
 }
 
-// Export types
-export type { ConfidenceComparisonProps };
+// Types are already exported with their interface definitions above

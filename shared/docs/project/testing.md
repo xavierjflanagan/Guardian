@@ -53,5 +53,5 @@
 
 ## Execution
 
-- **Local Development:** Developers should run `npm run test` locally before pushing changes.
+- **Local Development:** Developers should run `pnpm --filter @guardian/web run test` locally before pushing changes.
 - **Continuous Integration (CI):** (Future) A GitHub Action will be configured to run all tests automatically on every push to the main branch. A pull request will not be mergeable unless all tests pass.

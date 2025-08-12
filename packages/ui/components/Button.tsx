@@ -190,11 +190,13 @@ export function ButtonGroup({
       ? `${isFirst ? 'rounded-l-md' : ''} ${isLast ? 'rounded-r-md' : ''} ${!isFirst && !isLast ? 'rounded-none' : ''}`
       : `${isFirst ? 'rounded-t-md' : ''} ${isLast ? 'rounded-b-md' : ''} ${!isFirst && !isLast ? 'rounded-none' : ''}`;
     
-    return React.cloneElement(child as React.ReactElement, {
-      size: child.props.size || size,
-      variant: child.props.variant || variant,
-      className: `${child.props.className || ''} ${roundedClasses} relative hover:z-10 focus:z-10`.trim()
-    });
+    const childElement = child as React.ReactElement<ButtonProps>;
+    const childProps = childElement.props;
+    return React.cloneElement(childElement, {
+      size: childProps.size || size,
+      variant: childProps.variant || variant,
+      className: `${childProps.className || ''} ${roundedClasses} relative hover:z-10 focus:z-10`.trim()
+    } as Partial<ButtonProps>);
   });
   
   return (
@@ -254,5 +256,4 @@ export function FloatingActionButton({
   );
 }
 
-// Export types for external use
-export type { ButtonProps, IconButtonProps, ButtonGroupProps, FABProps };
+// Types are already exported with their interface definitions above

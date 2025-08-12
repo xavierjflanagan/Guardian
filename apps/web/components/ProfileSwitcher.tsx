@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { ChevronDownIcon, PlusIcon, UserIcon } from '@heroicons/react/24/outline';
 import { useProfile } from '@/app/providers/ProfileProvider';
-import { Avatar } from '@/components/shared/Avatar';
-import { Dropdown, DropdownItem, DropdownDivider } from '@/components/shared/Dropdown';
+import { Avatar, Dropdown, DropdownItem, DropdownDivider } from '@guardian/ui';
 import { AddProfilePlaceholder } from '@/components/profile/AddProfilePlaceholder';
 
 export default function ProfileSwitcher() {

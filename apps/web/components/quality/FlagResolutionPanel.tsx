@@ -24,7 +24,6 @@ export default function FlagResolutionPanel({
   flag,
   onResolve,
   onClose,
-  isLoading = false,
   className = ''
 }: FlagResolutionPanelProps) {
   const [selectedAction, setSelectedAction] = useState<string>('');

@@ -1,9 +1,10 @@
 # Production Deployment Guide - Guardian
 
-**Purpose:** Guide for deploying Guardian to production using Vercel and Supabase.
-**Last updated:** July 2025
+**Purpose:** General deployment concepts and backend deployment guidance.  
+**Last updated:** August 2025
 **Audience:** Developers, DevOps, contributors
-**Prerequisites:** GitHub account, Vercel account, Supabase account
+
+**⚠️ For Vercel Web App Deployment:** See [Frontend Vercel Setup Guide](../../architecture/frontend/implementation/vercel-deployment-setup.md)
 
 ---
 
@@ -162,13 +163,16 @@ git push origin main
 ```
 
 #### 2.2 Vercel Configuration
-Create `vercel.json` in your project root:
+The monorepo includes a `vercel.json` configuration file in the root:
 ```json
 {
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
+  "framework": "nextjs", 
+  "buildCommand": "pnpm --filter @guardian/web run build",
+  "devCommand": "pnpm --filter @guardian/web run dev",
+  "installCommand": "pnpm install --frozen-lockfile --workspace-root",
+  "outputDirectory": "apps/web/.next",
+  "rootDirectory": "apps/web",
+  "nodeVersion": "18.x",
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
@@ -392,13 +396,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @guardian/web run build
+      - run: pnpm --filter @guardian/web run test
       - uses: amondnet/vercel-action@v20
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -422,8 +430,8 @@ jobs:
 # - Import path issues
 
 # Debug locally
-npm run build
-npm run start
+pnpm --filter @guardian/web run build
+pnpm --filter @guardian/web run start
 ```
 
 #### Database Connection Issues

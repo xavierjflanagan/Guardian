@@ -126,4 +126,57 @@ Appendix: Files explicitly reviewed
 - services/supabase: migrations/021_phase1_rpc_stubs.sql
 - Root/Tooling: .eslintrc.json, turbo.json, lighthouserc.js, .github/workflows/quality-gates.yml, package.json
 
+---
+
+## Additional Issues from Claude PR Review (2025-08-09)
+
+**Critical Issues (Must Fix)**
+
+13. **CI Workflow Workspace Name Mismatch (High Priority)**
+   - Finding: CI workflow uses `npm run -w apps/web <command>` but the workspace name is `@guardian/web` not `apps/web`
+   - Impact: CI fallback commands will fail when executed (lines 28, 31, 34, 61, 63 in quality-gates.yml)
+   - Recommendation: Update workspace references to match package.json names or adjust workspace structure
+
+**Medium Priority Issues**
+
+14. **Testing Framework Missing (High Priority for Healthcare App)**
+   - Finding: No testing framework configured despite placeholder test scripts in apps/web/package.json
+   - Impact: High-risk for healthcare application without comprehensive testing
+   - Recommendation: Add Jest + React Testing Library setup with healthcare-specific test patterns
+
+15. **Performance Scaling Concern**
+   - Finding: ProfileProvider's loadAllowedPatients may scale poorly with many patient IDs
+   - Impact: Realtime subscriptions could become inefficient with large patient lists
+   - Recommendation: Consider server-side fan-out for realtime subscriptions
+
+**Low Priority Issues**
+
+16. **Import Path Consistency Monitoring**
+   - Finding: Need to monitor for potential confused value/type imports as monorepo structure evolves
+   - Impact: Could lead to bundle bloat if types are imported as values
+   - Recommendation: Continue enforcing type-only imports during development
+
+17. **Event Logging Architecture Enhancement**
+   - Finding: Current client-side inserts to user_events rely on RLS policies
+   - Impact: Potential security risk for audit-critical events
+   - Recommendation: Consider Edge Functions for critical audit events vs client-side inserts
+
+**Updated Priority Order for Next Actions**
+
+**Before Next Commit (Critical)**
+1. Fix CI workspace name references in .github/workflows/quality-gates.yml
+2. Restore Supabase project directory at repo root (./supabase/) - **RESOLVED**
+3. Test CI pipeline end-to-end to ensure all steps complete successfully
+
+**Next PR (High Priority)**
+4. Add comprehensive testing framework (Jest + React Testing Library)
+5. Resolve UI component duplication (standardize on packages/ui)
+6. Replace RPC stubs with production implementations
+7. Fix remaining CI workflow issues (PII scan paths, bundle analyzer)
+
+**Future PRs (Medium Priority)**
+8. Performance optimization for realtime subscriptions
+9. Security hardening with Edge Functions for audit events
+10. Development workflow documentation
+
 

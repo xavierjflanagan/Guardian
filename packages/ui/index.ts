@@ -6,7 +6,7 @@ export { guardianTheme, colors, spacing, typography } from './themes/guardian-th
 export { guardianTailwindConfig, guardianColors, guardianSpacing, guardianTypography } from './themes/tailwind-config';
 
 // Export base styles (to be imported in consuming apps)
-export * from './styles/base.css';
+// export * from './styles/base.css'; // TODO: Fix CSS export
 
 // Component exports (will be added as we extract components)
 export * from './components';

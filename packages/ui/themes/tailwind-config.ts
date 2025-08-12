@@ -61,9 +61,9 @@ export const guardianTailwindConfig: Config = {
       
       // Typography - Inter font system
       fontFamily: {
-        sans: guardianTheme.typography.fontFamily.sans,
-        mono: guardianTheme.typography.fontFamily.mono,
-        medical: guardianTheme.typography.fontFamily.medical,
+        sans: guardianTheme.typography.fontFamily.sans as unknown as string[],
+        mono: guardianTheme.typography.fontFamily.mono as unknown as string[],
+        medical: guardianTheme.typography.fontFamily.medical as unknown as string[],
       },
       
       // Font sizes with line heights (cast to remove readonly)
