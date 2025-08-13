@@ -9,6 +9,11 @@ export interface BaseEventMetadata {
   category: string
   user_agent: string
   timestamp: string
+  // Server-side audit tracking
+  server_side_attempted?: boolean
+  fallback_reason?: string
+  integrity_verified?: boolean
+  audit_id?: string
 }
 
 export interface NavigationMetadata extends BaseEventMetadata {
@@ -63,6 +68,23 @@ export interface UserEvent {
 }
 
 export type EventCategory = 'navigation' | 'interaction' | 'data_access' | 'profile' | 'system'
+
+// Critical events that require server-side logging with integrity verification
+const CRITICAL_EVENTS = [
+  'data_access.document_view',
+  'data_access.document_download', 
+  'data_access.document_export',
+  'profile.switch',
+  'profile.access_granted',
+  'system.authentication_success',
+  'system.authentication_failure',
+  'data_access.medical_record_edit',
+  'interaction.consent_change',
+  'data_access.provider_access_grant',
+  'system.security_violation',
+  'system.unauthorized_access_attempt',
+  'navigation.restricted_area_access'
+];
 
 // Client-side rate limiting implementation
 class EventLogger {
@@ -120,6 +142,69 @@ function sanitizeMetadata(metadata: Partial<EventMetadata>): EventMetadata {
   return sanitized
 }
 
+// Server-side critical audit logging via Edge Function
+async function logCriticalAuditEvent(
+  category: EventCategory,
+  action: string,
+  currentProfile: { id: string; patient_id?: string },
+  metadata: Partial<EventMetadata>,
+  privacyLevel: 'public' | 'internal' | 'sensitive',
+  sessionId: string,
+  supabase: ReturnType<typeof createClient>
+): Promise<{ success: boolean; audit_id?: string; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('No valid session for critical audit logging');
+    }
+
+    const auditEvent = {
+      event_type: category,
+      action,
+      profile_id: currentProfile.id,
+      patient_id: currentProfile.patient_id,
+      metadata: sanitizeMetadata({
+        ...metadata,
+        category,
+        timestamp: new Date().toISOString()
+      }),
+      privacy_level: privacyLevel,
+      session_id: sessionId,
+      compliance_category: privacyLevel === 'sensitive' ? 'hipaa' : 'gdpr'
+    };
+
+    const response = await fetch('/api/v1/functions/audit-events', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(auditEvent)
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      // If server says to use client logging, that's not an error
+      if (result.should_use_client_logging) {
+        return { success: false, error: 'Not a critical event' };
+      }
+      throw new Error(result.error || 'Server-side audit logging failed');
+    }
+
+    return { 
+      success: true, 
+      audit_id: result.audit_id 
+    };
+  } catch (error) {
+    console.warn('Critical audit logging failed, will fallback to client-side:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
 export function useEventLogging() {
   const { currentProfile } = useProfile()
   const supabase = createClient()
@@ -149,14 +234,40 @@ export function useEventLogging() {
       return // Skip if rate limited
     }
 
+    const eventKey = `${category}.${action}`;
+    const isCriticalEvent = CRITICAL_EVENTS.includes(eventKey);
+
     try {
+      // For critical events, try server-side logging first
+      if (isCriticalEvent) {
+        const serverResult = await logCriticalAuditEvent(
+          category, action, currentProfile, metadata, privacyLevel, getSessionId(), supabase
+        );
+        
+        if (serverResult.success) {
+          console.log(`Critical audit event logged server-side: ${eventKey}`, serverResult.audit_id);
+          return; // Success - no need for client-side fallback
+        }
+        
+        // If not actually a critical event (server decision), fall through to client logging
+        if (serverResult.error === 'Not a critical event') {
+          console.log(`Event ${eventKey} classified as non-critical by server, using client logging`);
+        } else {
+          console.warn(`Server-side critical audit failed: ${serverResult.error}, falling back to client`);
+        }
+      }
+
+      // Client-side logging (fallback for critical events, primary for non-critical)
       const event: UserEvent = {
-        action: `${category}.${action}`,
+        action: eventKey,
         metadata: sanitizeMetadata({
           ...metadata,
           category,
           user_agent: navigator.userAgent.substring(0, 100), // Truncated for privacy
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          // Mark if this was a fallback from server-side logging
+          server_side_attempted: isCriticalEvent,
+          fallback_reason: isCriticalEvent ? 'Server-side audit unavailable' : undefined
         }),
         profile_id: currentProfile.id,
         session_id: getSessionId(),
