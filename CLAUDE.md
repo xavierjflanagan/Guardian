@@ -37,6 +37,8 @@ Jest + React Testing Library configured with healthcare-specific patterns:
 - Console warning suppression for rate limiting
 - Healthcare-compliant error boundary testing
 - Profile and patient ID isolation testing
+- Row Level Security (RLS) policy testing framework
+- Security testing procedures for healthcare compliance
 
 ## Architecture Overview
 
@@ -188,6 +190,18 @@ The core infrastructure is complete and production-ready:
 - ✅ User interface polished and responsive
 - ✅ AI/OCR integration complete - **POC ready for testing**
 - ✅ Phase 0 Critical Fixes implemented (ID semantics, ProfileProvider, missing tables)
+- ✅ Phase 3.1 Performance Optimization complete (production deployment ready)
+- 🚧 Phase 3.2 Security Hardening in progress (documentation complete, domain setup needed)
+
+### Security Infrastructure
+
+Comprehensive security framework established (Phase 3.2):
+- **Security Documentation:** Complete security checklist and procedures
+- **Compliance Framework:** Australian Privacy Act + HIPAA readiness documentation
+- **Testing Framework:** RLS policy testing and security validation procedures
+- **Incident Response:** Complete breach response and notification procedures
+- **Edge Functions:** Server-side audit logging for critical UI events (implemented)
+- **BLOCKING:** Custom domain setup required for CORS/CSP security implementation
 
 ### Document Processing Pipeline
 

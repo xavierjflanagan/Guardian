@@ -88,16 +88,25 @@ Following issues from [Post-Build-Fix-Follow-Up-Issues.md](./Post-Build-Fix-Foll
 
 **Task 3.1 Status: ✅ PRODUCTION-READY** - All critical performance optimizations complete, ready for Phase 3.2
 
-#### **🔜 Task 3.2: Security Hardening** (NEXT PRIORITY - Ready to Start)
-- [ ] Edge Functions for critical audit events (vs client-side logging)
-- [ ] Advanced RLS policy optimization and testing
-- [ ] PII detection and prevention automation
-- [ ] HIPAA compliance validation and documentation
-- [ ] Penetration testing preparation and security audit
+#### **🚧 Task 3.2: Security Hardening** (IN PROGRESS - 2025-08-13)
+- [x] ✅ **Security documentation structure created** - Comprehensive security framework established
+- [x] ✅ **Compliance documentation framework** - Australian Privacy Act + HIPAA readiness documented
+- [x] ✅ **Security testing framework** - RLS testing plan and procedures established
+- [x] ✅ **Incident response procedures** - Complete breach response plan documented
+- [ ] **🔴 BLOCKING: Custom domain setup** - Required for CORS/CSP implementation
+- [ ] **CORS hardening** - Fix wildcard origin security vulnerability
+- [ ] **Security headers implementation** - CSP, X-Frame-Options, HSTS
+- [ ] **Edge Functions for UI-only critical audit events** - Refine existing implementation
+- [ ] **Input validation with Zod schemas** - All API routes protected
+- [ ] **RLS policy testing and optimization** - Comprehensive database security validation
+- [ ] **PII detection automation** - Automated sensitive data protection
+- [ ] **Security monitoring setup** - Real-time threat detection
 
 **Prerequisites:** ✅ Task 3.1 Performance Optimization complete
-**Estimated Duration:** 5-7 days
-**Dependencies:** Current authentication system, RLS policies, edge functions infrastructure
+**Current Status:** 📋 **Documentation Phase Complete** - Ready for domain setup and implementation
+**Estimated Duration:** 1-2 weeks (revised from 5-7 days)
+**Dependencies:** Custom domain registration (BLOCKING), authentication system, RLS policies
+**Next Step:** Domain registration and Vercel configuration
 
 #### **Task 3.3: Testing Framework Foundation** (Build on Completed Infrastructure)
 - [x] ✅ Jest + React Testing Library setup (COMPLETED)
