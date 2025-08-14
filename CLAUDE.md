@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Guardian is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, and TypeScript.
+**Guardian** (by Exora Health Pty Ltd) is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, and TypeScript.
+
+**Company:** Exora Health Pty Ltd (Australian company, ACN pending)  
+**Primary Domain:** exorahealth.com.au  
+**Status:** Production-ready, business infrastructure established
 
 ## Development Commands
 
@@ -191,7 +195,7 @@ The core infrastructure is complete and production-ready:
 - ✅ AI/OCR integration complete - **POC ready for testing**
 - ✅ Phase 0 Critical Fixes implemented (ID semantics, ProfileProvider, missing tables)
 - ✅ Phase 3.1 Performance Optimization complete (production deployment ready)
-- 🚧 Phase 3.2 Security Hardening in progress (documentation complete, domain setup needed)
+- 🚧 Phase 3.2 Security Hardening in progress (documentation complete, domain acquired, configuration pending)
 
 ### Security Infrastructure
 
@@ -201,7 +205,8 @@ Comprehensive security framework established (Phase 3.2):
 - **Testing Framework:** RLS policy testing and security validation procedures
 - **Incident Response:** Complete breach response and notification procedures
 - **Edge Functions:** Server-side audit logging for critical UI events (implemented)
-- **BLOCKING:** Custom domain setup required for CORS/CSP security implementation
+- **Domain Acquired:** exorahealth.com.au selected as primary (transfer to company pending)
+- **BLOCKING:** Domain configuration in Vercel required for CORS/CSP security implementation
 
 ### Document Processing Pipeline
 
