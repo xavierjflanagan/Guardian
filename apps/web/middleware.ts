@@ -2,6 +2,14 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Check for maintenance mode first
+  if (process.env.MAINTENANCE_MODE === 'true') {
+    // Allow access to the maintenance page itself
+    if (!request.nextUrl.pathname.startsWith('/maintenance')) {
+      return NextResponse.redirect(new URL('/maintenance', request.url));
+    }
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -114,6 +122,13 @@ export async function middleware(request: NextRequest) {
     }
     response.headers.set(key, value);
   });
+
+  // CRITICAL: Remove any platform-injected CORS headers from HTML pages
+  // Pages should NOT have CORS headers - only API endpoints should
+  if (!isApiRoute) {
+    response.headers.delete('access-control-allow-origin');
+    response.headers.delete('Access-Control-Allow-Origin');
+  }
 
   return response
 }
