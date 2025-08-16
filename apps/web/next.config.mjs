@@ -48,8 +48,7 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
-          // ACAO removed - pages should not have CORS headers at all
-          // Empty string override is unconventional and may cause proxy issues
+          // Pages should NOT have CORS headers - only API endpoints
           // HSTS without preload (as per GPT-5 recommendation)
           {
             key: 'Strict-Transport-Security',
