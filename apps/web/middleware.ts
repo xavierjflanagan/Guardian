@@ -57,6 +57,58 @@ export async function middleware(request: NextRequest) {
   // IMPORTANT: The `auth.getUser()` method must be called to refresh the session cookie.
   await supabase.auth.getUser()
 
+  // Generate nonce for CSP
+  const nonce = crypto.randomUUID();
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Add security headers for healthcare application protection
+  const securityHeaders = {
+    // HSTS - Force HTTPS (explicit setting)
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    
+    // Prevent iframe embedding (clickjacking protection)
+    'X-Frame-Options': 'DENY',
+    
+    // Prevent MIME type sniffing
+    'X-Content-Type-Options': 'nosniff',
+    
+    // Control referrer information
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    
+    // Restrict dangerous browser features
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    
+    // Cross-Origin policies for additional security
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    
+    // Content Security Policy (production vs development)
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      isProduction 
+        ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co`
+        : `script-src 'self' 'unsafe-eval' 'nonce-${nonce}' https://*.supabase.co https://vercel.live`,
+      `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`, 
+      "img-src 'self' data: blob: https://*.supabase.co",
+      "font-src 'self'",
+      isProduction
+        ? "connect-src 'self' https://*.supabase.co wss://*.supabase.co"
+        : "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "upgrade-insecure-requests"
+    ].join('; ')
+  };
+
+  // Store nonce for use in pages (if needed)
+  response.headers.set('x-nonce', nonce);
+
+  // Apply security headers to response
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+
   return response
 }
 
