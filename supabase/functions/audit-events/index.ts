@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 // Initialize Supabase client with service role for privileged operations
 const supabase = createClient(
@@ -98,10 +98,16 @@ function requiresServerSideLogging(eventType: string, action: string): boolean {
  * for critical healthcare compliance events
  */
 Deno.serve(async (req: Request) => {
+  // Get secure CORS headers based on origin
+  const origin = req.headers.get('origin');
+  
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    const corsHeaders = getCorsHeaders(origin, true); // true = preflight
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
+  
+  const corsHeaders = getCorsHeaders(origin);
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ 

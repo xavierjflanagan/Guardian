@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -28,10 +28,16 @@ console.log('🔑 Document processor (simplified) initialized successfully');
  * Heavy processing (OCR, Vision AI, Quality checks) handled by Render workers
  */
 Deno.serve(async (req: Request) => {
+  // Get secure CORS headers based on origin
+  const origin = req.headers.get('origin');
+  
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    const corsHeaders = getCorsHeaders(origin, true); // true = preflight
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
+  
+  const corsHeaders = getCorsHeaders(origin);
 
   try {
     // 1. Extract file path from the request body
