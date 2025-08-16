@@ -13,9 +13,7 @@ export async function middleware(request: NextRequest) {
     // Rewrite everything else to static maintenance page
     const maintenanceResponse = NextResponse.rewrite(new URL('/_maintenance.html', request.url));
     
-    // Remove CORS headers from maintenance page response
-    maintenanceResponse.headers.delete('access-control-allow-origin');
-    maintenanceResponse.headers.delete('Access-Control-Allow-Origin');
+    // Note: CORS headers are platform-level, can't be removed in middleware
     
     // Add security headers to maintenance page
     maintenanceResponse.headers.set('X-Frame-Options', 'DENY');
@@ -139,14 +137,7 @@ export async function middleware(request: NextRequest) {
     response.headers.set(key, value);
   });
 
-  // CRITICAL: Remove any platform-injected CORS headers from HTML pages
-  // Pages should NOT have CORS headers - only API endpoints should
-  if (!isApiRoute) {
-    response.headers.delete('access-control-allow-origin');
-    response.headers.delete('Access-Control-Allow-Origin');
-    // Add debug header to confirm middleware ran
-    response.headers.set('x-middleware-cors-removed', 'true');
-  }
+  // Note: CORS headers handled at platform level, not in middleware
 
   return response
 }
