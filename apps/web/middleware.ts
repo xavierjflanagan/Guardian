@@ -2,12 +2,16 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Check for maintenance mode first
+  // Check for maintenance mode first - skip all other middleware if active
   if (process.env.MAINTENANCE_MODE === 'true') {
-    // Allow access to the maintenance page itself
-    if (!request.nextUrl.pathname.startsWith('/maintenance')) {
-      return NextResponse.redirect(new URL('/maintenance', request.url));
+    // Allow access to the maintenance page itself and static assets
+    if (request.nextUrl.pathname.startsWith('/maintenance') || 
+        request.nextUrl.pathname.startsWith('/_next/') ||
+        request.nextUrl.pathname.startsWith('/favicon.ico')) {
+      return NextResponse.next();
     }
+    // Redirect everything else to maintenance
+    return NextResponse.redirect(new URL('/maintenance', request.url));
   }
 
   let response = NextResponse.next({
