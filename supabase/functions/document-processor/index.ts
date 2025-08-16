@@ -33,7 +33,8 @@ Deno.serve(async (req: Request) => {
   
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    const corsHeaders = getCorsHeaders(origin, true); // true = preflight
+    const requestHeaders = req.headers.get('access-control-request-headers');
+    const corsHeaders = getCorsHeaders(origin, true, requestHeaders); // true = preflight
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   
@@ -52,7 +53,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`📥 Processing request for document: ${filePath}`);
+    console.log(`Processing request for document: ${filePath}`);
 
     // 2. Update the document status to 'processing'
     const { data: document, error: docError } = await supabase

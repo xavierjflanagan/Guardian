@@ -63,8 +63,8 @@ export async function middleware(request: NextRequest) {
   
   // Add security headers for healthcare application protection
   const securityHeaders = {
-    // HSTS - Force HTTPS (explicit setting)
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    // HSTS - Force HTTPS (without preload until domain ready)
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     
     // Prevent iframe embedding (clickjacking protection)
     'X-Frame-Options': 'DENY',
@@ -78,9 +78,9 @@ export async function middleware(request: NextRequest) {
     // Restrict dangerous browser features
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     
-    // Cross-Origin policies for additional security
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'require-corp',
+    // Cross-Origin policies - disabled until auth flows validated
+    // 'Cross-Origin-Opener-Policy': 'same-origin',
+    // 'Cross-Origin-Embedder-Policy': 'require-corp',
     
     // Content Security Policy (production vs development)
     'Content-Security-Policy': [

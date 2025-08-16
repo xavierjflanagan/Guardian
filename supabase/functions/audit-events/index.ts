@@ -103,7 +103,8 @@ Deno.serve(async (req: Request) => {
   
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    const corsHeaders = getCorsHeaders(origin, true); // true = preflight
+    const requestHeaders = req.headers.get('access-control-request-headers');
+    const corsHeaders = getCorsHeaders(origin, true, requestHeaders); // true = preflight
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   
