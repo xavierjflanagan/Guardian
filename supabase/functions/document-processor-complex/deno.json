@@ -1,8 +1,5 @@
 {
-  "imports": {
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
-    "openai": "https://esm.sh/openai@4.24.1"
-  },
+  "importMap": "./import_map.json",
   "compilerOptions": {
     "lib": ["deno.ns", "dom"],
     "allowJs": true,

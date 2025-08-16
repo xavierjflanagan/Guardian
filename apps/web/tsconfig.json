@@ -3,7 +3,8 @@
     "target": "ES2017",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@guardian/utils": ["../../packages/utils"]
     },
     "lib": [
       "dom",

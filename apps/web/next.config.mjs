@@ -59,24 +59,9 @@ const nextConfig = {
           // Duplicate CSP headers cause browser intersection and can break scripts
         ],
       },
-      // API routes - allow specific CORS for Edge Functions only
-      {
-        source: '/api/(.*)',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-          {
-            key: 'Access-Control-Allow-Headers', 
-            value: 'authorization, x-client-info, apikey, content-type',
-          },
-          {
-            key: 'Vary',
-            value: 'Origin',
-          },
-        ],
-      },
+      // API routes - CORS headers removed and handled dynamically in each route
+      // Static headers can't echo Access-Control-Request-Headers dynamically
+      // Each API route now handles its own CORS with proper preflight support
     ];
   },
 };
