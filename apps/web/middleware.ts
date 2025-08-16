@@ -3,9 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   // Check for maintenance mode first - skip all other middleware if active
-  // Debug: Force maintenance mode for now
-  const maintenanceMode = process.env.MAINTENANCE_MODE === 'true' || process.env.NODE_ENV === 'production';
-  if (maintenanceMode) {
+  if (process.env.MAINTENANCE_MODE === 'true') {
     // Allow static assets and the maintenance file itself
     if (request.nextUrl.pathname.startsWith('/_next/') ||
         request.nextUrl.pathname.startsWith('/favicon.ico') ||
@@ -13,7 +11,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
     // Rewrite everything else to static maintenance page
-    return NextResponse.rewrite(new URL('/_maintenance.html', request.url));
+    const maintenanceResponse = NextResponse.rewrite(new URL('/_maintenance.html', request.url));
+    
+    // Remove CORS headers from maintenance page response
+    maintenanceResponse.headers.delete('access-control-allow-origin');
+    maintenanceResponse.headers.delete('Access-Control-Allow-Origin');
+    
+    // Add security headers to maintenance page
+    maintenanceResponse.headers.set('X-Frame-Options', 'DENY');
+    maintenanceResponse.headers.set('X-Content-Type-Options', 'nosniff');
+    maintenanceResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    maintenanceResponse.headers.set('x-maintenance-mode', 'active');
+    
+    return maintenanceResponse;
   }
 
   let response = NextResponse.next({
