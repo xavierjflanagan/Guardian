@@ -2,8 +2,10 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Check for maintenance mode first - skip all other middleware if active
-  if (process.env.MAINTENANCE_MODE === 'true') {
+  // Check for maintenance mode first - skip all other middleware if active  
+  // TEMP: Force maintenance mode to debug env var issue
+  const isMaintenanceMode = process.env.MAINTENANCE_MODE === 'true' || process.env.NODE_ENV === 'production';
+  if (isMaintenanceMode) {
     // Allow static assets and the maintenance file itself
     if (request.nextUrl.pathname.startsWith('/_next/') ||
         request.nextUrl.pathname.startsWith('/favicon.ico') ||
