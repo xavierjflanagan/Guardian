@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   // Check for maintenance mode first - skip all other middleware if active
-  if (process.env.MAINTENANCE_MODE === 'true') {
+  // Debug: Force maintenance mode for now
+  const maintenanceMode = process.env.MAINTENANCE_MODE === 'true' || process.env.NODE_ENV === 'production';
+  if (maintenanceMode) {
     // Allow static assets and the maintenance file itself
     if (request.nextUrl.pathname.startsWith('/_next/') ||
         request.nextUrl.pathname.startsWith('/favicon.ico') ||
@@ -132,6 +134,8 @@ export async function middleware(request: NextRequest) {
   if (!isApiRoute) {
     response.headers.delete('access-control-allow-origin');
     response.headers.delete('Access-Control-Allow-Origin');
+    // Add debug header to confirm middleware ran
+    response.headers.set('x-middleware-cors-removed', 'true');
   }
 
   return response
