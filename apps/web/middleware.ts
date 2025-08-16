@@ -4,14 +4,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   // Check for maintenance mode first - skip all other middleware if active
   if (process.env.MAINTENANCE_MODE === 'true') {
-    // Allow access to the maintenance page itself and static assets
-    if (request.nextUrl.pathname.startsWith('/maintenance') || 
-        request.nextUrl.pathname.startsWith('/_next/') ||
-        request.nextUrl.pathname.startsWith('/favicon.ico')) {
+    // Allow static assets and the maintenance file itself
+    if (request.nextUrl.pathname.startsWith('/_next/') ||
+        request.nextUrl.pathname.startsWith('/favicon.ico') ||
+        request.nextUrl.pathname === '/_maintenance.html') {
       return NextResponse.next();
     }
-    // Redirect everything else to maintenance
-    return NextResponse.redirect(new URL('/maintenance', request.url));
+    // Rewrite everything else to static maintenance page
+    return NextResponse.rewrite(new URL('/_maintenance.html', request.url));
   }
 
   let response = NextResponse.next({
@@ -94,8 +94,8 @@ export async function middleware(request: NextRequest) {
     // 'Cross-Origin-Opener-Policy': 'same-origin',
     // 'Cross-Origin-Embedder-Policy': 'require-corp',
     
-    // Content Security Policy (production vs development)
-    'Content-Security-Policy': [
+    // Content Security Policy (Report-Only during testing)
+    'Content-Security-Policy-Report-Only': [
       "default-src 'self'",
       isProduction 
         ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co`
