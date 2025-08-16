@@ -33,11 +33,11 @@ for (const [name, value] of Object.entries(requiredEnvVars)) {
   }
 }
 
-console.log('🔑 Environment validation passed - all required API keys configured');
+console.log('Environment validation passed - all required API keys configured');
 
 // Google Cloud Vision OCR integration
 async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{ extractedText: string; confidence: number | null }> {
-  console.log('🔍 Starting Google Cloud Vision OCR processing...');
+  console.log('Starting Google Cloud Vision OCR processing...');
   
   try {
     // Convert buffer to base64
@@ -105,7 +105,7 @@ async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{
     const averageConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : null;
     
     const confidenceText = averageConfidence !== null ? `${averageConfidence.toFixed(1)}% confidence` : 'no confidence provided';
-    console.log(`✅ Google Vision OCR completed: ${extractedText.length} characters, ${confidenceText}`);
+    console.log(`Google Vision OCR completed: ${extractedText.length} characters, ${confidenceText}`);
     
     return {
       extractedText: extractedText.trim(),
@@ -113,7 +113,7 @@ async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{
     };
     
   } catch (error) {
-    console.error('❌ Google Vision OCR error:', error);
+    console.error('Google Vision OCR error:', error);
     throw error;
   }
 }
@@ -124,7 +124,7 @@ async function analyzeWithGPT4oMiniVision(
   ocrText: string, 
   filename: string
 ): Promise<{ medicalData: any; confidence: number | null }> {
-  console.log('🧠 Starting GPT-4o Mini vision analysis with OCR cross-validation...');
+  console.log('Starting GPT-4o Mini vision analysis with OCR cross-validation...');
   
   try {
     // Convert buffer to base64 for vision analysis
@@ -220,7 +220,7 @@ VALIDATION RULES:
     const confidence = medicalData.confidence?.overall || null;
     
     const confText = confidence !== null ? `${(confidence * 100).toFixed(1)}% confidence` : 'no confidence provided';
-    console.log(`✅ GPT-4o Mini analysis completed with ${confText}`);
+    console.log(`GPT-4o Mini analysis completed with ${confText}`);
     
     return {
       medicalData,
@@ -228,7 +228,7 @@ VALIDATION RULES:
     };
     
   } catch (error) {
-    console.error('❌ GPT-4o Mini vision analysis error:', error);
+    console.error('GPT-4o Mini vision analysis error:', error);
     throw error;
   }
 }
@@ -262,7 +262,7 @@ async function performQualityChecks(
   shouldBlock: boolean;
   flagIds: string[];
 }> {
-  console.log('🛡️ Starting data quality validation...');
+  console.log('Starting data quality validation...');
   
   try {
     // Get profile information for quality checking
@@ -303,15 +303,15 @@ async function performQualityChecks(
     }
     
     if (flags.length > 0) {
-      console.log(`🚩 Quality validation completed: ${flags.length} flags created (${criticalFlags.length} critical)`);
+      console.log(`Quality validation completed: ${flags.length} flags created (${criticalFlags.length} critical)`);
     } else {
-      console.log('✅ Quality validation passed: no issues detected');
+      console.log('Quality validation passed: no issues detected');
     }
     
     return { flags, shouldBlock, flagIds };
     
   } catch (error) {
-    console.error('❌ Quality validation error:', error);
+    console.error('Quality validation error:', error);
     // Don't block processing on quality check errors
     return { flags: [], shouldBlock: false, flagIds: [] };
   }
@@ -449,7 +449,7 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
   ocrConfidence: number | null;
   visionConfidence: number | null;
 }> {
-  console.log('🔍 Starting Vision + OCR Safety Net pipeline...');
+  console.log('Starting Vision + OCR Safety Net pipeline...');
   
   // Validate file format
   if (!validateFileFormat(documentBuffer, filePath)) {
@@ -463,11 +463,11 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
   
   try {
     // Step 1: Google Cloud Vision OCR (safety net)
-    console.log('📝 Step 1: Extracting text with Google Cloud Vision OCR...');
+    console.log('Step 1: Extracting text with Google Cloud Vision OCR...');
     const { extractedText, confidence: ocrConfidence } = await extractWithGoogleVisionOCR(documentBuffer);
     
     // Step 2: GPT-4o Mini Vision Analysis with OCR cross-validation
-    console.log('🧠 Step 2: Analyzing document with GPT-4o Mini Vision...');
+    console.log('Step 2: Analyzing document with GPT-4o Mini Vision...');
     const { medicalData, confidence: visionConfidence } = await analyzeWithGPT4oMiniVision(
       documentBuffer, 
       extractedText, 
@@ -494,10 +494,10 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
       throw new Error(`Combined confidence too low: ${overallConfidence.toFixed(1)}% (minimum 80% required for medical documents)`);
     }
     
-    console.log(`🎉 Vision + OCR pipeline completed successfully!`);
-    console.log(`   📊 OCR confidence: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
-    console.log(`   👁️  Vision confidence: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
-    console.log(`   ✅ Overall confidence: ${overallConfidence !== null ? overallConfidence.toFixed(1) + '%' : 'not available'}`);
+    console.log(`Vision + OCR pipeline completed successfully!`);
+    console.log(`   OCR confidence: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
+    console.log(`   Vision confidence: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
+    console.log(`   Overall confidence: ${overallConfidence !== null ? overallConfidence.toFixed(1) + '%' : 'not available'}`);
     
     return {
       extractedText,
@@ -508,7 +508,7 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
     };
     
   } catch (error) {
-    console.error('❌ Vision + OCR pipeline error:', error);
+    console.error('Vision + OCR pipeline error:', error);
     throw error;
   }
 }
@@ -519,7 +519,8 @@ Deno.serve(async (req: Request) => {
   
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
-    const corsHeaders = getCorsHeaders(origin, true); // true = preflight
+    const requestHeaders = req.headers.get('access-control-request-headers');
+    const corsHeaders = getCorsHeaders(origin, true, requestHeaders); // true = preflight
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   
@@ -584,7 +585,7 @@ Deno.serve(async (req: Request) => {
         visionConfidence
       } = await processWithVisionPlusOCR(uint8Array, filePath);
       
-      console.log(`✅ Processing completed with ${confidence?.toFixed(1) || 'N/A'}% overall confidence`);
+      console.log(`Processing completed with ${confidence?.toFixed(1) || 'N/A'}% overall confidence`);
 
       // Perform quality validation checks
       const { flags, shouldBlock, flagIds } = await performQualityChecks(medicalData, data.id, data);
@@ -593,10 +594,10 @@ Deno.serve(async (req: Request) => {
       let finalStatus = 'completed';
       if (shouldBlock) {
         finalStatus = 'flagged_critical';
-        console.log('🚫 Document processing blocked due to critical quality issues');
+        console.log('Document processing blocked due to critical quality issues');
       } else if (flags.length > 0) {
         finalStatus = 'flagged_review';
-        console.log(`⚠️ Document completed with ${flags.length} quality flags for review`);
+        console.log(`Document completed with ${flags.length} quality flags for review`);
       }
 
       // Update document with results (mapped to canonical schema fields)
@@ -618,10 +619,10 @@ Deno.serve(async (req: Request) => {
         throw new Error(`Database update failed: ${updateError.message}`);
       }
 
-      console.log(`🎉 Processing completed for document: ${filePath}`);
-      console.log(`   📊 OCR: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
-      console.log(`   👁️  Vision: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
-      console.log(`   ✅ Overall: ${confidence !== null ? confidence.toFixed(1) + '%' : 'not available'}`);
+      console.log(`Processing completed for document: ${filePath}`);
+      console.log(`   OCR: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
+      console.log(`   Vision: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
+      console.log(`   Overall: ${confidence !== null ? confidence.toFixed(1) + '%' : 'not available'}`);
 
       return new Response(JSON.stringify({ 
         success: true, 
