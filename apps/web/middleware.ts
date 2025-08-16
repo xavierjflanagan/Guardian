@@ -104,8 +104,14 @@ export async function middleware(request: NextRequest) {
   // Store nonce for use in pages (if needed)
   response.headers.set('x-nonce', nonce);
 
-  // Apply security headers to response
+  // Apply security headers to response (exclude some headers for API routes)
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
+  
   Object.entries(securityHeaders).forEach(([key, value]) => {
+    // Don't add Content-Security-Policy to API routes - they need to handle their own CORS
+    if (isApiRoute && key === 'Content-Security-Policy') {
+      return;
+    }
     response.headers.set(key, value);
   });
 

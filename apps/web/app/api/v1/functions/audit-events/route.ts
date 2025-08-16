@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validateInputWithSize, AuditEventSchema, type ValidationFailure } from '@guardian/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,8 +12,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract the body
-    const body = await request.json();
+    // Extract and validate the body with size checking
+    const rawBody = await request.json();
+    
+    // Validate the input against audit event schema with request size checking
+    const validation = validateInputWithSize(AuditEventSchema, rawBody, request, {
+      maxSize: 1024 * 50, // 50KB limit for audit events
+    });
+    
+    if (!validation.success) {
+      // TypeScript knows this is ValidationFailure due to discriminated union
+      const failure = validation as ValidationFailure;
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: failure.error,
+          details: failure.details
+        },
+        { status: failure.status }
+      );
+    }
+    
+    const body = validation.data;
 
     // Get the Supabase URL and key for the Edge Function call
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

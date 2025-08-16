@@ -9,16 +9,22 @@ const ALLOWED_ORIGINS = Deno.env.get('CORS_ALLOWED_ORIGINS')?.split(',').map(ori
 ];
 
 export function getCorsHeaders(origin: string | null, isPreflightRequest: boolean = false, requestHeaders?: string | null) {
+  // Base headers for all CORS responses
   const baseHeaders = {
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Vary': 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers'
   };
 
-  // On preflight, dynamically echo requested headers if provided
+  // For preflight requests, dynamically echo requested headers
   if (isPreflightRequest && requestHeaders) {
     baseHeaders['Access-Control-Allow-Headers'] = requestHeaders;
+  } else {
+    // Fallback to essential headers for non-preflight or when request headers not specified
+    baseHeaders['Access-Control-Allow-Headers'] = 'authorization, x-client-info, apikey, content-type, x-forwarded-for';
   }
+
+  // Add exposed headers for clients that need to read custom response headers
+  baseHeaders['Access-Control-Expose-Headers'] = 'x-ratelimit-remaining, x-ratelimit-reset, x-request-id';
 
   // Add preflight-specific headers
   if (isPreflightRequest) {

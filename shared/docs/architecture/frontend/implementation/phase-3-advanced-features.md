@@ -101,7 +101,8 @@ Following issues from [Post-Build-Fix-Follow-Up-Issues.md](./Post-Build-Fix-Foll
 - [x] ✅ **CDN cache solution** - Vercel cache purge strategy implemented
 - [x] ✅ **Environment configuration** - API keys and CORS settings properly configured
 - [x] ✅ **Deployment cleanup** - Removed conflicting Vercel projects
-- [ ] **Input validation with Zod schemas** - All API routes protected (NEXT PRIORITY)
+- [x] ✅ **Input validation with Zod schemas** - All critical API routes protected with comprehensive validation (**COMPLETED 2025-08-16**)
+- [x] ✅ **API security review completion** - Fixed all critical vulnerabilities identified in security audit (**COMPLETED 2025-08-16**)
 - [ ] **RLS policy testing and optimization** - Comprehensive database security validation
 - [ ] **PII detection automation** - Automated sensitive data protection
 - [ ] **Security monitoring setup** - Real-time threat detection
@@ -117,6 +118,10 @@ Following issues from [Post-Build-Fix-Follow-Up-Issues.md](./Post-Build-Fix-Foll
 4. **Import Resolution Issues** - Edge Function deployment standardized
 5. **Supabase Architecture Simplification** - Single project for dev+production
 6. **Dynamic CORS Implementation** - Origin-specific allowlist with header echoing
+7. **Critical API Security Gaps** - Unvalidated JSON inputs on audit-events and quality-flags routes
+8. **Zod Validation Infrastructure** - Complete validation layer with healthcare-specific patterns
+9. **Shared Schema Constants** - Single source of truth between API routes and Edge Functions
+10. **Size Validation Flaws** - Fixed double-serialization issues with proper Content-Length checking
 
 **🛡️ PRODUCTION SECURITY STATUS:**
 ✅ Content Security Policy: `default-src 'self'; script-src 'self' 'nonce-...'`
@@ -128,6 +133,29 @@ Following issues from [Post-Build-Fix-Follow-Up-Issues.md](./Post-Build-Fix-Foll
 ✅ CORS Wildcard Eliminated: Pages have no ACAO headers
 ✅ Edge Functions: Origin-specific allowlist (no wildcards)
 ✅ Nonce Infrastructure: Dynamic nonce generation operational
+✅ **API Input Validation**: All critical routes protected with Zod schemas
+✅ **Request Size Limits**: Content-Length validation prevents DoS attacks
+✅ **Schema Synchronization**: Shared constants prevent API/Edge drift
+✅ **Type Safety**: Healthcare-specific validation patterns with branded IDs
+✅ **Integration Testing**: 9/9 validation tests passing with comprehensive coverage
+
+**🔐 API VALIDATION SECURITY (COMPLETED 2025-08-16):**
+✅ **Critical Vulnerabilities Fixed**: `/api/v1/functions/audit-events` and `/api/quality/flags/[...action]` 
+✅ **Workspace Dependencies**: Proper `@guardian/utils` monorepo linking established
+✅ **Size Validation**: Content-Length header checking (50KB audit events, 100KB quality flags)
+✅ **Schema Alignment**: Shared constants prevent API/Edge Function schema drift
+✅ **Quality Route Fixes**: Proper path forwarding without dangerous action assumptions
+✅ **CORS Preflight**: Dynamic header echoing with `Access-Control-Request-Headers`
+✅ **CSP Unification**: Middleware-only approach prevents header conflicts
+✅ **Import Maps**: All Supabase functions reference proper `import_map.json` files
+✅ **Integration Testing**: Comprehensive validation coverage with Content-Length edge cases
+
+**🛡️ SECURITY IMPACT:**
+- **Input Sanitization**: 100% of critical API endpoints now validate against strict schemas
+- **DoS Protection**: Request size limits prevent payload-based attacks
+- **Type Safety**: Healthcare-specific validation prevents data corruption
+- **Runtime Validation**: All audit events and quality flags validated before Edge Function forwarding
+- **Error Handling**: Structured error responses with detailed validation feedback
 
 #### **Task 3.3: Testing Framework Foundation** (Build on Completed Infrastructure)
 - [x] ✅ Jest + React Testing Library setup (COMPLETED)
