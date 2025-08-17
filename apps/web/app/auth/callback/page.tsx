@@ -15,8 +15,8 @@ export default function AuthCallbackPage() {
     const run = async () => {
       try {
         // Let the client library detect the PKCE params in the URL and exchange for a session
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        const { error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
         // The PKCE exchange is performed automatically by @supabase/ssr createBrowserClient
         // when detectSessionInUrl is true (configured in supabaseClientSSR.ts).
@@ -45,9 +45,10 @@ export default function AuthCallbackPage() {
           setError("Authentication failed. Please request a new magic link and try again.");
           setMessage("");
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (isMounted) {
-          setError(e?.message || "Authentication error");
+          const msg = e instanceof Error ? e.message : "Authentication error";
+          setError(msg);
           setMessage("");
         }
       }
