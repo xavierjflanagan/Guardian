@@ -6,6 +6,14 @@ export async function middleware(request: NextRequest) {
   const sitePassword = process.env.SITE_PASSWORD;
   const isPasswordProtected = !!sitePassword;
   
+  // If Supabase redirected to the site root with a PKCE code, forward to the callback page
+  if (request.nextUrl.searchParams.has('code') && !request.nextUrl.pathname.startsWith('/auth/')) {
+    const forwardUrl = new URL('/auth/callback', request.url);
+    // Preserve query string (includes `code` and others)
+    forwardUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(forwardUrl);
+  }
+  
   if (isPasswordProtected) {
     // Allow access to auth callbacks, login page and static assets
     if (request.nextUrl.pathname === '/site-login' ||
