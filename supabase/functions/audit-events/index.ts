@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
 // Initialize Supabase client with service role for privileged operations

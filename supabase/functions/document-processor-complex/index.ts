@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import OpenAI from 'openai'
+import OpenAI from 'https://esm.sh/openai@4.24.1'
 
 // Quality Guardian Engine import (will be loaded dynamically)
 interface QualityGuardianEngine {
