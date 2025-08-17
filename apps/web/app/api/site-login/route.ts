@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
     if (password === correctPassword) {
       const response = NextResponse.json({ success: true });
       
-      // Set secure cookie
-      response.cookies.set('site-access', password, {
+      // Set secure cookie with the actual password value (this is what middleware expects)
+      response.cookies.set('site-access', correctPassword, {
         httpOnly: false, // Allow JavaScript access for client-side checks
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
