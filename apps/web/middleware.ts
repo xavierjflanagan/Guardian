@@ -2,7 +2,28 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Check for maintenance mode first - skip all other middleware if active  
+  // Check for password protection first
+  const sitePassword = process.env.SITE_PASSWORD;
+  const isPasswordProtected = !!sitePassword;
+  
+  if (isPasswordProtected) {
+    // Allow access to login page and static assets
+    if (request.nextUrl.pathname === '/site-login' ||
+        request.nextUrl.pathname.startsWith('/_next/') ||
+        request.nextUrl.pathname.startsWith('/favicon.ico') ||
+        request.nextUrl.pathname === '/_password-login.html') {
+      return NextResponse.next();
+    }
+    
+    // Check if user has valid password cookie
+    const passwordCookie = request.cookies.get('site-access');
+    if (!passwordCookie || passwordCookie.value !== sitePassword) {
+      // Redirect to password page
+      return NextResponse.rewrite(new URL('/_password-login.html', request.url));
+    }
+  }
+  
+  // Check for maintenance mode (disabled for now - using password protection instead)
   const maintenanceEnv = process.env.MAINTENANCE_MODE;
   const isMaintenanceMode = maintenanceEnv === 'true';
   if (isMaintenanceMode) {
