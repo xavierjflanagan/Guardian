@@ -4,6 +4,7 @@ const ALLOWED_ORIGINS = Deno.env.get('CORS_ALLOWED_ORIGINS')?.split(',').map(ori
   'http://localhost:3000',
   'https://exorahealth.com.au',
   'https://www.exorahealth.com.au',
+  'https://staging.exorahealth.com.au',
   'https://exora-guardian-healthcare.vercel.app',
   'https://exora-guardian-healthcare-xaviers-projects-f7976c44.vercel.app'
 ];

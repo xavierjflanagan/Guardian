@@ -13,12 +13,27 @@ export async function middleware(request: NextRequest) {
         request.nextUrl.pathname.startsWith('/_next/') ||
         request.nextUrl.pathname.startsWith('/favicon.ico') ||
         request.nextUrl.pathname === '/_password-login.html') {
+      
+      // For auth callbacks, create a minimal response that preserves auth state
+      if (request.nextUrl.pathname.startsWith('/auth/')) {
+        const response = NextResponse.next();
+        // Ensure auth callbacks bypass password protection completely
+        console.log('Auth callback detected, bypassing password protection:', request.nextUrl.pathname);
+        return response;
+      }
+      
       return NextResponse.next();
     }
     
     // Check if user has valid password cookie
     const passwordCookie = request.cookies.get('site-access');
     if (!passwordCookie || passwordCookie.value !== sitePassword) {
+      // Don't redirect auth-related requests to password page
+      if (request.nextUrl.pathname.includes('auth') || request.nextUrl.searchParams.has('code')) {
+        console.log('Auth-related request detected, preserving auth flow');
+        return NextResponse.next();
+      }
+      
       // Redirect to password page
       return NextResponse.rewrite(new URL('/_password-login.html', request.url));
     }

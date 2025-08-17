@@ -21,18 +21,31 @@ export default function DashboardPage() {
 
   // Effect for handling authentication state
   useEffect(() => {
+    console.log('Dashboard: Initializing auth state management');
+    
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Dashboard: Auth state changed', { 
+        event, 
+        user: session?.user?.email || 'null',
+        hasSession: !!session,
+        url: typeof window !== 'undefined' ? window.location.href : 'server'
+      });
+      
       setUser(session?.user ?? null);
       setIsAuthLoading(false);
     });
 
     // Initial fetch of user
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setUser(user);
-      }
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      console.log('Dashboard: Initial user fetch', { 
+        user: user?.email || 'null',
+        error: error?.message || 'none',
+        url: typeof window !== 'undefined' ? window.location.href : 'server'
+      });
+      
+      setUser(user);
       setIsAuthLoading(false);
     });
 
