@@ -9,6 +9,10 @@ export default function SignInPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
+  
+  // Debug Supabase client configuration
+  console.log('Sign-in page: Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log('Sign-in page: Current origin:', typeof window !== 'undefined' ? window.location.origin : 'server');
 
   // Check for auth callback errors from URL
   useEffect(() => {
@@ -24,10 +28,14 @@ export default function SignInPage() {
     setLoading(true);
     setMessage(null);
     setError(null);
+    
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    console.log('Sign-in: Sending magic link with redirect:', redirectUrl);
+    
     const { error } = await supabase.auth.signInWithOtp({ 
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`
+        emailRedirectTo: redirectUrl
       }
     });
     if (error) {
