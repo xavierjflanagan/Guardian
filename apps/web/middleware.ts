@@ -3,8 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   // Check for maintenance mode first - skip all other middleware if active  
-  // TEMP: Force maintenance mode to debug env var issue
-  const isMaintenanceMode = process.env.MAINTENANCE_MODE === 'true' || process.env.NODE_ENV === 'production';
+  const maintenanceEnv = process.env.MAINTENANCE_MODE;
+  const isMaintenanceMode = maintenanceEnv === 'true';
   if (isMaintenanceMode) {
     // Allow static assets and the maintenance file itself
     if (request.nextUrl.pathname.startsWith('/_next/') ||
