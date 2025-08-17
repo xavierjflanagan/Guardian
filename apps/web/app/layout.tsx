@@ -7,7 +7,9 @@ import { Shell } from "@/components/shell";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Guardian",
+  title: process.env.NODE_ENV === 'development' || process.env.VERCEL_GIT_COMMIT_REF === 'staging' 
+    ? "Guardian [STAGING]" 
+    : "Guardian",
   description: "AI-powered healthcare application - secure deployment",
 };
 
