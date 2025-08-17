@@ -35,6 +35,38 @@ corepack prepare pnpm@9.15.1 --activate
 pnpm install
 ```
 
+## Staging/Production Deployment Workflow
+
+Guardian uses a **dual-environment deployment strategy** for safe development and controlled user testing:
+
+### Environment Overview
+- **Production** (`exorahealth.com.au`): Password-protected for beta testers, clean UI
+- **Staging** (`staging.exorahealth.com.au`): Developer-only access via Vercel authentication, orange staging banners
+
+### Access Control
+- **Production Access**: Requires `SITE_PASSWORD` environment variable (7-day cookie expiry)
+- **Staging Access**: Vercel deployment protection - only team members with Vercel account access
+- **Security**: Dual-layer protection ensures proper environment isolation
+
+### Daily Development Workflow
+```bash
+# 1. Work on staging branch
+git checkout staging
+# Make changes, test features, iterate safely
+git add . && git commit -m "feature description" && git push
+# This deploys to staging.exorahealth.com.au automatically
+
+# 2. Release to beta testers (when ready)
+git checkout main
+git merge staging    # Brings staging changes to production
+git push            # This deploys to exorahealth.com.au for beta testers
+```
+
+### Environment Indicators
+- **Staging**: Orange banner with "🚧 STAGING ENVIRONMENT" on all pages
+- **Production**: Clean interface with no development indicators
+- **Browser Titles**: "[STAGING]" suffix on staging environment only
+
 ### Testing
 Jest + React Testing Library configured with healthcare-specific patterns:
 - PII sanitization in test data
