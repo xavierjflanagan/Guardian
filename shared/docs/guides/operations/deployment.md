@@ -381,7 +381,68 @@ npm install @sentry/nextjs
 
 ---
 
-## 🔄 Continuous Deployment
+## 🔄 Staging/Production Workflow
+
+Guardian uses a **dual-environment deployment strategy** for safe development and controlled user testing.
+
+### Environment Architecture
+- **Production** (`exorahealth.com.au`): Password-protected for beta testers, clean professional UI
+- **Staging** (`staging.exorahealth.com.au`): Developer-only access via Vercel authentication, staging indicators
+
+### Access Control Configuration
+#### Production Environment
+```bash
+# Environment Variables in Vercel (Production)
+SITE_PASSWORD=your_beta_password_here
+MAINTENANCE_MODE=false  # Optional maintenance toggle
+
+# Access Method:
+# - Beta testers enter password once, valid for 7 days
+# - Clean interface with no development indicators
+```
+
+#### Staging Environment  
+```bash
+# Vercel Dashboard Configuration:
+# 1. Project Settings > Deployment Protection
+# 2. Enable for staging branch/domain only
+# 3. Add team members who need staging access
+
+# Visual Indicators:
+# - Orange "🚧 STAGING ENVIRONMENT" banner on all pages
+# - Browser title shows "[STAGING]" suffix
+# - Only visible to Vercel team members
+```
+
+### Daily Development Workflow
+```bash
+# 1. Development work (staging branch)
+git checkout staging
+# Make changes, test features, iterate safely
+git add . && git commit -m "feature: new functionality" && git push
+# → Automatically deploys to staging.exorahealth.com.au
+
+# 2. Release to beta testers (when ready)
+git checkout main
+git merge staging    # Fast-forward merge of staging changes
+git push            # → Automatically deploys to exorahealth.com.au
+```
+
+### Security Layers
+- **Staging**: Vercel team authentication + staging visual indicators
+- **Production**: Site password protection + clean UI for beta testers
+- **Cookie Expiry**: 7-day authentication for production users
+- **Environment Isolation**: Complete separation of staging/production data
+
+### Branch Protection
+```bash
+# Recommended Git configuration:
+# - main: Protected branch, requires review for direct pushes
+# - staging: Development branch, allows direct pushes
+# - Feature branches: Merge to staging first, then staging → main
+```
+
+## 🔄 Continuous Deployment (Legacy/Optional)
 
 ### GitHub Actions (Optional)
 ```yaml
@@ -390,7 +451,7 @@ name: Deploy to Vercel
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]  # Deploy both environments
 
 jobs:
   deploy:
@@ -412,7 +473,7 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.ORG_ID }}
           vercel-project-id: ${{ secrets.PROJECT_ID }}
-          vercel-args: '--prod'
+          vercel-args: ${{ github.ref == 'refs/heads/main' && '--prod' || '' }}
 ```
 
 ---
