@@ -95,6 +95,11 @@ guardian-web/
 
 ## Development Guidelines
 
+### UI/UX Standards
+- **NO EMOJIS**: Never use emojis in user-facing content (UI text, error messages, notifications, etc.) unless explicitly requested by the user
+- Professional healthcare application requires clean, emoji-free interface
+- This applies to all frontend components, API responses, and user communications
+
 ### TypeScript Configuration
 - Strict mode enabled with Next.js optimizations
 - Path aliases: `@/*` maps to root directory

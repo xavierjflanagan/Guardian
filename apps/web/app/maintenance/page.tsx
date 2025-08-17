@@ -44,7 +44,7 @@ export default function MaintenancePage() {
       </head>
       <body>
         <div className="container">
-          <div className="icon">🔧</div>
+          <div className="icon" style={{fontSize: '2rem', color: '#f59e0b'}}>⚠</div>
           <h1>Under Maintenance</h1>
           <p>Guardian is currently undergoing scheduled maintenance to enhance security and performance.</p>
           
@@ -54,9 +54,9 @@ export default function MaintenancePage() {
           </div>
           
           <p style={{fontSize: '0.875rem', color: '#9ca3af'}}>
-            ✅ All patient data remains secure<br />
-            ✅ No data will be lost<br />
-            ✅ Enhanced features coming soon
+            • All patient data remains secure<br />
+            • No data will be lost<br />
+            • Enhanced features coming soon
           </p>
         </div>
       </body>
