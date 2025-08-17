@@ -2,6 +2,13 @@
 
 > This file is updated at the end of every coding session. It tracks daily/weekly progress, major changes, and next steps.
 
+## [2025-08-16] Work Session Summary
+- **Start Time:** 07:00 AEST
+- **R&D Hours:** 5 hours
+- **Key Accomplishments:**
+    - Continued working on the frontend issues, cant rememeber specifics 
+
+
 ## [2025-08-15] Work Session Summary
 - **Start Time:** 08:47 AEST
 - **R&D Hours:** 8.5 hours
