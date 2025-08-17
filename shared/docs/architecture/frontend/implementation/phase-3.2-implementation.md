@@ -84,8 +84,8 @@ curl -I https://exora-guardian-healthcare.vercel.app/dashboard
 
 **📋 REMAINING BUSINESS TASKS:**
 - [x] ✅ **Zod Input Validation** - All critical API routes protected (**COMPLETED 2025-08-16**)
-- [ ] **Domain Ownership Transfer** - Move domains from sole trader to Exora Health Pty Ltd
-- [ ] **Trademark Filing** - Brand protection for exorahealth.com.au
+- [ ] 🔄 **Domain Ownership Transfer** - Move domains from sole trader to Exora Health Pty Ltd (**DEFERRED** - [GitHub Issue #24](https://github.com/xavierjflanagan/Guardian/issues/24))
+- [ ] 🔄 **Trademark Filing** - Brand protection for exorahealth.com.au (**DEFERRED** - Low priority, can be completed within 60 days)
 - [ ] **FastMail Business Email** - Set up @exora.au email infrastructure
 
 **🏆 PHASE 3.2 TECHNICAL WORK: 100% COMPLETE**

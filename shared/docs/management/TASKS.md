@@ -46,10 +46,17 @@
 | Task | Status | Priority | Dependencies | Notes |
 |------|--------|----------|--------------|-------|
 | **Email Infrastructure Setup** | 🔜 Ready | Critical | Domain selection ✅ | FastMail setup with exorahealth.com.au |
-| **Domain Transfer to Company** | 🔜 Ready | Critical | Company ACN | Transfer from sole trader to Pty Ltd |
+| **Domain Transfer to Company** | 🔄 Deferred | Medium | Company ACN | Transfer from sole trader to Pty Ltd - [GitHub Issue #24](https://github.com/xavierjflanagan/Guardian/issues/24) |
 | **Vercel Domain Configuration** | Blocked | Critical | Domain transfer | Configure DNS and production deployment |
 | **CORS Security Fix** | Blocked | Critical | Domain config | Fix wildcard vulnerability in Edge Functions |
 | **Business Email Documentation** | 🔜 Ready | High | None | Create comprehensive email strategy doc |
+
+### 📋 **DEFERRED BUSINESS TASKS:**
+
+| Task | Status | Priority | Dependencies | Target Timeline | Notes |
+|------|--------|----------|--------------|-----------------|-------|
+| **Domain Ownership Transfer** | 🔄 Deferred | Medium | Company ACN/ABN | 30-60 days | Transfer exorahealth.com.au from sole trader to Exora Health Pty Ltd - [GitHub Issue #24](https://github.com/xavierjflanagan/Guardian/issues/24) |
+| **Trademark Filing** | 🔄 Deferred | Low | Domain transfer | 60-90 days | Brand protection for exorahealth.com.au - can be completed after business stabilization |
 
 ## **Current Sprint: Phase 3.2 Security Hardening (August, Week 2, 2025)**
 
