@@ -7,8 +7,9 @@ export async function middleware(request: NextRequest) {
   const isPasswordProtected = !!sitePassword;
   
   if (isPasswordProtected) {
-    // Allow access to login page and static assets
+    // Allow access to auth callbacks, login page and static assets
     if (request.nextUrl.pathname === '/site-login' ||
+        request.nextUrl.pathname.startsWith('/auth/') ||
         request.nextUrl.pathname.startsWith('/_next/') ||
         request.nextUrl.pathname.startsWith('/favicon.ico') ||
         request.nextUrl.pathname === '/_password-login.html') {
