@@ -21,10 +21,16 @@ export default function AuthCallbackPage() {
         // The PKCE exchange is performed automatically by @supabase/ssr createBrowserClient
         // when detectSessionInUrl is true (configured in supabaseClientSSR.ts).
         const {
-          data: { user, session },
+          data: { user },
           error: userError,
         } = await supabase.auth.getUser();
         if (userError) throw userError;
+
+        const {
+          data: { session },
+          error: sessionFetchError,
+        } = await supabase.auth.getSession();
+        if (sessionFetchError) throw sessionFetchError;
 
         if (session && user && isMounted) {
           setMessage("Signed in. Redirecting…");
