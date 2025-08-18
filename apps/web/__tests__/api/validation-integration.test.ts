@@ -32,9 +32,9 @@ describe('Validation Logic Tests', () => {
       );
 
       expect(result.success).toBe(false);
-      if (isValidationFailure(result)) {
-        expect(result.error).toContain('too large');
-        expect(result.status).toBe(413);
+      if (!result.success) {
+        expect((result as any).error).toContain('too large');
+        expect((result as any).status).toBe(413);
       }
     });
 
@@ -93,9 +93,9 @@ describe('Validation Logic Tests', () => {
       );
 
       expect(result.success).toBe(false);
-      if (isValidationFailure(result)) {
-        expect(result.error).toBe('Invalid Content-Length header');
-        expect(result.status).toBe(400);
+      if (!result.success) {
+        expect((result as any).error).toBe('Invalid Content-Length header');
+        expect((result as any).status).toBe(400);
       }
     });
 
@@ -137,11 +137,11 @@ describe('Validation Logic Tests', () => {
       const result = validateInputWithSize(AuditEventSchema, invalidData);
 
       expect(result.success).toBe(false);
-      if (isValidationFailure(result)) {
-        expect(result.error).toBe('Validation failed');
-        expect(result.details).toBeDefined();
-        expect(Array.isArray(result.details)).toBe(true);
-        expect(result.status).toBe(400);
+      if (!result.success) {
+        expect((result as any).error).toBe('Validation failed');
+        expect((result as any).details).toBeDefined();
+        expect(Array.isArray((result as any).details)).toBe(true);
+        expect((result as any).status).toBe(400);
       }
     });
 

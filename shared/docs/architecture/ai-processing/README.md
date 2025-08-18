@@ -1,127 +1,165 @@
 # AI Processing Architecture
 
-**Purpose:** Documentation for OCR, AI extraction, and medical data processing  
-**Status:** Core components production-ready, multi-provider framework deployed  
-**Last updated:** August 06 2025
+**Purpose:** AI-first multimodal document processing with intelligent intake screening  
+**Status:** Core infrastructure ready, preparing for production implementation  
+**Last updated:** August 18, 2025
 
 ---
 
-## 🎯 **Overview**
+## 🎯 **Architecture Overview**
 
-The AI Processing layer transforms raw healthcare documents into structured medical data. This stage handles OCR text extraction, AI-powered medical data extraction, and quality assurance before data normalization.
+Guardian's AI processing system uses an **AI-first multimodal approach** where AI models process raw documents directly, with optional OCR as an adjunct input. The system includes intelligent upfront screening for identity verification and content classification before expensive processing.
 
 ```
-📄 Raw Documents → 👁️ OCR Processing → 🤖 AI Extraction → 🏥 Medical Data → 🗄️ Database Foundation
+Upload → Intake Screening → AI-First Processing → Structured Data → Guardian Database
+           ↓                    ↗                                              
+       Reject/             OCR (Optional Adjunct)                        
+       Select Profile                                                       
 ```
 
 ---
 
 ## 🔧 **Processing Components**
 
-### **[👁️ OCR Integration](./ocr-integration/)**
-*Converting documents and images to machine-readable text*
+### **[Intake Screening](./intake-screening/)** *NEW*
+*Intelligent upfront validation before expensive processing*
 
-**Status:** ✅ Production Ready  
-**Primary Provider:** AWS Textract  
-**Accuracy:** TBC 
+**Status:** In Design  
+**Purpose:** Identity verification, profile matching, and content classification  
 **Features:**
-- Multi-format support (PDF, JPG, PNG, TIFF, HEIC)
-- Healthcare-grade accuracy with confidence scoring
-- Layout preservation for complex medical forms
-- Batch processing capabilities
-- Error handling with graceful fallbacks
+- **Identity Verification**: Match documents to user profiles or children
+- **Content Classification**: Health vs non-health content filtering
+- **Malware Scanning**: Security screening before storage
+- **Profile Disambiguation**: Smart suggestions for multi-profile accounts
+- **Cost Savings**: Block non-relevant processing early
 
-### **[🤖 AI Extraction](./ai-extraction/)**
-*Extracting structured medical information from text (raw file + OCR output)*
+### **[AI Extraction](./ai-extraction/)**
+*AI-first multimodal processing of raw documents*
 
-**Status:** TBC
-**Multi-Provider Architecture:**
-- **Primary:** GPT-4o Mini ($0.15/1M tokens) - Cost-effective with semantic understanding
-- **Premium:** Claude Sonnet, Gemini Pro - High-accuracy for complex cases
-- **Specialized:** Google Document AI, Azure Document Intelligence - Layout-aware processing
-- **Features:** A/B testing, cost optimization, quality comparison
-
-### **[⚙️ Processing Pipeline](./processing-pipeline/)**
-*Orchestrating the complete AI processing workflow*
-
-**Status:** TBC
-**Architecture:** Queue-based processing with Supabase Edge Functions  
+**Status:** Framework Ready  
+**Architecture:** AI-first multimodal with optional OCR adjunct  
+**Primary Providers:**
+- **GPT-4o Mini**: Cost-effective vision + text analysis ($15-30/1K docs)
+- **Azure OpenAI**: HIPAA-eligible processing with BAA
+- **Google Document AI**: Specialized medical document understanding
 **Features:**
-- Asynchronous document processing
-- Job queue management and monitoring
-- Error recovery and retry mechanisms
-- Processing status tracking and user notifications
-- Quality assurance and validation workflows
+- Direct raw file processing (images, PDFs)
+- Optional OCR context integration via feature flags
+- Provider routing and A/B testing framework
+- Independent output storage (AI + OCR results)
+
+### **[OCR Integration](./ocr-integration/)**
+*Always-on text extraction with optional AI injection*
+
+**Status:** TBC 
+**Role:** **Always-on extraction** with optional AI context injection  
+**Primary Provider:** Google Cloud Vision API  
+**Features:**
+- Always extract OCR text from all documents (cheap operation)
+- Optional injection into AI processing (A/B testable)
+- Multiple use cases: intake screening, search, validation, fallback
+- Independent storage for all extracted text
+
+### **[Processing Pipeline](./processing-pipeline/)**
+*PostgreSQL queue-based processing with Render workers*
+
+**Status:** Infrastructure Ready  
+**Architecture:** Queue polling workers on Render.com  
+**Features:**
+- PostgreSQL-based job queue with RPC functions
+- Stateless Node.js workers with horizontal scaling
+- Retry logic and dead letter handling
+- Comprehensive observability and cost tracking
 
 ---
 
-## 🏗️ **Architecture Principles**
+## **Architecture Principles**
 
-### **1. Multi-Provider Flexibility**
-- Support multiple AI providers for cost and quality optimization
-- A/B testing framework for continuous improvement
-- Graceful fallbacks when providers are unavailable
-- Provider selection based on document complexity
+### **1. AI-First Multimodal Processing**
+- **Primary**: AI models process raw images/PDFs directly
+- **Always-On OCR**: Extract text from all documents for multiple use cases
+- **Optional AI Injection**: OCR context optionally provided to AI (A/B testable)
+- **Independent Storage**: Both AI and OCR outputs preserved separately
+- **Provider Flexibility**: Multi-provider framework with routing and A/B testing
 
-### **2. Healthcare-Grade Accuracy**
-- Confidence scoring for all extractions
-- Human review flagging for low-confidence results
-- Source attribution linking back to original documents
-- Comprehensive audit trails for all AI decisions
+### **2. Intelligent Intake Screening**
+- **Identity Verification**: Ensure documents belong to correct user/profile
+- **Content Classification**: Filter health vs non-health content early using OCR + cheap classifiers
+- **Cost Protection**: Block expensive processing for invalid content
+- **Security First**: Malware scanning and quarantine before processing
 
-### **3. Scalable Processing**
-- Asynchronous processing architecture
-- Horizontal scaling for high-volume workloads
-- Intelligent batching and queue management
-- Resource optimization and cost control
+### **3. Healthcare-Grade Security & Compliance**
+- **HIPAA-Ready**: Azure OpenAI with BAA for PHI processing
+- **Audit Trails**: Complete provenance tracking for all decisions
+- **RLS Enforcement**: User-specific data isolation throughout pipeline
+- **PHI Protection**: No PHI in logs, redacted observability
 
-### **4. Quality Assurance**
-- Multi-stage validation and verification
-- Medical data consistency checking
-- Duplicate detection and deduplication
-- Comprehensive error handling and logging
+### **4. Cost-Optimized Processing**
+- **Feature Flags**: Enable/disable components (OCR, AI context fusion)
+- **Provider Routing**: Cost-based selection (tbc)
+- **Early Rejection**: Intake screening prevents expensive processing
+- **Observability**: Real-time cost tracking and budget controls
 
 ---
 
-## 🔄 **Processing Workflow**
+## **Processing Workflow**
 
 ```mermaid
 graph TD
-    A[Document Uploaded] --> B[OCR Processing]
-    B --> C[Text Extraction Validation]
-    C --> D[AI Provider Selection]
-    D --> E[Medical Data Extraction]
-    E --> F[Confidence Scoring]
-    F --> G{Confidence > 95%?}
-    G -->|Yes| H[Auto-Approve]
-    G -->|No| I[Flag for Human Review]
-    H --> J[Data Normalization]
-    I --> K[User Review Interface]
-    K --> J
-    J --> L[Database Storage]
+    A[Document Uploaded] --> B[Intake Screening]
+    B --> C{Screening Decision}
+    
+    C -->|Accept| D[AI-First Processing]
+    C -->|Profile Selection| E[User Chooses Profile]
+    C -->|Reject Non-Health| F[Notify + Block]
+    C -->|Quarantine Malware| G[Security Block]
+    C -->|Manual Verify| H[User Attestation]
+    
+    E --> D
+    H --> D
+    
+    D --> I[Raw File Analysis + Always-On OCR]
+    I --> J[OCR Text Extracted]
+    J --> K{AI Context Injection Enabled?}
+    K -->|Yes| L[AI Vision + OCR Context]
+    K -->|No| M[AI Vision Only]
+    L --> N[AI Extraction]
+    M --> N
+    
+    N --> O[Store Results]
+    O --> P{Quality Check}
+    P -->|High Confidence| Q[Auto-Complete]
+    P -->|Low Confidence| R[Human Review]
+    
+    Q --> S[Audit + Metrics]
+    R --> T[Review Interface]
+    T --> S
 ```
 
 ---
 
 ## 📊 **Current Implementation Status**
 
-| Component | Status | Key Features | Performance |
-|-----------|--------|--------------|-------------|
-| **OCR Processing** | TBC | AWS Textract, 99.8% accuracy | <5s per document |
-| **AI Extraction** | TBC | Multi-provider, A/B testing | Variable by provider |
-| **Processing Pipeline** | TBC | Queue-based, async processing | 1000+ docs/hour |
-| **Quality Assurance** | 🎯 In Development | Validation, human review | TBD |
+| Component | Status | Key Features | Target Performance |
+|-----------|--------|--------------|-------------------|
+| **Intake Screening**      | Design Phase       | Identity matching, content classification | <500ms per upload |
+| **AI-First Processing**   | Framework Ready    | GPT-4o Mini multimodal, Azure OpenAI | <2min end-to-end |
+| **Always-On OCR**         | Operational        | Google Cloud Vision, always extract text | <2s per document |
+| **Processing Pipeline**   | Infrastructure Ready | PostgreSQL queue, Render workers | 1000+ docs/hour |
+| **Quality Assurance**     | Design Phase       | Confidence scoring, human review | 95%+ auto-approval |
 
 ---
 
-## 🛠️ **Technical Implementation**
+## **Technical Implementation**
 
-### **Current Stack**
-- **OCR:** AWS Textract via Supabase Edge Functions
-- **AI Processing:** Multi-provider framework (OpenAI, Anthropic, Google)
-- **Queue System:** Supabase job queue with PostgreSQL
-- **Monitoring:** Comprehensive logging and error tracking
-- **Storage:** Processed data in PostgreSQL with audit trails
+### **Architecture Stack**
+- **Intake Screening:** OCR text + lightweight AI models for identity/content classification
+- **Core Workers:** Node.js TypeScript workers on Render.com
+- **AI Processing:** Multi-provider (GPT-4o Mini primary, Azure OpenAI HIPAA)
+- **Always-On OCR:** Google Cloud Vision API extracts text from all documents
+- **Queue System:** PostgreSQL job queue with RPC functions
+- **Storage:** Independent AI/OCR results with audit trails
+- **Observability:** Structured logging with PHI redaction
 
 ### **AI Extraction Prompt Engineering**
 ```
@@ -151,13 +189,13 @@ QUALITY REQUIREMENTS:
 
 ---
 
-## 📈 **Performance Metrics**
+## **Performance Metrics**
 
 ### **OCR Processing**
-- **Accuracy:** 99.8% (measured against manual transcription)
-- **Processing Speed:** <5 seconds per document
-- **Format Coverage:** 100% of common medical document formats
-- **Error Rate:** <0.2% requiring manual intervention
+- **Accuracy:** Target >99.8% (measured against manual transcription)
+- **Processing Speed:** Target <5 seconds per document
+- **Format Coverage:** Target 100% of common medical document formats
+- **Error Rate:** Target <0.2% requiring manual intervention
 
 ### **AI Extraction**
 - **Medical Data Accuracy:** Target >99% (critical for patient safety)
@@ -173,7 +211,7 @@ QUALITY REQUIREMENTS:
 
 ---
 
-## 🎯 **Quality Assurance Framework**
+## **Quality Assurance Framework**
 
 ### **Automated Validation**
 - Medical terminology consistency checking
@@ -195,41 +233,24 @@ QUALITY REQUIREMENTS:
 
 ---
 
-## 🔮 **Future Roadmap**
+## **Future Roadmap**
 
-### **Phase 1: Enhanced Quality Assurance (v7.1)**
+### **Phase 2+ Enhanced Quality Assurance**
 - Advanced validation rules and medical consistency checking
 - Improved human review interface and workflow
 - Real-time quality metrics and monitoring
-
-### **Phase 2: Specialized Processing (v7.2)**
-- Medical imaging analysis (X-rays, MRIs, lab results)
-- Handwritten prescription processing
-- Multi-language document support
-
-### **Phase 3: Advanced AI Integration (v7.3+)**
-- Custom fine-tuned models for specific medical domains
-- Real-time processing for urgent medical documents
+- Custom fine-tuned models
 - Predictive analysis and health insights generation
 
 ---
 
-## 🔍 **Getting Started**
+## **Getting Started**
 
 ### **For Developers**
 1. Review [OCR integration](./ocr-integration/) implementation
 2. Study the [AI extraction](./ai-extraction/) multi-provider framework
 3. Understand the [processing pipeline](./processing-pipeline/) architecture
 
-### **For Data Scientists**
-1. Review AI extraction prompt engineering and validation
-2. Study the A/B testing framework for model comparison
-3. Understand quality metrics and performance benchmarking
-
-### **For Healthcare Professionals**
-1. Review medical data extraction accuracy requirements
-2. Understand the human review workflow and quality assurance
-3. Provide feedback on clinical data validation requirements
 
 ---
 
