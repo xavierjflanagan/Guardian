@@ -8,14 +8,7 @@
 
 ## 🚨 CRITICAL Priority Issues
 
-### [Issue #28](https://github.com/xavierjflanagan/Guardian/issues/28) - 🛡️ RLS Policy Testing Framework
-**Urgency:** 🚨 **CRITICAL**  
-**Healthcare Impact:** CRITICAL - 117 untested RLS policies represent highest data security risk  
-**Estimated Time:** 3 weeks  
-**Description:** Guardian has 117 Row Level Security policies across 14 migration files that are completely untested, creating serious vulnerabilities in patient data isolation and healthcare compliance.  
-**Context Documentation:** [Phase 3.2 Security Implementation](../architecture/frontend/implementation/phase-3.2-implementation.md)  
-**Dependencies:** None - can start immediately  
-**Compliance Risk:** Australian Privacy Act + HIPAA violations possible
+*No critical priority issues at this time - focus on AI processing pipeline and core product development*
 
 ---
 
@@ -43,6 +36,17 @@
 ---
 
 ## ⚠️ MEDIUM Priority Issues
+
+### [Issue #28](https://github.com/xavierjflanagan/Guardian/issues/28) - 🛡️ RLS Policy Testing Framework **[DEFERRED]**
+**Urgency:** ⚠️ **MEDIUM** (Deferred - Pre-production priority)  
+**Healthcare Impact:** CRITICAL - 84 untested RLS policies represent highest data security risk when serving users  
+**Estimated Time:** 3 weeks  
+**Description:** Guardian has 84 Row Level Security policies across 13 migration files that are completely untested, creating serious vulnerabilities in patient data isolation and healthcare compliance.  
+**Context Documentation:** [RLS Testing Framework](../architecture/security/rls-policy-testing-framework.md)  
+**Dependencies:** User base establishment, pre-production security audit requirements  
+**Compliance Risk:** Australian Privacy Act + HIPAA violations possible  
+**📋 Implementation Plan:** COMPLETE - Comprehensive 3-week implementation plan ready with full testing framework architecture, test utilities, and compliance validation. Framework includes 84 policy test coverage across core clinical data, multi-profile access, and healthcare compliance validation.  
+**⏳ Priority Status:** DEFERRED until pre-production phase - Framework ready to deploy when user base requires enterprise-grade security validation
 
 ### ✅ [Issue #27](https://github.com/xavierjflanagan/Guardian/issues/27) - 🧪 Test Framework Reliability **[RESOLVED]**
 **Status:** ✅ **CLOSED** (August 18, 2025)  
@@ -115,30 +119,31 @@
 ## 📊 Issue Summary Dashboard
 
 ### By Priority Level
-- 🚨 **CRITICAL:** 1 issue (Healthcare data security)
-- 🔥 **HIGH:** 2 issues (Compliance requirements)  
-- ⚠️ **MEDIUM:** 4 issues (Technical reliability, optimization, and UX)
+- 🚨 **CRITICAL:** 0 issues (Focus on AI processing pipeline)
+- 🔥 **HIGH:** 2 issues (PII detection, security monitoring)  
+- ⚠️ **MEDIUM:** 5 issues (RLS testing framework [DEFERRED], TypeScript safety, Edge Runtime, CSP headers, Auth UX)
 - 🟢 **LOW:** 0 issues
 - ✅ **RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
 
 ### By Healthcare Impact
-- **CRITICAL:** 1 issue (RLS policy testing)
+- **CRITICAL:** 1 issue (RLS policy testing [DEFERRED])
 - **HIGH:** 3 issues (PII detection, monitoring, auth UX)
 - **MEDIUM:** 2 issues (TypeScript safety, Edge Runtime)
-- **LOW:** 2 issues (CSP middleware, Node.js version conflict)
+- **LOW:** 1 issue (CSP middleware)
 - **✅ RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
 
 ### By Implementation Time
 - **Quick fixes (<1 day):** Issues #33, #35
 - **Medium effort (1-2 weeks):** Issue #32
-- **Major features (3+ weeks):** Issues #28, #29, #30
+- **Major features (3+ weeks):** Issues #28 [DEFERRED - Plan Complete], #29, #30
 - **Code quality (2-3 weeks):** Issue #31
 - **✅ Completed:** Issues #27 (Test framework), #34 (CI infrastructure), #36 (File upload system)
 
 ### By Dependencies
-- **No dependencies (can start immediately):** Issues #28, #31, #33, #35
+- **No dependencies (can start immediately):** Issues #31, #33, #35
 - **External setup required:** Issues #29, #30 (accounts, integrations)
 - **Testing dependent:** Issue #32 (Edge Runtime deployment)
+- **Deferred (plan complete):** Issue #28 (RLS testing framework)
 - **✅ Resolved:** Issues #27 (Test framework), #34 (CI infrastructure), #36 (File upload system)
 
 ---
@@ -146,20 +151,21 @@
 ## 🏥 Healthcare Compliance Status
 
 ### Australian Privacy Act Requirements
-- ❌ **RLS Policy Testing** (Issue #28) - BLOCKING compliance audit
+- 🟡 **RLS Policy Testing** (Issue #28) - Framework complete, deferred until pre-production
 - ❌ **PII Detection** (Issue #29) - Required for medical document processing
 - ❌ **Security Monitoring** (Issue #30) - Required for breach detection
 
 ### HIPAA Readiness (US Expansion)
-- ❌ **Technical Safeguards** (Issues #28, #30) - Access control testing and monitoring
+- 🟡 **Technical Safeguards** (Issues #28, #30) - RLS framework ready, monitoring pending
 - ❌ **Administrative Safeguards** (Issue #30) - Security incident response procedures
 - ✅ **Physical Safeguards** - Digital access controls implemented
 
 ### Production Readiness Assessment
-**Current Status:** 75% Complete - Core infrastructure ready, security hardening pending  
-**Blocking for Full Production:** Issues #28, #29, #30 (security hardening)  
+**Current Status:** 75% Complete - Core infrastructure ready, AI processing pipeline pending  
+**Blocking for MVP Launch:** AI processing pipeline implementation (primary focus)  
+**Blocking for Full Production:** Issues #29, #30 (PII detection, security monitoring)  
 **Ready for Beta Testing:** Yes, with current security foundation  
-**Enterprise Customer Ready:** No, requires completion of all HIGH/CRITICAL issues
+**Enterprise Customer Ready:** No, requires completion of all HIGH issues + Issue #28 implementation
 
 ---
 
