@@ -181,14 +181,14 @@ describe('useEventLogging', () => {
       })
     )
 
-    // Test data access logging (should be sensitive)
+    // Test data access logging with non-critical event (should be sensitive and use client-side)
     await act(async () => {
-      await result.current.logDataAccess('document_view', { document_id: 'doc-123' })
+      await result.current.logDataAccess('search', { query: 'test' })
     })
 
     expect(mockInsert).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        action: 'data_access.document_view',
+        action: 'data_access.search',
         privacy_level: 'sensitive',
       })
     )
@@ -274,10 +274,10 @@ describe('Healthcare compliance for event logging', () => {
   it('should maintain session consistency for audit trails', async () => {
     const { result } = renderHookWithContext()
 
-    // Log multiple events in same session
+    // Log multiple non-critical events in same session (critical events go to server-side)
     await act(async () => {
-      await result.current.logDataAccess('document_view', { document_id: 'doc-1' })
-      await result.current.logDataAccess('document_download', { document_id: 'doc-1' })
+      await result.current.logDataAccess('search', { query: 'test-1' })
+      await result.current.logDataAccess('filter', { type: 'medical' })
     })
 
     const calls = mockInsert.mock.calls
@@ -296,8 +296,8 @@ describe('Healthcare compliance for event logging', () => {
     const testCases = [
       { method: 'logNavigation', expectedPrivacy: 'internal', params: ['tab_switch', {}] },
       { method: 'logInteraction', expectedPrivacy: 'internal', params: ['button_click', {}] },
-      { method: 'logDataAccess', expectedPrivacy: 'sensitive', params: ['document_view', {}] },
-      { method: 'logProfile', expectedPrivacy: 'internal', params: ['profile_switch', {}] },
+      { method: 'logDataAccess', expectedPrivacy: 'sensitive', params: ['search', {}] }, // Use non-critical event
+      { method: 'logProfile', expectedPrivacy: 'internal', params: ['view_profile', {}] }, // Use non-critical event
       { method: 'logSystem', expectedPrivacy: 'public', params: ['app_start', {}] },
     ]
 
