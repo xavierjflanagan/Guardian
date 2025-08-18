@@ -152,23 +152,27 @@ export async function middleware(request: NextRequest) {
     // 'Cross-Origin-Opener-Policy': 'same-origin',
     // 'Cross-Origin-Embedder-Policy': 'require-corp',
     
-    // Content Security Policy (Report-Only during testing)
-    'Content-Security-Policy-Report-Only': [
-      "default-src 'self'",
-      (isProduction && !isStaging)
-        ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co`
-        : `script-src 'self' 'unsafe-eval' 'nonce-${nonce}' https://*.supabase.co https://vercel.live`,
-      `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`, 
-      "img-src 'self' data: blob: https://*.supabase.co",
-      "font-src 'self'",
-      (isProduction && !isStaging)
-        ? "connect-src 'self' https://*.supabase.co wss://*.supabase.co"
-        : "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "upgrade-insecure-requests"
-    ].join('; ')
+          // Content Security Policy (Report-Only for staging, enforcing for production)
+      'Content-Security-Policy-Report-Only': [
+        "default-src 'self'",
+        isStaging
+          ? `script-src 'self' 'unsafe-eval' 'nonce-${nonce}' https://*.supabase.co https://vercel.live`
+          : isProduction
+            ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co`
+            : `script-src 'self' 'unsafe-eval' 'nonce-${nonce}' https://*.supabase.co https://vercel.live`,
+        `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`, 
+        "img-src 'self' data: blob: https://*.supabase.co",
+        "font-src 'self'",
+        isStaging
+          ? "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live"
+          : isProduction
+            ? "connect-src 'self' https://*.supabase.co wss://*.supabase.co"
+            : "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "upgrade-insecure-requests"
+      ].join('; ')
   };
 
   // Store nonce for use in pages (if needed)
