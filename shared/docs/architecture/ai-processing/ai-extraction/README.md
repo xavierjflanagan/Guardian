@@ -1,14 +1,14 @@
 # AI-First Multimodal Extraction
 
 **Status:** Framework Ready - Preparing for implementation  
-**Architecture:** AI-first multimodal with optional OCR adjunct  
+**Architecture:** AI-first multimodal with always-on OCR (optional AI context injection)  
 **Last updated:** August 18, 2025
 
 ---
 
 ## **Overview**
 
-Guardian's AI extraction system uses an **AI-first multimodal approach** where AI models process raw documents (images, PDFs) directly, with optional OCR text as adjunct context. This approach provides superior accuracy for medical document understanding while maintaining cost efficiency.
+Guardian's AI extraction system uses an **AI-first multimodal approach** where AI models process raw documents (images, PDFs) directly, with **always-on OCR text available** for multiple use cases and **optional AI context injection**. This provides superior accuracy for medical document understanding while maintaining cost efficiency.
 
 ## **AI-First Architecture**
 
@@ -19,7 +19,7 @@ graph LR
     B --> C[Structured Extraction]
     C --> D[AI Results Storage]
     
-    E[OCR Text] -.-> F[Optional Fusion]
+    E[OCR Text] -.-> F[Optional Context Injection]
     F -.-> C
     
     style A fill:#e1f5fe
@@ -30,7 +30,7 @@ graph LR
 
 ### **Core Principles**
 1. **AI Vision Primary**: Models process raw visual content directly
-2. **OCR as Adjunct**: Optional text context (can be disabled via feature flags)
+2. **Always-On OCR**: Text is extracted for every document; AI context injection is optional and A/B testable
 3. **Independent Storage**: Both AI and OCR outputs preserved separately
 4. **Provider Flexibility**: Multi-provider routing with cost optimization and A/B testing an inherent component
 
@@ -39,12 +39,15 @@ graph LR
 ## **Multi-Provider Framework**
 
 ### **Primary Providers**
-| Provider | Use Case | Cost | HIPAA Status |
-|----------|----------|------|--------------|
-| **GPT-4o Mini**         | Primary multimodal | $15-30/1K docs | ⚠️ Standard OpenAI |
-| **Azure OpenAI**        | HIPAA-compliant PHI | $20-35/1K docs | ✅ BAA Available |
-| **Google Document AI**  | Medical document specialization | $25-40/1K docs | ✅ BAA Available |
-| **Claude 3.5 Sonnet**   | Premium accuracy | $50-80/1K docs | ⚠️ No BAA yet |
+| Provider | Role | Notes |
+|----------|------|-------|
+| **GPT-4o mini** | Cost-optimized default | Fast, low-cost multimodal; ideal for Tier 0 |
+| **GPT-4o** | Elevated accuracy | Step-up when confidence is low or doc is critical |
+| **GPT-5** | Premium accuracy | Use for critical x low-confidence or SLA-bound cases |
+| **Claude 3.5 Sonnet / Sonnet 4** | Premium reasoning | Strong at complex reasoning and ambiguity |
+| **Gemini 1.5 Pro / 2.5 Pro** | Premium multimodal | Large context, strong on complex docs |
+| **Google Document AI** | Specialty document understanding | Strong on medical form-like docs; BAA available |
+| **Azure OpenAI (GPT-4 family/4o/5)** | HIPAA pathway | Use when BAA is required (PHI) |
 
 ### **Provider Selection Logic**
 ```typescript
@@ -52,8 +55,27 @@ interface ProviderRouting {
   // Default routing rules
   primary: 'gpt4o-mini';           // Cost-effective primary
   hipaaRequired: 'azure-openai';   // For PHI processing
-  highAccuracy: 'document-ai';     // Complex medical forms
-  fallback: 'gpt4o-mini';         // When others fail
+  highAccuracy: 'gpt4o';           // First step-up for low confidence
+  premium: 'gpt5' | 'claude-sonnet-4' | 'gemini-2.5-pro'; // Highest tier
+  specialty: 'document-ai';        // Complex medical forms
+  
+  // Fallback policy
+  // Availability fallback: lateral swap within the same tier when a provider is degraded/unavailable
+  availabilityFallback: {
+    tier0: 'gpt4o-mini' | 'gemini-flash';
+    tier1: 'gpt4o' | 'claude-sonnet-3.5' | 'gemini-1.5-pro';
+    tier2: 'gpt5' | 'claude-sonnet-4' | 'gemini-2.5-pro';
+  };
+  
+  // Quality escalation: move up a tier when confidence is below thresholds
+  qualityEscalation: {
+    enabled: boolean;
+    thresholds: { toTier1: number; toTier2: number }; // e.g., { toTier1: 0.90, toTier2: 0.85 }
+    maxEscalationTier: 2;
+  };
+  
+  // Safety fallback: last-resort provider if all others are unavailable (keeps pipeline flowing)
+  safetyFallback: 'gpt4o-mini';
   
   // Cost controls
   maxCostPerDoc: number;           // Hard limit in cents
@@ -81,14 +103,37 @@ interface ProviderRouting {
 - **Temporal Relationships**: Timeline of treatments and conditions
 - **Clinical Significance**: Prioritize critical vs. routine information
 
-### **OCR Adjunct Integration**
+### **Always-On OCR Integration**
+
+Guardian implements **always-available text extraction** for multiple use cases while maintaining AI-first multimodal processing as the primary approach. OCR text can optionally be injected into AI processing based on strategic decisions and A/B testing.
+
+#### **Architecture Paradigm**
+```
+OLD: OCR → AI Text Analysis → Storage
+NEW: Always-On OCR Text → Multiple Use Cases (Intake, Search, AI Context, Validation) → Storage
+```
+
+#### **Primary Provider: Google Cloud Vision API**
+- **Cost**: $1.50 per 1,000 documents (83% reduction from AWS Textract)
+- **Performance**: <2 seconds per document  
+- **Accuracy**: 99.5% for medical documents
+- **HIPAA**: Available under Google Cloud BAA
+- **Role**: Always-on text extraction with optional AI context injection
+
+#### **OCR Use Cases**
+1. **Intake Screening**: Fast identity verification and health/non-health classification
+2. **Search Indexing**: Enable full-text search across all documents  
+3. **AI Context Injection**: Optional enhancement for AI processing (A/B testable)
+4. **Validation**: Cross-validate AI extractions against OCR text for accuracy
+5. **Fallback**: Reliable text extraction when AI vision fails
+
+#### **Configuration**
 ```typescript
-interface OcrAdjunctConfig {
-  enabled: boolean;                    // Global OCR toggle
-  useForContext: boolean;             // Provide OCR text to AI
-  useForValidation: boolean;          // Cross-validate AI extractions
-  costThreshold: number;              // Disable if OCR cost too high
-  qualityThreshold: number;           // Disable if OCR quality poor
+interface OcrIntegrationConfig {
+  alwaysExtractOCR: true;             // Always-on OCR extraction
+  enableAIContextInjection: boolean;  // A/B: include OCR text in AI prompt
+  enableValidation: boolean;          // Cross-validate AI extractions with OCR
+  qualityThreshold?: number;          // Optional: use quality signal downstream
 }
 ```
 
@@ -102,8 +147,8 @@ interface AiExtractionFlags {
   // Core AI processing
   enableAiProcessing: boolean;         // Default: true
   enableMultimodalVision: boolean;     // Default: true
-  enableOcrAdjunct: boolean;          // Default: true
-  enableOcrContextFusion: boolean;     // Default: true
+  alwaysExtractOCR: boolean;           // Default: true (always-on)
+  enableAIContextInjection: boolean;   // Default: false (A/B testable)
   
   // Provider selection
   primaryProvider: ProviderId;         // Default: 'gpt4o-mini'
@@ -213,7 +258,7 @@ interface ExtractionQuality {
 
 ---
 
-## 💡 **Prompt Engineering Strategy**
+## **Prompt Engineering Strategy**
 
 ### **Multimodal Prompt Template**
 ```typescript
@@ -253,14 +298,43 @@ Now analyze the document image and extract medical information:
 ```
 
 ### **Provider-Specific Adaptations**
-- **GPT-4o Mini**: Optimized for speed and cost efficiency
-- **Azure OpenAI**: Enhanced with HIPAA-compliant processing instructions
+- **GPT-4o mini**: Optimized for speed and cost efficiency
+- **GPT-4o**: Balanced accuracy/cost for elevated routing
+- **GPT-5**: Premium accuracy for critical x low-confidence
+- **Claude 3.5 Sonnet / Sonnet 4**: Complex reasoning for ambiguous medical content
+- **Gemini 1.5 Pro / 2.5 Pro**: Large context, strong for long/complex docs
 - **Google Document AI**: Leverages specialized medical document understanding
-- **Claude Sonnet**: Complex reasoning for ambiguous medical content
+- **Azure OpenAI (GPT-4 family/4o/5)**: HIPAA-compliant processing instructions
+---
+
+## **Tiered Model Routing and Pricing**
+
+### **Recommended routing policy (concise)**
+- Tier 0 (default, batch): GPT-4o mini or Gemini Flash + always-on OCR.
+- Tier 1 (elevated): GPT-4o, Claude 3.5 Sonnet, or Gemini 1.5 Pro when confidence < threshold or doc type = critical.
+- Tier 2 (premium): GPT-5, Claude Sonnet 4, or Gemini 2.5 Pro on critical x low-confidence or payer/provider SLAs.
+- A/B: OCR context injection ON/OFF per tier; log accuracy and cost deltas.
+
+### **General pricing ranges (per 1M tokens, indicative)**
+- Tier 0: ~$0.10–$0.60 input, ~$0.40–$2.00 output
+- Tier 1: ~$1.50–$6.00 input, ~$6.00–$15.00 output
+- Tier 2: ~$2.50–$8.00 input, ~$10.00–$30.00 output
+
+Notes:
+- Exact rates vary by provider/region and contract; confirm on provider pricing pages.
+- Use Azure OpenAI or covered Google services under BAA for PHI.
+- The OCR extraction cost (~$1.50 per 1,000 pages) is incurred once and reused across tiers (intake, search, validation, AI context).
+
+### **Routing triggers**
+- Confidence-based: escalate tiers when overallConfidence < threshold (e.g., 0.85/0.90).
+- Document-type: prescriptions, abnormal labs, discharge summaries escalate sooner.
+- Compliance: force HIPAA/BAA pathways (Azure OpenAI or covered Google services) when PHI present.
+- Budget: cap Tier 2 usage per day; backoff to Tier 1 or Tier 0 when budgets are reached.
+
 
 ---
 
-## 📊 **Performance Targets**
+## **Performance Targets**
 
 ### **Quality Metrics**
 - **Medical Data Accuracy**: >99% (critical for patient safety)
@@ -276,14 +350,11 @@ Now analyze the document image and extract medical information:
 - **Provider Failover**: <30 seconds automatic retry
 
 ### **Cost Efficiency**
-- **Primary Path**: $15-30 per 1,000 documents (GPT-4o Mini)
-- **HIPAA Path**: $20-35 per 1,000 documents (Azure OpenAI)
-- **Premium Path**: $25-40 per 1,000 documents (Document AI)
-- **Total Pipeline**: <$35 per 1,000 documents including OCR adjunct
+- Costs depend on tier mix and token volumes. Use the tier ranges above for planning, and measure effective $/document via observability.
 
 ---
 
-## 🔒 **Security & Compliance**
+## **Security & Compliance**
 
 ### **HIPAA Compliance**
 - **BAA Providers**: Azure OpenAI, Google Document AI prioritized for PHI
