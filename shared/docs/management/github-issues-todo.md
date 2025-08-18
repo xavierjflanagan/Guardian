@@ -1,7 +1,7 @@
 # Guardian Healthcare Platform - GitHub Issues Management
 
 **Project:** Guardian Healthcare Platform by Exora Health Pty Ltd  
-**Last Updated:** August 18, 2025 (Issue #34 resolved with major CI infrastructure improvements)  
+**Last Updated:** August 18, 2025 (Issue #36 RESOLVED - File upload system fully operational)  
 **Status:** Active Development - Phase 3 Security Hardening
 
 ---
@@ -79,6 +79,25 @@
 **Dependencies:** None - simple middleware fix  
 **Technical Fix:** Remove duplicate CSP header sources
 
+### [Issue #35](https://github.com/xavierjflanagan/Guardian/issues/35) - 🔄 Magic Link Auth Cross-Tab Synchronization
+**Urgency:** ⚠️ **MEDIUM**  
+**Healthcare Impact:** HIGH - User experience confusion reduces healthcare professional confidence  
+**Estimated Time:** 3-4 hours  
+**Description:** When users sign in via magic link, the original browser tab remains inaccessible after successful authentication in the new tab. Users must manually refresh to access dashboard, creating confusing UX.  
+**Context Documentation:** Related to Issue #25 auth flow architecture and middleware behavior  
+**Dependencies:** Understanding of Supabase auth state management and middleware integration  
+**Technical Fix:** Implement cross-tab auth state detection via Supabase auth listener or polling
+
+### ✅ [Issue #36](https://github.com/xavierjflanagan/Guardian/issues/36) - 🚨 File Upload System Failures **[RESOLVED]**
+**Status:** ✅ **CLOSED** (August 18, 2025)  
+**Root Cause:** Multi-layered issues requiring systematic resolution  
+**Actual Problems Fixed:**
+- **PRIMARY**: PostgREST schema routing (client configuration added `schema: 'public'`)
+- **SECONDARY**: Database permission gaps (grants applied for `anon` and `authenticated` roles)
+- **INFRASTRUCTURE**: PostgreSQL function overload conflicts resolved, edge function parameter fixes
+**Additional Improvements:** Storage policy security (authenticated-only), CSP configuration restored
+**Business Impact:** Core document upload functionality fully operational, security enhanced
+
 ### ✅ [Issue #34](https://github.com/xavierjflanagan/Guardian/issues/34) - 🔧 Node.js Version Conflict **[RESOLVED]**
 **Status:** ✅ **CLOSED** (August 18, 2025)  
 **Root Cause:** Investigation revealed Node version was NOT causing CI failures  
@@ -96,28 +115,29 @@
 ### By Priority Level
 - 🚨 **CRITICAL:** 1 issue (Healthcare data security)
 - 🔥 **HIGH:** 2 issues (Compliance requirements)  
-- ⚠️ **MEDIUM:** 4 issues (Technical reliability and optimization)
+- ⚠️ **MEDIUM:** 5 issues (Technical reliability, optimization, and UX)
 - 🟢 **LOW:** 0 issues
-- ✅ **RESOLVED:** 1 issue (CI infrastructure fixed)
+- ✅ **RESOLVED:** 2 issues (File upload system, CI infrastructure)
 
 ### By Healthcare Impact
 - **CRITICAL:** 1 issue (RLS policy testing)
-- **HIGH:** 2 issues (PII detection, monitoring)
+- **HIGH:** 3 issues (PII detection, monitoring, auth UX)
 - **MEDIUM:** 3 issues (Test reliability, TypeScript safety, Edge Runtime)
 - **LOW:** 2 issues (CSP middleware, Node.js version conflict)
+- **✅ RESOLVED:** 2 issues (File upload system, CI infrastructure)
 
 ### By Implementation Time
-- **Quick fixes (<1 day):** Issues #27, #33
-- **Medium effort (1-2 weeks):** Issue #32  
+- **Quick fixes (<1 day):** Issues #27, #33, #35
+- **Medium effort (1-2 weeks):** Issue #32
 - **Major features (3+ weeks):** Issues #28, #29, #30
 - **Code quality (2-3 weeks):** Issue #31
-- **✅ Completed:** Issue #34 (CI infrastructure modernization)
+- **✅ Completed:** Issues #34 (CI infrastructure), #36 (File upload system)
 
 ### By Dependencies
-- **No dependencies (can start immediately):** Issues #27, #28, #31, #33
+- **No dependencies (can start immediately):** Issues #27, #28, #31, #33, #35
 - **External setup required:** Issues #29, #30 (accounts, integrations)
 - **Testing dependent:** Issue #32 (Edge Runtime deployment)
-- **✅ Resolved:** Issue #34 (dependencies eliminated through proper investigation)
+- **✅ Resolved:** Issues #34 (CI infrastructure), #36 (File upload system)
 
 ---
 
