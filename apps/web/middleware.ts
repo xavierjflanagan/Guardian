@@ -129,6 +129,7 @@ export async function middleware(request: NextRequest) {
   // Generate nonce for CSP
   const nonce = crypto.randomUUID();
   const isProduction = process.env.NODE_ENV === 'production';
+  const isStaging = request.nextUrl.hostname === 'staging.exorahealth.com.au';
   
   // Add security headers for healthcare application protection
   const securityHeaders = {
@@ -154,13 +155,13 @@ export async function middleware(request: NextRequest) {
     // Content Security Policy (Report-Only during testing)
     'Content-Security-Policy-Report-Only': [
       "default-src 'self'",
-      isProduction 
+      (isProduction && !isStaging)
         ? `script-src 'self' 'nonce-${nonce}' https://*.supabase.co`
         : `script-src 'self' 'unsafe-eval' 'nonce-${nonce}' https://*.supabase.co https://vercel.live`,
       `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`, 
       "img-src 'self' data: blob: https://*.supabase.co",
       "font-src 'self'",
-      isProduction
+      (isProduction && !isStaging)
         ? "connect-src 'self' https://*.supabase.co wss://*.supabase.co"
         : "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live",
       "frame-ancestors 'none'",
