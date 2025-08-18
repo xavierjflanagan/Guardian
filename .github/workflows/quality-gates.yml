@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
 
 jobs:
   # Frontend quality checks
@@ -34,7 +34,7 @@ jobs:
         run: pnpm --filter @guardian/web run lint
 
       - name: Run tests
-        run: pnpm --filter @guardian/web run test -- --passWithNoTests --watchAll=false
+        run: pnpm --filter @guardian/web run test --passWithNoTests
 
       - name: Build application
         run: pnpm --filter @guardian/web run build
@@ -196,9 +196,9 @@ jobs:
           done
           if [ -z "$PATHS" ]; then echo "No app paths found"; exit 0; fi
           # Refined regex to avoid false positives on legitimate medical app code
-          # Excludes: database field names, authentication fields, CSS classes, legitimate medical terminology
+          # Excludes: database field names, authentication fields, CSS classes, legitimate medical terminology, field name arrays
           ! grep -r -i --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
-            -E "(social\.security|ssn[^_a-zA-Z]|medical\.record[^_a-zA-Z]|date\.of\.birth|phone[^_a-zA-Z].*[0-9]{10}|address[^_a-zA-Z].*[0-9]|[0-9]{3}-[0-9]{2}-[0-9]{4})" $PATHS \
+            -E "(social\.security|ssn[^_a-zA-Z'\"\]]|medical\.record[^_a-zA-Z'\"\]]|date\.of\.birth|phone[^_a-zA-Z'\"\]].*[0-9]{10}|address[^_a-zA-Z'\"\]].*[0-9]|[0-9]{3}-[0-9]{2}-[0-9]{4})" $PATHS \
             --exclude="*test*" --exclude="*spec*" || \
           (echo "ERROR: Potential PII found in code" && exit 1)
           echo "SUCCESS: No PII patterns found"
