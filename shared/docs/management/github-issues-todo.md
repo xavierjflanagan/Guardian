@@ -1,7 +1,7 @@
 # Guardian Healthcare Platform - GitHub Issues Management
 
 **Project:** Guardian Healthcare Platform by Exora Health Pty Ltd  
-**Last Updated:** August 18, 2025 (Issue #36 RESOLVED - File upload system fully operational)  
+**Last Updated:** August 18, 2025 (Issues #27, #36 RESOLVED - Test framework and file upload system operational)  
 **Status:** Active Development - Phase 3 Security Hardening
 
 ---
@@ -24,11 +24,12 @@
 ### [Issue #29](https://github.com/xavierjflanagan/Guardian/issues/29) - 🔒 Automated PII Detection
 **Urgency:** 🔥 **HIGH**  
 **Healthcare Impact:** HIGH - Required for Australian Privacy Act compliance  
-**Estimated Time:** 3 weeks  
+**Estimated Time:** 3 weeks (partial progress made)  
 **Description:** Current PII sanitization only removes basic hardcoded fields but lacks pattern-based detection for Australian healthcare identifiers (Medicare, TFN, AHPRA) in medical document content.  
 **Context Documentation:** [PII Detection Requirements](../security/compliance/australian-privacy-act.md)  
 **Dependencies:** Document processing pipeline integration  
-**Compliance Risk:** Privacy violations in medical record processing
+**Compliance Risk:** Privacy violations in medical record processing  
+**✅ Partial Progress:** Fixed GitHub Actions PII detection false positive (commit 5e731bd)
 
 ### [Issue #30](https://github.com/xavierjflanagan/Guardian/issues/30) - 📊 Security Monitoring Infrastructure
 **Urgency:** 🔥 **HIGH**  
@@ -43,14 +44,15 @@
 
 ## ⚠️ MEDIUM Priority Issues
 
-### [Issue #27](https://github.com/xavierjflanagan/Guardian/issues/27) - 🧪 Test Framework Reliability
-**Urgency:** ⚠️ **MEDIUM**  
-**Healthcare Impact:** MEDIUM - Healthcare audit logging lacks proper test coverage  
-**Estimated Time:** 30 minutes  
-**Description:** The useEventLogging test suite is failing due to incomplete Supabase authentication mocking, preventing proper test coverage for healthcare audit logging functionality.  
-**Context Documentation:** [Phase 3 Advanced Features](../architecture/frontend/implementation/phase-3-advanced-features.md)  
-**Dependencies:** None - simple jest.setup.js fix  
-**Technical Debt:** Blocking CI/CD reliability
+### ✅ [Issue #27](https://github.com/xavierjflanagan/Guardian/issues/27) - 🧪 Test Framework Reliability **[RESOLVED]**
+**Status:** ✅ **CLOSED** (August 18, 2025)  
+**Root Cause:** Critical events using server-side audit logging instead of client-side mocking  
+**Actual Problems Fixed:**
+- **PRIMARY**: Test cases expecting critical events (document_view, document_download) to use client mocks
+- **SECONDARY**: Updated tests to use non-critical events (search, filter, view_profile) for client-side testing  
+- **INFRASTRUCTURE**: All 9 useEventLogging tests now passing with proper healthcare compliance validation
+**Additional Improvements:** Restored CI/CD pipeline reliability for healthcare audit logging functionality
+**Business Impact:** Test framework reliability restored, healthcare audit logging properly tested
 
 ### [Issue #31](https://github.com/xavierjflanagan/Guardian/issues/31) - ⚠️ TypeScript Safety
 **Urgency:** ⚠️ **MEDIUM**  
@@ -115,29 +117,29 @@
 ### By Priority Level
 - 🚨 **CRITICAL:** 1 issue (Healthcare data security)
 - 🔥 **HIGH:** 2 issues (Compliance requirements)  
-- ⚠️ **MEDIUM:** 5 issues (Technical reliability, optimization, and UX)
+- ⚠️ **MEDIUM:** 4 issues (Technical reliability, optimization, and UX)
 - 🟢 **LOW:** 0 issues
-- ✅ **RESOLVED:** 2 issues (File upload system, CI infrastructure)
+- ✅ **RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
 
 ### By Healthcare Impact
 - **CRITICAL:** 1 issue (RLS policy testing)
 - **HIGH:** 3 issues (PII detection, monitoring, auth UX)
-- **MEDIUM:** 3 issues (Test reliability, TypeScript safety, Edge Runtime)
+- **MEDIUM:** 2 issues (TypeScript safety, Edge Runtime)
 - **LOW:** 2 issues (CSP middleware, Node.js version conflict)
-- **✅ RESOLVED:** 2 issues (File upload system, CI infrastructure)
+- **✅ RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
 
 ### By Implementation Time
-- **Quick fixes (<1 day):** Issues #27, #33, #35
+- **Quick fixes (<1 day):** Issues #33, #35
 - **Medium effort (1-2 weeks):** Issue #32
 - **Major features (3+ weeks):** Issues #28, #29, #30
 - **Code quality (2-3 weeks):** Issue #31
-- **✅ Completed:** Issues #34 (CI infrastructure), #36 (File upload system)
+- **✅ Completed:** Issues #27 (Test framework), #34 (CI infrastructure), #36 (File upload system)
 
 ### By Dependencies
-- **No dependencies (can start immediately):** Issues #27, #28, #31, #33, #35
+- **No dependencies (can start immediately):** Issues #28, #31, #33, #35
 - **External setup required:** Issues #29, #30 (accounts, integrations)
 - **Testing dependent:** Issue #32 (Edge Runtime deployment)
-- **✅ Resolved:** Issues #34 (CI infrastructure), #36 (File upload system)
+- **✅ Resolved:** Issues #27 (Test framework), #34 (CI infrastructure), #36 (File upload system)
 
 ---
 
