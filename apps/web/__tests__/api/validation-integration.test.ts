@@ -7,7 +7,9 @@ import {
   validateInputWithSize, 
   AuditEventSchema, 
   CriticalEventTypes,
-  requiresServerSideLogging
+  requiresServerSideLogging,
+  isValidationFailure,
+  type ValidationResult
 } from '@guardian/utils';
 
 describe('Validation Logic Tests', () => {
@@ -30,7 +32,7 @@ describe('Validation Logic Tests', () => {
       );
 
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (isValidationFailure(result)) {
         expect(result.error).toContain('too large');
         expect(result.status).toBe(413);
       }
@@ -91,7 +93,7 @@ describe('Validation Logic Tests', () => {
       );
 
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (isValidationFailure(result)) {
         expect(result.error).toBe('Invalid Content-Length header');
         expect(result.status).toBe(400);
       }
@@ -135,7 +137,7 @@ describe('Validation Logic Tests', () => {
       const result = validateInputWithSize(AuditEventSchema, invalidData);
 
       expect(result.success).toBe(false);
-      if (!result.success) {
+      if (isValidationFailure(result)) {
         expect(result.error).toBe('Validation failed');
         expect(result.details).toBeDefined();
         expect(Array.isArray(result.details)).toBe(true);

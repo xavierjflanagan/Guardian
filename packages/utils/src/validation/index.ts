@@ -12,6 +12,8 @@ export {
   validateSecureInput,
   ValidationError,
   CommonValidators,
+  isValidationFailure,
+  isValidationSuccess,
   type ValidationResult,
   type ValidationSuccess,
   type ValidationFailure

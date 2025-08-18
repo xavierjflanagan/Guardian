@@ -67,14 +67,15 @@ git push            # This deploys to exorahealth.com.au for beta testers
 - **Production**: Clean interface with no development indicators
 - **Browser Titles**: "[STAGING]" suffix on staging environment only
 
-### Testing
-Jest + React Testing Library configured with healthcare-specific patterns:
-- PII sanitization in test data
-- Console warning suppression for rate limiting
-- Healthcare-compliant error boundary testing
-- Profile and patient ID isolation testing
-- Row Level Security (RLS) policy testing framework
-- Security testing procedures for healthcare compliance
+### Testing (Updated August 2025)
+Jest + React Testing Library with **production-quality infrastructure**:
+- **Centralized Supabase mocking**: `test-utils/supabase-mocks.ts` for consistent, typed mocks
+- **Type-safe validation testing**: `isValidationFailure()` / `isValidationSuccess()` type guards (no more `as any`)
+- **Dependency injection patterns**: `useEventLogging(options)` for clean testability
+- **Global test environment**: Fetch polyfill, crypto mocking, console management in `jest.setup.js`
+- **Healthcare-specific patterns**: PII sanitization, audit trail testing, RLS policy validation
+- **Resilient assertions**: `expect.objectContaining()` for robust, maintainable tests
+- **CI Status**: ✅ Fully operational - all blocking infrastructure issues resolved
 
 ## Architecture Overview
 

@@ -22,6 +22,14 @@ export interface ValidationFailure {
 }
 export type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
 /**
+ * Type guard to check if validation result is a failure
+ */
+export declare function isValidationFailure<T>(result: ValidationResult<T>): result is ValidationFailure;
+/**
+ * Type guard to check if validation result is a success
+ */
+export declare function isValidationSuccess<T>(result: ValidationResult<T>): result is ValidationSuccess<T>;
+/**
  * Core validation function for parsed JSON input
  * Does NOT check request size - use validateInputWithSize for that
  */

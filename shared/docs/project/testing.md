@@ -1,7 +1,7 @@
 # Testing Strategy
 
 **Purpose:** Outlines the testing strategy for the Guardian project to ensure code quality, reliability, and maintainability.
-**Last updated:** July 2025
+**Last updated:** August 2025 (Major infrastructure improvements implemented)
 **Audience:** Developers, QA, contributors
 **Prerequisites:** Familiarity with Node.js, TypeScript, and testing frameworks
 
@@ -51,7 +51,61 @@
 
 ---
 
+## Test Infrastructure (Updated August 2025)
+
+### **Modern Testing Patterns**
+Guardian now implements production-quality testing infrastructure with:
+
+#### **Centralized Mock Utilities** 
+- **Location**: `apps/web/test-utils/supabase-mocks.ts`
+- **Purpose**: Consistent, typed Supabase client mocking across all test files
+- **Benefits**: Eliminates duplication, ensures consistent behavior, easier maintenance
+
+```typescript
+// Usage in test files
+import { createMockSupabaseClient, setupGlobalMocks } from '../../test-utils/supabase-mocks'
+
+setupGlobalMocks() // Sets up crypto, navigator, fetch
+const mockClient = createMockSupabaseClient({
+  // Custom overrides as needed
+})
+```
+
+#### **Type-Safe Test Assertions**
+- **Proper discriminated union handling**: Uses `isValidationFailure()` and `isValidationSuccess()` type guards
+- **Eliminated unsafe casts**: No more `(result as any)` patterns
+- **Resilient expectations**: `expect.objectContaining()` for robust assertions
+
+```typescript
+// Before (unsafe)
+expect((result as any).error).toBe('Validation failed')
+
+// After (type-safe)
+if (isValidationFailure(result)) {
+  expect(result.error).toBe('Validation failed')
+}
+```
+
+#### **Dependency Injection for Testability**
+- **Clean audit logging tests**: `useEventLogging(options?: { auditLogger?: Fn })`
+- **No global mocking**: Inject mock functions instead of patching globals
+- **Clear separation**: Client-side vs server-side logging paths
+
+### **Critical Test Infrastructure Components**
+
+#### **Supabase Authentication Mocking**
+- **Complete auth coverage**: `getSession()`, `getUser()`, `onAuthStateChange()` 
+- **Healthcare-specific**: Session management for audit trails
+- **Global setup**: Configured in `jest.setup.js` for consistency
+
+#### **Global Test Environment**
+- **Fetch polyfill**: Server-side operation support without per-test stubs
+- **Crypto mocking**: Consistent UUIDs for session tracking
+- **Console management**: Silenced expected logs for clean CI output
+
 ## Execution
 
 - **Local Development:** Developers should run `pnpm --filter @guardian/web run test` locally before pushing changes.
-- **Continuous Integration (CI):** (Future) A GitHub Action will be configured to run all tests automatically on every push to the main branch. A pull request will not be mergeable unless all tests pass.
+- **Type Safety:** Always run `pnpm --filter @guardian/web run typecheck` to ensure TypeScript compilation
+- **CI Status:** ✅ **FULLY OPERATIONAL** - All blocking infrastructure issues resolved (August 2025)
+- **Continuous Integration:** Tests run automatically on every push with reliable, fast feedback
