@@ -80,8 +80,8 @@ Deno.serve(async (req: Request) => {
     // 3. Enqueue job for background processing
     const { data: jobId, error: queueError } = await supabase
       .rpc('enqueue_job', {
-        p_job_type: 'document_processing',
-        p_job_data: {
+        p_type: 'document_processing',
+        p_payload: {
           document_id: document.id,
           patient_id: document.patient_id,
           file_path: filePath,
