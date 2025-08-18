@@ -560,6 +560,8 @@ Deno.serve(async (req: Request) => {
 
     // 3. Core processing logic with new Vision + OCR pipeline
     try {
+      console.log(`🔍 Step A: Starting file download for: ${filePath}`);
+      
       // Download the document from Supabase Storage
       const { data: fileData, error: downloadError } = await supabase.storage
         .from('medical-docs')
@@ -568,15 +570,16 @@ Deno.serve(async (req: Request) => {
       if (downloadError) {
         throw new Error(`File download failed: ${downloadError.message}`);
       }
+      console.log(`✅ Step A: File download successful`);
 
+      console.log(`🔍 Step B: Converting file to buffer...`);
       // Convert to buffer
       const fileBuffer = await fileData.arrayBuffer();
       const uint8Array = new Uint8Array(fileBuffer);
-      console.log(`File downloaded successfully: ${uint8Array.length} bytes`);
+      console.log(`✅ Step B: File converted to buffer: ${uint8Array.length} bytes`);
 
+      console.log(`🔍 Step C: Starting Vision + OCR processing for: ${filePath}`);
       // Process document with new Vision + OCR Safety Net pipeline
-      console.log(`🚀 Starting Vision + OCR processing for document: ${filePath}`);
-      
       const {
         extractedText,
         medicalData,
@@ -584,6 +587,8 @@ Deno.serve(async (req: Request) => {
         ocrConfidence,
         visionConfidence
       } = await processWithVisionPlusOCR(uint8Array, filePath);
+      
+      console.log(`✅ Step C: Vision + OCR processing completed`);
       
       console.log(`Processing completed with ${confidence?.toFixed(1) || 'N/A'}% overall confidence`);
 
@@ -606,8 +611,11 @@ Deno.serve(async (req: Request) => {
         .update({ 
           status: finalStatus,
           extracted_text: extractedText,
+          medical_data: medicalData,
           ocr_confidence: ocrConfidence,
+          vision_confidence: visionConfidence,
           confidence_score: confidence,
+          processing_method: 'vision_plus_ocr',
           processing_completed_at: new Date().toISOString(),
           processing_error: null // Clear any previous errors
         })
