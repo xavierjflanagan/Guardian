@@ -74,6 +74,12 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
+// Global fetch polyfill for server-side operations
+global.fetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: () => Promise.resolve({ audit_id: 'mock-audit-id' }),
+})
+
 // Healthcare-specific mocks
 const mockSupabaseClient = {
   from: jest.fn(() => ({
@@ -88,6 +94,7 @@ const mockSupabaseClient = {
   })),
   auth: {
     getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
     signOut: jest.fn().mockResolvedValue({ error: null }),
   },
   rpc: jest.fn().mockResolvedValue({ data: [], error: null }),

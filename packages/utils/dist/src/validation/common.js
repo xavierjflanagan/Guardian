@@ -8,6 +8,18 @@ export class ValidationError extends Error {
     }
 }
 /**
+ * Type guard to check if validation result is a failure
+ */
+export function isValidationFailure(result) {
+    return !result.success;
+}
+/**
+ * Type guard to check if validation result is a success
+ */
+export function isValidationSuccess(result) {
+    return result.success;
+}
+/**
  * Core validation function for parsed JSON input
  * Does NOT check request size - use validateInputWithSize for that
  */

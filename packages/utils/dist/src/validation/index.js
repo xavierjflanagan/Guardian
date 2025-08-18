@@ -5,7 +5,7 @@
  * Provides type-safe input validation with healthcare-specific patterns
  */
 // Core validation utilities
-export { validateInput, validateInputWithSize, validateSecureInput, ValidationError, CommonValidators } from './common';
+export { validateInput, validateInputWithSize, validateSecureInput, ValidationError, CommonValidators, isValidationFailure, isValidationSuccess } from './common';
 // Audit events validation
 export { AuditEventSchema, AuditEventResponseSchema, validateAuditEvent, requiresServerSideLogging } from './schemas/audit-events';
 // Quality flags validation  

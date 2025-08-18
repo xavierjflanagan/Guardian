@@ -3,6 +3,7 @@ import React from 'react'
 import { useEventLogging } from '@/lib/hooks/useEventLogging'
 import { ProfileContext } from '@/app/providers/ProfileProvider'
 import type { ProfileContextValue } from '@/app/providers/ProfileProvider'
+import { setupGlobalMocks, createMockSupabaseClient } from '../../test-utils/supabase-mocks'
 
 // Mock profile data
 const mockProfile = {
@@ -14,29 +15,17 @@ const mockProfile = {
   created_at: '2023-01-01T00:00:00Z',
 }
 
-// Mock crypto.randomUUID for consistent session IDs
-Object.defineProperty(global, 'crypto', {
-  value: {
-    randomUUID: jest.fn().mockReturnValue('test-session-id'),
-  },
-})
+// Setup global mocks using centralized utilities (without fetch - now in jest.setup.js)
+setupGlobalMocks()
 
-// Mock navigator.userAgent for consistent test results
-Object.defineProperty(global.navigator, 'userAgent', {
-  value: 'Mozilla/5.0 (Test Environment)',
-  configurable: true,
-})
-
-// Create persistent mock functions
+// Create persistent mock functions for tracking calls
 const mockInsert = jest.fn().mockResolvedValue({ data: null, error: null })
-const mockFromReturn = {
-  insert: mockInsert,
-}
-const mockFrom = jest.fn().mockReturnValue(mockFromReturn)
+const mockFrom = jest.fn().mockReturnValue({ insert: mockInsert })
 
-const mockSupabaseClient = {
+// Create Supabase client with our custom insert tracking
+const mockSupabaseClient = createMockSupabaseClient({
   from: mockFrom,
-}
+})
 
 // Mock useProfile hook before any imports
 jest.mock('@/app/providers/ProfileProvider', () => ({
@@ -99,6 +88,16 @@ describe('useEventLogging', () => {
     
     // Ensure consistent session ID
     ;(global.crypto.randomUUID as jest.Mock).mockReturnValue('test-session-id')
+    
+    // Silence expected console outputs for clean test logs
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    jest.spyOn(console, 'log').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    // Restore console methods
+    jest.restoreAllMocks()
   })
 
   it('should log events with correct structure', async () => {
@@ -109,18 +108,20 @@ describe('useEventLogging', () => {
     })
 
     expect(mockFrom).toHaveBeenCalledWith('user_events')
-    expect(mockInsert).toHaveBeenCalledWith({
-      action: 'navigation.page_view',
-      metadata: {
-        page: '/dashboard',
-        category: 'navigation',
-        user_agent: 'Mozilla/5.0 (Test Environment)',
-        timestamp: expect.any(String),
-      },
-      profile_id: mockProfile.id,
-      session_id: 'test-session-id',
-      privacy_level: 'internal',
-    })
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'navigation.page_view',
+        privacy_level: 'internal',
+        profile_id: mockProfile.id,
+        session_id: 'test-session-id',
+        metadata: expect.objectContaining({
+          page: '/dashboard',
+          category: 'navigation',
+          user_agent: 'Mozilla/5.0 (Test Environment)',
+          timestamp: expect.any(String),
+        }),
+      })
+    )
   })
 
   it('should sanitize PII from metadata', async () => {

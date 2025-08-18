@@ -205,10 +205,18 @@ async function logCriticalAuditEvent(
   }
 }
 
-export function useEventLogging() {
+// Injection interface for server-side audit logging
+interface UseEventLoggingOptions {
+  auditLogger?: typeof logCriticalAuditEvent
+}
+
+export function useEventLogging(options?: UseEventLoggingOptions) {
   const { currentProfile } = useProfile()
   const supabase = createClient()
   const sessionIdRef = useRef<string | undefined>(undefined)
+  
+  // Use injected audit logger or default implementation
+  const auditLogger = options?.auditLogger || logCriticalAuditEvent
 
   // Generate or reuse session ID
   const getSessionId = useCallback(() => {
@@ -240,7 +248,7 @@ export function useEventLogging() {
     try {
       // For critical events, try server-side logging first
       if (isCriticalEvent) {
-        const serverResult = await logCriticalAuditEvent(
+        const serverResult = await auditLogger(
           category, action, currentProfile, metadata, privacyLevel, getSessionId(), supabase
         );
         
