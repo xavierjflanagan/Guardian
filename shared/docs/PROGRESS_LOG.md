@@ -2,6 +2,19 @@
 
 > This file is updated at the end of every coding session. It tracks daily/weekly progress, major changes, and next steps.
 
+## [2025-08-19] Work Session Started
+- **Start Time:** 08:12 AEST
+- **Planned Duration:** 9-10 hours
+- **Claude's Session Plan:**
+  - **Top Priorities:**
+    - Implement AI-First Pipeline architecture with GPT-4o Mini and Azure OpenAI providers
+    - Deploy document_ai_results database schema and RLS policies for processed data storage
+    - Build end-to-end testing workflow: manual upload → AI processing → normalized JSON → dashboard visualization
+  - **Context:** Yesterday completed comprehensive AI processing pipeline documentation and resolved critical file upload system failures. Today transitions from architecture/documentation phase to hands-on implementation of the AI processing pipeline.
+- **User's Verbatim Goals:**
+  > to begin AI Processing Pipeline Phase 2 implementation. want to be fully testing out the pipeline from manual upload to normalized json and visualization in the dashboard. Then will consider doing phase 1. plan to work 9-10 hours
+---
+
 ## [2025-08-18] Work Session Summary
 - **Start Time:** 08:00 AEST  
 - **R&D Hours:** 9.5 hours
@@ -17,6 +30,13 @@
 - **Next Session Focus:** AI processing pipeline Phase 2 implementation (AI-first multimodal processing with OCR adjunct), then Phase 1 implementation if time permits
 - **User's Verbatim Log:**
   > fixed the document upload bug - took about 3 hours deep dive to figure out the multi layered issue. Got everything working. Worked on bug fixes. Did documentation and design work. Did AI-processing pipeline schema buildout. 9.5 hours RD today
+
+## [2025-08-17] Work Session Summary
+- **Start Time:** 08:15 AEST
+- **R&D Hours:** 10.5 hours
+- **Key Accomplishments:**
+    - Large work day on a Sunday. Some major changes made; setup deployment process for external testing users including password gate to the site, as well as staging vs prod web versions, with staging being the development/iterative branch and prod being the main branch. Also spent large ammount of time -3hours- fixing a bug with the sign-in magic link (github issue created/closed contianing relevant info) - one of the subissues was to do with browser mismatch. 
+
 
 ## [2025-08-16] Work Session Summary
 - **Start Time:** 07:00 AEST
