@@ -10,6 +10,9 @@ export function createClient() {
         detectSessionInUrl: true,
         autoRefreshToken: true,
         persistSession: true
+      },
+      db: {
+        schema: 'public'
       }
     }
   )
