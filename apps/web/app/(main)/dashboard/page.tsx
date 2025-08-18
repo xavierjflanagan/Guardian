@@ -98,9 +98,9 @@ export default function DashboardPage() {
     try {
       const newFilePath = await uploadFile(file, user.id);
 
-      // Invoke the document-processor Edge Function
+      // Invoke the document-processor-complex Edge Function for immediate AI processing
       const { error: functionError } = await supabase.functions.invoke(
-        "document-processor",
+        "document-processor-complex",
         {
           body: { filePath: newFilePath },
         }
