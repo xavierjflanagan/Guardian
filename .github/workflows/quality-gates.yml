@@ -40,6 +40,9 @@ jobs:
         run: pnpm --filter @guardian/web run build
         env:
           ANALYZE: true
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder_key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder_service_key
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -73,6 +76,10 @@ jobs:
           path: apps/web/.next
       - name: Build for production
         run: pnpm --filter @guardian/web run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder_key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder_service_key
       - name: Start production server
         run: pnpm --filter @guardian/web run start &
         env:
@@ -139,6 +146,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build application
         run: pnpm --filter @guardian/web run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder_key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder_service_key
       - name: Start server
         run: pnpm --filter @guardian/web run start &
         env:
