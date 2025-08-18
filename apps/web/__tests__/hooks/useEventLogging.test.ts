@@ -183,7 +183,7 @@ describe('useEventLogging', () => {
 
     // Test data access logging with non-critical event (should be sensitive and use client-side)
     await act(async () => {
-      await result.current.logDataAccess('search', { query: 'test' })
+      await result.current.logDataAccess('search', { data_type: 'test' })
     })
 
     expect(mockInsert).toHaveBeenLastCalledWith(
@@ -276,8 +276,8 @@ describe('Healthcare compliance for event logging', () => {
 
     // Log multiple non-critical events in same session (critical events go to server-side)
     await act(async () => {
-      await result.current.logDataAccess('search', { query: 'test-1' })
-      await result.current.logDataAccess('filter', { type: 'medical' })
+      await result.current.logDataAccess('search', { data_type: 'test-1' })
+      await result.current.logDataAccess('filter', { access_level: 'medical' })
     })
 
     const calls = mockInsert.mock.calls
@@ -296,7 +296,7 @@ describe('Healthcare compliance for event logging', () => {
     const testCases = [
       { method: 'logNavigation', expectedPrivacy: 'internal', params: ['tab_switch', {}] },
       { method: 'logInteraction', expectedPrivacy: 'internal', params: ['button_click', {}] },
-      { method: 'logDataAccess', expectedPrivacy: 'sensitive', params: ['search', {}] }, // Use non-critical event
+      { method: 'logDataAccess', expectedPrivacy: 'sensitive', params: ['search', { data_type: 'test' }] }, // Use non-critical event
       { method: 'logProfile', expectedPrivacy: 'internal', params: ['view_profile', {}] }, // Use non-critical event
       { method: 'logSystem', expectedPrivacy: 'public', params: ['app_start', {}] },
     ]
