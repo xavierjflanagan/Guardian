@@ -1,53 +1,53 @@
 # Processing Pipeline Architecture
 
 **Purpose:** End-to-end AI-first multimodal document processing workflow  
-**Status:** 🚧 Infrastructure Ready - Preparing for implementation  
+**Status:** Infrastructure Ready - Preparing for implementation  
 **Last updated:** August 18, 2025
 
 ---
 
-## 🎯 **Overview**
+## **Overview**
 
 The Processing Pipeline orchestrates Guardian's complete document processing workflow, from intake screening through AI-first extraction to final storage. Built on PostgreSQL job queues with Render.com workers, it provides scalable, reliable, and cost-effective medical document processing.
 
-## 🏗️ **Pipeline Architecture**
+## **Pipeline Architecture**
 
 ### **Complete Processing Flow**
 ```mermaid
 graph TD
-    A[📄 Document Upload] --> B[🛡️ Intake Screening]
+    A[Document Upload] --> B[Intake Screening]
     B --> C{Screening Decision}
     
-    C -->|Accept| D[📋 Queue Job]
-    C -->|Profile Selection| E[👤 User Input]
-    C -->|Reject| F[🚫 Block & Notify]
+    C -->|Accept| D[Queue Job]
+    C -->|Profile Selection| E[User Input]
+    C -->|Reject| F[Block & Notify]
     
     E --> D
-    D --> G[🔄 Render Worker Poll]
+    D --> G[Render Worker Poll]
     
-    G --> H[📄 Download Document]
-    H --> I[🤖 AI Vision Processing]
+    G --> H[Download Document]
+    H --> I[AI Vision Processing]
     I --> J{OCR Adjunct?}
     
-    J -->|Enabled| K[👁️ OCR Processing]
-    J -->|Disabled| L[📊 AI Analysis Only]
+    J -->|Enabled| K[OCR Processing]
+    J -->|Disabled| L[AI Analysis Only]
     
-    K --> M[🔀 AI-OCR Fusion]
-    L --> N[📋 Medical Extraction]
+    K --> M[AI-OCR Fusion]
+    L --> N[Medical Extraction]
     M --> N
     
-    N --> O[✅ Quality Validation]
+    N --> O[Quality Validation]
     O --> P{Quality Check}
     
-    P -->|High Confidence| Q[💾 Auto-Store Results]
-    P -->|Low Confidence| R[👨‍⚕️ Queue Review]
-    P -->|Failed| S[❌ Mark Failed]
+    P -->|High Confidence| Q[Auto-Store Results]
+    P -->|Low Confidence| R[Queue Review]
+    P -->|Failed| S[Mark Failed]
     
-    Q --> T[📈 Update Status]
-    R --> U[📝 Review Interface]
-    S --> V[🔔 Error Notification]
+    Q --> T[Update Status]
+    R --> U[Review Interface]
+    S --> V[Error Notification]
     
-    T --> W[📊 Audit & Metrics]
+    T --> W[Audit & Metrics]
     U --> W
     V --> W
     

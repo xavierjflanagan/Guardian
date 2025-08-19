@@ -1,0 +1,1 @@
+# PLACEHOLDER: patient_allergies Bridge Specification - Safety-critical allergy extraction bridge document pending detailed implementation

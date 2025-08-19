@@ -1,0 +1,1 @@
+# PLACEHOLDER: patient_observations Bridge Specification - Observation details extraction bridge document pending detailed implementation

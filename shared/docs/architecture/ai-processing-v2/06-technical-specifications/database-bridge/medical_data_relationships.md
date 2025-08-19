@@ -1,0 +1,1 @@
+# PLACEHOLDER: medical_data_relationships Bridge Specification - Clinical entity relationship detection bridge document pending detailed implementation
