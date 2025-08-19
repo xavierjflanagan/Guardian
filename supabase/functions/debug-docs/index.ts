@@ -18,14 +18,13 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(origin);
 
   try {
-    // Test 1: Check if documents table exists and has medical_data column
-    console.log('Testing documents table access...');
+    console.log('🔍 DEBUG: Getting document details...');
     
     const { data: docs, error: docsError } = await supabase
       .from('documents')
-      .select('id, medical_data, processing_method, status, processing_error, created_at')
+      .select('id, storage_path, filename, status, processing_error, created_at')
       .order('created_at', { ascending: false })
-      .limit(3);
+      .limit(5);
 
     if (docsError) {
       throw new Error(`Documents query failed: ${docsError.message}`);
@@ -33,36 +32,16 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Found ${docs?.length || 0} documents`);
 
-    // Test 2: Try to insert a test record to verify column exists
-    console.log('Testing medical_data column exists...');
-    
-    const testData = {
-      documentType: "test",
-      patientInfo: { name: "Test Patient" },
-      medicalData: { test: "data" }
-    };
-
-    const { data: testInsert, error: insertError } = await supabase
-      .from('documents')
-      .select('medical_data')
-      .limit(1);
-
     return new Response(JSON.stringify({
       success: true,
-      tests: {
-        documentsTableAccess: !docsError,
-        documentsCount: docs?.length || 0,
-        recentDocuments: docs,
-        medicalDataColumnExists: !insertError,
-        error: docsError?.message || insertError?.message || null
-      }
+      documents: docs
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (err) {
-    console.error("Database test error:", err);
+    console.error("Debug docs error:", err);
     
     return new Response(JSON.stringify({
       success: false,

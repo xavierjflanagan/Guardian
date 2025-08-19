@@ -95,6 +95,7 @@ async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{
 
 // GPT-4o Mini Vision Analysis with OCR cross-validation
 async function analyzeWithGPT4oMiniVision(
+  openaiClient: any,
   documentBuffer: Uint8Array, 
   ocrText: string, 
   filename: string
@@ -168,7 +169,7 @@ VALIDATION RULES:
       }
     ];
 
-    const response = await openai.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: "gpt-4o-mini",
       messages: messages,
       max_tokens: 2000,
@@ -417,7 +418,7 @@ function calculateExtractionCompleteness(extractedData: any): number {
 }
 
 // New vision + OCR safety net pipeline
-async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: string): Promise<{
+async function processWithVisionPlusOCR(openaiClient: any, documentBuffer: Uint8Array, filePath: string): Promise<{
   extractedText: string;
   medicalData: any;
   confidence: number | null;
@@ -425,30 +426,38 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
   visionConfidence: number | null;
   processingMethod: string;
 }> {
-  console.log('Starting Vision + OCR Safety Net pipeline...');
+  console.log('🔍 Starting Vision + OCR Safety Net pipeline...');
+  console.log(`🔍 File info: ${filePath}, size: ${documentBuffer.length} bytes`);
   
   // Validate file format
+  console.log('🔍 Validating file format...');
   if (!validateFileFormat(documentBuffer, filePath)) {
     throw new Error(`Unsupported file format. Supported: PDF, PNG, JPG, JPEG, TIFF. File: ${filePath}`);
   }
+  console.log('✅ File format validation passed');
   
   // Check file size (reasonable limits for both APIs)
+  console.log('🔍 Checking file size...');
   if (documentBuffer.length > 20 * 1024 * 1024) { // 20MB limit
     throw new Error(`File too large: ${documentBuffer.length} bytes. Maximum size is 20MB.`);
   }
+  console.log('✅ File size validation passed');
   
   try {
-    // Step 1: Google Cloud Vision OCR (safety net)
-    console.log('Step 1: Extracting text with Google Cloud Vision OCR...');
+    // Step 1: Google Cloud Vision OCR
+    console.log('🔍 AI Step 1: Starting Google Cloud Vision OCR...');
     const { extractedText, confidence: ocrConfidence } = await extractWithGoogleVisionOCR(documentBuffer);
+    console.log('✅ AI Step 1: Google Vision OCR completed');
     
-    // Step 2: GPT-4o Mini Vision Analysis with OCR cross-validation
-    console.log('Step 2: Analyzing document with GPT-4o Mini Vision...');
+    // Step 2: GPT-4o Mini Vision Analysis (with OCR cross-validation)
+    console.log('🔍 AI Step 2: Starting GPT-4o Mini Vision analysis...');
     const { medicalData, confidence: visionConfidence } = await analyzeWithGPT4oMiniVision(
+      openaiClient,
       documentBuffer, 
       extractedText, 
       filePath
     );
+    console.log('✅ AI Step 2: GPT-4o Mini analysis completed');
     
     // Step 3: Calculate overall confidence (handle null values gracefully)
     let overallConfidence = null;
@@ -582,6 +591,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // 3. Core processing logic with new Vision + OCR pipeline
+    let processingMethod = 'gpt4o_mini_vision_ocr'; // Default processing method
+    
     try {
       console.log(`🔍 Step A: Starting file download for: ${filePath}`);
       
@@ -602,17 +613,48 @@ Deno.serve(async (req: Request) => {
       console.log(`✅ Step B: File converted to buffer: ${uint8Array.length} bytes`);
 
       console.log(`🔍 Step C: Starting Vision + OCR processing for: ${filePath}`);
-      // Process document with new Vision + OCR Safety Net pipeline
+      
+      // Mark stage before AI processing
+      await supabase
+        .from('documents')
+        .update({ 
+          processing_error: JSON.stringify({
+            stage: 'ai_processing_start',
+            version: 'v2.1_handler_scoped_clients',
+            timestamp: new Date().toISOString(),
+            message: 'Starting AI processing pipeline'
+          })
+        })
+        .eq('storage_path', filePath);
+        
+      // Real AI processing pipeline
       const {
         extractedText,
         medicalData,
         confidence,
         ocrConfidence,
         visionConfidence,
-        processingMethod
-      } = await processWithVisionPlusOCR(uint8Array, filePath);
+        processingMethod: actualProcessingMethod
+      } = await processWithVisionPlusOCR(openai, uint8Array, filePath);
+      
+      processingMethod = actualProcessingMethod; // Update the variable declared outside try block
+      
+      console.log('✅ Real AI processing completed');
       
       console.log(`✅ Step C: Vision + OCR processing completed`);
+      
+      // Mark stage after AI processing
+      await supabase
+        .from('documents')
+        .update({ 
+          processing_error: JSON.stringify({
+            stage: 'ai_processing_complete',
+            version: 'v2.1_handler_scoped_clients',
+            timestamp: new Date().toISOString(),
+            message: 'AI processing completed successfully'
+          })
+        })
+        .eq('storage_path', filePath);
       
       console.log(`Processing completed with ${confidence?.toFixed(1) || 'N/A'}% overall confidence`);
 
@@ -630,15 +672,28 @@ Deno.serve(async (req: Request) => {
       }
 
       // Update document with results (mapped to canonical schema fields)
+      // Note: confidence_score expects 0-1 scale, vision_confidence expects 0-100 scale
+      
+      // Extract key fields from medicalData for documents table columns
+      const documentType = medicalData.documentType || null;
+      const providerName = medicalData.provider?.name || null;
+      const facilityName = medicalData.provider?.facility || null;
+      const serviceDate = medicalData.dates?.serviceDate || medicalData.dates?.documentDate || null;
+      
       const { data: updatedDoc, error: updateError } = await supabase
         .from('documents')
         .update({ 
           status: finalStatus,
           extracted_text: extractedText,
           medical_data: medicalData,
-          ocr_confidence: ocrConfidence,
-          vision_confidence: visionConfidence,
-          confidence_score: confidence,
+          // Map extracted data to documents table fields
+          document_type: documentType,
+          provider_name: providerName,
+          facility_name: facilityName,
+          service_date: serviceDate,
+          // Confidence and processing metadata
+          vision_confidence: visionConfidence, // 0-100 scale
+          confidence_score: confidence !== null ? confidence / 100 : null, // Convert to 0-1 scale
           processing_method: processingMethod,
           processing_completed_at: new Date().toISOString(),
           processing_error: null // Clear any previous errors
