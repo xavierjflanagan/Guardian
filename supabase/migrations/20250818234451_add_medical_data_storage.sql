@@ -7,11 +7,11 @@ BEGIN;
 ALTER TABLE documents 
 ADD COLUMN IF NOT EXISTS medical_data JSONB,
 ADD COLUMN IF NOT EXISTS vision_confidence DECIMAL(5,2),
-ADD COLUMN IF NOT EXISTS processing_method VARCHAR(50) DEFAULT 'vision_plus_ocr';
+ADD COLUMN IF NOT EXISTS processing_method VARCHAR(50) DEFAULT 'gpt4o_mini_vision_ocr';
 
 -- Update processing_method for existing records
 UPDATE documents 
-SET processing_method = 'vision_plus_ocr' 
+SET processing_method = 'gpt4o_mini_vision_ocr' 
 WHERE processing_method IS NULL;
 
 -- Add index for efficient JSONB querying

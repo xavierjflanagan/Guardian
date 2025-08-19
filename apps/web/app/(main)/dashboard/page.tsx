@@ -110,7 +110,7 @@ export default function DashboardPage() {
         throw new Error(`Failed to start processing: ${functionError.message}`);
       }
 
-      setUploadMessage("File uploaded and processing started!");
+      setUploadMessage("File uploaded and AI processing started!");
       
       // Refresh documents list
       await fetchDocuments();
