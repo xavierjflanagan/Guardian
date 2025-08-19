@@ -8,43 +8,7 @@ interface QualityGuardianEngine {
   storeFlags(flags: any[]): Promise<string[]>;
 }
 
-// Initialize Supabase client
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-);
-
-// Initialize OpenAI client for GPT-4o Mini
-const openai = new OpenAI({
-  apiKey: Deno.env.get('OPENAI_API_KEY')!,
-});
-
-// Validate required environment variables with detailed logging
-console.log('🚀 Document Processor Complex v2.0 - Medical Data Storage Enabled');
-console.log('Starting environment validation...');
-
-try {
-  const requiredEnvVars = {
-    'OPENAI_API_KEY': Deno.env.get('OPENAI_API_KEY'),
-    'GOOGLE_CLOUD_API_KEY': Deno.env.get('GOOGLE_CLOUD_API_KEY'),
-    'SUPABASE_URL': Deno.env.get('SUPABASE_URL'),
-    'SUPABASE_SERVICE_ROLE_KEY': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  };
-
-  for (const [name, value] of Object.entries(requiredEnvVars)) {
-    if (!value) {
-      console.error(`❌ Missing environment variable: ${name}`);
-      throw new Error(`Missing required environment variable: ${name}`);
-    } else {
-      console.log(`✅ ${name}: ${value.substring(0, 8)}...`);
-    }
-  }
-
-  console.log('✅ Environment validation passed - all required API keys configured');
-} catch (envError) {
-  console.error('❌ Environment validation failed:', envError);
-  throw envError;
-}
+console.log('🚀 Document Processor Complex v2.1 - Module Loading');
 
 // Google Cloud Vision OCR integration
 async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{ extractedText: string; confidence: number | null }> {
@@ -544,6 +508,40 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(origin);
 
   try {
+    console.log('🔍 v2.1: Handler started - initializing clients...');
+    
+    // Initialize clients inside handler to avoid module-level crashes
+    let supabase, openai;
+    try {
+      // Validate environment variables
+      const requiredEnvVars = {
+        'OPENAI_API_KEY': Deno.env.get('OPENAI_API_KEY'),
+        'GOOGLE_CLOUD_API_KEY': Deno.env.get('GOOGLE_CLOUD_API_KEY'),
+        'SUPABASE_URL': Deno.env.get('SUPABASE_URL'),
+        'SUPABASE_SERVICE_ROLE_KEY': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      };
+
+      for (const [name, value] of Object.entries(requiredEnvVars)) {
+        if (!value) {
+          throw new Error(`Missing required environment variable: ${name}`);
+        }
+      }
+
+      // Initialize clients
+      supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      );
+
+      openai = new (await import('https://esm.sh/openai@4.24.1')).default({
+        apiKey: Deno.env.get('OPENAI_API_KEY')!,
+      });
+
+      console.log('✅ v2.1: Clients initialized successfully');
+    } catch (initError) {
+      console.error('❌ v2.1: Client initialization failed:', initError);
+      throw new Error(`Initialization failed: ${initError.message}`);
+    }
     // 1. Extract file path from the request body
     const { filePath } = await req.json();
     if (!filePath) {
@@ -556,10 +554,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 2. Update the document status to 'processing'
+    // 2. Update the document status to 'processing' and mark version
     const { data, error } = await supabase
       .from('documents')
-      .update({ status: 'processing' })
+      .update({ 
+        status: 'processing',
+        processing_error: JSON.stringify({
+          stage: 'function_start',
+          version: 'v2.1_handler_scoped_clients',
+          timestamp: new Date().toISOString(),
+          message: 'document-processor-complex v2.1 started successfully'
+        })
+      })
       .eq('storage_path', filePath)
       .select()
       .single();
