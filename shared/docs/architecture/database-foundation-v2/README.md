@@ -1,14 +1,24 @@
-# Guardian Database Foundation v7.2
+# Guardian Database Foundation v2
 
-**Status:** ✅ Production Ready  
-**Date:** August 06 2025  
-**Version:** 7.2  
+**Status:** Enhanced Navigation Architecture  
+**Date:** August 19 2025  
+**Purpose:** Improved navigation and consumer mapping for database foundation  
+**Reference:** [Original database-foundation v7.2](../database-foundation/)
+
+---
+
+## Quick Start for Consumers
+
+**👨‍💻 AI Processing Developer?** → [AI Processing Consumer Guide](./consumers/ai-processing.md)  
+**🎨 Frontend Developer?** → [Frontend App Consumer Guide](./consumers/frontend-app.md)  
+**🏥 Provider Portal Developer?** → [Provider Portal Consumer Guide](./consumers/provider-portal.md)  
+**📊 Need Database Schema Reference?** → [Core Schema Documentation](#architecture-modules)
 
 ---
 
 ## Overview
 
-The Database Foundation is the secure storage and normalization layer of the Guardian pipeline. This module handles clinical data storage, multi-profile management, security compliance, and healthcare journey management after AI processing has extracted structured medical information.
+The Database Foundation v2 provides the same robust clinical data architecture as v7.2 with dramatically improved navigation and consumer guidance. This is the secure storage and normalization layer that AI processing components must populate and frontend applications consume.
 
 **Key Improvements in v7:**
 - 🏗️ **Modular Architecture**: Split into focused, maintainable modules
@@ -19,6 +29,25 @@ The Database Foundation is the secure storage and normalization layer of the Gua
 - 👤 **User-Centric**: Enhanced consent management, progressive authentication, and personalization
 - 🚀 **Performance**: Advanced queuing and real-time capabilities
 - 🔒 **Security**: Profile-aware RLS policies with contamination prevention and audit improvements
+
+---
+
+## Consumer-Focused Navigation
+
+### For AI Processing Developers
+- **[AI Processing Consumer Guide](./consumers/ai-processing.md)** - Complete mapping of AI components to database tables
+- **[Database Bridge Documentation](../ai-processing-v2/06-technical-specifications/database-bridge/)** - Detailed integration specifications
+- **[Extraction Pipeline Integration](../ai-processing-v2/03-extraction-pipeline/normalization/)** - Data flow and normalization patterns
+
+### For Frontend Developers  
+- **[Frontend App Consumer Guide](./consumers/frontend-app.md)** - React/Next.js integration patterns and performance optimization
+- **[Multi-Profile UI Patterns](./features/user-experience.md)** - Profile switching and family healthcare UI
+- **[Real-time Data Patterns](./features/user-experience.md#real-time-features)** - Live updates and notifications
+
+### For Provider Portal Developers
+- **[Provider Portal Consumer Guide](./consumers/provider-portal.md)** - Healthcare provider access patterns and compliance
+- **[Provider Registry Integration](./features/provider-portal.md)** - NPI-based provider management
+- **[Family Healthcare Coordination](./features/provider-portal.md#family-coordination)** - Multi-profile provider access
 
 ---
 
@@ -99,10 +128,25 @@ Multi-layered security with profile-aware RLS policies, AI-powered contamination
 
 ---
 
+## Migration from v7.2
+
+The database-foundation-v2 is a documentation reorganization with improved consumer navigation - **no schema changes required**. All existing SQL files and implementations remain valid.
+
+**Changes:**
+- ✅ Enhanced navigation for AI processing, frontend, and provider portal consumers
+- ✅ Consumer-focused documentation structure with specific integration guides
+- ✅ Bridge documentation references for AI processing integration
+- ✅ Quick-start sections and cross-references for faster onboarding
+
+**No Changes:**
+- 🔄 Database schema (remains compatible with existing v7.2)
+- 🔄 SQL implementation files (no modifications to deployment scripts)
+- 🔄 API endpoints (existing integrations unaffected)
+
 ## Design Evolution
-- **v7.0** (2025-07-31): Production-ready modular architecture with integrated multi-profile support, family healthcare coordination, smart health features, and FHIR integration
+- **v2.0** (2025-08-19): Enhanced navigation and consumer guidance for AI processing integration
+- **v7.2** (2025-08-06): Production-ready modular architecture with integrated multi-profile support, family healthcare coordination, smart health features, and FHIR integration
 - **v7.3 (Planned)**: Provider portal integration with universal provider registry, family access control, and cross-profile healthcare coordination
-- **v6.0-v1.0** (2025-07-26 to 2025-07-28): Design and planning phases (archived)
 
 ---
 

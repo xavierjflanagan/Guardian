@@ -1,0 +1,1 @@
+# PLACEHOLDER: clinical_fact_sources Bridge Specification - Spatial provenance tracking bridge document pending Phase 2+ implementation (spatial-semantic fusion with PostGIS)

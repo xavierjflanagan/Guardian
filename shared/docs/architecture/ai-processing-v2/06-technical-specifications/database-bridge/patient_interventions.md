@@ -1,0 +1,1 @@
+# PLACEHOLDER: patient_interventions Bridge Specification - Intervention details extraction bridge document pending detailed implementation

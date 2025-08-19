@@ -1,0 +1,1 @@
+# PLACEHOLDER: patient_conditions Bridge Specification - Condition and diagnosis extraction bridge document pending detailed implementation
