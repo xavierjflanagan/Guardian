@@ -19,22 +19,32 @@ const openai = new OpenAI({
   apiKey: Deno.env.get('OPENAI_API_KEY')!,
 });
 
-// Validate required environment variables
-const requiredEnvVars = {
-  'OPENAI_API_KEY': Deno.env.get('OPENAI_API_KEY'),
-  'GOOGLE_CLOUD_API_KEY': Deno.env.get('GOOGLE_CLOUD_API_KEY'),
-  'SUPABASE_URL': Deno.env.get('SUPABASE_URL'),
-  'SUPABASE_SERVICE_ROLE_KEY': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-};
-
-for (const [name, value] of Object.entries(requiredEnvVars)) {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-}
-
+// Validate required environment variables with detailed logging
 console.log('🚀 Document Processor Complex v2.0 - Medical Data Storage Enabled');
-console.log('Environment validation passed - all required API keys configured');
+console.log('Starting environment validation...');
+
+try {
+  const requiredEnvVars = {
+    'OPENAI_API_KEY': Deno.env.get('OPENAI_API_KEY'),
+    'GOOGLE_CLOUD_API_KEY': Deno.env.get('GOOGLE_CLOUD_API_KEY'),
+    'SUPABASE_URL': Deno.env.get('SUPABASE_URL'),
+    'SUPABASE_SERVICE_ROLE_KEY': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  };
+
+  for (const [name, value] of Object.entries(requiredEnvVars)) {
+    if (!value) {
+      console.error(`❌ Missing environment variable: ${name}`);
+      throw new Error(`Missing required environment variable: ${name}`);
+    } else {
+      console.log(`✅ ${name}: ${value.substring(0, 8)}...`);
+    }
+  }
+
+  console.log('✅ Environment validation passed - all required API keys configured');
+} catch (envError) {
+  console.error('❌ Environment validation failed:', envError);
+  throw envError;
+}
 
 // Google Cloud Vision OCR integration
 async function extractWithGoogleVisionOCR(documentBuffer: Uint8Array): Promise<{ extractedText: string; confidence: number | null }> {
@@ -706,14 +716,40 @@ Deno.serve(async (req: Request) => {
 
   } catch (err) {
     // Handle unexpected errors
-    console.error("Unexpected error in document processor:", err);
+    console.error("❌ CRITICAL ERROR in document processor:", err);
+    console.error("Error stack:", err instanceof Error ? err.stack : 'No stack trace');
     
     const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : 'No stack trace';
+    
+    // Log to database for debugging
+    try {
+      await supabase.rpc('log_audit_event', {
+        p_table_name: 'documents',
+        p_record_id: null,
+        p_operation: 'CRITICAL_ERROR',
+        p_old_values: null,
+        p_new_values: {
+          error: errorMessage,
+          stack: errorStack,
+          timestamp: new Date().toISOString(),
+          function_version: 'v2.0'
+        },
+        p_reason: 'Critical error in document-processor-complex',
+        p_compliance_category: 'system_error',
+        p_patient_id: null
+      });
+    } catch (logError) {
+      console.error("Failed to log error:", logError);
+    }
     
     return new Response(JSON.stringify({
       success: false,
       error: "Internal server error",
-      details: errorMessage
+      details: errorMessage,
+      stack: errorStack,
+      version: "v2.0",
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
