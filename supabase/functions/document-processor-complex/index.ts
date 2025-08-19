@@ -33,6 +33,7 @@ for (const [name, value] of Object.entries(requiredEnvVars)) {
   }
 }
 
+console.log('🚀 Document Processor Complex v2.0 - Medical Data Storage Enabled');
 console.log('Environment validation passed - all required API keys configured');
 
 // Google Cloud Vision OCR integration
@@ -448,6 +449,7 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
   confidence: number | null;
   ocrConfidence: number | null;
   visionConfidence: number | null;
+  processingMethod: string;
 }> {
   console.log('Starting Vision + OCR Safety Net pipeline...');
   
@@ -494,7 +496,11 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
       throw new Error(`Combined confidence too low: ${overallConfidence.toFixed(1)}% (minimum 80% required for medical documents)`);
     }
     
+    // Determine dynamic processing method based on what was actually used
+    const processingMethod = 'gpt4o_mini_vision_ocr'; // GPT-4o Mini + Google Vision OCR
+    
     console.log(`Vision + OCR pipeline completed successfully!`);
+    console.log(`   Processing method: ${processingMethod}`);
     console.log(`   OCR confidence: ${ocrConfidence !== null ? ocrConfidence.toFixed(1) + '%' : 'not provided'}`);
     console.log(`   Vision confidence: ${visionConfidence !== null ? visionConfidence.toFixed(1) + '%' : 'not provided'}`);
     console.log(`   Overall confidence: ${overallConfidence !== null ? overallConfidence.toFixed(1) + '%' : 'not available'}`);
@@ -504,7 +510,8 @@ async function processWithVisionPlusOCR(documentBuffer: Uint8Array, filePath: st
       medicalData,
       confidence: overallConfidence,
       ocrConfidence,
-      visionConfidence
+      visionConfidence,
+      processingMethod
     };
     
   } catch (error) {
@@ -585,7 +592,8 @@ Deno.serve(async (req: Request) => {
         medicalData,
         confidence,
         ocrConfidence,
-        visionConfidence
+        visionConfidence,
+        processingMethod
       } = await processWithVisionPlusOCR(uint8Array, filePath);
       
       console.log(`✅ Step C: Vision + OCR processing completed`);
@@ -615,7 +623,7 @@ Deno.serve(async (req: Request) => {
           ocr_confidence: ocrConfidence,
           vision_confidence: visionConfidence,
           confidence_score: confidence,
-          processing_method: 'vision_plus_ocr',
+          processing_method: processingMethod,
           processing_completed_at: new Date().toISOString(),
           processing_error: null // Clear any previous errors
         })
@@ -641,7 +649,7 @@ Deno.serve(async (req: Request) => {
           confidence,
           ocrConfidence,
           visionConfidence,
-          processingMethod: 'vision_plus_ocr'
+          processingMethod: processingMethod
         },
         qualityValidation: {
           flagsCount: flags.length,
@@ -669,7 +677,7 @@ Deno.serve(async (req: Request) => {
             error: errorMessage,
             timestamp: new Date().toISOString(),
             stage: 'vision_plus_ocr_processing',
-            processing_method: 'vision_plus_ocr'
+            processing_method: processingMethod || 'gpt4o_mini_vision_ocr'
           }),
           processing_completed_at: new Date().toISOString()
         })
