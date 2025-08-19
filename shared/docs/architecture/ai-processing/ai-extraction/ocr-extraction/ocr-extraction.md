@@ -1,14 +1,34 @@
 # OCR Integration Strategies
 
-**Purpose:** Strategic approaches for using always-extracted OCR text in AI-first processing  
-**Status:** Design Phase - Strategy framework ready for implementation  
-**Last updated:** August 18, 2025
+**Purpose:** Strategic approaches for using OCR in AI-first processing pipeline  
+**Status:** Spatial-Semantic Fusion Analysis Complete - Implementation roadmap defined  
+**Last updated:** August 19, 2025
 
 ---
 
 ## **Overview**
 
-OCR Integration Strategies define when, how, and why to inject always-extracted OCR text into AI-first multimodal processing. These strategies optimize for accuracy, cost, and performance while maintaining the AI-vision-first paradigm with always-available OCR text for multiple use cases.
+OCR Integration Strategies define when, how, and why to integrate OCR with AI-first multimodal processing. Based on the [Spatial-Semantic Fusion Analysis](../../spatial-semantic-fusion-analysis.md), **OCR + AI fusion remains optimal** for healthcare-grade spatial precision requirements, implemented as Phase 2+ enhancement rather than immediate requirement.
+
+**Key Insight**: AI models cannot yet provide pixel-perfect spatial coordinates required for PostGIS integration and click-to-zoom functionality. Text alignment algorithms are needed to map AI-extracted clinical facts to OCR spatial regions.
+
+---
+
+## **Implementation Phases**
+
+### **Phase 1: AI-First Processing (Immediate)**
+- **Approach**: AI-only clinical fact extraction without spatial coordinates
+- **Rationale**: Database foundation requires immediate clinical data population
+- **Output**: Rich clinical facts ready for normalization pipeline
+- **Spatial Data**: None initially - clinical_fact_sources populated without bounding boxes
+
+### **Phase 2+: Spatial-Semantic Fusion (Future Enhancement)**
+- **Approach**: OCR + AI fusion with text alignment algorithms
+- **Rationale**: Healthcare compliance requires precise spatial provenance for click-to-zoom
+- **Output**: Clinical facts with PostGIS-compatible spatial coordinates
+- **Innovation**: Text alignment engine maps AI facts to OCR spatial regions
+
+---
 
 ## **Strategic Framework**
 
@@ -23,6 +43,93 @@ interface OCRIntegrationPhilosophy {
   quality_focus: 'Improve accuracy without degrading performance';
 }
 ```
+
+---
+
+## **Critical Innovation: Text Alignment Algorithms**
+
+### **Spatial-Semantic Mapping Challenge**
+**Problem**: AI extracts clinical facts semantically, OCR provides spatial coordinates, but **no mechanism exists to connect them**.
+
+**Example Gap**:
+- **AI extracts**: `"vaccination occurring Jan 2020 by Dr. Smith"`  
+- **OCR provides**: Bounding boxes for text regions  
+- **Missing**: Connection between semantic fact and spatial location
+
+### **Text Alignment Engine Implementation**
+```typescript
+interface TextAlignmentEngine {
+  // Core algorithm for mapping AI facts to OCR spatial regions
+  async mapFactsToSpatialRegions(
+    aiExtractions: ClinicalFact[],
+    ocrResult: EnhancedOCRResult
+  ): Promise<SpatiallyMappedFacts>;
+
+  // Fuzzy text matching with confidence scoring
+  async findSpatialMatch(params: {
+    factText: string;
+    ocrTextElements: OCRTextElement[];
+    fuzzyThreshold: number; // 0.8 recommended
+  }): Promise<SpatialMatch>;
+
+  // PostGIS polygon generation from OCR vertices
+  convertToPostGISGeometry(
+    ocrBoundingPoly: OCRBoundingPoly,
+    pageNumber: number
+  ): PostGISPolygon;
+}
+
+interface EnhancedOCRResult {
+  fullText: string;
+  textElements: Array<{
+    text: string;
+    boundingPoly: {vertices: Array<{x: number, y: number}>};
+    startIndex: number; // Position in full text
+    endIndex: number;
+  }>;
+}
+
+class SpatialSemanticMapper implements TextAlignmentEngine {
+  async mapFactsToSpatialRegions(
+    aiExtractions: ClinicalFact[],
+    ocrResult: EnhancedOCRResult
+  ): Promise<SpatiallyMappedFacts> {
+    
+    const spatiallyMappedFacts = [];
+    
+    for (const fact of aiExtractions) {
+      // Use fuzzy string matching to find supporting OCR text
+      const spatialMatch = await this.findBestTextMatch({
+        targetText: fact.extractedText,
+        candidateTexts: ocrResult.textElements,
+        algorithm: 'levenshtein_with_semantic_boost'
+      });
+      
+      if (spatialMatch.confidence > 0.8) {
+        spatiallyMappedFacts.push({
+          ...fact,
+          boundingBox: spatialMatch.boundingPoly,
+          spatialConfidence: spatialMatch.confidence,
+          extractionMethod: 'ai_vision_ocr_fused'
+        });
+      } else {
+        // Flag for manual review or use AI-only approach
+        spatiallyMappedFacts.push({
+          ...fact,
+          boundingBox: null,
+          spatialConfidence: 0.0,
+          extractionMethod: 'ai_vision_only',
+          requiresManualReview: true
+        });
+      }
+    }
+    
+    return spatiallyMappedFacts;
+  }
+}
+```
+
+---
 
 ## **Strategy Categories**
 
