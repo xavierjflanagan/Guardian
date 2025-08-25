@@ -5,6 +5,8 @@
 - **Created**: 25 August 2025
 - **Purpose**: Define the AI processing strategy for clinical document extraction. 
 - **Status**: Draft specification for implementation
+- **Related**: Follows `03-ocr-processing-architecture.md`. See `00-pipeline-overview.md` for overview
+
 
 ## Executive Summary
 
