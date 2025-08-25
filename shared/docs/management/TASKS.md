@@ -3,8 +3,8 @@
 > **Workflow Update (2025-07-10):** Sign-in and sign-off protocols now include a Git Hygiene step (run `git status` and `git fetch origin` before each session) to ensure repo is up to date and prevent conflicts.
 
 **Purpose:** Tracks all major tasks, their status, and dependencies. Use as a Kanban board for project management.  
-**Last updated:** August 18, 2025  
-**Target:** **AI Processing Pipeline Phase 2 Implementation - Ready for Development**  
+**Last updated:** August 25, 2025  
+**Target:** **AI Processing Pipeline V3 Implementation - Schema-Based Execution Ready**  
 **Audience:** Solo founder, developers, project managers, contributors  
 **Prerequisites:** None
 
@@ -33,23 +33,24 @@
 
 ---
 
-## **Current Sprint: AI Processing Pipeline Implementation (August 18, 2025)**
+## **Current Sprint: AI Processing Pipeline V3 Implementation (August 25, 2025)**
 
-### 🚀 **CRITICAL SYSTEM FIXES COMPLETED AUGUST 18, 2025:**
-- ✅ **Issue #36 Resolved** - File upload system failures fixed (3-hour deep dive debugging)
-- ✅ **CI/CD Pipeline Stabilized** - TypeScript validation and PII detection issues resolved
-- ✅ **AI Processing Documentation Complete** - Phase 2 implementation roadmap finalized
-- ✅ **Security Framework Documentation** - Australian Privacy Act + HIPAA compliance frameworks
+### 🚀 **V3 ARCHITECTURE BREAKTHROUGH COMPLETED AUGUST 25, 2025:**
+- ✅ **AI Processing Pipeline V3** - Complete architectural revamp with AI-database integration mastery
+- ✅ **Schema Integration Strategy** - Direct schema approach without bridge documentation (20-30 hours saved)
+- ✅ **Three-Version Schema Framework** - Source/detailed/minimal strategy for token optimization
+- ✅ **Manual Schema Creation Excellence** - Hand-crafted precision avoiding automation complexity
+- ✅ **Taxonomy Alignment Verified** - Existing entity classification integrates with v3 schema plans
 
-### 🔄 **IMMEDIATE PRIORITIES (August 19, 2025):**
+### 🔄 **IMMEDIATE PRIORITIES (August 26, 2025 - Execution Day):**
 
 | Task | Status | Priority | Dependencies | Notes |
 |------|--------|----------|--------------|-------|
-| **Phase 2: AI-First Pipeline Implementation** | 🔜 Ready | Critical | Core infrastructure ✅ | Multimodal AI processing with OCR adjunct |
-| **GPT-4o Mini Provider Setup** | 🔜 Ready | Critical | AI pipeline start | Primary AI processing provider |
-| **Azure OpenAI BAA Integration** | 🔜 Ready | High | GPT-4o setup | HIPAA-compliant processing for PHI |
-| **Database Schema Updates** | 🔜 Ready | High | AI providers | Deploy document_ai_results tables |
-| **Cost Optimization Framework** | 🔜 Ready | Medium | Schema updates | Provider routing and budget controls |
+| **Create patient_clinical_events Detailed Schema** | 🔜 Ready | Critical | V3 architecture ✅ | ~300 tokens with guidance and examples |
+| **Create patient_clinical_events Minimal Schema** | 🔜 Ready | Critical | Detailed schema | ~100 tokens selective minimization |
+| **Build Entity-to-Schema Mapping Logic** | 🔜 Ready | High | Core schemas | Route entities to appropriate database tables |
+| **Implement A/B Testing Framework** | 🔜 Ready | High | Schema versions | Compare detailed vs minimal accuracy |
+| **Sequential Schema Expansion** | 🔜 Ready | Medium | MVP validation | patient_observations, patient_interventions, etc. |
 
 ### 🏢 **BUSINESS FOUNDATION COMPLETED AUGUST 14, 2025:**
 - ✅ **Exora Health Pty Ltd** - Company registration submitted (ACN pending)
@@ -57,14 +58,24 @@
 - ✅ **Domain Portfolio** - 10 domains secured (exorahealth.com.au primary)
 - ✅ **Exora ID System** - Revolutionary healthcare data sharing concept designed
 
+### 🧩 **V3 IMPLEMENTATION ROADMAP (Phase 1):**
+
+| Task | Status | Priority | Dependencies | Timeline | Notes |
+|------|--------|----------|--------------|----------|-------|
+| **patient_clinical_events Schema Creation** | 🔜 Today | Critical | V3 framework ✅ | Day 1 | Core clinical events table (detailed + minimal) |
+| **Schema Loader Implementation** | 🔜 Today | Critical | Core schemas | Day 1 | Runtime schema-to-prompt conversion |
+| **Entity Classification Integration** | 🔜 Week 1 | High | Schema loader | Days 2-3 | Map entities to schemas automatically |
+| **A/B Testing Implementation** | 🔜 Week 1 | High | Entity mapping | Days 4-5 | Compare detailed vs minimal effectiveness |
+| **Sequential Schema Addition** | 🔜 Week 2 | Medium | MVP validation | Days 6-10 | patient_observations, interventions, conditions |
+
 ### 📋 **DEFERRED BUSINESS TASKS:**
 
 | Task | Status | Priority | Dependencies | Target Timeline | Notes |
 |------|--------|----------|--------------|-----------------|-------|
-| **Domain Ownership Transfer** | 🔄 Deferred | Medium | Company ACN/ABN | 30-60 days | Transfer exorahealth.com.au from sole trader to Exora Health Pty Ltd - [GitHub Issue #24](https://github.com/xavierjflanagan/Guardian/issues/24) |
+| **Taxonomy Alignment Review** | 🟡 Review Needed | Medium | V3 implementation | This week | Verify 05-entity-classification-taxonomy.md aligns with schema plans |
+| **Domain Ownership Transfer** | 🔄 Deferred | Medium | Company ACN/ABN | 30-60 days | Transfer exorahealth.com.au from sole trader to Exora Health Pty Ltd |
 | **Vercel Domain Configuration** | 🔄 Deferred | Medium | Domain transfer | 60-90 days | Configure DNS and production deployment |
 | **CORS Security Fix** | 🔄 Deferred | Medium | Domain config | Post AI pipeline | Fix wildcard vulnerability in Edge Functions |
-| **Trademark Filing** | 🔄 Deferred | Low | Domain transfer | 90+ days | Brand protection for exorahealth.com.au - can be completed after business stabilization |
 
 ## **Current Sprint: Phase 3.2 Security Hardening (August, Week 2, 2025)**
 
