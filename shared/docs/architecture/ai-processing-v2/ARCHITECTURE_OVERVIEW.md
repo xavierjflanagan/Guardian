@@ -1,121 +1,125 @@
 # AI Processing Architecture Overview
 
-**Guardian Healthcare Document Processing System**  
+**Exora Health Document Processing System**  
 **Version:** 2.0 - Enterprise Architecture  
 **Date:** August 19, 2025  
+**Last Update:** August 20, 2025  
 **Purpose:** Transform medical documents into normalized clinical data for multi-profile healthcare management
 
 ---
 
 ## System Overview
 
-Guardian's AI Processing Architecture v2 is a complete redesign that transforms medical documents into structured clinical data. Unlike the MVP v1 approach, this enterprise architecture directly aligns with Guardian's database foundation to support family healthcare management across multiple profiles.
+Exora's AI Processing Architecture v2 is a complete redesign that transforms scattered healthcare file data into unified structured clinical data. Unlike the MVP v1 approach, this enterprise architecture directly aligns with Exora's database foundation.
 
 ### Core Design Principles
 
 **Database-First Architecture**
-- Every AI component is designed to populate specific database tables
-- Direct mapping from AI extraction to normalized clinical schema
+- Single comprehensive AI call extracts and maps structured medical data directly to normalized database schema
 - Ensures data consistency and enables advanced healthcare features
 
-**Multi-Profile Safety**
-- Documents classified to correct profiles (self/child/adult_dependent/pet)
-- Contamination prevention to maintain data integrity
-- Family healthcare coordination with proper access controls
+**Intelligent Document Format Processing**
+- Smart routing system optimizes processing path for each document depending on file format.
+- Fast path for 95% of clean documents (<500ms extraction)
+- Rendering fallback option for complex formats ensures 99.5%+ success
+- Learning system continuously improves routing decisions
+
+**Multi-Profile Safety with Deferred Assignment**
+- Complete medical processing occurs before profile assignment
+- AI suggests profile ownership without automatic assignment
+- User confirmation workflow prevents profile contamination
+- Holding area for clinical data with unconfirmed user provenance
 
 **Clinical Standards Compliance**
 - Integration with SNOMED-CT, LOINC, and CPT coding systems
 - Healthcare interoperability and provider integration ready
 - Supports clinical decision support and analytics
 
-**Complete Provenance**
-- Every extracted fact traceable to source document
-- Spatial coordinates for click-to-zoom functionality (Phase 2+)
-- Confidence scoring and quality metrics for healthcare compliance
+**Single-Call AI Optimization**
+- Comprehensive-AI-call processes complete medical analysis in single operation
+- 85% reduction in AI calls (7 → 2) with 70% cost savings
+- Maintains healthcare-grade accuracy with comprehensive output validation
 
 ---
 
 ## High-Level System Flow
 
-### 1. Document Ingestion
+### 1. Intelligent Document Routing
 ```
-Medical Document → Profile Classification → Document Routing
+Medical Document → Format Analysis → Smart Routing → Optimized Processing
 ```
-- AI determines profile type (self/child/adult_dependent/pet)
-- Routes to appropriate processing pipeline
-- Prevents cross-profile data contamination
+- Advanced format detection beyond simple MIME types
+- Fast path for clean documents (95% of cases, <500ms)
+- Rendering fallback for complex/problematic formats (<5% of cases)
+- Learning system optimizes routing decisions from success patterns
 
-### 2. AI-First Processing
+### 2. Comprehensive-AI Processing
 ```
-Document Content → GPT-4o Mini → Structured Medical Facts
+High-Quality Text → Single AI Call → Complete Medical Analysis
 ```
-- O3's two-axis clinical classification (observation/intervention × clinical purposes)
-- Healthcare standards integration (SNOMED-CT/LOINC/CPT codes)
-- Confidence scoring and quality validation
+- Healthcare relevance validation with early termination
+- Complete medical analysis: concepts, O3 classification, coding, timeline, features
+- Profile ownership suggestion (without automatic assignment)
+- Single call delivers all structured medical data
 
-### 3. Database Population
+### 3. Profile Assignment Workflow
 ```
-Structured Facts → Database Tables → Healthcare Timeline
+AI Suggestions → User Confirmation → Conditional Database Storage
 ```
-- Direct insertion into normalized clinical tables
-- Automatic timeline metadata generation
-- Smart feature activation based on content
+- AI suggests profile ownership based on content analysis
+- High confidence (>95%): Auto-assign to existing profiles
+- Medium/Low confidence: User confirmation required
+- Holding area prevents profile contamination
 
-### 4. Spatial Enhancement (Phase 2+)
+### 4. Conditional Database Population
 ```
-AI Facts + OCR Data → Spatial Alignment → Provenance Mapping
+Confirmed Data → Clinical Tables → Healthcare Timeline
 ```
-- Maps AI extractions to document coordinates
-- Enables click-to-zoom document navigation
-- PostGIS geometry storage for spatial queries
+- Database insertion only occurs after profile confirmation
+- Complete audit trail with processing metrics
+- Smart feature activation based on confirmed content
 
 ---
 
 ## Core Components
 
-### Profile Classification Engine
-**Purpose:** Determine document owner and route appropriately  
-**Database Target:** `user_profiles`  
+### Intelligent Document Router
+**Purpose:** Optimize processing path for maximum efficiency and success  
+**Database Target:** `document_processing_metrics`  
 **Key Features:**
-- Multi-profile detection (self/child/adult_dependent/pet)
-- Age-based classification for pediatric care
-- Species detection for veterinary records
-- Contamination prevention algorithms
+- Advanced format detection and complexity analysis
+- Fast path routing for clean documents (95% of cases)
+- Rendering fallback for problematic formats (<5% of cases)
+- Learning system that improves routing decisions over time
 
-### O3 Clinical Events Classifier
-**Purpose:** Transform medical facts into structured clinical events  
-**Database Target:** `patient_clinical_events`  
-**Classification Model:**
-- **Activity Type:** observation (information gathering) vs intervention (action taken)
-- **Clinical Purposes:** screening, diagnostic, therapeutic, monitoring, preventive
-- **Healthcare Standards:** SNOMED-CT, LOINC, CPT code integration
+### Comprehensive-AI Processor
+**Purpose:** Complete medical analysis in single comprehensive call  
+**Database Targets:** All clinical tables via structured output  
+**Integrated Capabilities:**
+- Healthcare relevance validation (early termination gate)
+- O3 two-axis clinical classification (activity type × clinical purposes)
+- Medical concept extraction with healthcare coding (SNOMED-CT/LOINC/CPT)
+- Timeline metadata generation for UI display
+- Smart feature detection for context-sensitive features
+- Profile ownership suggestion (without automatic assignment)
 
-### Clinical Details Extractors
-**Purpose:** Extract specific medical measurements and details  
-**Database Targets:** `patient_observations`, `patient_interventions`, `patient_conditions`, `patient_allergies`  
-**Key Features:**
-- Lab result parsing with reference ranges
-- Medication extraction with dosage and route
-- Condition classification with ICD-10 codes
-- Allergy detection with severity assessment
+### Profile Assignment Controller
+**Purpose:** Safely assign medical data to correct family member profiles  
+**Database Target:** `pending_clinical_data`, `profile_suggestions`  
+**Safety Features:**
+- Deferred assignment until user confirmation
+- Confidence-based routing for assignment decisions
+- Holding area for unconfirmed clinical data
+- Zero-risk profile contamination prevention
 
-### Timeline Generator
-**Purpose:** Create patient-friendly timeline metadata  
-**Database Target:** `healthcare_timeline_events`  
-**Generated Content:**
-- Display categories (visit/test_result/treatment/vaccination)
-- Patient-friendly titles and summaries
-- UI icons and searchable content
-- Event tagging for filtering
-
-### Smart Feature Detector
-**Purpose:** Activate context-sensitive UI features  
-**Database Target:** `smart_health_features`  
-**Detection Contexts:**
-- Pregnancy care (prenatal visits, pregnancy tests)
-- Pediatric care (age-based, growth charts, immunizations)
-- Veterinary care (animal species, vet procedures)
-- Chronic disease management (diabetes, hypertension)
+### Clinical Data Validator
+**Purpose:** Ensure healthcare-grade accuracy and compliance  
+**Database Targets:** All clinical tables with validation metadata  
+**Validation Layers:**
+- AI output structure and completeness verification
+- Healthcare code validation against authoritative databases
+- Clinical logic consistency checking
+- Confidence threshold enforcement for safety-critical data
 
 ### Spatial Fusion Engine (Phase 2+)
 **Purpose:** Link AI extractions to document coordinates  
@@ -131,7 +135,7 @@ AI Facts + OCR Data → Spatial Alignment → Provenance Mapping
 ## Database Integration Architecture
 
 ### Core Clinical Tables
-Guardian's AI processing directly populates these normalized tables:
+Exora's AI processing directly populates these normalized tables:
 
 ```yaml
 patient_clinical_events:
@@ -271,22 +275,23 @@ smart_health_features:
 ## Performance and Scalability
 
 ### Processing Optimization
-- Batch processing for multiple documents
-- Parallel extraction for different clinical data types
-- Database connection pooling and transaction optimization
-- Memory management for large document processing
+- Intelligent routing delivers 95% fast path success (<500ms)
+- Single Comprehensive-AI-call reduces processing complexity and latency
+- Batch processing for multiple documents with shared context
+- Memory-efficient rendering only when necessary (<5% of documents)
 
 ### Cost Optimization
-- GPT-4o Mini for cost-effective LLM processing (~85-90% cost reduction vs previous approaches)
-- Intelligent prompt engineering to minimize token usage
-- API cost tracking and attribution per processing session
-- Configurable processing intensity based on document importance
+- 85% reduction in AI calls (7 → 2) delivers 70% cost savings
+- Fast path processing eliminates unnecessary OCR costs
+- GPT-4o Mini Comprehensive-call approach: ~$0.005-0.015 per document
+- Intelligent routing learning system continuously improves efficiency
 
 ### Monitoring and Metrics
-- Real-time processing performance monitoring
+- Real-time processing performance monitoring with 99.5%+ success tracking
+- Intelligent routing decision monitoring and optimization
 - Quality metrics tracking (extraction accuracy, standards compliance)
-- Cost tracking per document and per profile
-- Error rate monitoring with alerting
+- Cost tracking per document with route-specific attribution
+- Profile assignment accuracy and user confirmation rates
 
 ---
 

@@ -753,3 +753,21 @@ def process_validation_results(clinical_event, quality_report):
 ---
 
 *Validation and quality assurance ensures that Guardian's AI-processed clinical data meets the highest standards of medical accuracy, logical consistency, and healthcare compliance before becoming part of patients' permanent medical records, supporting both clinical decision-making and regulatory compliance requirements.*
+
+---
+
+## Correction Feedback Loop Architecture
+
+**Objective:** To create a learning system that continuously improves over time, it is critical to capture and utilize the corrections made by human reviewers.
+
+**Rationale:** Manual reviews, while necessary for quality assurance, are also a valuable source of "ground truth" data. By systematically capturing these corrections, we can create a powerful feedback loop to identify error patterns, refine prompts, and create high-quality datasets for future AI model fine-tuning. This transforms the cost of manual review into an investment in long-term automation and accuracy.
+
+### Conceptual Flow
+
+1.  **Flag for Review:** When the validation pipeline flags a clinical event with low confidence or a specific error, it is queued for manual review.
+2.  **Human Correction:** A medical professional uses a review interface to correct the AI-extracted data (e.g., fixing a typo in a medication name, re-classifying an event).
+3.  **Capture Correction Data:** When the correction is saved, the system does not simply overwrite the original data. Instead, it triggers an action to save the `(original_ai_output, human_correction, document_id, fact_id)` tuple to a dedicated `human_corrections` database table.
+4.  **Data Analysis & Retraining:**
+    *   **Regression Testing:** The `human_corrections` table becomes a "golden dataset" used to build regression tests, ensuring that previously fixed errors do not reappear after system updates.
+    *   **Error Pattern Analysis:** The data is periodically analyzed to identify systemic issues (e.g., a specific lab test is consistently mis-coded), guiding targeted improvements to the AI prompts or normalization logic.
+    *   **Model Fine-Tuning:** Over time, this high-quality, human-verified dataset can be used to fine-tune the AI models themselves, further boosting accuracy and reducing the need for future manual reviews.

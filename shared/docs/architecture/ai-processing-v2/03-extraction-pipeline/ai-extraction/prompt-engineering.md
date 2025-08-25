@@ -1013,6 +1013,10 @@ class PromptOptimizationEngine {
   ): Promise<OptimizedPrompt> {
     
     const optimizations: PromptOptimization[] = [];
+
+    // The `human_corrections` table (part of the Correction Feedback Loop) is the primary data source 
+    // for identifying the `ErrorPattern[]` to be used by this function. This creates a direct link 
+    // between manual review and automated prompt improvement.
     
     for (const errorPattern of errorPatterns) {
       switch (errorPattern.category) {

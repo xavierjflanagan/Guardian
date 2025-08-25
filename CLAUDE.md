@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Guardian** (by Exora Health Pty Ltd) is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, and TypeScript.
 
-**Company:** Exora Health Pty Ltd (Australian company, ACN pending)  
+**Company:** Exora Health Pty Ltd (Australian company)  
 **Primary Domain:** exorahealth.com.au  
-**Status:** Production-ready, business infrastructure established
+**Status:** Still building out the product, currently designing the ai processing component of the pipeline to perfectly fit the database table format.
 
 ## Development Commands
 
@@ -112,19 +112,7 @@ Jest + React Testing Library with **production-quality infrastructure**:
 - **Storage policies**: User-specific folder access
 
 ### File Structure
-```
-guardian-web/
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication pages
-│   ├── (main)/            # Main application pages
-│   └── auth/              # Auth callbacks and errors
-├── lib/                   # Supabase client configurations
-├── utils/                 # Utility functions (file upload)
-├── middleware.ts          # Session management
-└── supabase/
-    ├── config.toml        # Local development configuration
-    └── functions/         # Edge Functions (Deno)
-```
+ - look it up, changes a lot.
 
 ## Development Guidelines
 
@@ -278,3 +266,30 @@ AWS_REGION=optional                         # Old Textract integration
 #### API Endpoints
 - `POST /functions/v1/document-processor` - Process uploaded documents
 - Returns structured medical data with confidence scores
+
+## AI Processing Pipeline Development Plan
+
+**Current Priority**: Schema Research & AI Integration Strategy
+
+**Problem Identified**: The two-call AI architecture approach needs precise database schema understanding to work effectively. Currently "flying blind" without knowing exact table structures and field requirements.
+
+**Action Plan**:
+1. **Deep Database Schema Analysis**: Research all Guardian database tables to understand:
+   - Exact field structures and data types for each clinical table
+   - Required vs optional fields for AI extraction
+   - Relationships between tables (foreign keys, joins)
+   - Validation rules and constraints
+
+2. **Schema-to-AI Mapping Strategy**: Work backwards from database requirements:
+   - Map each table to specific AI extraction requirements
+   - Determine minimum viable schema guides for AI models
+   - Consider unified generalized schema approach vs table-specific schemas
+
+3. **AI Processing Optimization**: Once schema requirements are clear:
+   - Refine two-call vs single-call architecture decision
+   - Optimize context window usage based on actual schema sizes
+   - Ensure AI output format matches database insertion requirements
+
+**Current Status**: Pipeline architecture documented in `shared/docs/architecture/ai-processing-v2/draft-ai-processing-pipeline-flow.md` - parked pending schema research completion.
+
+**Key Insight**: Need to understand destination (database tables) before optimizing the journey (AI processing pipeline).

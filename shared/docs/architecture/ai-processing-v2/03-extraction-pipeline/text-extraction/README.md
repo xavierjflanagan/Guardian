@@ -413,6 +413,11 @@ enhancement_strategies:
       - "Blood glucose [120/I20] mg/dL"
 ```
 
+### Auditability and Provenance
+
+The system MUST store both the raw, unaltered text output from the primary OCR engine and the final, AI-enhanced text. This ensures a complete audit trail and allows for analysis of the enhancement model's accuracy and impact. Storing the raw OCR text provides an unaltered ground truth that is invaluable for debugging and compliance.
+
+
 ### Text Enhancement Implementation
 ```python
 class MedicalTextEnhancer:
@@ -624,7 +629,7 @@ class OCRServiceManager:
 INSERT INTO document_text_extraction (
     document_id,
     extraction_method,           -- 'google_vision', 'aws_textract'
-    extracted_text,             -- Full document text content
+    raw_ocr_text,               -- Full, unaltered text content from the OCR engine
     confidence_score,           -- Overall OCR confidence
     spatial_data,               -- JSON with bounding box coordinates
     processing_metadata,        -- OCR service response details
