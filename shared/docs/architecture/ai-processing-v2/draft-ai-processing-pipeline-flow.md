@@ -73,7 +73,7 @@ File Analysis and information extraction:
 
 ## SCHEMA RESEARCH PRIORITY
 **CRITICAL NEXT STEP**: Complete database schema analysis before +finalizing AI processing pipeline.
-**Current Gap**: Two-call architecture requires precise understanding of:
+**Current Gap**: Three-call architecture requires precise understanding of:
   - Guardian's clinical table structures (`patient_observations`, + `patient_interventions`, etc.)
   - Required vs optional fields for each table
   - Exact data types, constraints, and relationships
@@ -84,7 +84,7 @@ File Analysis and information extraction:
 
 
 
-## REVISED ARCHITECTURE BASED ON TWO-CALL APPROACH
+## REVISED ARCHITECTURE BASED ON Three-CALL APPROACH
 
 ### File Upload & Pre-Processing
 ```yaml
@@ -108,20 +108,11 @@ stage_2_text_extraction:
   process: "Page-by-page OCR with bounding box data"
 ```
 
-### Entity-Based AI Analysis (Two-Call Architecture)
+### Entity-Based AI Analysis (Three-Call Architecture)
 ```yaml
-stage_3_entity_ai_analysis:
-  ai_engine_1_authentication:
-    input: "OCR text only (cost optimization)"
-    output: 
-      - profile_match_confidence
-      - healthcare_relevance_score
-    action: "Early termination if not healthcare or wrong profile"
-    cost: "~$0.001 per document"
-    time: "1-2 seconds"
-    
+stage_3_entity_ai_analysis: 
   ai_engine_2_entity_identification:
-    input: "OCR text + entity taxonomy (5KB)"
+    input: "Raw material + OCR text + entity taxonomy (5KB)"
     purpose: "Broad superficial identification and schema requirement mapping"
     output:
       entity_inventory:
