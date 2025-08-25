@@ -289,6 +289,28 @@ quality_assurance:
 
 ---
 
+## Terminology Versioning Strategy
+
+**Objective:** To ensure long-term data integrity and interoperability, the system must manage and store the versions of the healthcare terminology standards (SNOMED-CT, LOINC, etc.) used during normalization.
+
+**Rationale:** These standards evolve over time, with codes being added, deprecated, or redefined. Storing the version provides essential context for future data analysis, migration, and regulatory audits.
+
+### Implementation Requirements
+
+1.  **Schema Modification:**
+    *   Any database table storing a healthcare code (e.g., `patient_clinical_events`, `patient_conditions`) MUST also include a corresponding column to store the version of that standard (e.g., `snomed_version`, `loinc_version`).
+    *   Example: `snomed_code TEXT`, `snomed_version TEXT`.
+
+2.  **Processing Logic:**
+    *   The Normalization service MUST be designed to capture the terminology version during its API calls to external standards providers.
+    *   This version information MUST be passed along with the code and stored in the appropriate database column.
+
+3.  **Future Maintenance Plan:**
+    *   The system should include a plan for periodic maintenance related to terminology updates.
+    *   This may involve creating batch processes to identify records coded with older or deprecated standard versions and flagging them for review or potential re-normalization.
+
+---
+
 ## Data Quality and Validation
 
 ### Normalization Quality Metrics

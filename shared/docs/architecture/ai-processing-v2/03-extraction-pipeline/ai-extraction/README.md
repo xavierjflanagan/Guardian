@@ -34,7 +34,18 @@ cost_optimization_strategy:
 
 ## AI Extraction Components
 
-### 1. GPT-4o Mini Vision Processing
+### 1. AI Model Provider Abstraction
+**Component:** [model-provider-abstraction.md](./model-provider-abstraction.md)  
+**Purpose:** Enterprise-grade multi-provider AI framework eliminating single LLM dependency  
+**Output:** Resilient, compliant, and cost-optimized AI processing across multiple providers
+
+**Key Capabilities:**
+- Multi-provider routing with intelligent fallback strategies
+- Healthcare compliance routing (HIPAA, GDPR, Privacy Act)
+- Tiered model selection (Tier 0: cost-optimized, Tier 1: balanced, Tier 2: premium)
+- Dynamic cost-quality optimization and A/B testing framework
+
+### 2. GPT-4o Mini Vision Processing
 **Component:** [gpt4o-mini-processing.md](./gpt4o-mini-processing.md)  
 **Purpose:** Cost-effective vision-based medical document analysis and text extraction  
 **Output:** Structured text with spatial coordinates and confidence scoring
@@ -45,7 +56,7 @@ cost_optimization_strategy:
 - Spatial coordinate capture for click-to-zoom functionality
 - Cost-optimized processing with intelligent batching
 
-### 2. Prompt Engineering Framework
+### 3. Prompt Engineering Framework
 **Component:** [prompt-engineering.md](./prompt-engineering.md)  
 **Purpose:** Sophisticated prompt design for accurate medical information extraction  
 **Output:** Optimized prompts for various document types and clinical contexts
@@ -56,7 +67,7 @@ cost_optimization_strategy:
 - Few-shot learning examples for improved accuracy
 - Dynamic prompt adaptation based on document context
 
-### 3. Clinical Fact Extraction Engine
+### 4. Clinical Fact Extraction Engine
 **Component:** [clinical-fact-extraction.md](./clinical-fact-extraction.md)  
 **Purpose:** Transform extracted text into structured clinical concepts with medical coding  
 **Output:** Coded clinical events mapped to database schema
@@ -222,10 +233,12 @@ clinical_data_mapping:
 ### External Service Integration
 ```yaml
 ai_model_services:
-  primary_model: "OpenAI GPT-4o Mini API"
-  authentication: "API key with usage monitoring"
-  rate_limiting: "Intelligent queuing with cost optimization"
-  fallback_strategy: "Local processing for simple documents"
+  provider_abstraction: "Multi-provider AI model abstraction framework"
+  primary_providers: "OpenAI GPT-4o Mini, Anthropic Claude, Google Gemini"
+  authentication: "Provider-specific API keys with usage monitoring"
+  rate_limiting: "Intelligent queuing with cross-provider load balancing"
+  fallback_strategy: "Multi-tier provider fallback with emergency processing"
+  compliance_routing: "Automatic HIPAA/BAA provider selection for PHI"
   
 medical_knowledge_bases:
   snomed_ct: "SNOMED International Terminology Services"
@@ -390,3 +403,22 @@ ai_processing_metrics:
 ---
 
 *The AI Extraction System transforms Guardian's document processing from manual medical record entry to intelligent, automated clinical data extraction, ensuring that every uploaded medical document becomes structured, coded, and clinically actionable healthcare information while maintaining cost-effectiveness and medical accuracy.*
+
+---
+
+## Future Enhancement: Iterative Refinement Loop
+
+**Objective:** To improve extraction accuracy on complex documents, a future version of this system could incorporate a multi-pass, iterative refinement loop.
+
+**Rationale:** While a single-pass extraction is efficient, some complex documents benefit from a second, more specialized analysis. A second pass, armed with the high-level context from the first, can achieve higher precision on detailed data points.
+
+### Conceptual Flow
+
+1.  **Pass 1: Context Pass**
+    *   **Action:** A quick, broad analysis of the document is performed using a cost-effective model.
+    *   **Goal:** To establish high-level context, such as document type, medical specialty, and primary conditions mentioned (e.g., "This is a pediatric cardiology report regarding a follow-up for an Atrial Septal Defect.").
+
+2.  **Pass 2: Specialist Pass**
+    *   **Action:** Based on the context from Pass 1, the system invokes a more specialized prompt for a second extraction pass. This could be on the entire document or targeted sections.
+    *   **Example Prompt:** "You are a pediatric cardiology expert. From the following text, extract all measurements related to the Atrial Septal Defect, including shunt size, chamber dimensions, and pressure gradients."
+    *   **Goal:** To achieve higher accuracy on nuanced, critical data points that might be missed or misinterpreted by a generic, single-pass extraction.

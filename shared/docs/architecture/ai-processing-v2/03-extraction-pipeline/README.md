@@ -13,64 +13,70 @@ The extraction pipeline orchestrates the complete transformation of uploaded med
 
 ### Pipeline Architecture
 ```yaml
-extraction_pipeline:
-  input: "Raw medical documents (PDF, images, text)"
-  output: "Validated clinical events with healthcare codes"
+intelligent_extraction_pipeline:
+  input: "Raw medical documents"
+  output: "Validated clinical events with healthcare codes and profile suggestions"
   stages:
-    - "Document ingestion and preprocessing"
-    - "Text extraction via OCR and AI processing"
-    - "Clinical data normalization and classification"
-    - "Validation and quality assurance"
-  guarantees: "Data integrity, clinical accuracy, audit compliance"
+    - "Intelligent document routing and format optimization"
+    - "Comprehensive-AI processing for complete medical analysis"
+    - "Profile assignment workflow with user confirmation"
+    - "Conditional database population and validation"
+  guarantees: "99.5%+ success rate, zero profile contamination, healthcare compliance"
+  optimization: "95% fast path, 70% cost reduction, single AI call"
 ```
 
 ---
 
 ## Pipeline Components
 
-### 1. Document Ingestion
-**Component:** [document-ingestion/](./document-ingestion/)  
-**Purpose:** Handle document upload, preprocessing, and metadata extraction  
-**Output:** Preprocessed documents ready for text extraction
+### 1. Intelligent Document Routing
+**Component:** [document-ingestion/](./document-ingestion/) + **NEW** Intelligent Router  
+**Purpose:** Optimize processing path for maximum efficiency and success  
+**Output:** Optimally processed documents with routing metadata
 
 **Key Capabilities:**
-- Multi-format document support (PDF, JPG, PNG, DICOM)
-- Document quality assessment and optimization
-- Metadata extraction and cataloging
-- Patient profile assignment and validation
+- Advanced format detection and complexity analysis
+- Fast path routing for clean documents (95% of cases, <500ms)
+- Rendering fallback for complex/problematic formats (<5% of cases)
+- Learning system optimization from processing success patterns
+- Support for 15+ document formats including HEIC, Office docs, archives
 
-### 2. Text Extraction  
-**Component:** [text-extraction/](./text-extraction/)  
-**Purpose:** Extract text content from documents using OCR and AI processing  
-**Output:** Raw text with confidence scores and spatial data
-
-**Key Capabilities:**
-- Google Cloud Vision API integration for OCR
-- Multi-page document handling
-- Text confidence scoring and quality assessment
-- Spatial coordinate extraction for click-to-zoom
-
-### 3. Clinical Data Normalization
-**Component:** [normalization/](./normalization/)  
-**Purpose:** Transform raw text into structured clinical concepts  
-**Output:** Normalized clinical events with standard terminology
+### 2. Comprehensive-AI Medical Analysis
+**Component:** [ai-extraction/](./ai-extraction/) **REDESIGNED** as Single Call  
+**Purpose:** Complete medical analysis in single comprehensive AI operation  
+**Output:** Structured medical data with profile suggestions
 
 **Key Capabilities:**
-- Medical concept identification and extraction
-- Healthcare standards code assignment (SNOMED-CT, LOINC, CPT)
-- Event name standardization and method classification
-- Anatomical site extraction and normalization
+- Healthcare relevance validation (early termination gate)
+- O3 two-axis clinical classification (activity type × clinical purposes)
+- Medical concept extraction with healthcare coding (SNOMED-CT/LOINC/CPT)
+- Timeline metadata generation for UI display
+- Smart feature detection for context-sensitive features
+- Profile ownership suggestion (without automatic assignment)
 
-### 4. Validation and Quality Assurance
-**Component:** [validation/](./validation/)  
-**Purpose:** Ensure clinical accuracy and data quality standards  
-**Output:** Validated clinical data ready for database insertion
+### 3. Profile Assignment Controller
+**Component:** [profile-classification/](./profile-classification/) **REDESIGNED** as Post-Processing  
+**Purpose:** Safely assign medical data to correct family member profiles  
+**Output:** Profile-confirmed clinical data or holding area assignments
 
 **Key Capabilities:**
-- Clinical logic validation and consistency checking
-- Healthcare code verification and compliance
-- Data completeness and accuracy assessment
-- Quality metrics and reporting
+- Deferred assignment until user confirmation
+- Confidence-based routing: auto-assign (>95%), confirm (70-95%), hold (<70%)
+- Holding area for unconfirmed clinical data
+- Zero-risk profile contamination prevention
+- New profile detection and creation workflow
+
+### 4. Conditional Database Population
+**Component:** [normalization/](./normalization/) + [validation/](./validation/) **INTEGRATED**  
+**Purpose:** Ensure healthcare-grade data storage with complete validation  
+**Output:** Validated clinical data in appropriate database tables
+
+**Key Capabilities:**
+- AI output structure and completeness verification
+- Healthcare code validation against authoritative databases
+- Clinical logic consistency checking
+- Conditional insertion only after profile confirmation
+- Comprehensive audit trail with processing metrics
 
 ---
 

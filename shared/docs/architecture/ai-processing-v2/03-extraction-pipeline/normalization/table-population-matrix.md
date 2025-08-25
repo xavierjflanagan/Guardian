@@ -149,6 +149,20 @@
 
 ---
 
+## Learning & Quality Improvement Tables
+
+### human_corrections
+- **AI Component**: Manual Review UI / Validation System
+- **Population Strategy**: Captures the delta between the initial AI output and the final human-verified data for a given fact.
+- **Required Fields**: `document_id`, `fact_id` (e.g., `patient_clinical_events.id`), `original_ai_output` (JSON), `corrected_data` (JSON), `reviewer_id`, `reviewed_at`.
+- **Purpose**: This table is the foundation of the Correction Feedback Loop. It creates a "golden dataset" of human-verified ground truth.
+- **Use Cases**:
+  - **Regression Testing**: Automatically generate tests to ensure fixed errors do not recur.
+  - **Error Analysis**: Identify systemic weaknesses in the extraction or normalization logic.
+  - **Model Fine-Tuning**: Provides a high-quality dataset for future AI model fine-tuning to improve accuracy.
+
+---
+
 ## Population Flow Order
 
 ### Phase 1: Foundation Data

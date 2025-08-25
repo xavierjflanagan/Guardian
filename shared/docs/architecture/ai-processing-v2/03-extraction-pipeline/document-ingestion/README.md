@@ -34,11 +34,17 @@ supported_formats:
     - "TIFF (.tif, .tiff)"
     - "BMP (.bmp)"
     - "WebP (.webp)"
+    - "HEIC (.heic) - CRITICAL: iPhone photos (5-8% of uploads)"
+    - "AVIF (.avif) - Modern format"
+    - "JPEG-XL (.jxl) - Future format"
     
   document_formats:
     - "PDF (.pdf)"
     - "Multi-page PDF documents"
     - "Scanned PDF documents"
+    - "DOCX (.docx) - HIGH PRIORITY: Medical reports (3-5% of uploads)"
+    - "XLSX (.xlsx) - HIGH PRIORITY: Lab results"
+    - "PPTX (.pptx) - Medical presentations"
     
   medical_formats:
     - "DICOM (.dcm) - limited support"
@@ -46,6 +52,7 @@ supported_formats:
     
   archive_formats:
     - "ZIP archives containing supported formats"
+    - "RAR archives"
     - "Multi-document uploads"
 
 format_validation:
@@ -111,6 +118,18 @@ pdf_preprocessing:
     - "Handle password-protected PDFs with user consent"
     - "Respect document permissions and restrictions"
     - "Maintain audit trail for security compliance"
+```
+
+### Document Fingerprinting
+```yaml
+duplicate_detection:
+  method: "SHA-256 hash of raw file content"
+  process:
+    - "Generate fingerprint upon initial upload."
+    - "Query document_fingerprints table before processing."
+    - "If hash exists, link to existing document and skip processing."
+    - "If hash is new, store it upon successful pipeline completion."
+  rationale: "Prevents costly reprocessing of identical files and avoids data duplication."
 ```
 
 ---
@@ -410,6 +429,15 @@ INSERT INTO document_processing_sessions (
     $3::JSONB,                   -- Quality assessment results
     $4::JSONB                    -- Preprocessing operation results
 );
+
+-- Store document fingerprint for duplicate detection
+INSERT INTO document_fingerprints (
+    fingerprint_hash,            -- SHA-256 hash of the raw file
+    document_id                  -- Foreign key to the documents table
+) VALUES (
+    $1::TEXT,
+    $2::UUID
+) ON CONFLICT (fingerprint_hash) DO NOTHING;
 ```
 
 ### Storage Service Integration
