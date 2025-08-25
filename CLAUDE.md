@@ -118,8 +118,10 @@ Jest + React Testing Library with **production-quality infrastructure**:
 
 ### UI/UX Standards
 - **NO EMOJIS**: Never use emojis in user-facing content (UI text, error messages, notifications, etc.) unless explicitly requested by the user
-- Professional healthcare application requires clean, emoji-free interface
-- This applies to all frontend components, API responses, and user communications
+- **NO EMOJIS IN DOCUMENTATION**: Never use emojis in documentation headers, sections, content, README files, architecture docs, technical specifications, or code comments
+- Professional healthcare application requires clean, emoji-free interface and documentation
+- This applies to all frontend components, API responses, user communications, and technical documentation
+- Use clear text headers and bullet points instead of emoji decorations
 
 ### TypeScript Configuration
 - Strict mode enabled with Next.js optimizations
