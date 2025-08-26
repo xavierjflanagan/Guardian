@@ -38,8 +38,10 @@
     "body_site": "string",
     "performed_by": "string",
     "snomed_code": "string",
-    "loinc_code": "string",
-    "cpt_code": "string"
+    "loinc_code": "string", 
+    "cpt_code": "string",
+    "icd10_code": "string",
+    "coding_confidence": "number (0.0-1.0)"
   },
   
   "validation": {

@@ -87,6 +87,18 @@
     "cpt_code": {
       "type": "string", 
       "description": "CPT code for procedures if identifiable"
+    },
+    
+    "icd10_code": {
+      "type": "string",
+      "description": "ICD-10 diagnosis code if identifiable"
+    },
+    
+    "coding_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence in assigned medical codes (0.0-1.0)"
     }
   },
   

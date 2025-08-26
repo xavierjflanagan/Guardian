@@ -1,0 +1,180 @@
+{
+  "table_name": "patient_interventions",
+  "description": "Medical interventions including medications, procedures, treatments, and therapeutic actions",
+  
+  "required_fields": {
+    "intervention_type": {
+      "type": "string",
+      "enum": ["medication", "procedure", "therapy", "surgery", "device", "counseling"],
+      "description": "Type of medical intervention performed",
+      "examples": {
+        "medication": ["Prescription drugs", "Over-the-counter medications", "Injections"],
+        "procedure": ["Diagnostic procedures", "Minor procedures", "Interventional procedures"],
+        "therapy": ["Physical therapy", "Occupational therapy", "Speech therapy"],
+        "surgery": ["Surgical operations", "Surgical interventions"],
+        "device": ["Medical device implantation", "Device fitting", "Prosthetics"],
+        "counseling": ["Patient education", "Dietary counseling", "Lifestyle counseling"]
+      }
+    },
+    
+    "intervention_name": {
+      "type": "string",
+      "min_length": 3,
+      "description": "Specific name of the intervention",
+      "examples": [
+        "Lisinopril 10mg oral tablet",
+        "Colonoscopy with biopsy",
+        "Physical therapy for knee rehabilitation",
+        "Appendectomy",
+        "Insulin pump insertion"
+      ]
+    },
+    
+    "intervention_date": {
+      "type": "string",
+      "format": "ISO 8601 datetime",
+      "description": "When the intervention was performed or initiated",
+      "example": "2024-07-15T14:30:00Z"
+    },
+    
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "AI confidence in extraction accuracy (0.0-1.0)"
+    }
+  },
+  
+  "optional_fields": {
+    "dosage": {
+      "type": "string",
+      "description": "Dosage information for medications",
+      "examples": ["10mg", "5ml", "1 tablet", "apply topically"]
+    },
+    
+    "frequency": {
+      "type": "string",
+      "description": "How often the intervention is performed or medication taken",
+      "examples": ["once daily", "twice daily", "every 8 hours", "as needed", "weekly"]
+    },
+    
+    "route": {
+      "type": "string",
+      "description": "Route of administration for medications or procedures",
+      "examples": ["oral", "intravenous", "intramuscular", "topical", "inhalation"]
+    },
+    
+    "duration": {
+      "type": "string",
+      "description": "Duration of treatment or intervention",
+      "examples": ["7 days", "2 weeks", "3 months", "ongoing", "single dose"]
+    },
+    
+    "indication": {
+      "type": "string",
+      "description": "Medical reason or condition being treated",
+      "examples": ["hypertension", "infection", "pain management", "diagnostic evaluation"]
+    },
+    
+    "body_site": {
+      "type": "string",
+      "description": "Anatomical location where intervention was performed",
+      "examples": ["left_knee", "abdomen", "right_arm", "chest", "lower_back"]
+    },
+    
+    "performed_by": {
+      "type": "string",
+      "description": "Healthcare provider who performed the intervention"
+    },
+    
+    "facility": {
+      "type": "string",
+      "description": "Healthcare facility where intervention was performed"
+    },
+    
+    "outcome": {
+      "type": "string",
+      "enum": ["successful", "partially_successful", "unsuccessful", "complicated", "pending"],
+      "description": "Outcome or result of the intervention"
+    },
+    
+    "side_effects": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Any reported side effects or adverse reactions"
+    },
+    
+    "notes": {
+      "type": "string",
+      "description": "Additional clinical notes about the intervention"
+    },
+    
+    "quantity": {
+      "type": "string",
+      "description": "Quantity prescribed or administered",
+      "examples": ["30 tablets", "1 bottle", "100ml vial"]
+    },
+    
+    "refills": {
+      "type": "integer",
+      "description": "Number of refills authorized for medications"
+    },
+    
+    "generic_available": {
+      "type": "boolean",
+      "description": "Whether generic version is available for medications"
+    },
+    
+    "snomed_code": {
+      "type": "string",
+      "description": "SNOMED CT code for the intervention"
+    },
+    
+    "cpt_code": {
+      "type": "string",
+      "description": "CPT code for procedures and services"
+    },
+    
+    "ndc_code": {
+      "type": "string",
+      "description": "National Drug Code for medications"
+    },
+    
+    "coding_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence in assigned medical codes (0.0-1.0)"
+    }
+  },
+  
+  "validation_rules": {
+    "confidence_threshold": 0.7,
+    "requires_review_below": 0.8,
+    "quality_checks": [
+      "intervention_name must be specific and include relevant details",
+      "intervention_type must match the nature of the intervention",
+      "medication interventions should include dosage and frequency when available",
+      "procedure interventions should include body_site when applicable"
+    ]
+  },
+  
+  "output_format_example": {
+    "intervention_type": "medication",
+    "intervention_name": "Lisinopril 10mg oral tablet",
+    "dosage": "10mg",
+    "frequency": "once daily",
+    "route": "oral",
+    "duration": "ongoing",
+    "indication": "hypertension",
+    "intervention_date": "2024-07-15T14:30:00Z",
+    "performed_by": "Dr. Johnson",
+    "quantity": "30 tablets",
+    "refills": 3,
+    "generic_available": true,
+    "snomed_code": "386872004",
+    "ndc_code": "0071-0222-23",
+    "coding_confidence": 0.89,
+    "confidence_score": 0.92
+  }
+}

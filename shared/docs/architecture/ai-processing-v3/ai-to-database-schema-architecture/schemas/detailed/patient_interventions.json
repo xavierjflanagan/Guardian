@@ -1,0 +1,113 @@
+{
+  "table_name": "patient_interventions",
+  "description": "Medical interventions: medications, procedures, treatments, surgeries",
+  
+  "required_fields": {
+    "intervention_type": {
+      "enum": ["medication", "procedure", "therapy", "surgery", "device", "counseling"],
+      "description": "Type: medication, procedure, therapy, surgery, device, counseling"
+    },
+    
+    "intervention_name": {
+      "type": "string",
+      "description": "Specific name of intervention with relevant details"
+    },
+    
+    "intervention_date": {
+      "type": "string",
+      "format": "ISO 8601"
+    },
+    
+    "confidence_score": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "optional_fields": {
+    "dosage": {
+      "type": "string",
+      "description": "Medication dosage (10mg, 5ml, 1 tablet)"
+    },
+    
+    "frequency": {
+      "type": "string",
+      "description": "How often (once daily, twice daily, as needed)"
+    },
+    
+    "route": {
+      "type": "string",
+      "description": "Administration route (oral, IV, IM, topical)"
+    },
+    
+    "duration": {
+      "type": "string",
+      "description": "Treatment duration (7 days, 2 weeks, ongoing)"
+    },
+    
+    "indication": {
+      "type": "string",
+      "description": "Medical reason being treated"
+    },
+    
+    "body_site": "string",
+    
+    "performed_by": "string",
+    
+    "facility": "string",
+    
+    "outcome": {
+      "enum": ["successful", "partially_successful", "unsuccessful", "complicated", "pending"]
+    },
+    
+    "side_effects": {
+      "type": "array",
+      "description": "Any reported adverse reactions"
+    },
+    
+    "quantity": {
+      "type": "string",
+      "description": "Quantity prescribed (30 tablets, 100ml)"
+    },
+    
+    "refills": "integer",
+    
+    "notes": "string",
+    
+    "snomed_code": "string",
+    
+    "cpt_code": {
+      "type": "string",
+      "description": "CPT code for procedures"
+    },
+    
+    "ndc_code": {
+      "type": "string", 
+      "description": "National Drug Code for medications"
+    },
+    
+    "coding_confidence": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "validation": {
+    "confidence_threshold": 0.7,
+    "requires_review_below": 0.8
+  },
+  
+  "output_example": {
+    "intervention_type": "medication",
+    "intervention_name": "Lisinopril 10mg oral tablet",
+    "dosage": "10mg",
+    "frequency": "once daily",
+    "route": "oral",
+    "indication": "hypertension",
+    "intervention_date": "2024-07-15T14:30:00Z",
+    "quantity": "30 tablets",
+    "refills": 3,
+    "snomed_code": "386872004",
+    "confidence_score": 0.92
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "table_name": "patient_allergies",
+  "description": "Patient allergies and adverse reactions - SAFETY CRITICAL",
+  
+  "required_fields": {
+    "allergy_type": {
+      "enum": ["drug", "food", "environmental", "material", "unknown"],
+      "description": "Type: drug, food, environmental, material, unknown"
+    },
+    
+    "allergen_name": {
+      "type": "string",
+      "description": "Name of the allergenic substance - BE SPECIFIC"
+    },
+    
+    "reaction_severity": {
+      "enum": ["mild", "moderate", "severe", "life_threatening"],
+      "description": "CRITICAL: Severity level of allergic reaction"
+    },
+    
+    "onset_date": {
+      "type": "string",
+      "format": "ISO 8601"
+    },
+    
+    "confidence_score": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "optional_fields": {
+    "reaction_symptoms": {
+      "type": "array",
+      "description": "Specific symptoms experienced"
+    },
+    
+    "reaction_type": {
+      "enum": ["allergic", "intolerance", "adverse_effect", "unknown"]
+    },
+    
+    "verified_by": {
+      "type": "string",
+      "description": "Healthcare provider who verified allergy"
+    },
+    
+    "verification_method": {
+      "enum": ["patient_reported", "observed_reaction", "allergy_test", "medical_record"]
+    },
+    
+    "status": {
+      "enum": ["active", "inactive", "resolved", "suspected"]
+    },
+    
+    "notes": {
+      "type": "string",
+      "description": "IMPORTANT: Additional safety details"
+    },
+    
+    "cross_reactions": {
+      "type": "array",
+      "description": "Known cross-reactive substances"
+    },
+    
+    "snomed_code": {
+      "type": "string",
+      "description": "SNOMED code for allergen"
+    },
+    
+    "rxnorm_code": {
+      "type": "string", 
+      "description": "RxNorm code for drug allergies"
+    },
+    
+    "coding_confidence": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "validation": {
+    "confidence_threshold": 0.8,
+    "requires_review_below": 0.9,
+    "safety_critical": true
+  },
+  
+  "output_example": {
+    "allergy_type": "drug",
+    "allergen_name": "Penicillin",
+    "reaction_severity": "severe",
+    "reaction_symptoms": ["hives", "difficulty_breathing", "swelling"],
+    "reaction_type": "allergic",
+    "verification_method": "observed_reaction",
+    "status": "active",
+    "onset_date": "2020-03-15T00:00:00Z",
+    "verified_by": "Dr. Johnson",
+    "rxnorm_code": "7980",
+    "confidence_score": 0.96
+  }
+}

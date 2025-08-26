@@ -1,0 +1,155 @@
+{
+  "table_name": "patient_observations",
+  "description": "Clinical observations including vital signs, lab results, assessments, and measurements",
+  
+  "required_fields": {
+    "observation_type": {
+      "type": "string",
+      "enum": ["vital_sign", "lab_result", "physical_assessment", "measurement", "clinical_finding"],
+      "description": "Type of clinical observation being recorded",
+      "examples": {
+        "vital_sign": ["Blood pressure", "Heart rate", "Temperature", "Respiratory rate"],
+        "lab_result": ["Complete Blood Count", "Cholesterol panel", "Blood glucose"],
+        "physical_assessment": ["Physical exam findings", "Neurological assessment"],
+        "measurement": ["Height", "Weight", "BMI", "Pain scale rating"],
+        "clinical_finding": ["Abnormal heart sounds", "Skin lesion", "Lymph node enlargement"]
+      }
+    },
+    
+    "observation_name": {
+      "type": "string",
+      "min_length": 3,
+      "description": "Specific name of what was observed or measured",
+      "examples": [
+        "Systolic Blood Pressure",
+        "Complete Blood Count",
+        "Body Weight",
+        "Pain Scale Score",
+        "Oxygen Saturation"
+      ]
+    },
+    
+    "observation_date": {
+      "type": "string",
+      "format": "ISO 8601 datetime",
+      "description": "When the observation was made or sample collected",
+      "example": "2024-07-15T10:30:00Z"
+    },
+    
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "AI confidence in extraction accuracy (0.0-1.0)"
+    }
+  },
+  
+  "optional_fields": {
+    "value_numeric": {
+      "type": "number",
+      "description": "Numeric value if observation has quantitative result",
+      "examples": [140, 98.6, 72, 18, 95]
+    },
+    
+    "value_text": {
+      "type": "string",
+      "description": "Text value for qualitative observations",
+      "examples": ["Normal", "Abnormal", "Positive", "Negative", "Present", "Absent"]
+    },
+    
+    "unit_of_measure": {
+      "type": "string",
+      "description": "Unit for numeric values",
+      "examples": ["mmHg", "°F", "°C", "bpm", "mg/dL", "%", "kg", "cm"]
+    },
+    
+    "reference_range": {
+      "type": "string",
+      "description": "Normal reference range for this observation",
+      "examples": ["120-80 mmHg", "70-100 mg/dL", "12-16 g/dL"]
+    },
+    
+    "interpretation": {
+      "type": "string",
+      "enum": ["normal", "abnormal_low", "abnormal_high", "critical_low", "critical_high", "borderline"],
+      "description": "Clinical interpretation of the result"
+    },
+    
+    "body_site": {
+      "type": "string",
+      "description": "Anatomical location where observation was made",
+      "examples": ["left_arm", "right_ear", "chest", "abdomen", "fingertip"]
+    },
+    
+    "method": {
+      "type": "string",
+      "description": "Method or technique used for the observation",
+      "examples": ["blood_draw", "pulse_oximetry", "auscultation", "palpation", "visual_inspection"]
+    },
+    
+    "performed_by": {
+      "type": "string",
+      "description": "Healthcare provider who performed the observation"
+    },
+    
+    "specimen_type": {
+      "type": "string",
+      "description": "Type of specimen for lab tests",
+      "examples": ["blood", "urine", "saliva", "stool", "tissue", "swab"]
+    },
+    
+    "fasting_status": {
+      "type": "boolean",
+      "description": "Whether patient was fasting (relevant for certain lab tests)"
+    },
+    
+    "notes": {
+      "type": "string",
+      "description": "Additional clinical notes about the observation"
+    },
+    
+    "snomed_code": {
+      "type": "string",
+      "description": "SNOMED CT code for the observation concept"
+    },
+    
+    "loinc_code": {
+      "type": "string",
+      "description": "LOINC code for standardized observation identification"
+    },
+    
+    "coding_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence in assigned medical codes (0.0-1.0)"
+    }
+  },
+  
+  "validation_rules": {
+    "confidence_threshold": 0.7,
+    "requires_review_below": 0.8,
+    "quality_checks": [
+      "observation_name must be specific and descriptive",
+      "observation_type must match the nature of what was observed",
+      "numeric values must include appropriate units when applicable",
+      "interpretation should align with reference ranges when provided"
+    ]
+  },
+  
+  "output_format_example": {
+    "observation_type": "vital_sign",
+    "observation_name": "Systolic Blood Pressure",
+    "value_numeric": 140,
+    "unit_of_measure": "mmHg",
+    "reference_range": "90-120 mmHg",
+    "interpretation": "abnormal_high",
+    "body_site": "left_arm",
+    "method": "auscultation",
+    "observation_date": "2024-07-15T10:30:00Z",
+    "performed_by": "Dr. Smith",
+    "loinc_code": "8480-6",
+    "coding_confidence": 0.92,
+    "confidence_score": 0.95
+  }
+}
