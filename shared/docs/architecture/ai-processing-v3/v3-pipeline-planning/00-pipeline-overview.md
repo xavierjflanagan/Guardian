@@ -171,31 +171,34 @@ interface OCRHandoff {
 ```
 
 ### 4. AI Processing Component  
-**Reference**: [AI Processing Architecture](04-ai-processing-architecture.md) - Two-pass entity detection and enrichment *(Gold Standard)*
+**Reference**: [AI Processing Architecture](04-ai-processing-architecture.md) and [Entity Classification Taxonomy](05-entity-classification-taxonomy.md) - Aligned two-pass architecture with 3-category entity classification
 
 **Primary Functions**:
-- Two-pass AI architecture for entity detection and enrichment
-- Pass 1: Comprehensive entity identification and classification
-- Pass 2: Targeted schema-based data extraction
-- Entity tracking with spatial coordinate mapping (both OCR bbox version and AI-native location-context version)
+- Two-pass AI architecture with hierarchical 3-category entity classification system
+- Pass 1: Comprehensive entity identification using processing-requirements-based taxonomy
+- Pass 2: Targeted schema-based enrichment with multi-layered contextual approach
+- Complete audit trail with entity_processing_audit table for regulatory compliance
 - Profile assignment suggestions with confidence scoring
+- Russian babushka doll layering: essential processing shells in Pass 1, enriched user-facing shells in Pass 2
 
 **Two-Pass Architecture**:
 ```typescript
 const AI_PROCESSING_ARCHITECTURE = {
   pass1: {
-    purpose: 'Entity Detection and Classification',
-    model: 'Lightweight (GPT-4o-mini, Claude Haiku)',
-    input: 'Full uploaded optimized file + OCR data + entity taxonomy',
-    output: 'Complete entity inventory with schema requirements',
+    purpose: '3-Category Entity Detection and Classification',
+    model: 'Lightweight (GPT-4o-mini, Claude Haiku etc)',
+    input: 'Full uploaded optimized file + OCR data + 3-category entity taxonomy',
+    output: 'Complete entity inventory with processing categories and schema requirements',
+    categories: 'clinical_event, healthcare_context, document_structure',
     cost: '~$0.0002-0.0005 per document',
     time: '1-2 seconds'
   },
   pass2: {
-    purpose: 'Schema-Based Enrichment',
-    model: 'High-performance (Claude Sonnet, GPT-5)',
-    input: 'Full uploaded optimized file (+/- OCR data if it will help with accuracy etc) + Filtered clinical entities + targeted schemas',
-    output: 'Fully enriched clinical data',
+    purpose: 'Multi-Layered Schema-Based Enrichment',
+    model: 'High-performance (Claude Sonnet, GPT-5 etc)',  
+    input: 'Full document + Filtered entities by category + targeted schemas',
+    processing: 'clinical_event (full enrichment), healthcare_context (profile matching), document_structure (skip)',
+    output: 'Fully enriched clinical data with complete audit trail',
     cost: '~$0.003-0.006 per document',
     time: '3-5 seconds'
   }
@@ -208,9 +211,86 @@ interface AIProcessingResult {
   documentId: string;
   entityInventory: EntityInventory;
   enrichedClinicalData: EnrichedEntity[];
+  processingAuditTrail: EntityProcessingAudit[]; // Complete processing metadata
   profileSuggestions: ProfileAssignment[];
   processingMetadata: ProcessingSession;
   qualityMetrics: AIQualityMetrics;
+  contextualLayering: {
+    masterRecords: ClinicalEvent[];        // patient_clinical_events
+    detailShells: ObservationDetail[];     // patient_observations, patient_vitals, etc
+    contextShells: EncounterContext[];     // healthcare_encounters
+    auditShells: ProcessingMetadata[];     // entity_processing_audit
+  };
+}
+```
+
+## Entity Processing Architecture
+
+### 3-Category Classification System
+
+The AI processing component uses a sophisticated 3-category entity classification system that determines processing intensity based on clinical value and compliance requirements:
+
+```typescript
+const ENTITY_PROCESSING_CATEGORIES = {
+  clinical_event: {
+    definition: 'Medical observations, interventions, diagnoses requiring full analysis',
+    examples: ['BP: 140/90 mmHg', 'Lisinopril 10mg daily', 'Hypertension'],
+    processing: 'Full Pass 2 enrichment + comprehensive database storage',
+    schemas: ['patient_clinical_events', 'patient_observations', 'patient_interventions'],
+    timeline_relevance: 'high',
+    cost_impact: 'highest_value'
+  },
+  
+  healthcare_context: {
+    definition: 'Contextual healthcare information for profile matching and care coordination',
+    examples: ['Dr. Sarah Johnson', 'Memorial Hospital', 'Patient: John Smith'],
+    processing: 'Limited Pass 2 enrichment + contextual database storage',
+    schemas: ['healthcare_encounters', 'patient_demographics'],
+    timeline_relevance: 'medium',
+    cost_impact: 'medium_value'
+  },
+  
+  document_structure: {
+    definition: 'Formatting elements and non-clinical content for completeness',
+    examples: ['[Signature]', 'Hospital letterhead', 'Page 1 of 3'],
+    processing: 'Skip Pass 2 - logging only in audit trail',
+    schemas: [],
+    timeline_relevance: 'low',
+    cost_impact: 'minimal_cost'
+  }
+};
+```
+
+### Multi-Layered Contextual Approach (Russian Babushka Doll)
+
+Every clinical entity receives multiple layers of context through connected database records:
+
+```typescript
+interface ContextualLayering {
+  masterShell: {
+    table: 'patient_clinical_events',
+    purpose: 'Primary clinical event record with O3 two-axis classification',
+    connections: ['encounter_id', 'source_document_id']
+  },
+  
+  detailShells: {
+    observations: 'patient_observations', // Vital signs, lab results, assessments
+    interventions: 'patient_interventions', // Medications, procedures, treatments  
+    conditions: 'patient_conditions', // Diagnoses and medical conditions
+    vitals: 'patient_vitals' // Detailed vital sign measurements
+  },
+  
+  contextShells: {
+    encounters: 'healthcare_encounters', // Visit context, providers, facilities
+    timeline: 'healthcare_timeline_events', // Appointment and care coordination
+    demographics: 'patient_demographics' // Patient identity and profile data
+  },
+  
+  auditShells: {
+    processing: 'entity_processing_audit', // Complete AI processing metadata
+    provenance: 'document_provenance', // Source document traceability
+    spatial: 'spatial_coordinates' // Click-to-zoom functionality
+  }
 }
 ```
 

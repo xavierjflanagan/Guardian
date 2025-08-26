@@ -1,0 +1,58 @@
+{
+  "table_name": "patient_clinical_events",
+  "description": "Central clinical events table using O3's two-axis classification model",
+  
+  "required_fields": {
+    "activity_type": {
+      "enum": ["observation", "intervention"],
+      "description": "'observation' for information gathering, 'intervention' for actions taken"
+    },
+    
+    "clinical_purposes": {
+      "type": "array",
+      "enum": ["screening", "diagnostic", "therapeutic", "monitoring", "preventive"],
+      "min_items": 1,
+      "description": "At least one clinical purpose, can have multiple"
+    },
+    
+    "event_name": {
+      "type": "string",
+      "description": "Descriptive, specific name for the clinical event"
+    },
+    
+    "event_date": {
+      "type": "string",
+      "format": "ISO 8601"
+    },
+    
+    "confidence_score": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "optional_fields": {
+    "method": {
+      "enum": ["physical_exam", "laboratory", "imaging", "injection", "surgery", "assessment_tool"]
+    },
+    "body_site": "string",
+    "performed_by": "string",
+    "snomed_code": "string",
+    "loinc_code": "string",
+    "cpt_code": "string"
+  },
+  
+  "validation": {
+    "confidence_threshold": 0.7,
+    "requires_review_below": 0.8
+  },
+  
+  "output_example": {
+    "activity_type": "observation",
+    "clinical_purposes": ["diagnostic"],
+    "event_name": "Complete Blood Count",
+    "method": "laboratory", 
+    "event_date": "2024-07-15T09:00:00Z",
+    "confidence_score": 0.92
+  }
+}

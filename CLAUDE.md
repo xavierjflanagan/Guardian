@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Guardian** (by Exora Health Pty Ltd) is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, and TypeScript.
+**Exora** (by Exora Health Pty Ltd) is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, and TypeScript.
 
 **Company:** Exora Health Pty Ltd (Australian company)  
 **Primary Domain:** exorahealth.com.au  
@@ -37,7 +37,7 @@ pnpm install
 
 ## Staging/Production Deployment Workflow
 
-Guardian uses a **dual-environment deployment strategy** for safe development and controlled user testing:
+Exora uses a **dual-environment deployment strategy** for safe development and controlled user testing:
 
 ### Environment Overview
 - **Production** (`exorahealth.com.au`): Password-protected for beta testers, clean UI
@@ -149,14 +149,14 @@ Jest + React Testing Library with **production-quality infrastructure**:
 
 ### ID Types and Their Meanings
 
-**NEVER mix these ID types - they serve different purposes in Guardian's multi-profile architecture:**
+**NEVER mix these ID types - they serve different purposes in Exora's multi-profile architecture:**
 
 - **`profile_id`**: References `user_profiles.id` - represents a specific profile (self, child, pet)
 - **`patient_id`**: References `auth.users.id` - represents the clinical data subject
 - **`user_id`**: References `auth.users.id` - represents the account owner (same as patient_id in v7.0)
 
 ### Current v7.0 Semantics
-In Guardian v7.0: **Profile IS the patient** (`profile_id === patient_id`)
+In Exora v7.0: **Profile IS the patient** (`profile_id === patient_id`)
 - Documents table uses `patient_id` (NOT `user_id`)
 - Clinical data uses `patient_id` for data isolation
 - Frontend components use `profile_id` for user experience
@@ -276,7 +276,7 @@ AWS_REGION=optional                         # Old Textract integration
 **Problem Identified**: The two-call AI architecture approach needs precise database schema understanding to work effectively. Currently "flying blind" without knowing exact table structures and field requirements.
 
 **Action Plan**:
-1. **Deep Database Schema Analysis**: Research all Guardian database tables to understand:
+1. **Deep Database Schema Analysis**: Research all Exora database tables to understand:
    - Exact field structures and data types for each clinical table
    - Required vs optional fields for AI extraction
    - Relationships between tables (foreign keys, joins)
