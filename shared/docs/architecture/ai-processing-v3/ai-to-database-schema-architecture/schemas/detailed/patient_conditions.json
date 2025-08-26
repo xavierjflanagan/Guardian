@@ -1,0 +1,82 @@
+{
+  "table_name": "patient_conditions",
+  "description": "Medical conditions, diagnoses, and health problems",
+  
+  "required_fields": {
+    "condition_type": {
+      "enum": ["diagnosis", "symptom", "risk_factor", "family_history", "social_history"],
+      "description": "Type: diagnosis, symptom, risk_factor, family_history, social_history"
+    },
+    
+    "condition_name": {
+      "type": "string",
+      "description": "Name of the medical condition or diagnosis"
+    },
+    
+    "onset_date": {
+      "type": "string",
+      "format": "ISO 8601"
+    },
+    
+    "confidence_score": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "optional_fields": {
+    "severity": {
+      "enum": ["mild", "moderate", "severe", "critical"]
+    },
+    
+    "status": {
+      "enum": ["active", "inactive", "resolved", "chronic", "acute"]
+    },
+    
+    "body_system": {
+      "type": "string",
+      "description": "Affected body system (cardiovascular, respiratory, etc.)"
+    },
+    
+    "symptoms": {
+      "type": "array",
+      "description": "Associated symptoms"
+    },
+    
+    "diagnosed_by": "string",
+    
+    "treatment_status": "string",
+    
+    "prognosis": "string",
+    
+    "notes": "string",
+    
+    "icd10_code": {
+      "type": "string",
+      "description": "ICD-10 diagnosis code"
+    },
+    
+    "snomed_code": "string",
+    
+    "coding_confidence": {
+      "type": "number",
+      "range": "0.0-1.0"
+    }
+  },
+  
+  "validation": {
+    "confidence_threshold": 0.7,
+    "requires_review_below": 0.8
+  },
+  
+  "output_example": {
+    "condition_type": "diagnosis",
+    "condition_name": "Essential Hypertension",
+    "severity": "moderate",
+    "status": "active",
+    "onset_date": "2024-06-01T00:00:00Z",
+    "diagnosed_by": "Dr. Smith",
+    "icd10_code": "I10",
+    "confidence_score": 0.94
+  }
+}

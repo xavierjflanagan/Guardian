@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Medical Coding Standards Schema",
+  "description": "Healthcare standards coding schema for AI integration - includes SNOMED-CT, LOINC, CPT, and ICD-10 coding guidance for medical concepts",
+  "type": "object",
+  "properties": {
+    "snomed_codes": {
+      "type": "object",
+      "description": "SNOMED-CT codes for clinical concepts",
+      "properties": {
+        "concept_code": {
+          "type": "string",
+          "description": "SNOMED-CT concept identifier (e.g., '75367002' for blood pressure)",
+          "pattern": "^[0-9]+$"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable name for the SNOMED concept"
+        },
+        "concept_type": {
+          "type": "string",
+          "enum": ["procedure", "observation", "condition", "medication", "finding", "substance"],
+          "description": "Type of clinical concept being coded"
+        },
+        "hierarchy_level": {
+          "type": "string",
+          "enum": ["general", "specific", "very_specific"],
+          "description": "Granularity level of the SNOMED code selected"
+        }
+      },
+      "required": ["concept_code", "display_name", "concept_type"]
+    },
+    "loinc_codes": {
+      "type": "object",
+      "description": "LOINC codes for laboratory and clinical observations",
+      "properties": {
+        "loinc_code": {
+          "type": "string",
+          "description": "LOINC identifier (e.g., '8480-6' for systolic blood pressure)",
+          "pattern": "^[0-9]+-[0-9]$"
+        },
+        "component": {
+          "type": "string",
+          "description": "What is being measured (e.g., 'Systolic blood pressure')"
+        },
+        "property": {
+          "type": "string",
+          "description": "Type of measurement (e.g., 'Pres', 'MCnc', 'Mass')"
+        },
+        "time_aspect": {
+          "type": "string",
+          "description": "When measurement was taken (e.g., 'Pt', 'random')"
+        },
+        "system": {
+          "type": "string",
+          "description": "Where measurement was taken (e.g., 'Arterial system')"
+        },
+        "scale_type": {
+          "type": "string",
+          "enum": ["Qn", "Ord", "Nom", "Nar"],
+          "description": "Type of scale (Quantitative, Ordinal, Nominal, Narrative)"
+        }
+      },
+      "required": ["loinc_code", "component", "scale_type"]
+    },
+    "cpt_codes": {
+      "type": "object",
+      "description": "CPT codes for procedures and services",
+      "properties": {
+        "cpt_code": {
+          "type": "string",
+          "description": "CPT procedure code (5 digits, e.g., '99213')",
+          "pattern": "^[0-9]{5}$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Full CPT code description"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["evaluation_management", "anesthesia", "surgery", "radiology", "pathology", "medicine"],
+          "description": "CPT code category"
+        },
+        "modifier": {
+          "type": "string",
+          "description": "CPT modifier if applicable (e.g., '-25', '-59')",
+          "pattern": "^-[0-9A-Z]{2}$"
+        }
+      },
+      "required": ["cpt_code", "description", "category"]
+    },
+    "icd10_codes": {
+      "type": "object",
+      "description": "ICD-10 codes for diagnoses and conditions",
+      "properties": {
+        "icd10_code": {
+          "type": "string",
+          "description": "ICD-10 diagnosis code (e.g., 'I10' for hypertension)",
+          "pattern": "^[A-Z][0-9]{2}(\\.[0-9A-Z]{1,4})?$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Full ICD-10 code description"
+        },
+        "chapter": {
+          "type": "string",
+          "description": "ICD-10 chapter (e.g., 'Diseases of the circulatory system')"
+        },
+        "category": {
+          "type": "string",
+          "description": "Specific disease category within chapter"
+        }
+      },
+      "required": ["icd10_code", "description", "chapter"]
+    },
+    "coding_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "AI confidence in the assigned medical codes (0.0 to 1.0)"
+    },
+    "coding_method": {
+      "type": "string",
+      "enum": ["automated_ai", "manual_verification", "hybrid_validation"],
+      "description": "Method used to assign the medical codes"
+    },
+    "clinical_context": {
+      "type": "object",
+      "description": "Clinical context that informed the coding decisions",
+      "properties": {
+        "patient_age_range": {
+          "type": "string",
+          "enum": ["pediatric", "adult", "geriatric", "unknown"],
+          "description": "Patient age context for appropriate coding"
+        },
+        "encounter_type": {
+          "type": "string",
+          "enum": ["routine_checkup", "acute_care", "emergency", "specialist_consultation", "diagnostic", "therapeutic"],
+          "description": "Type of healthcare encounter"
+        },
+        "specialty_context": {
+          "type": "string",
+          "description": "Medical specialty context (e.g., 'cardiology', 'primary_care')"
+        }
+      }
+    },
+    "validation_flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["needs_review", "high_confidence", "multiple_valid_codes", "uncommon_combination", "age_specific_validation"]
+      },
+      "description": "Flags indicating validation status or review needs"
+    },
+    "alternative_codes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code_type": {
+            "type": "string",
+            "enum": ["snomed", "loinc", "cpt", "icd10"]
+          },
+          "code_value": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this alternative code might be applicable"
+          }
+        },
+        "required": ["code_type", "code_value", "confidence"]
+      },
+      "description": "Alternative valid codes the AI considered"
+    }
+  },
+  "required": ["coding_confidence", "coding_method"],
+  "additionalProperties": false,
+  "_ai_guidance": {
+    "usage_instructions": "Use this schema to structure healthcare coding output. Include the most appropriate codes with confidence scores. When uncertain, provide alternatives with reasoning.",
+    "coding_priority": "Favor specificity when confident, but use broader codes when uncertain. Always include confidence scores.",
+    "validation_requirements": "Flag any codes that need medical professional review, especially for uncommon combinations or pediatric/geriatric contexts."
+  }
+}
