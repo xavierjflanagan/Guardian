@@ -3,8 +3,8 @@
 > **Workflow Update (2025-07-10):** Sign-in and sign-off protocols now include a Git Hygiene step (run `git status` and `git fetch origin` before each session) to ensure repo is up to date and prevent conflicts.
 
 **Purpose:** Tracks all major tasks, their status, and dependencies. Use as a Kanban board for project management.  
-**Last updated:** August 25, 2025  
-**Target:** **AI Processing Pipeline V3 Implementation - Schema-Based Execution Ready**  
+**Last updated:** August 27, 2025  
+**Target:** **V3 Semantic Document Architecture + Fresh Start Blueprint Integration - Implementation Ready**  
 **Audience:** Solo founder, developers, project managers, contributors  
 **Prerequisites:** None
 
@@ -33,24 +33,24 @@
 
 ---
 
-## **Current Sprint: AI Processing Pipeline V3 Implementation (August 25, 2025)**
+## **Current Sprint: V3 Semantic Document Architecture + Fresh Start Blueprint Integration (August 27, 2025)**
 
-### 🚀 **V3 ARCHITECTURE BREAKTHROUGH COMPLETED AUGUST 25, 2025:**
-- ✅ **AI Processing Pipeline V3** - Complete architectural revamp with AI-database integration mastery
-- ✅ **Schema Integration Strategy** - Direct schema approach without bridge documentation (20-30 hours saved)
-- ✅ **Three-Version Schema Framework** - Source/detailed/minimal strategy for token optimization
-- ✅ **Manual Schema Creation Excellence** - Hand-crafted precision avoiding automation complexity
-- ✅ **Taxonomy Alignment Verified** - Existing entity classification integrates with v3 schema plans
+### 🚀 **V3 SEMANTIC ARCHITECTURE BREAKTHROUGH COMPLETED AUGUST 27, 2025:**
+- ✅ **Semantic Document Architecture** - Revolutionary shell files + clinical narratives system solving multi-document clinical safety
+- ✅ **Three-Pass AI Processing Integration** - Pass 1 (entities) → Pass 2 (clinical) → Pass 3 (semantic narratives)
+- ✅ **Dual-Lens Viewing System** - Document-centric vs story-centric user views with graceful degradation
+- ✅ **Clinical Safety Architecture** - Prevents dangerous multi-document context mixing through hybrid approach
+- ✅ **Fresh Start Blueprint V3 Integration** - Complete 5-7 week roadmap with integrated semantic architecture
 
-### 🔄 **IMMEDIATE PRIORITIES (August 26, 2025 - Execution Day):**
+### 🔄 **IMMEDIATE PRIORITIES (August 28, 2025 - Database Build-out Continuation):**
 
 | Task | Status | Priority | Dependencies | Notes |
 |------|--------|----------|--------------|-------|
-| **Create patient_clinical_events Detailed Schema** | 🔜 Ready | Critical | V3 architecture ✅ | ~300 tokens with guidance and examples |
-| **Create patient_clinical_events Minimal Schema** | 🔜 Ready | Critical | Detailed schema | ~100 tokens selective minimization |
-| **Build Entity-to-Schema Mapping Logic** | 🔜 Ready | High | Core schemas | Route entities to appropriate database tables |
-| **Implement A/B Testing Framework** | 🔜 Ready | High | Schema versions | Compare detailed vs minimal accuracy |
-| **Sequential Schema Expansion** | 🔜 Ready | Medium | MVP validation | patient_observations, patient_interventions, etc. |
+| **Continue V3 Database Build-out** | 🔜 Active | Critical | Fresh Start Blueprint ✅ | High-level oversight ensuring SQL alignment |
+| **03_clinical_core.sql Enhancement** | 🔜 Ready | Critical | Semantic architecture ✅ | Shell files + clinical narratives tables |
+| **04_ai_processing.sql Pass 3 Integration** | 🔜 Ready | Critical | Core clinical ✅ | Semantic processing + dual-lens infrastructure |
+| **Database Schema-AI Alignment Validation** | 🔜 Ready | High | SQL files | Ensure each file aligns with AI processing goals |
+| **Fresh Start Blueprint Execution** | 🔜 Ready | High | V3 integration ✅ | Follow 5-7 week comprehensive roadmap |
 
 ### 🏢 **BUSINESS FOUNDATION COMPLETED AUGUST 14, 2025:**
 - ✅ **Exora Health Pty Ltd** - Company registration submitted (ACN pending)

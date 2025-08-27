@@ -2,37 +2,43 @@
 
 ## Document Status
 - **Created**: 25 August 2025
-- **Updated**: 26 August 2025 - Week 2 implementation progress and schema-driven processing integration
+- **Updated**: 27 August 2025 - Semantic Document Architecture Integration  
 - **Purpose**: Master overview of the complete medical document processing pipeline architecture
-- **Status**: Implementation-validated architectural specification with working TypeScript components
+- **Status**: Architecture complete with semantic document processing and hybrid clinical narratives
 - **Component Files**: References detailed component architectures and implementation guides
 
 ## Executive Summary
 
-The Exora medical document processing pipeline transforms unstructured medical documents into structured, coded clinical data through an intelligent four-component architecture. 
+The Exora medical document processing pipeline transforms unstructured medical documents into semantically organized clinical narratives through an intelligent **semantic document architecture**. The system solves the critical multi-document problem by creating clinically coherent narratives while maintaining reliable shell file organization, ensuring both clinical safety and user choice.
 
-## Pipeline Architecture Overview
+## Pipeline Architecture Overview (Revised)
 Complete Processing Flow:
-Component 1: File Upload → Secure ingestion with validation and storage
+Component 1: File Upload → Secure shell file ingestion with validation and storage
 Component 2: Pre-Processing → Intelligent routing and optimization  
 Component 3: OCR Processing → Text extraction with spatial coordinates
-Component 4: AI Processing → Two-pass entity detection and enrichment
-Final Output: Structured clinical data ready for database insertion
+Component 4: AI Processing → **Three-pass semantic narrative creation**
+  - Pass 1: Entity detection with location data
+  - Pass 2: Clinical events population (fully functional system)
+  - Pass 3: Semantic narrative creation (enhancement layer)
+Final Output: **Hybrid shell files + clinical narratives** with dual-lens viewing system
 
 ## Component Integration Architecture
 
-### Component Dependencies and Data Flow
+### Component Dependencies and Data Flow (Semantic Architecture)
 
 ```mermaid
 graph LR
-    A[File Upload] --> B[Pre-Processing]
+    A[Shell File Upload] --> B[Pre-Processing]
     B --> C[OCR Processing]
-    C --> D[AI Processing]
-    D --> E[Database Storage]
+    C --> D[AI Processing - Pass 1]
+    D --> E[AI Processing - Pass 2]
+    E --> F[Database Storage]
+    F --> G[AI Processing - Pass 3]
+    G --> H[Clinical Narratives]
     
     A1[User Interface] --> A
     A2[Authentication] --> A
-    A3[Storage] --> A
+    A3[Shell File Storage] --> A
     
     B1[Security Scanning] --> B
     B2[Duplicate Detection] --> B
@@ -43,8 +49,20 @@ graph LR
     C3[Spatial Mapping] --> C
     
     D1[Entity Detection] --> D
-    D2[Schema Enrichment] --> D
-    D3[Profile Assignment] --> D
+    D2[Location Tracking] --> D
+    
+    E1[Clinical Enrichment] --> E
+    E2[Schema Population] --> E
+    E3[Shell File Reference] --> E
+    
+    G1[Semantic Grouping] --> G
+    G2[Narrative Creation] --> G
+    G3[Shell File Synthesis] --> G
+    
+    H --> I[Dual-Lens Views]
+    F --> I
+    I1[Shell File View] --> I
+    I2[Narrative View] --> I
 ```
 
 ## Component Specifications
@@ -171,47 +189,61 @@ interface OCRHandoff {
 }
 ```
 
-### 4. AI Processing Component  
-**Reference**: [AI Processing Architecture](04-ai-processing-architecture.md), [Entity Classification Taxonomy](05-entity-classification-taxonomy.md), and [Schema-Driven Processing](06-schema-driven-processing.md) - Complete two-pass architecture with working implementation
+### 4. AI Processing Component (Semantic Architecture)
+**Reference**: [Semantic Document Architecture](07-semantic-document-architecture.md), [AI Processing Architecture](04-ai-processing-architecture.md), [Entity Classification Taxonomy](05-entity-classification-taxonomy.md), and [Schema-Driven Processing](06-schema-driven-processing.md) - Complete three-pass semantic architecture
 
 **Primary Functions**:
-- Two-pass AI architecture with hierarchical 3-category entity classification system
-- Pass 1: Comprehensive entity identification using processing-requirements-based taxonomy
-- Pass 2: Targeted schema-based enrichment with multi-layered contextual approach
-- Dynamic schema loading with V2 safety integration (profile validation, contamination prevention)
-- Complete audit trail with entity_processing_audit table for regulatory compliance
-- Profile assignment suggestions with confidence scoring
-- Russian babushka doll layering: essential processing shells in Pass 1, enriched user-facing shells in Pass 2
+- **Three-pass AI architecture** with semantic document processing and hybrid clinical narratives
+- **Pass 1**: Entity detection with location data and clinical context hints
+- **Pass 2**: Clinical events population with shell file references (fully functional system)  
+- **Pass 3**: Semantic narrative creation with shell file synthesis (enhancement layer)
+- **Hybrid dual-lens system**: Document-centric and story-centric viewing modes
+- **Clinical safety**: Prevents dangerous multi-document context mixing
+- **System resilience**: Graceful degradation with shell file fallback
+- **Russian babushka doll context**: Timeline → Clinical events → Encounters → Narratives → Specialized tables
 
-**✅ Week 2 Implementation Status**: Production-ready TypeScript components completed
-- **SchemaLoader**: Dynamic schema management with entity-to-schema mapping
-- **EntityClassifier**: Pass 1 entity detection with V2 profile safety assessment  
-- **Integration Workflow**: Complete V3 + V2 processing pipeline demonstrated
+**✅ Architecture Complete**: Ready for implementation with complete migration execution plan
+- **Pass 1**: Entity detection with semantic preparation
+- **Pass 2**: Clinical enrichment with dual reference system  
+- **Pass 3**: Semantic narrative creator with shell file synthesis
+- **Dual-lens views**: Shell file and clinical narrative viewing modes
 
-**Two-Pass Architecture** (Implemented in TypeScript):
+**Three-Pass Semantic Architecture**:
 ```typescript
 const AI_PROCESSING_ARCHITECTURE = {
   pass1: {
-    purpose: '3-Category Entity Detection and Classification',
-    implementation: 'EntityClassifier class with V2 safety integration',
+    purpose: 'Entity Detection with Location Data',
+    implementation: 'EntityClassifier class with semantic preparation',
     model: 'Lightweight (GPT-4o-mini, Claude Haiku etc)',
-    input: 'Full uploaded optimized file + OCR data + 3-category entity taxonomy',
-    output: 'Complete entity inventory with processing categories and schema requirements',
+    input: 'Shell file + OCR data + 3-category entity taxonomy',
+    output: 'Complete entity inventory with page locations and clinical context hints',
     categories: 'clinical_event, healthcare_context, document_structure',
     safetyFeatures: 'Profile validation, age appropriateness, contamination prevention',
     cost: '~$0.0002-0.0005 per document',
     time: '1-2 seconds'
   },
   pass2: {
-    purpose: 'Multi-Layered Schema-Based Enrichment', 
+    purpose: 'Multi-Layered Schema-Based Clinical Enrichment', 
     implementation: 'SchemaLoader class with dynamic schema management',
     model: 'High-performance (Claude Sonnet, GPT-5 etc)',  
     input: 'Full document + Filtered entities by category + dynamically loaded schemas',
     processing: 'clinical_event (full enrichment), healthcare_context (profile matching), document_structure (skip)',
+    output: 'Fully enriched clinical data with shell file references (system fully functional)',
     tokenOptimization: 'getOptimalSchemaVersion() with budget management',
-    output: 'Fully enriched clinical data with complete audit trail',
     cost: '~$0.003-0.006 per document (75% reduction vs single-pass)',
     time: '3-5 seconds'
+  },
+  pass3: {
+    purpose: 'Semantic Narrative Creation with Shell File Synthesis',
+    implementation: 'SemanticNarrativeCreator class with clinical storyline analysis',
+    model: 'High-performance (Claude Sonnet, GPT-5 etc) with narrative optimization',
+    input: 'Structured clinical events JSON from Pass 2 + shell file metadata',
+    processing: 'Semantic grouping → Clinical narratives → Shell file synthesis',
+    output: 'Clinical narratives + AI shell file summary (enhancement layer)',
+    costOptimization: 'Processes structured JSON vs raw text (major cost savings)',
+    gracefulDegradation: 'Optional enhancement - system works without Pass 3',
+    cost: '~$0.001-0.003 per document (processes structured data)',
+    time: '2-4 seconds'
   }
 };
 ```
@@ -247,19 +279,46 @@ interface SchemaLoadResult {
   profile_classification_needed: boolean;
 }
 
-// Complete AI Processing Result
+// Pass 3 Semantic Processing Result  
+interface Pass3ProcessingResult {
+  shell_file_id: string;
+  clinical_narratives: {
+    narrative_id: string;
+    narrative_purpose: string;  // "hypertension_management", "surgical_follow_up"
+    ai_narrative_summary: string;
+    source_page_ranges: number[]; // Can span non-contiguous pages
+    clinical_confidence: number;
+  }[];
+  shell_file_synthesis: {
+    ai_document_summary: string;  // Synthesis of all narratives
+    ai_document_purpose: string;  // Overall document purpose
+    ai_key_findings: string[];    // Key clinical findings across narratives
+    processing_confidence: number;
+  };
+  dual_lens_references: {
+    shell_file_view_ready: boolean;
+    narrative_view_ready: boolean;
+  };
+}
+
+// Complete AI Processing Result (Three-Pass Architecture)
 interface AIProcessingResult {
   documentId: string;
   pass1Result: Pass1ProcessingResult;
   schemaLoadResults: SchemaLoadResult[];
-  enrichedClinicalData: EnrichedEntity[];
+  enrichedClinicalData: EnrichedEntity[];  // Pass 2 output
+  pass3Result?: Pass3ProcessingResult;     // Optional enhancement layer
   processingAuditTrail: EntityProcessingAudit[];
   qualityMetrics: AIQualityMetrics;
   contextualLayering: {
-    masterRecords: ClinicalEvent[];        // patient_clinical_events
+    masterRecords: ClinicalEvent[];        // patient_clinical_events with shell_file_id references
     detailShells: ObservationDetail[];     // patient_observations, patient_vitals, etc
     contextShells: EncounterContext[];     // healthcare_encounters
     auditShells: ProcessingMetadata[];     // entity_processing_audit
+  };
+  semanticEnhancement?: {
+    clinical_narratives: ClinicalNarrative[];  // Pass 3 narratives if available
+    shell_file_summary: ShellFileSummary;      // Synthesized shell file data
   };
 }
 ```

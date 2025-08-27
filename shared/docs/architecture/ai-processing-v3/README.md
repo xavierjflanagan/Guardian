@@ -1,16 +1,17 @@
-# AI Processing v3: Direct Schema Integration Approach
+# AI Processing v3: Semantic Document Architecture with Hybrid Clinical Narratives
 
-**Status:** Planning & Implementation Phase  
-**Date:** 25 August 2025  
-**Purpose:** Direct database-to-AI schema integration, skipping bridge documentation layer  
+**Status:** Architecture Complete - Ready for Implementation  
+**Date:** 27 August 2025  
+**Updated:** 27 August 2025 - Semantic Document Architecture Integration  
+**Purpose:** Semantic shell file + clinical narratives architecture with three-pass AI processing  
 **Previous:** Built comprehensive pipeline architecture in [ai-processing-v2](../ai-processing-v2/)
 
 ---
 
 ## Overview
-AI Processing v3 implements the two-pass AI architecture with direct database schema integration. This approach eliminates the bridge documentation layer and creates AI schemas directly from database tables for maximum efficiency.
+AI Processing v3 implements a revolutionary **semantic document architecture** with hybrid shell file + clinical narratives approach. This system solves the critical multi-document problem while providing both document-centric and story-centric views of medical data, ensuring clinical safety and user choice.
 
-**Key Decision:** Skip comprehensive bridge documentation and go directly from database schema to AI-consumable schemas.
+**Key Breakthrough:** Semantic segmentation of complex medical documents into clinically coherent narratives while maintaining reliable shell file fallback system.
 
 ---
 
@@ -19,91 +20,121 @@ AI Processing v3 implements the two-pass AI architecture with direct database sc
 ```
 ai-processing-v3/
 ├── README.md (this file)
+├── 09-semantic-migration-execution-plan.md    # Implementation execution plan
 ├── v3-pipeline-planning/
+│   ├── 00-pipeline-overview.md                # Complete pipeline architecture
+│   ├── 04-ai-processing-architecture.md       # Three-pass AI processing
+│   ├── 05-entity-classification-taxonomy.md   # Entity classification system
+│   ├── 06-schema-driven-processing.md         # Schema loading architecture
+│   ├── 07-semantic-document-architecture.md   # Shell files + clinical narratives
+│   └── 08-clinical-journeys-architecture.md   # Future patient-scoped journeys
 ├── ai-to-database-schema-architecture/
-    ├── schemas/
-    │   ├── source/                    # Master documentation schemas
-    │   │   └── patient_clinical_events.json
-    │   ├── detailed/                  # AI version with guidance (~300 tokens)
-    │   │   └── patient_clinical_events.json  
-    │   ├── minimal/                   # AI version selective minimization (~100 tokens)
-    │   │   └── patient_clinical_events.json
-    │   └── schema_loader.ts           # Simple loader for runtime use
-    └── tests/
-        ├── accuracy_comparison/       # A/B test detailed vs minimal
-        │   ├── detailed_vs_minimal_test.ts
-        │   └── medical_document_samples/
-        └── token_analysis/            # Measure token efficiency
-            └── token_count_comparison.ts
+│   ├── schemas/
+│   │   ├── entity_classifier.ts               # Pass 1 entity detection
+│   │   ├── schema_loader.ts                   # Dynamic schema loading
+│   │   ├── semantic_narrative_creator.ts      # Pass 3 narrative processor
+│   │   └── dual_lens_view_service.ts          # Hybrid viewing system
+│   └── tests/
+       ├── semantic_processing/                 # Semantic architecture tests
+       ├── hybrid_views/                       # Dual-lens view tests
+       └── clinical_narratives/                # Narrative creation tests
 ```
 
 ## Current Implementation Status
 
-### ✅ **COMPLETED: Architecture & Research Phase**
+### ✅ **COMPLETED: Semantic Architecture Design**
 
-- [x] **Pipeline Architecture Complete** - Built comprehensive 4-component pipeline architecture (v3)
-- [x] **Database Foundation Analysis** - Analyzed all 47 production tables across 15 migration files  
-- [x] **Entity Classification Taxonomy** - Created 3-category system (clinical_event, healthcare_context, document_structure)
-- [x] **AI Processing Architecture Alignment** - Documents 04 and 05 fully integrated with hierarchical classification
-- [x] **Cost Optimization Strategy** - Two-pass + 3-category approach reduces AI costs by 70%
-- [x] **Schema Integration Planning** - Validated against Guardian database (95% table coverage)
+- [x] **Three-Pass Pipeline Architecture** - Pass 1 entity detection, Pass 2 clinical enrichment, Pass 3 semantic narratives
+- [x] **Semantic Document Architecture** - Shell files + clinical narratives hybrid system designed
+- [x] **Entity Classification Taxonomy** - 3-category system with semantic grouping capabilities
+- [x] **Hybrid Dual-Lens System** - Document-centric and story-centric viewing modes
+- [x] **Clinical Safety Solution** - Prevents dangerous multi-document context mixing
+- [x] **System Resilience Design** - Graceful degradation with shell file fallback
+- [x] **Migration Strategy** - Complete execution plan for primitive intelligence replacement
 
 **Key Implementation Insights:**
-- Database foundation is production-ready (47 tables, 917 functions)
-- 3-category entity system enables intelligent processing routing  
-- Russian babushka doll approach provides multi-layered contextual data
-- Complete audit trail architecture designed for regulatory compliance
+- Hybrid architecture eliminates clinical safety risks from multi-document uploads
+- Semantic narratives provide clinically coherent medical storylines  
+- Dual-lens system accommodates both document-minded and clinical-minded users
+- Progressive enhancement ensures system always remains functional
+
+### ✅ **COMPLETED: Clinical Journeys Vision**
+
+- [x] **Patient-Scoped Architecture** - Framework for cross-document clinical journeys designed
+- [x] **Journey Detection Engine** - AI system for longitudinal healthcare narrative creation
+- [x] **Timeline Evolution Strategy** - Path from document events to meaningful care stories
+- [x] **Healthcare Provider Integration** - Journey-aware clinical decision support architecture
 
 ### 🚀 **READY FOR IMPLEMENTATION**
 
 **Implementation-ready components:**
-- Pass 1 entity detection with 3-category classification system
-- Pass 2 enrichment targeting clinical_event entities  
-- Schema loading system using existing Guardian database tables
-- Multi-layered contextual approach with connected database records
+- Complete semantic migration execution plan (4 weeks)
+- Database schema changes for shell files + clinical narratives
+- Three-pass AI processing pipeline with semantic narrative creation
+- Dual-lens viewing system with graceful degradation
+- Foundation architecture for future clinical journeys
 
-**For detailed implementation planning, see:** [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)
+**For detailed implementation planning, see:** [09-semantic-migration-execution-plan.md](09-semantic-migration-execution-plan.md)
 
 ---
 
 ## Architecture Decisions
 
 ### Confirmed Decisions
-1. **Two-Pass AI Architecture** - Pass 1 classification, Pass 2 enrichment
-2. **Direct Schema Approach** - Skip bridge documentation layer
-3. **Entity-Driven Schema Loading** - Load only relevant schemas per document
-4. **Database-First Design** - AI schemas derived from database constraints
-5. **Cost Optimization Focus** - Minimize token usage while maximizing accuracy
+1. **Three-Pass AI Architecture** - Pass 1 entity detection, Pass 2 clinical enrichment, Pass 3 semantic narratives
+2. **Hybrid Document System** - Shell files (physical) + clinical narratives (semantic) dual architecture
+3. **Progressive Enhancement** - System functional after Pass 2, enhanced after Pass 3
+4. **Dual-Lens User Experience** - Document view + narrative view with user choice
+5. **Clinical Safety Priority** - Prevents dangerous multi-document context mixing
+6. **Graceful Degradation** - Shell file fallback ensures system always functional
+7. **Russian Babushka Doll Context** - Multi-layered clinical context from timeline to specialized tables
 
-### Open Questions
-1. **Entity Deduplication** - Handle at database level or UI level?
-2. **Multi-Schema Entities** - How to handle entities spanning multiple tables?
-3. **Confidence Thresholds** - What triggers manual review?
-4. **Batch Processing Strategy** - Optimal batching for large documents?
+### Implementation Strategy
+1. **Hybrid Migration Approach** - Replace primitive document intelligence with semantic architecture
+2. **System Resilience** - No single point of failure, always maintains core functionality
+3. **User Choice Preservation** - Both document-minded and clinical-minded user preferences supported
+4. **Future Scalability** - Foundation for patient-scoped clinical journeys across documents
 
 ---
 
-### Schema Architecture
+## Semantic Architecture Overview
 
-**Three-Version Approach:**
-- **Source schemas**: Comprehensive documentation for developers (600+ tokens)
-- **Detailed schemas**: AI-optimized with key guidance retained (300 tokens)  
-- **Minimal schemas**: Selective minimization for maximum efficiency (100-200 tokens)
+**Shell Files (Physical Layer):**
+- Actual uploaded documents with metadata
+- AI synthesized summaries of all contained narratives
+- Always reliable reference point for clinical data
 
-**Manual Creation Process:**
-1. Create source schema with full documentation
-2. Manually create detailed version (remove verbose descriptions, keep examples)
-3. Manually create minimal version (essential fields and enums only)
-4. A/B test both AI versions for accuracy vs efficiency trade-offs
+**Clinical Narratives (Semantic Layer):**
+- AI-determined medical storylines based on clinical meaning
+- Can span non-contiguous pages within documents
+- Clinically coherent summaries (e.g., "Hypertension Management Journey")
+- Optional enhancement - system works without them
+
+**Processing Flow:**
+```
+Pass 1: Shell file → Entity detection with location data
+Pass 2: Entities → Clinical events → Database (fully functional)
+Pass 3: Clinical events → Semantic narratives (enhancement layer)
+```
 
 ---
 
 ## Next Immediate Action
 
-**Comprehensive implementation planning is now available in [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md)**
+**Complete implementation execution plan is available in [09-semantic-migration-execution-plan.md](09-semantic-migration-execution-plan.md)**
 
-**START HERE:** Begin with Week 1 database foundation tasks, specifically creating the `entity_processing_audit` table for complete AI processing audit trail.
+**START HERE:** Begin with semantic migration to replace primitive document intelligence:
+1. **Week 1:** Remove primitive document intelligence + implement shell files + clinical narratives schema
+2. **Week 2:** Implement Pass 3 semantic narrative creator and dual-lens view service  
+3. **Week 3:** Dashboard dual-view interface with user preference system
+4. **Week 4:** Clinical safety validation and production readiness
+
+## Key Documents
+
+- **[07-semantic-document-architecture.md](v3-pipeline-planning/07-semantic-document-architecture.md)** - Complete shell file + clinical narratives architecture
+- **[08-clinical-journeys-architecture.md](v3-pipeline-planning/08-clinical-journeys-architecture.md)** - Future patient-scoped journey evolution
+- **[00-pipeline-overview.md](v3-pipeline-planning/00-pipeline-overview.md)** - Complete three-pass pipeline architecture
 
 ---
 
-*This V3 approach implements the aligned 3-category entity classification system with multi-layered contextual data, delivering a production-ready two-pass AI system with complete healthcare compliance.*
+*This V3 approach implements semantic document architecture with hybrid clinical narratives, delivering a clinically safe, user-choice-driven, and future-scalable healthcare AI system that prevents dangerous multi-document context mixing while maintaining system resilience.*
