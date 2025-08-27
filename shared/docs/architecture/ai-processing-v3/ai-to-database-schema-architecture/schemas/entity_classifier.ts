@@ -44,6 +44,13 @@ interface Pass1ProcessingResult {
     healthcare_context: EntityDetectionResult[];
     document_structure: EntityDetectionResult[];
   };
+  // V3 CRITICAL ADDITION: AI-Generated Document Intelligence
+  document_intelligence: {
+    ai_document_summary: string; // "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
+    ai_document_purpose: string; // "Post-surgical discharge planning with follow-up care instructions"
+    ai_key_findings: string[]; // ["Successful stent placement", "Blood pressure stable", "Home care approved"]
+    ai_document_confidence: number; // Overall confidence in document analysis (0-1)
+  };
   profile_safety_assessment: {
     identity_verification_confidence: number;
     age_appropriateness_score: number;
@@ -95,7 +102,7 @@ class EntityClassifier {
     const aiResponse = await this.callAIModel(classificationPrompt);
     
     // Parse and validate AI response
-    const entities = this.parseEntityClassificationResponse(aiResponse);
+    const { entities, document_intelligence } = this.parseEntityClassificationResponse(aiResponse);
     
     // V2 Enhancement: Perform profile safety assessment
     const safetyAssessment = await this.assessProfileSafety(
@@ -113,6 +120,7 @@ class EntityClassifier {
       document_id: '', // Will be set by calling function
       total_entities_detected: entities.length,
       entities_by_category: categorizedEntities,
+      document_intelligence, // V3 CRITICAL: Add document intelligence to result
       profile_safety_assessment: safetyAssessment,
       processing_metadata: {
         model_used: this.modelConfig.pass1_model,
@@ -144,7 +152,17 @@ PROFILE CONTEXT (V2 Safety):
 - Known allergies: ${profileContext.patient_demographics?.known_allergies?.join(', ') || 'none listed'}
 
 CLASSIFICATION TASK:
-Identify and classify ALL medical entities in this document using the 3-category system:
+Perform TWO analysis tasks simultaneously:
+
+TASK 1: DOCUMENT INTELLIGENCE ANALYSIS
+Generate a high-level understanding of this document:
+- Document Summary: One concise sentence describing the overall purpose and outcome
+- Document Purpose: What this document is trying to accomplish (diagnosis, treatment, follow-up, etc.)
+- Key Findings: 3-5 most important medical facts from this document
+- Analysis Confidence: Your overall confidence in understanding this document (0-1)
+
+TASK 2: ENTITY CLASSIFICATION
+Identify and classify ALL medical entities using the 3-category system:
 
 1. CLINICAL_EVENT: Direct medical actions, observations, or findings
    - Subtypes: vital_sign, lab_result, procedure, medication, diagnosis, allergy, immunization, physical_exam
@@ -165,24 +183,32 @@ V2 SAFETY REQUIREMENTS:
 - Assess contamination prevention requirements
 
 OUTPUT FORMAT:
-Return JSON array of entities:
-[
-  {
-    "entity_id": "unique_identifier",
-    "category": "clinical_event|healthcare_context|document_structure",
-    "subtype": "specific_subtype",
-    "text_content": "extracted_text",
-    "confidence": 0.0-1.0,
-    "spatial_coordinates": {
-      "x1": number,
-      "y1": number, 
-      "x2": number,
-      "y2": number
-    },
-    "requires_profile_validation": boolean,
-    "safety_risk_level": "low|medium|high|critical"
-  }
-]
+Return JSON object with both document intelligence and entities:
+{
+  "document_intelligence": {
+    "ai_document_summary": "Concise one-sentence summary of document",
+    "ai_document_purpose": "What this document accomplishes",
+    "ai_key_findings": ["Finding 1", "Finding 2", "Finding 3"],
+    "ai_document_confidence": 0.0-1.0
+  },
+  "entities": [
+    {
+      "entity_id": "unique_identifier",
+      "category": "clinical_event|healthcare_context|document_structure",
+      "subtype": "specific_subtype",
+      "text_content": "extracted_text",
+      "confidence": 0.0-1.0,
+      "spatial_coordinates": {
+        "x1": number,
+        "y1": number, 
+        "x2": number,
+        "y2": number
+      },
+      "requires_profile_validation": boolean,
+      "safety_risk_level": "low|medium|high|critical"
+    }
+  ]
+}
 
 VALIDATION RULES:
 - Minimum confidence: ${this.modelConfig.confidence_threshold}
@@ -303,16 +329,38 @@ VALIDATION RULES:
   }
 
   /**
-   * Parse AI model response into EntityDetectionResult objects
+   * Parse AI model response into EntityDetectionResult objects and document intelligence
    */
-  private parseEntityClassificationResponse(aiResponse: string): EntityDetectionResult[] {
+  private parseEntityClassificationResponse(aiResponse: string): {
+    entities: EntityDetectionResult[];
+    document_intelligence: Pass1ProcessingResult['document_intelligence'];
+  } {
     try {
       const parsedResponse = JSON.parse(aiResponse);
-      if (!Array.isArray(parsedResponse)) {
-        throw new Error('Expected array of entities');
+      
+      // Handle legacy format (just entities array) for backwards compatibility
+      if (Array.isArray(parsedResponse)) {
+        return {
+          entities: parsedResponse.map((entity, index) => ({
+            entity_id: entity.entity_id || `entity_${index}`,
+            category: entity.category as EntityCategory,
+            subtype: entity.subtype || 'unknown',
+            confidence: entity.confidence || 0.5,
+            spatial_coordinates: entity.spatial_coordinates,
+            requires_profile_validation: entity.requires_profile_validation || false,
+            safety_risk_level: entity.safety_risk_level || 'low'
+          })),
+          document_intelligence: {
+            ai_document_summary: 'Document analysis not available',
+            ai_document_purpose: 'Unknown purpose',
+            ai_key_findings: [],
+            ai_document_confidence: 0.5
+          }
+        };
       }
       
-      return parsedResponse.map((entity, index) => ({
+      // Handle new format with document intelligence + entities
+      const entities = (parsedResponse.entities || []).map((entity: any, index: number) => ({
         entity_id: entity.entity_id || `entity_${index}`,
         category: entity.category as EntityCategory,
         subtype: entity.subtype || 'unknown',
@@ -321,9 +369,26 @@ VALIDATION RULES:
         requires_profile_validation: entity.requires_profile_validation || false,
         safety_risk_level: entity.safety_risk_level || 'low'
       }));
+      
+      const document_intelligence = {
+        ai_document_summary: parsedResponse.document_intelligence?.ai_document_summary || 'Document analysis not available',
+        ai_document_purpose: parsedResponse.document_intelligence?.ai_document_purpose || 'Unknown purpose',
+        ai_key_findings: parsedResponse.document_intelligence?.ai_key_findings || [],
+        ai_document_confidence: parsedResponse.document_intelligence?.ai_document_confidence || 0.5
+      };
+      
+      return { entities, document_intelligence };
     } catch (error) {
       console.error('Failed to parse entity classification response:', error);
-      return [];
+      return {
+        entities: [],
+        document_intelligence: {
+          ai_document_summary: 'Parsing error occurred',
+          ai_document_purpose: 'Unable to determine purpose',
+          ai_key_findings: [],
+          ai_document_confidence: 0.0
+        }
+      };
     }
   }
 
@@ -367,20 +432,28 @@ VALIDATION RULES:
    */
   private async callAIModel(_prompt: string): Promise<string> {
     // This would be replaced with actual API calls to GPT-4o-mini, Claude Haiku, etc.
-    // For now, return a mock response structure
+    // For now, return a mock response structure with document intelligence
     // _prompt parameter will be used in production implementation
-    return `[
-      {
-        "entity_id": "bp_reading_001",
-        "category": "clinical_event",
-        "subtype": "vital_sign",
-        "text_content": "Blood pressure 120/80 mmHg",
-        "confidence": 0.95,
-        "spatial_coordinates": {"x1": 100, "y1": 200, "x2": 300, "y2": 220},
-        "requires_profile_validation": false,
-        "safety_risk_level": "low"
-      }
-    ]`;
+    return `{
+      "document_intelligence": {
+        "ai_document_summary": "Routine cardiology follow-up visit with blood pressure monitoring and medication adjustment",
+        "ai_document_purpose": "Post-treatment monitoring and care plan optimization",
+        "ai_key_findings": ["Blood pressure controlled at 120/80", "Lisinopril dose effective", "Patient compliant with treatment"],
+        "ai_document_confidence": 0.92
+      },
+      "entities": [
+        {
+          "entity_id": "bp_reading_001",
+          "category": "clinical_event",
+          "subtype": "vital_sign",
+          "text_content": "Blood pressure 120/80 mmHg",
+          "confidence": 0.95,
+          "spatial_coordinates": {"x1": 100, "y1": 200, "x2": 300, "y2": 220},
+          "requires_profile_validation": false,
+          "safety_risk_level": "low"
+        }
+      ]
+    }`;
   }
 }
 
