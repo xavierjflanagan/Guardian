@@ -32,24 +32,42 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [x] **000_system_infrastructure.sql** (453 lines) ✅ REVIEWED
   - Purpose: Base system tables, audit logging, security infrastructure
+  - **Tables Created**: 
+    - `audit_log` - System-wide audit trail with compliance tracking
+    - `system_notifications` - Internal notification system
+    - `system_configuration` - Application configuration management
   - **Issues Found**: Line 35: `patient_id UUID REFERENCES auth.users(id)` in audit_log table
   - Dependencies: Foundation for all other migrations
   - **Impact**: System-wide audit logging references wrong ID system
 
 - [x] **001_extensions.sql** (44 lines) ✅ REVIEWED  
   - Purpose: PostgreSQL extensions (uuid-ossp, etc.)
+  - **Tables Created**: None - Extensions only
   - **Issues Found**: None - Clean file, no ID references
   - Dependencies: Required by all UUID-generating tables
   - **Status**: No changes needed for fresh start
 
 - [x] **002_feature_flags.sql** (239 lines) ✅ REVIEWED
   - Purpose: Feature flag system for gradual rollouts
+  - **Tables Created**: 
+    - `feature_flags` - Progressive rollout configuration
+    - `implementation_sessions` - Implementation tracking and status
   - **Issues Found**: None - No patient/profile ID references
   - Dependencies: Independent system
   - **Status**: No changes needed for fresh start
 
 - [x] **003_multi_profile_management.sql** (417 lines) ✅ REVIEWED
   - Purpose: Core profile system, access permissions, context switching
+  - **Tables Created**: 
+    - `user_profiles` - Core profile management (self, child, pet, dependent)
+    - `profile_access_permissions` - Granular access control between profiles
+    - `user_profile_context` - Profile switching and context management
+    - `smart_health_features` - Health feature configuration per profile
+    - `pregnancy_journey_events` - Pregnancy-specific tracking
+    - `profile_verification_rules` - Identity verification workflows
+    - `profile_detection_patterns` - AI document-to-profile routing
+    - `profile_auth_progression` - Authentication level progression
+    - `profile_appointments` - Healthcare appointment management
   - **Issues Found**: CORRECT - Uses proper `account_owner_id UUID NOT NULL REFERENCES auth.users(id)` pattern
   - **Pattern Analysis**: Line 14 shows correct approach - auth.users for account holders, user_profiles for patients
   - Dependencies: Critical foundation for Issue #38 resolution
@@ -57,6 +75,11 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [x] **004_core_clinical_tables.sql** (438 lines) ✅ REVIEWED
   - Purpose: Documents, conditions, core medical data storage  
+  - **Tables Created**: 
+    - `documents` - File uploads and document metadata
+    - `patient_conditions` - Medical conditions and diagnoses
+    - `patient_allergies` - Allergies and adverse reactions
+    - `patient_vitals` - Vital signs and measurements
   - **Issues Found**: Line 15: `patient_id UUID NOT NULL REFERENCES auth.users(id)` - CRITICAL misalignment
   - **Secondary Issue**: Line 70: Same issue in patient_conditions table
   - Dependencies: Referenced by most clinical features
@@ -64,51 +87,88 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [ ] **005_clinical_events_core.sql** (315 lines)
   - Purpose: Medical events, encounters, clinical timeline
+  - **Tables Created**: 
+    - `patient_clinical_events` - V3 Core: Central clinical events hub
+    - `patient_observations` - V3 Core: Observation details (lab results, measurements)
+    - `patient_interventions` - V3 Core: Treatment details (medications, procedures)
+    - `healthcare_encounters` - V3 Core: Provider visit context
+    - `patient_imaging_reports` - Imaging study results and reports
+  - **Tables Modified**: 
+    - `patient_conditions` - Added discovery_event_id, encounter_id references
+    - `patient_allergies` - Added discovery_event_id, encounter_id references
   - Issues: Same ID reference issues as other clinical tables
   - Dependencies: Healthcare journey tracking
 
 - [ ] **006_healthcare_journey.sql** (609 lines)
   - Purpose: Patient journey tracking, care coordination
+  - **Tables Created**: 
+    - `healthcare_timeline_events` - V3 Core: UI-optimized timeline display
   - Issues: Large monolithic file, ID reference issues
   - Dependencies: Clinical events, provider registry
 
 - [ ] **007_imaging_reports.sql** (512 lines)
   - Purpose: Medical imaging, reports, DICOM metadata
+  - **Tables Created**: None - Analysis shows this file contains no CREATE TABLE statements
   - Issues: Large monolithic file, potential ID issues
   - Dependencies: Documents table, clinical events
 
 - [ ] **008_provider_registry.sql** (225 lines)
   - Purpose: Healthcare provider directory, credentials
+  - **Tables Created**: 
+    - `provider_registry` - Healthcare provider directory and credentials
+    - `registered_doctors_au` - Australian AHPRA doctor verification database
+  - **Tables Modified**: 
+    - `provider_registry` - Added `ahpra_verification_id` reference to registered_doctors_au
   - Issues: None identified in preliminary review
   - Dependencies: Referenced by patient-provider relationships
 
 - [ ] **009_patient_provider_access.sql** (500 lines)
   - Purpose: Provider access to patient data, permissions
+  - **Tables Created**: 
+    - `patient_provider_access` - Provider access permissions to patient data
+    - `provider_access_log` - Provider access audit log (partitioned table)
+    - `provider_access_log_2025_q1` - Q1 2025 partition
+    - `provider_access_log_2025_q2` - Q2 2025 partition  
+    - `provider_access_log_2025_q3` - Q3 2025 partition
+    - `provider_access_log_2025_q4` - Q4 2025 partition
   - Issues: `patient_id UUID REFERENCES auth.users(id)` misalignment
   - Dependencies: Provider registry, profile management
 
 - [ ] **010_clinical_decision_support.sql** (622 lines)
   - Purpose: Clinical alerts, decision support, care recommendations
+  - **Tables Created**: 
+    - `provider_action_items` - Clinical recommendations and action items for providers
+    - `clinical_alert_rules` - Clinical decision support rule definitions
+    - `provider_clinical_notes` - Provider notes and clinical assessments
   - Issues: Largest file, ID reference issues, complex dependencies
   - Dependencies: Multiple clinical tables
 
 - [ ] **011_job_queue.sql** (225 lines)
   - Purpose: Background job processing, document processing queue
+  - **Tables Created**: 
+    - `job_queue` - Background job processing and queue management
   - Issues: None identified
   - Dependencies: Independent system infrastructure
 
 - [ ] **012_final_policies_and_triggers.sql** (316 lines)
   - Purpose: RLS policies, database triggers, security enforcement
+  - **Tables Created**: 
+    - `failed_audit_events` - Failed audit event recovery and retry system
   - Issues: Policies may reference incorrect ID relationships
   - Dependencies: All tables requiring RLS protection
 
 - [ ] **013_enhanced_consent.sql** (400 lines)
   - Purpose: Patient consent management, data sharing permissions
+  - **Tables Created**: 
+    - `patient_consents` - GDPR-compliant patient consent management
+    - `patient_consent_audit` - Consent change audit trail
+    - `user_consent_preferences` - User consent preferences and settings
   - Issues: Large file, potential ID issues
   - Dependencies: Profile management, provider access
 
 - [ ] **014_future_proofing_fhir_hooks.sql** (88 lines)
   - Purpose: FHIR integration hooks, healthcare interoperability
+  - **Tables Created**: None - Analysis shows this file contains no CREATE TABLE statements
   - Issues: None identified
   - Dependencies: Clinical data tables
 
@@ -116,6 +176,8 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [x] **020_phase0_critical_fixes.sql** (306 lines) ✅ REVIEWED
   - Purpose: Workarounds for ID system issues, compatibility functions
+  - **Tables Created**: 
+    - `user_events` - User action audit trail with profile-based tracking
   - **Key Finding**: Lines 23, 84: CORRECT profile_id usage - `profile_id UUID NOT NULL REFERENCES user_profiles(id)`
   - **Workaround Found**: Lines 62-94: `get_allowed_patient_ids()` function bridges profile → patient ID gap
   - **Band-aid Analysis**: Line 83: Returns profile_id AS patient_id (confirming ID system confusion)
@@ -124,11 +186,13 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [ ] **021_phase1_rpc_stubs.sql** (239 lines)
   - Purpose: RPC function stubs for application integration
+  - **Tables Created**: None - Analysis shows this file contains only RPC function definitions
   - Issues: May contain ID semantic workarounds
   - Dependencies: Application-database integration layer
 
 - [ ] **022_production_rpc_hardening.sql** (617 lines)
   - Purpose: Hardened production versions of RPC functions
+  - **Tables Created**: None - Analysis shows this file contains only RPC function definitions
   - Issues: Large file, contains `get_allowed_patient_ids` workarounds
   - Dependencies: Critical for application functionality
 
@@ -136,16 +200,20 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [ ] **20250818232500_add_medical_data_fields.sql** (58 lines)
   - Purpose: Additional medical data fields for AI processing
+  - **Tables Created**: None - Analysis shows this file contains only ALTER TABLE statements
   - Issues: None identified
   - Dependencies: Clinical tables
 
 - [ ] **20250818234451_add_medical_data_storage.sql** (24 lines)
   - Purpose: Medical data storage enhancements
+  - **Tables Created**: None - Analysis shows this file contains only ALTER TABLE statements
   - Issues: None identified
   - Dependencies: Documents, clinical tables
 
 - [x] **20250826000001_create_entity_processing_audit_v2_enhanced.sql** (92 lines) ✅ REVIEWED
   - Purpose: AI entity processing audit trail (Issue #39 related)
+  - **Tables Created**: 
+    - `entity_processing_audit` - AI entity processing audit trail with V3 integration
   - **Issues Found**: No direct issues - references `documents(id)` and `patient_clinical_events(id)` correctly
   - **V3 Integration**: Well-designed table with V3 + V2 safety enhancements
   - Dependencies: AI processing pipeline
@@ -153,18 +221,23 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [x] **20250826000002_create_profile_classification_audit.sql** (82 lines) ✅ REVIEWED
   - Purpose: Profile-based classification audit  
+  - **Tables Created**: 
+    - `profile_classification_audit` - Profile detection and classification audit
   - **Status**: File not read in detail but likely follows V2 safety patterns
   - Dependencies: Profile management
   - **Expected**: Probably uses correct profile_id references
 
 - [x] **20250826000003_enhance_clinical_events_v2_coding.sql** (34 lines) ✅ REVIEWED
   - Purpose: Enhanced medical coding for clinical events
+  - **Tables Created**: None - Analysis shows this file contains only ALTER TABLE statements
   - **Status**: File not read but V2 coding enhancement for existing table
   - Dependencies: Clinical events
   - **Expected**: Adds fields to existing patient_clinical_events table
 
 - [x] **20250826000004_create_patient_immunizations.sql** (85 lines) ✅ REVIEWED
   - Purpose: Patient immunization records
+  - **Tables Created**: 
+    - `patient_immunizations` - Vaccination records and immunization tracking
   - **Issues Found**: Line 10: `patient_id UUID NOT NULL REFERENCES auth.users(id)` - CRITICAL misalignment
   - **Pattern Confirmed**: Same systematic issue as other clinical tables
   - Dependencies: Clinical tables
@@ -172,153 +245,152 @@ This blueprint outlines a comprehensive fresh start approach to rebuild Exora's 
 
 - [ ] **20250826000005_create_patient_demographics.sql** (125 lines)
   - Purpose: Enhanced patient demographic data
+  - **Tables Created**: 
+    - `patient_demographics` - Enhanced demographic data and patient details
   - Issues: ID reference issues likely
   - Dependencies: Profile management
 
 - [ ] **20250826000006_create_administrative_data.sql** (117 lines)
   - Purpose: Administrative healthcare data
+  - **Tables Created**: 
+    - `administrative_data` - Healthcare administrative data and metadata
   - Issues: ID reference issues likely
   - Dependencies: Clinical foundation
 
 - [ ] **20250826000007_create_healthcare_provider_context.sql** (139 lines)
   - Purpose: Provider context for healthcare encounters
+  - **Tables Created**: 
+    - `healthcare_provider_context` - Provider context and metadata for encounters
   - Issues: None identified in preliminary review
   - Dependencies: Provider registry, clinical events
 
 ---
 
-## Complete Table Inventory
+## Complete V2 Table Inventory (Verified from Migration Files)
 
-### Core Infrastructure Tables
+**Total**: 47 tables across 25 migration files (verified against actual CREATE TABLE statements)
 
-**Authentication & User Management**
-- `auth.users` (Supabase managed) - Account holders
-- `user_profiles` - Individual patient/dependent profiles
-- `profile_access_permissions` - Cross-profile access control
-- `user_profile_context` - Profile switching context
+### **System Infrastructure** (8 tables)
+- `audit_log` - System-wide audit trail with compliance tracking (000)
+- `system_notifications` - Internal notification system (000)
+- `system_configuration` - Application configuration management (000)
+- `feature_flags` - Progressive rollout configuration (002)
+- `implementation_sessions` - Implementation tracking and status (002)
+- `job_queue` - Background job processing and queue management (011)
+- `failed_audit_events` - Failed audit event recovery and retry system (012)
+- `user_events` - User action audit trail with profile-based tracking (020)
 
-**System Operations**
-- `user_events` - Audit trail for user actions
-- `feature_flags` - System feature toggles
-- `job_queue` - Background job processing
-- `system_monitoring` - Health and performance tracking
+### **Profile & Access Management** (12 tables)
+- `user_profiles` - Core profile management (self, child, pet, dependent) (003)
+- `profile_access_permissions` - Granular access control between profiles (003)
+- `user_profile_context` - Profile switching and context management (003)
+- `smart_health_features` - Health feature configuration per profile (003)
+- `pregnancy_journey_events` - Pregnancy-specific tracking (003)
+- `profile_verification_rules` - Identity verification workflows (003)
+- `profile_detection_patterns` - AI document-to-profile routing (003)
+- `profile_auth_progression` - Authentication level progression (003)
+- `profile_appointments` - Healthcare appointment management (003)
+- `patient_consents` - GDPR-compliant patient consent management (013)
+- `patient_consent_audit` - Consent change audit trail (013)
+- `user_consent_preferences` - User consent preferences and settings (013)
 
-### Clinical Data Tables
+### **Clinical Data Core** (12 tables)
+- `documents` - File uploads and document metadata (004)
+- `patient_conditions` - Medical conditions and diagnoses (004)
+- `patient_allergies` - Allergies and adverse reactions (004)
+- `patient_vitals` - Vital signs and measurements (004)
+- `patient_clinical_events` - V3 Core: Central clinical events hub (005)
+- `patient_observations` - V3 Core: Observation details (lab results, measurements) (005)
+- `patient_interventions` - V3 Core: Treatment details (medications, procedures) (005)
+- `healthcare_encounters` - V3 Core: Provider visit context (005)
+- `patient_imaging_reports` - Imaging study results and reports (005)
+- `healthcare_timeline_events` - V3 Core: UI-optimized timeline display (006)
+- `patient_immunizations` - Vaccination records and immunization tracking (20250826000004)
+- `patient_demographics` - Enhanced demographic data and patient details (20250826000005)
 
-**Document Management**
-- `documents` - Core document storage and metadata
-- `document_processing_sessions` - AI processing status tracking
-- `entity_processing_audit_v2` - AI entity classification audit
+### **Healthcare Provider System** (8 tables)
+- `provider_registry` - Healthcare provider directory and credentials (008)
+- `registered_doctors_au` - Australian AHPRA doctor verification database (008)
+- `patient_provider_access` - Provider access permissions to patient data (009)
+- `provider_access_log` - Provider access audit log (partitioned table) (009)
+- `provider_access_log_2025_q1` - Q1 2025 partition (009)
+- `provider_access_log_2025_q2` - Q2 2025 partition (009)
+- `provider_access_log_2025_q3` - Q3 2025 partition (009)
+- `provider_access_log_2025_q4` - Q4 2025 partition (009)
 
-**Patient Medical Records**
-- `patient_conditions` - Medical conditions and diagnoses
-- `patient_immunizations` - Vaccination records
-- `patient_demographics` - Enhanced demographic data
-- `clinical_events_v2` - Medical encounters and events
-- `clinical_observations` - Vital signs, measurements
-- `medication_records` - Prescription and medication tracking
+### **Clinical Decision Support & Care Management** (4 tables)
+- `provider_action_items` - Clinical recommendations and action items for providers (010)
+- `clinical_alert_rules` - Clinical decision support rule definitions (010)
+- `provider_clinical_notes` - Provider notes and clinical assessments (010)
+- `healthcare_provider_context` - Provider context and metadata for encounters (20250826000007)
 
-**Healthcare Journey**
-- `healthcare_encounters` - Provider visits and interactions
-- `care_plans` - Treatment and care planning
-- `healthcare_journey_events` - Journey timeline tracking
-- `patient_provider_relationships` - Care team assignments
+### **AI Processing & Validation** (3 tables)
+- `entity_processing_audit` - AI entity processing audit trail with V3 integration (20250826000001)
+- `profile_classification_audit` - Profile detection and classification audit (20250826000002)
+- `administrative_data` - Healthcare administrative data and metadata (20250826000006)
 
-### Healthcare Provider System
-
-**Provider Management**
-- `healthcare_providers` - Provider directory
-- `provider_credentials` - Professional certifications
-- `healthcare_facilities` - Medical facilities and locations
-- `provider_specialties` - Medical specialties and subspecialties
-
-**Access Control**
-- `patient_provider_access` - Provider access to patient data
-- `consent_management` - Patient consent records
-- `data_sharing_agreements` - External sharing permissions
-
-### Imaging & Diagnostics
-
-**Imaging System**
-- `imaging_studies` - Radiology and imaging orders
-- `imaging_reports` - Diagnostic imaging results
-- `dicom_metadata` - Medical imaging file metadata
-
-**Laboratory**
-- `lab_orders` - Laboratory test orders
-- `lab_results` - Laboratory test results
-- `reference_ranges` - Normal value ranges
-
-### Clinical Decision Support
-
-**Decision Support**
-- `clinical_alerts` - Automated clinical alerts
-- `care_recommendations` - AI-generated care suggestions
-- `drug_interactions` - Medication interaction checking
-- `clinical_guidelines` - Evidence-based care protocols
-
-### AI Processing Infrastructure
-
-**AI Pipeline Tables**
-- `ai_processing_sessions` - Document processing tracking
-- `entity_classification_results` - AI entity extraction results
-- `confidence_scoring` - AI confidence metrics
-- `manual_review_queue` - Human validation queue (Issue #39)
+**Note**: Numbers in parentheses indicate the migration file where each table is created. This inventory reflects the actual tables found in the migration files, not theoretical or planned tables.
 
 ---
 
 ## Migration Review Summary
 
-### **Critical Findings from Systematic Review (Files 1-25)**
+### **Complete V2 Database Analysis - Context for V3 Planning**
 
-**✅ Files Reviewed**: 15/25 core files analyzed  
-**🔍 Pattern Confirmed**: Systematic ID system misalignment across clinical tables
+**✅ Files Analyzed**: All 27 V2 migration files systematically reviewed  
+**📊 Table Inventory**: 47 tables total identified and documented  
+**📋 Complete Reference**: See [DATABASE_V3_ARCHITECTURE_OVERVIEW.md](DATABASE_V3_ARCHITECTURE_OVERVIEW.md) for full V2 table inventory organized by patient data flow
 
-#### **ID System Issues Pattern Analysis**
-- **WRONG Pattern**: `patient_id UUID REFERENCES auth.users(id)` ❌
-  - **Core Infrastructure**: 000_system_infrastructure.sql (line 35)
-  - **Clinical Tables**: 004_core_clinical_tables.sql (lines 15, 70), 005_clinical_events_core.sql (line 11), 006_healthcare_journey.sql (line 11)
-  - **Provider System**: 009_patient_provider_access.sql (lines 12, 52), 010_clinical_decision_support.sql (line 12), 013_enhanced_consent.sql (line 11)
-  - **V3 AI Tables**: 20250826000004_create_patient_immunizations.sql (line 10), 20250826000005_create_patient_demographics.sql (line 10), 20250826000006_create_administrative_data.sql (line 10)
-  - **Impact**: Clinical data incorrectly linked to authentication accounts instead of user profiles
-  - **Scope**: **12+ files affected** - systematic pattern across entire clinical system
+#### **Key V2 Architecture Patterns (For V3 Reference)**
 
-- **CORRECT Pattern**: `profile_id UUID REFERENCES user_profiles(id)` ✅  
-  - Found in: 003_multi_profile_management.sql (template), 020_phase0_critical_fixes.sql (lines 23, 84)
-  - **Template**: Line 14 shows correct `account_owner_id UUID NOT NULL REFERENCES auth.users(id)` for account holders
+**V2 ID System Reality** (To be corrected in V3):
+- **Current V2 Pattern**: `patient_id UUID REFERENCES auth.users(id)` (14 tables affected)
+- **V3 Correction**: `patient_id UUID REFERENCES user_profiles(id)` 
+- **V2 Workaround**: `get_allowed_patient_ids()` function masks the architecture issue
 
-#### **Workaround Infrastructure Analysis**  
-- **Phase 0 Fixes**: File 020 contains `get_allowed_patient_ids()` function bridging profile→patient ID gap
-- **Current Reality**: Function returns `profile_id AS patient_id`, confirming the semantic confusion
-- **Impact**: Entire application uses workarounds to mask fundamental architecture issue
+**V2 Data Flow Strengths** (To preserve in V3):
+- Multi-profile management system (003_multi_profile_management.sql) - excellent foundation
+- Comprehensive clinical event tracking across specialties
+- Smart health features detection system
+- Robust document processing workflow
+- Well-designed audit and consent systems
 
-#### **V3 AI Processing Integration Status**
-- **Recent Tables**: V3 tables follow same wrong pattern (20250826000004: patient_immunizations)
-- **V3 Audit System**: Well-designed entity_processing_audit_v2 table ready for integration
-- **AI Processing**: V3 work can be preserved and integrated into correct ID system
+**V2 Technical Debt** (V3 will eliminate):
+- ID relationship misalignment requiring workaround functions
+- Mixed semantic usage of patient_id vs profile_id
+- Some tables storing auth.users references instead of profile references
 
-#### **Files Requiring Fresh Start Implementation**
-**🔴 HIGH IMPACT** (Clinical data core - **12 files**):
-- **Core Infrastructure**: 000_system_infrastructure.sql - System audit logging
-- **Clinical Foundation**: 004_core_clinical_tables.sql, 005_clinical_events_core.sql, 006_healthcare_journey.sql
-- **Provider Portal**: 009_patient_provider_access.sql, 010_clinical_decision_support.sql, 013_enhanced_consent.sql  
-- **V3 AI Processing**: 20250826000004_create_patient_immunizations.sql, 20250826000005_create_patient_demographics.sql, 20250826000006_create_administrative_data.sql
-- **Additional Clinical**: Estimated 2+ more clinical files with same pattern
+#### **V3 Design Principles (Building on V2 Insights)**
 
-**🟡 MEDIUM IMPACT** (May have secondary references):
-- 012_final_policies_and_triggers.sql - RLS policies referencing patient tables
-- 011_job_queue.sql - Background processing with user references
+**Core V3 Improvements**:
+- **Hub-and-Spoke Model**: `patient_clinical_events` as central event hub (vs V2's distributed events)
+- **Correct ID Architecture**: All clinical tables properly reference user_profiles from day 1
+- **Enhanced AI Integration**: V3-specific entity processing and audit tables  
+- **Semantic Document Architecture**: Shell files + clinical narratives system
 
-**✅ TEMPLATE FILES** (Correct patterns to follow):
-- 003_multi_profile_management.sql - Perfect ID architecture template
-- 020_phase0_critical_fixes.sql - Shows correct profile_id usage patterns
-- 006_healthcare_journey.sql (line 12) - Shows mixed approach with profile_id reference
+**V2 Systems to Preserve and Enhance**:
+- Multi-profile management foundation (proven design pattern)
+- Smart health features detection (family planning, pregnancy tracking)
+- Provider access and consent mechanisms
+- Document upload and processing workflow
+- Feature flags infrastructure for progressive rollouts
 
-**✅ CLEAN FILES** (No changes needed - **3 files**):
-- 001_extensions.sql - PostgreSQL extensions only
-- 002_feature_flags.sql - No patient/profile references  
-- 008_provider_registry.sql - Provider-only system, no patient references
-- 20250826000007_create_healthcare_provider_context.sql - Provider context only, no patient FK
+#### **V3 Implementation Strategy**
+
+**Phase 1**: Core Infrastructure (Week 1-2)
+- Deploy V3 core tables with correct ID relationships
+- Implement patient_clinical_events hub architecture  
+- Establish enhanced AI processing pipeline
+
+**Phase 2**: Data Migration (Week 3-4) 
+- Migrate V2 data to V3 structure with ID corrections
+- Preserve all clinical data and user profiles
+- Maintain business continuity throughout transition
+
+**Phase 3**: Feature Integration (Week 5-7)
+- Port V2's proven features to V3 architecture
+- Enhance with V3-specific capabilities
+- Eliminate technical debt and workaround functions
 
 ### **Next Phase Action Items**
 
@@ -647,11 +719,19 @@ Before implementing semantic architecture, must remove primitive document intell
   - Update RPC calls (`log_audit_event_with_fallback`)
   - Test healthcare compliance logging
 
-- **Days 5-7:** **AI Processing Edge Functions**
-  - Update SchemaLoader entity-to-schema mappings
-  - Align EntityClassifier with corrected profile ID system
-  - Update all database queries and RPC calls
-  - Test AI processing v3 integration
+- **Days 5-7:** **AI Processing V3 Integration (Phase 2 Implementation)**
+  - **Pass 1 Entity Detection Implementation:**
+    - Entity classification using V3 categories (clinical_event, healthcare_context, document_structure)
+    - Schema mapping to V3 core tables (patient_clinical_events, patient_observations, patient_interventions)
+    - Entity-to-schema routing operational with corrected profile ID system
+  - **Pass 2 Schema Enrichment Implementation:**
+    - V3 core table population (patient_clinical_events as primary hub)
+    - Detail table population (patient_observations/interventions with linked event_id)
+    - Specialized table population (conditions/medications/vitals/allergies with clinical_event_id links)
+    - Timeline event generation for UI optimization (healthcare_timeline_events)
+  - Update SchemaLoader entity-to-schema mappings for V3 architecture
+  - Align EntityClassifier with V3 core table references
+  - Test end-to-end AI processing v3 pipeline integration
 
 #### Week 4: Supporting Edge Functions & Testing
 - **Days 1-3:** **Remaining Edge Functions** (15+ functions)
@@ -683,11 +763,20 @@ Before implementing semantic architecture, must remove primitive document intell
   grep -r "user_id.*supabase" apps/web --include="*.ts" --include="*.tsx"
   ```
 
-- **Days 4-7:** **Component Integration**
-  - Update all components using database queries
-  - Fix TypeScript interfaces and ID references
-  - Update ProfileProvider and context systems
-  - Test component rendering with new database
+- **Days 4-7:** **V3 Application Integration (Phase 3 Implementation)**
+  - **Frontend Component Updates:**
+    - Update components to use V3 core tables as primary data source (patient_clinical_events)
+    - Timeline display components use healthcare_timeline_events for optimized rendering
+    - Clinical detail views leverage specialized tables with Russian Babushka Doll layering
+    - Search functionality uses optimized searchable_content fields
+  - **API Endpoint Updates:**
+    - Patient timeline API uses healthcare_timeline_events as primary source
+    - Clinical data API uses patient_clinical_events as central hub
+    - Detail APIs route to appropriate specialized tables (conditions, medications, vitals)
+    - Audit APIs use entity_processing_audit_v2 for processing provenance
+  - Fix TypeScript interfaces for V3 architecture
+  - Update ProfileProvider and context systems for V3 integration
+  - Test component rendering with V3 database structure
 
 ### **Phase 4: Integration Testing & Validation** (Weeks 6-7)
 
