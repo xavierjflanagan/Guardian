@@ -5,8 +5,11 @@
  * Created: 2025-08-26
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+// Node.js imports - will be replaced with appropriate imports based on environment
+// For Edge Functions: use Deno APIs
+// For web client: use fetch/import mechanisms  
+// import * as fs from 'fs';
+// import * as path from 'path';
 
 // V3 Entity Categories for classification
 type EntityCategory = 'clinical_event' | 'healthcare_context' | 'document_structure';
@@ -30,6 +33,7 @@ interface EntityDetectionResult {
   category: EntityCategory;
   subtype: string;
   confidence: number;
+  text_content: string; // The actual extracted text content
   spatial_coordinates?: {
     x1: number;
     y1: number;
@@ -91,12 +95,18 @@ class SchemaLoader {
     ['patient_immunizations', { profile_validation: true, contamination_prevention: true, safety_critical: true }]
   ]);
 
-  constructor(schemasBasePath: string) {
-    this.schemasPath = schemasBasePath;
+  // Schema loading function - will be injected based on environment
+  private schemaLoader: (tableName: string, version: 'detailed' | 'minimal') => Promise<AISchema>;
+
+  constructor(
+    schemaLoader: (tableName: string, version: 'detailed' | 'minimal') => Promise<AISchema>
+  ) {
+    this.schemasPath = ''; // Not used - kept for backward compatibility
+    this.schemaLoader = schemaLoader;
   }
 
   /**
-   * Load a schema from JSON file (detailed or minimal version)
+   * Load a schema (environment-agnostic version)
    */
   async loadSchema(tableName: string, version: 'detailed' | 'minimal' = 'detailed'): Promise<AISchema> {
     const key = `${tableName}_${version}`;
@@ -104,10 +114,7 @@ class SchemaLoader {
       return this.loadedSchemas.get(key)!;
     }
 
-    const schemaPath = path.join(this.schemasPath, version, `${tableName}.json`);
-    const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
-    const schema: AISchema = JSON.parse(schemaContent);
-    
+    const schema = await this.schemaLoader(tableName, version);
     this.loadedSchemas.set(key, schema);
     return schema;
   }

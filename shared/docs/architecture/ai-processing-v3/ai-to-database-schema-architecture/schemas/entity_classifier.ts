@@ -198,7 +198,7 @@ VALIDATION RULES:
   private async assessProfileSafety(
     entities: EntityDetectionResult[],
     profileContext: ProfileContext,
-    documentContent: DocumentContent
+    _documentContent: DocumentContent // Prefix with _ to indicate intentionally unused
   ): Promise<Pass1ProcessingResult['profile_safety_assessment']> {
     const safetyFlags: string[] = [];
     let identityConfidence = 0.9; // Default high confidence
@@ -365,9 +365,10 @@ VALIDATION RULES:
   /**
    * Mock AI model call - would be replaced with actual API calls
    */
-  private async callAIModel(prompt: string): Promise<string> {
+  private async callAIModel(_prompt: string): Promise<string> {
     // This would be replaced with actual API calls to GPT-4o-mini, Claude Haiku, etc.
     // For now, return a mock response structure
+    // _prompt parameter will be used in production implementation
     return `[
       {
         "entity_id": "bp_reading_001",

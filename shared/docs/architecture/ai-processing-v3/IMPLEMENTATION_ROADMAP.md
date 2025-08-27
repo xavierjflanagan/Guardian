@@ -351,6 +351,7 @@
 - [ ] **Processing Infrastructure** - Adequate compute resources for concurrent processing + V2 safety validation
 - [ ] **Testing Data** - Real medical documents + multi-profile family scenarios for accuracy validation
 - [ ] **V2 Requirements** - Healthcare standards APIs (SNOMED, LOINC) for coding validation
+- [ ] **Code Migration** - Move AI processing files from documentation to proper codebase locations
 
 ### **Business Considerations**
 - [ ] **Regulatory Approval** - Healthcare compliance validation and documentation
@@ -406,6 +407,55 @@
 - Test with actual medical documents for accuracy validation
 - Tune confidence thresholds for optimal performance
 - Validate profile safety and contamination prevention with real data
+
+---
+
+## 📁 Recommended Codebase Locations (Future Task)
+
+**Current Status**: AI processing implementation files are in `shared/docs/architecture/ai-processing-v3/ai-to-database-schema-architecture/schemas/` but should be moved to proper production locations.
+
+### **1. Core AI Logic** → `packages/clinical-logic/src/ai-processing/`
+```
+packages/clinical-logic/src/
+├── ai-processing/
+│   ├── schema-loader.ts
+│   ├── entity-classifier.ts
+│   └── index.ts
+└── schemas/
+    ├── detailed/           # JSON schemas (patient_clinical_events.json, etc.)
+    ├── minimal/           # Lightweight versions for token optimization
+    └── source/            # Original full schemas
+```
+
+### **2. Edge Function Integration** → `supabase/functions/ai-processing-v3/`
+```
+supabase/functions/ai-processing-v3/
+├── index.ts              # Main Edge Function
+├── schema-loader.ts      # Deno-compatible version
+└── entity-processor.ts   # AI API integration (GPT-4o-mini, Claude)
+```
+
+### **3. Web App Integration** → `apps/web/lib/ai-processing/`
+```
+apps/web/lib/ai-processing/
+├── hooks/
+│   ├── useEntityClassification.ts
+│   └── useSchemaLoader.ts
+└── client.ts             # Browser-compatible version
+```
+
+### **4. Testing & Examples** → `packages/clinical-logic/src/__tests__/`
+```
+packages/clinical-logic/src/__tests__/
+├── ai-processing/
+│   ├── schema-loader.test.ts
+│   ├── entity-classifier.test.ts
+│   └── integration.test.ts
+└── examples/
+    └── v3-integration-demo.ts    # Current usage_example.ts
+```
+
+**Migration Benefit**: Proper package structure enables imports, testing, and production deployment across Edge Functions, web client, and clinical logic packages.
 
 ---
 

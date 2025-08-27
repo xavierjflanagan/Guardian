@@ -5,16 +5,39 @@
  * Created: 2025-08-26
  */
 
-import { SchemaLoader, EntityCategory } from './schema_loader';
+import { SchemaLoader, EntityCategory, AISchema } from './schema_loader';
 import { EntityClassifier, DocumentContent, ProfileContext } from './entity_classifier';
-import * as path from 'path';
+
+// Mock schema loader function for demonstration
+async function mockSchemaLoader(tableName: string, version: 'detailed' | 'minimal'): Promise<AISchema> {
+  // In production, this would load from files, database, or remote source
+  return {
+    table_name: tableName,
+    description: `Mock schema for ${tableName} (${version} version)`,
+    required_fields: {
+      id: { type: 'uuid', description: 'Primary key' },
+      patient_id: { type: 'uuid', description: 'Patient identifier' }
+    },
+    optional_fields: {
+      notes: { type: 'text', description: 'Additional notes' }
+    },
+    validation_rules: {
+      confidence_threshold: 0.8,
+      requires_review_below: 0.7
+    },
+    output_format_example: {
+      id: 'uuid',
+      patient_id: 'uuid',
+      notes: 'string'
+    }
+  };
+}
 
 async function demonstrateV3Processing() {
   console.log('=== AI Processing V3 + V2 Integration Demo ===\n');
 
-  // Initialize components
-  const schemasPath = path.join(__dirname);
-  const schemaLoader = new SchemaLoader(schemasPath);
+  // Initialize components with mock schema loader
+  const schemaLoader = new SchemaLoader(mockSchemaLoader);
   const entityClassifier = new EntityClassifier({
     pass1_model: 'gpt-4o-mini',
     confidence_threshold: 0.7
