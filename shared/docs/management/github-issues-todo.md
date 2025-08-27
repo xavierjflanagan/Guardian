@@ -1,14 +1,52 @@
 # Guardian Healthcare Platform - GitHub Issues Management
 
 **Project:** Guardian Healthcare Platform by Exora Health Pty Ltd  
-**Last Updated:** August 18, 2025 (Issues #27, #36 RESOLVED - Test framework and file upload system operational)  
-**Status:** Active Development - Phase 3 Security Hardening
+**Last Updated:** August 27, 2025 (Issues #39-41 CREATED - Critical AI validation & RLS security fixes, plus database improvements)  
+**Status:** Active Development - Phase 3 Security Hardening + Critical V3 AI Processing Security
 
 ---
 
 ## 🚨 CRITICAL Priority Issues
 
-*No critical priority issues at this time - focus on AI processing pipeline and core product development*
+### [Issue #38](https://github.com/xavierjflanagan/Guardian/issues/38) - 🔧 ID System Architecture Alignment
+**Urgency:** 🚨 **CRITICAL**  
+**Healthcare Impact:** CRITICAL - Multiple ID system inconsistencies risk data contamination and security vulnerabilities  
+**Estimated Time:** 4 weeks (systematic architectural fix)  
+**Description:** Database schema, TypeScript interfaces, and application logic have misaligned ID semantics. Clinical tables claim to reference `auth.users(id)` but actually store `user_profiles.id` values, creating confusion between account owner ID, profile ID, and patient ID concepts.  
+**Context Documentation:** 
+- [CLAUDE.md ID Semantics](../../../CLAUDE.md#id-semantics-and-data-access-patterns) - Current documentation with gaps
+- [AI Processing V3 schemas](../architecture/ai-processing-v3/) - May inherit inconsistencies  
+- [Patient Communications ID System](../architecture/patient-communications/identification-system.md) - Future external ID architecture (orthogonal to this internal issue)  
+**Dependencies:** Database schema corrections, TypeScript type alignment, frontend component updates  
+**Security Risk:** Profile contamination, unauthorized medical record access, audit trail confusion  
+**Compliance Risk:** Australian Privacy Act violations due to improper patient data isolation  
+**Technical Debt:** RPC functions contain dual-path workarounds, branded types missing despite documentation references
+
+### [Issue #39](https://github.com/xavierjflanagan/Guardian/issues/39) - 🚨 AI Pass 1 Validation System - Prevent Silent Clinical Data Loss
+**Urgency:** 🚨 **CRITICAL**  
+**Healthcare Impact:** CRITICAL - AI misclassification can permanently lose clinical data without detection  
+**Estimated Time:** 3 weeks (mandatory validation system implementation)  
+**Description:** V3 AI processing pipeline's Pass 1 entity classification can silently drop clinical data if entities are misclassified as `document_structure`. Need code-based validation scoring, keyword safety nets, and manual review queue to prevent silent medical data loss.  
+**Context Documentation:** 
+- [V3 AI Processing Architecture](../architecture/ai-processing-v3/v3-pipeline-planning/04-ai-processing-architecture.md) - Two-pass system vulnerabilities
+- [V2 TO V3 Integration](../architecture/ai-processing-v3/V2_TO_V3_ARCHITECTURE_INTEGRATION.md) - Safety requirements  
+**Dependencies:** V3 AI processing pipeline, entity_processing_audit table, admin dashboard framework  
+**Security Risk:** Critical medical information permanently lost during AI processing  
+**Compliance Risk:** Australian Privacy Act requires complete medical record accuracy and loss prevention  
+**Patient Safety:** Missing medication/diagnostic data could impact treatment decisions
+
+### [Issue #40](https://github.com/xavierjflanagan/Guardian/issues/40) - 🛡️ Profile Access Security Function - Fix RLS Policy Vulnerability
+**Urgency:** 🚨 **CRITICAL**  
+**Healthcare Impact:** CRITICAL - Current RLS policies ignore granular permissions, allowing unauthorized profile access  
+**Estimated Time:** 3 weeks (security function implementation + policy migration)  
+**Description:** Row Level Security policies only check account ownership, completely ignoring `profile_access_permissions` table. Missing `has_profile_access()` function creates vulnerability where shared profile access is not enforced. All clinical data tables need RLS policy updates.  
+**Context Documentation:** 
+- [Multi-Profile Management](../../../supabase/migrations/003_multi_profile_management.sql) - Current vulnerable policies
+- [Issue #28 RLS Testing](https://github.com/xavierjflanagan/Guardian/issues/28) - Testing framework for validation  
+**Dependencies:** Issue #38 (ID System Architecture), profile_access_permissions table structure  
+**Security Risk:** Unauthorized access to family member medical records, cross-profile data contamination  
+**Compliance Risk:** Australian Privacy Act + HIPAA violations for inadequate access controls  
+**Business Risk:** Data breach liability and regulatory sanctions
 
 ---
 
@@ -94,6 +132,18 @@
 **Dependencies:** Understanding of Supabase auth state management and middleware integration  
 **Technical Fix:** Implement cross-tab auth state detection via Supabase auth listener or polling
 
+### [Issue #41](https://github.com/xavierjflanagan/Guardian/issues/41) - 🗃️ Database Migration Refactoring & Missing Clinical Tables
+**Urgency:** ⚠️ **MEDIUM**  
+**Healthcare Impact:** MEDIUM - AI accuracy improvements and developer experience enhancement  
+**Estimated Time:** 4 weeks (2 weeks refactoring + 2 weeks new tables)  
+**Description:** Large monolithic migration files (003_multi_profile_management.sql - 417 lines) create maintenance challenges and deployment risks. Additionally, several clinical tables referenced in V3 AI processing are missing, causing AI to fall back to less optimal existing tables.  
+**Context Documentation:** 
+- [Current Migration Structure](../../../supabase/migrations/003_multi_profile_management.sql) - Monolithic structure needing refactoring
+- [V3 AI Schema Architecture](../architecture/ai-processing-v3/ai-to-database-schema-architecture/) - Missing table requirements  
+**Dependencies:** Issue #40 (RLS Security Function) for new table policies, Issue #38 (ID System Architecture) for semantic clarity  
+**Technical Debt:** Large migrations difficult to review, test, and rollback individually  
+**AI Accuracy Impact:** Missing provider directory, enhanced demographics, and medical coding reference tables limit V3 processing effectiveness
+
 ### ✅ [Issue #36](https://github.com/xavierjflanagan/Guardian/issues/36) - 🚨 File Upload System Failures **[RESOLVED]**
 **Status:** ✅ **CLOSED** (August 18, 2025)  
 **Root Cause:** Multi-layered issues requiring systematic resolution  
@@ -119,30 +169,32 @@
 ## 📊 Issue Summary Dashboard
 
 ### By Priority Level
-- 🚨 **CRITICAL:** 0 issues (Focus on AI processing pipeline)
+- 🚨 **CRITICAL:** 3 issues (ID system architecture alignment, AI Pass 1 validation, RLS security function)
 - 🔥 **HIGH:** 2 issues (PII detection, security monitoring)  
-- ⚠️ **MEDIUM:** 5 issues (RLS testing framework [DEFERRED], TypeScript safety, Edge Runtime, CSP headers, Auth UX)
+- ⚠️ **MEDIUM:** 6 issues (RLS testing framework [DEFERRED], TypeScript safety, Edge Runtime, CSP headers, Auth UX, database migration improvements)
 - 🟢 **LOW:** 0 issues
 - ✅ **RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
 
 ### By Healthcare Impact
-- **CRITICAL:** 1 issue (RLS policy testing [DEFERRED])
+- **CRITICAL:** 4 issues (ID system architecture alignment, AI Pass 1 validation, RLS security function, RLS policy testing [DEFERRED])
 - **HIGH:** 3 issues (PII detection, monitoring, auth UX)
-- **MEDIUM:** 2 issues (TypeScript safety, Edge Runtime)
+- **MEDIUM:** 3 issues (TypeScript safety, Edge Runtime, database migration improvements)
 - **LOW:** 1 issue (CSP middleware)
 - **✅ RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
 
 ### By Implementation Time
 - **Quick fixes (<1 day):** Issues #33, #35
 - **Medium effort (1-2 weeks):** Issue #32
-- **Major features (3+ weeks):** Issues #28 [DEFERRED - Plan Complete], #29, #30
+- **Major features (3+ weeks):** Issues #28 [DEFERRED - Plan Complete], #29, #30, #39 (AI Pass 1 validation), #40 (RLS security function)
+- **Architectural fixes (4+ weeks):** Issues #38 (ID system alignment), #41 (database migration refactoring)
 - **Code quality (2-3 weeks):** Issue #31
 - **✅ Completed:** Issues #27 (Test framework), #34 (CI infrastructure), #36 (File upload system)
 
 ### By Dependencies
-- **No dependencies (can start immediately):** Issues #31, #33, #35
+- **No dependencies (can start immediately):** Issues #31, #33, #35, #39 (AI Pass 1 validation - can start with existing V3 pipeline)
 - **External setup required:** Issues #29, #30 (accounts, integrations)
 - **Testing dependent:** Issue #32 (Edge Runtime deployment)
+- **Complex interdependencies:** Issues #38 (database schema, TypeScript types, frontend components), #40 (requires Issue #38 for ID semantics), #41 (requires Issues #38, #40 for proper table policies)
 - **Deferred (plan complete):** Issue #28 (RLS testing framework)
 - **✅ Resolved:** Issues #27 (Test framework), #34 (CI infrastructure), #36 (File upload system)
 

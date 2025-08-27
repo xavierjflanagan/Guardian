@@ -147,20 +147,25 @@ Jest + React Testing Library with **production-quality infrastructure**:
 
 ## ⚠️ CRITICAL: ID Semantics and Data Access Patterns
 
-### ID Types and Their Meanings
+### THE TRUTH: Two Physical ID Types
 
-**NEVER mix these ID types - they serve different purposes in Exora's multi-profile architecture:**
+**Guardian has only TWO physical ID types in the database:**
 
-- **`profile_id`**: References `user_profiles.id` - represents a specific profile (self, child, pet)
-- **`patient_id`**: References `auth.users.id` - represents the clinical data subject
-- **`user_id`**: References `auth.users.id` - represents the account owner (same as patient_id in v7.0)
+- **`auth.users.id`**: Account owners (subscription holders, auth entities)
+- **`user_profiles.id`**: Individual profiles/patients (the actual medical data subjects)
 
-### Current v7.0 Semantics
-In Exora v7.0: **Profile IS the patient** (`profile_id === patient_id`)
-- Documents table uses `patient_id` (NOT `user_id`)
-- Clinical data uses `patient_id` for data isolation
-- Frontend components use `profile_id` for user experience
-- `get_allowed_patient_ids(profile_id)` resolves profile→patient mapping
+### Semantic Labeling (Context-Dependent)
+The **same physical `user_profiles.id`** gets different semantic labels:
+- **`profile_id`**: When used in UI/UX context
+- **`patient_id`**: When used in clinical/medical data context
+- **They are the SAME VALUE** - just different semantic meaning
+
+### Current v7.0 Reality
+**Profile IS the patient** - All clinical data belongs to profiles, not auth users:
+- Documents table uses `patient_id` which stores `user_profiles.id` values
+- Clinical tables reference `user_profiles.id` (despite schema comments claiming otherwise)
+- `get_allowed_patient_ids(profile_id)` returns the same profile_id as patient_id
+- Frontend components use `profile_id`, clinical code uses `patient_id` - same physical value
 
 ### Critical Database Tables
 ```sql
