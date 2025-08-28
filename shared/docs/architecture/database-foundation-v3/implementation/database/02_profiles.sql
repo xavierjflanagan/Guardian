@@ -33,7 +33,7 @@ CREATE TABLE user_profiles (
     breed TEXT, -- For pets
     
     -- Relationship to Account Owner
-    relationship TEXT, -- 'self', 'daughter', 'son', 'mother', 'father', 'dog', 'cat', etc.
+    relationship profile_relationship_type, -- Strong typed relationship (replaces TEXT)
     legal_status TEXT CHECK (legal_status IN ('guardian', 'parent', 'caregiver', 'self', 'owner')),
     
     -- Profile Customization
@@ -43,8 +43,9 @@ CREATE TABLE user_profiles (
     profile_icon TEXT, -- Icon identifier for quick visual recognition
     
     -- Authentication Level
-    auth_level TEXT NOT NULL DEFAULT 'soft' CHECK (auth_level IN ('none', 'soft', 'hard')),
+    auth_level access_level_type NOT NULL DEFAULT 'read_write', -- Strong typed access level
     auth_verified_at TIMESTAMPTZ,
+    auth_verification_status verification_status_type DEFAULT 'unverified', -- Strong typed verification
     auth_method TEXT, -- 'document_extraction', 'manual_entry', 'id_verification', 'bank_verification'
     
     -- Profile Lifecycle
@@ -52,7 +53,18 @@ CREATE TABLE user_profiles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     transferred_from UUID REFERENCES user_profiles(id), -- For profile transfers
     transferred_to UUID REFERENCES user_profiles(id),
-    archived BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Enhanced Archival System (GPT-5 & Gemini recommended)
+    archived BOOLEAN NOT NULL DEFAULT FALSE, -- Legacy compatibility
+    archived_at TIMESTAMPTZ, -- When archival occurred
+    archived_by UUID REFERENCES auth.users(id) ON DELETE SET NULL, -- Who initiated archival
+    archival_reason TEXT, -- User-provided deletion reason
+    recovery_expires_at TIMESTAMPTZ, -- 30-day recovery window
+    processing_restricted_at TIMESTAMPTZ, -- GDPR Article 18 compliance
+    legal_hold BOOLEAN DEFAULT FALSE, -- Prevents any purge during litigation
+    erasure_performed_at TIMESTAMPTZ, -- When PII was purged
+    erasure_scope TEXT, -- 'pii_only', 'analytics_only', 'full_restriction'
+    region_of_record TEXT, -- 'AU', 'US', 'EU' for jurisdiction-specific handling
     
     -- Pregnancy Feature Support
     is_pregnancy_profile BOOLEAN DEFAULT FALSE,
@@ -67,7 +79,7 @@ CREATE TABLE profile_access_permissions (
     user_id UUID NOT NULL REFERENCES auth.users(id),
     
     -- Permission Levels
-    permission_level TEXT NOT NULL CHECK (permission_level IN ('owner', 'full_access', 'read_write', 'read_only', 'emergency')),
+    permission_level access_level_type NOT NULL, -- Strong typed access level
     
     -- Granular Permissions
     can_upload_documents BOOLEAN NOT NULL DEFAULT FALSE,

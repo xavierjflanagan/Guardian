@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     new_values JSONB,
     
     -- User context
-    changed_by UUID REFERENCES auth.users(id),
+    changed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL, -- Preserve audit record even if user account deleted
     changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     -- Additional context
@@ -98,6 +98,78 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_table_record ON audit_log(table_name, record_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_changed_at ON audit_log(changed_at);
 CREATE INDEX IF NOT EXISTS idx_audit_log_changed_by ON audit_log(changed_by);
+
+-- =============================================================================
+-- ENHANCED ACCOUNT ARCHIVAL SYSTEM
+-- =============================================================================
+-- Purpose: Extends auth.users with comprehensive archival tracking
+-- Note: auth.users is Supabase system table, cannot be modified directly
+
+CREATE TABLE IF NOT EXISTS user_account_archival (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    
+    -- Enhanced Archival System (GPT-5 & Gemini recommended)
+    archived_at TIMESTAMPTZ, -- When account archival occurred
+    deletion_requested_at TIMESTAMPTZ, -- When user first requested deletion
+    deletion_reason TEXT, -- User-provided deletion reason
+    recovery_expires_at TIMESTAMPTZ, -- 30-day recovery window
+    processing_restricted_at TIMESTAMPTZ, -- GDPR Article 18 compliance
+    legal_hold BOOLEAN DEFAULT FALSE, -- Prevents any purge during litigation
+    erasure_performed_at TIMESTAMPTZ, -- When PII was purged
+    erasure_scope TEXT, -- 'pii_only', 'analytics_only', 'full_restriction'
+    region_of_record TEXT, -- 'AU', 'US', 'EU' for jurisdiction-specific handling
+    
+    -- Account closure workflow tracking
+    closure_workflow_step TEXT, -- 'requested', 'grace_period', 'archived', 'purged'
+    closure_initiated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL, -- Admin override capability
+    final_export_delivered_at TIMESTAMPTZ, -- Data portability compliance
+    closure_report_generated_at TIMESTAMPTZ, -- Evidence of proper procedure
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for archival queries
+CREATE INDEX IF NOT EXISTS idx_user_account_archival_archived_at ON user_account_archival(archived_at);
+CREATE INDEX IF NOT EXISTS idx_user_account_archival_recovery ON user_account_archival(recovery_expires_at) WHERE recovery_expires_at IS NOT NULL;
+
+-- =============================================================================
+-- CRITICAL ENUM TYPES
+-- =============================================================================
+-- Purpose: Define reusable ENUM types for consistency across schema
+-- Source: Gemini review identified missing ENUM definitions
+
+-- Profile relationship types for family/dependent management
+CREATE TYPE profile_relationship_type AS ENUM (
+    'self', 'spouse', 'partner', 'child', 'parent', 'sibling', 
+    'grandparent', 'grandchild', 'guardian', 'dependent', 
+    'pet_dog', 'pet_cat', 'pet_bird', 'pet_other'
+);
+
+-- Verification status for identity and document verification
+CREATE TYPE verification_status_type AS ENUM (
+    'unverified', 'pending', 'verified', 'expired', 'rejected', 'disputed'
+);
+
+-- Consent status for healthcare data processing
+CREATE TYPE consent_status_type AS ENUM (
+    'granted', 'withdrawn', 'expired', 'pending', 'conditional', 'inherited'
+);
+
+-- Access level types for granular permission control
+CREATE TYPE access_level_type AS ENUM (
+    'none', 'emergency', 'read_only', 'read_write', 'full_access', 'owner'
+);
+
+-- Processing status for document and AI workflows
+CREATE TYPE processing_status_type AS ENUM (
+    'uploaded', 'processing', 'completed', 'failed', 'cancelled', 'archived'
+);
+
+-- Data classification for compliance and retention
+CREATE TYPE data_classification_type AS ENUM (
+    'public', 'internal', 'confidential', 'restricted', 'clinical', 'pii'
+);
 -- NOTE: Patient ID index will be added in 02_profiles.sql after patient_id column exists
 -- CREATE INDEX IF NOT EXISTS idx_audit_log_patient ON audit_log(patient_id) WHERE patient_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_audit_log_compliance ON audit_log(compliance_category);
@@ -124,7 +196,7 @@ CREATE TABLE IF NOT EXISTS system_notifications (
     metadata JSONB DEFAULT '{}',
     
     -- Targeting
-    target_user_id UUID REFERENCES auth.users(id),
+    target_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Notification is meaningless without target user
     target_role TEXT, -- 'admin', 'developer', 'healthcare_provider'
     target_all_users BOOLEAN DEFAULT FALSE,
     
@@ -168,7 +240,7 @@ CREATE TABLE IF NOT EXISTS system_configuration (
     -- Change tracking
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by UUID REFERENCES auth.users(id)
+    updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL -- Preserve config history even if admin account deleted
 );
 
 -- System configuration indexes
