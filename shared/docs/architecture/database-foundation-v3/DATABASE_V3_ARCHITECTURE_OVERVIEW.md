@@ -118,13 +118,23 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 | **profile_access_permissions** | Cross-profile access control | `user_id → auth.users, profile_id → user_profiles` | ✅ Enhanced in V3 |
 | **user_profile_context** | Profile switching context | `current_profile_id → user_profiles(id)` | ✅ Core to V3 |
 
-### **Document Upload & Processing Flow** (Document Layer)
+### **V3 Semantic Document Architecture** (Revolutionary Clinical Storytelling)
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **documents** | File uploads and metadata | ❌ `patient_id → auth.users(id)` | 🔄 **V3 EVOLUTION:** Becomes shell files + clinical narratives |
-| **entity_processing_audit** | AI entity extraction audit | `document_id → documents(id)` | 🔄 **V3 ENHANCED:** entity_processing_audit_v2 |
-| **profile_classification_audit** | Profile detection audit | `document_id → documents(id)` | ✅ Preserved in V3 |
+| **shell_files** | Physical upload containers (renamed from documents) | ✅ `patient_id → user_profiles(id)` | ✅ **V3 IMPLEMENTED** |
+| **clinical_narratives** | AI-determined semantic storylines | `shell_file_id → shell_files(id)` | ✅ **V3 NEW ARCHITECTURE** |
+| **narrative_source_mappings** | Detailed page/section references | `narrative_id → clinical_narratives(id)` | ✅ **V3 NEW ARCHITECTURE** |
+
+### **Clinical Narrative Linking System** (Rich UX Context)
+
+| Table | Purpose | Key Relationships | UX Impact |
+|-------|---------|-------------------|-----------|
+| **narrative_condition_links** | Links narratives to conditions | Many-to-many with therapeutic context | 🎯 **Click condition → see full story** |
+| **narrative_medication_links** | Links narratives to medications | Rich prescription context & outcomes | 🎯 **Click medication → see why prescribed** |
+| **narrative_allergy_links** | Links narratives to allergies | Discovery circumstances & clinical impact | 🎯 **Click allergy → see discovery story** |
+| **narrative_immunization_links** | Links narratives to vaccines | Clinical indications & outcomes | 🎯 **Click vaccine → see clinical context** |
+| **narrative_vital_links** | Links narratives to vital patterns | Clinical significance & interpretation | 🎯 **Click vitals → see clinical meaning** |
 
 ### **Core Clinical Data Flow** (V3 Hub Architecture)
 
