@@ -213,9 +213,12 @@ CREATE TABLE IF NOT EXISTS patient_provider_access (
 );
 
 -- Provider access audit log (partitioned by quarter for performance)
+-- CRITICAL SECURITY NOTE: Due to partitioning limitations, foreign key constraints cannot be applied 
+-- to patient_id and provider_id. Referential integrity MUST be enforced by the application layer 
+-- before inserting into this table to prevent orphaned audit entries.
 CREATE TABLE IF NOT EXISTS provider_access_log (
     id UUID DEFAULT gen_random_uuid(),
-    patient_id UUID NOT NULL, -- References user_profiles(id) - no FK due to partitioning
+    patient_id UUID NOT NULL, -- References user_profiles(id) - no FK due to partitioning  
     provider_id UUID NOT NULL, -- References provider_registry(id) - no FK due to partitioning
     access_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     

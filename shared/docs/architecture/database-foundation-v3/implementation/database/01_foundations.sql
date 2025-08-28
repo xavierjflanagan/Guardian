@@ -156,7 +156,8 @@ CREATE TYPE consent_status_type AS ENUM (
     'granted', 'withdrawn', 'expired', 'pending', 'conditional', 'inherited'
 );
 
--- Access level types for granular permission control
+-- Access level types for granular permission control  
+-- Order represents permission hierarchy: higher levels include lower level permissions
 CREATE TYPE access_level_type AS ENUM (
     'none', 'emergency', 'read_only', 'read_write', 'full_access', 'owner'
 );
@@ -482,8 +483,18 @@ BEGIN
     EXCEPTION
         WHEN undefined_table THEN
             -- During early migration, provider_registry may not exist yet
-            -- Fall back to JWT-only check for installation phase
-            RETURN TRUE;
+            -- Fall back to verified JWT check only (not blanket TRUE)
+            RETURN (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'healthcare_provider'
+                OR
+                auth.jwt()->>'role' = 'healthcare_provider'
+                OR
+                EXISTS (
+                    SELECT 1 FROM auth.users 
+                    WHERE auth.users.id = user_id 
+                    AND auth.users.raw_user_meta_data->>'role' = 'healthcare_provider'
+                )
+            );
     END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
