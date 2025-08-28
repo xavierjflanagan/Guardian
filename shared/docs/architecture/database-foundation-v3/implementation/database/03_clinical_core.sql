@@ -113,15 +113,18 @@ CREATE TABLE IF NOT EXISTS medication_reference (
 );
 
 -- =============================================================================
--- SECTION 2: CORE DOCUMENT MANAGEMENT
 -- =============================================================================
--- CRITICAL FIX: patient_id now correctly references user_profiles(id)
+-- SECTION 2: SEMANTIC DOCUMENT ARCHITECTURE - SHELL FILES + CLINICAL NARRATIVES
+-- =============================================================================
+-- CRITICAL CHANGE: Replace primitive document intelligence with semantic architecture
+-- This eliminates dangerous mixed medical contexts and enables clinical storytelling
 
-CREATE TABLE IF NOT EXISTS documents (
+-- Shell Files (Physical Upload Containers) - Renamed from documents
+CREATE TABLE IF NOT EXISTS shell_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     
-    -- Document metadata
+    -- Physical file metadata
     filename TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     file_size_bytes BIGINT NOT NULL,
@@ -148,49 +151,248 @@ CREATE TABLE IF NOT EXISTS documents (
     extracted_text TEXT,
     ocr_confidence NUMERIC(3,2),
     page_count INTEGER DEFAULT 1,
+    
+    -- POST-PASS 3: Shell File Synthesis (replaces primitive document intelligence)
+    ai_synthesized_summary TEXT, -- Intelligent overview of all narratives in this shell file
+    narrative_count INTEGER DEFAULT 0, -- Number of clinical narratives created from this shell file
+    synthesis_completed_at TIMESTAMPTZ, -- When Pass 3 synthesis completed
+    
+    -- Upload and processing metadata
     language_detected TEXT DEFAULT 'en',
     
     -- Healthcare-specific metadata
     provider_name TEXT,
     facility_name TEXT,
-    service_date DATE,
+    upload_context TEXT,
     
-    -- V3 AI Processing enhancements
-    ai_processing_version TEXT DEFAULT 'v3',
-    entity_extraction_completed BOOLEAN DEFAULT FALSE,
-    clinical_data_extracted BOOLEAN DEFAULT FALSE,
-    requires_manual_review BOOLEAN DEFAULT FALSE,
-    ai_confidence_scores JSONB DEFAULT '{}',
-    
-    -- V3 CRITICAL ADDITION: AI-Generated Document Intelligence
-    ai_document_summary TEXT, -- "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
-    ai_document_purpose TEXT, -- "Post-surgical discharge planning with follow-up care instructions"  
-    ai_key_findings TEXT[], -- ["Successful stent placement", "Blood pressure stable", "Home care approved"]
-    ai_document_confidence NUMERIC(3,2) CHECK (ai_document_confidence BETWEEN 0 AND 1), -- Overall confidence in document analysis
-    
-    -- Security and compliance
-    contains_phi BOOLEAN DEFAULT TRUE, -- Assume PHI until proven otherwise
-    encryption_key_id TEXT,
-    retention_period INTERVAL DEFAULT '7 years',
-    
-    -- Lifecycle management
+    -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at TIMESTAMPTZ,
-    deleted_at TIMESTAMPTZ -- Soft delete for compliance
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Clinical Narratives (Semantic Storylines) - AI-determined clinical meaning
+CREATE TABLE IF NOT EXISTS clinical_narratives (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE, -- Denormalized for performance
+    
+    -- Narrative Classification and Intelligence  
+    narrative_purpose TEXT NOT NULL, -- "hypertension_management", "acute_respiratory_episode", "diabetes_journey"
+    clinical_classification TEXT NOT NULL CHECK (clinical_classification IN (
+        'chronic_condition_journey', 'acute_care_episode', 'preventive_care_sequence',
+        'medication_management', 'diagnostic_workup', 'treatment_response', 'administrative_reference'
+    )),
+    
+    -- AI-Generated Narrative Intelligence (Pass 3 Results)
+    ai_narrative_summary TEXT NOT NULL, -- Clinically coherent storyline summary
+    ai_narrative_purpose TEXT NOT NULL, -- AI's understanding of clinical purpose  
+    ai_key_findings TEXT[] DEFAULT '{}', -- Key clinical insights from this narrative
+    ai_narrative_confidence NUMERIC(3,2) NOT NULL CHECK (ai_narrative_confidence BETWEEN 0 AND 1),
+    
+    -- Physical Source Mapping (can span non-contiguous pages!)
+    source_page_ranges INT[] NOT NULL DEFAULT '{}', -- [1, 4, 8, 12] - pages containing this narrative content
+    source_text_segments TEXT[], -- Extracted text segments that comprise this narrative
+    entity_count INTEGER DEFAULT 0, -- Number of clinical entities in this narrative
+    
+    -- Clinical Context and Timeline
+    narrative_start_date TIMESTAMPTZ, -- Clinical timeframe this narrative covers (start)
+    narrative_end_date TIMESTAMPTZ, -- Clinical timeframe this narrative covers (end)  
+    is_ongoing BOOLEAN DEFAULT FALSE, -- True for chronic conditions, ongoing treatments
+    clinical_urgency TEXT CHECK (clinical_urgency IN ('routine', 'urgent', 'emergent', 'chronic_management')),
+    
+    -- Semantic Coherence Metrics
+    semantic_coherence_score NUMERIC(3,2) CHECK (semantic_coherence_score BETWEEN 0 AND 1), -- How well does this narrative hang together clinically
+    clinical_complexity_score NUMERIC(3,2) CHECK (clinical_complexity_score BETWEEN 0 AND 1), -- Simple vs complex clinical situation
+    
+    -- Processing Metadata
+    narrative_creation_method TEXT DEFAULT 'ai_pass_3' CHECK (narrative_creation_method IN (
+        'ai_pass_3', 'manual_creation', 'template_based', 'migration_legacy'
+    )),
+    pass_3_processing_duration INTERVAL,
+    
+    -- Audit and lifecycle
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- =============================================================================
--- SECTION 3: V3 CORE CLINICAL ARCHITECTURE (O3 Two-Axis Classification)
+-- SECTION 2B: CLINICAL NARRATIVE LINKING SYSTEM 
 -- =============================================================================
--- CRITICAL FIX: All patient_id columns now reference user_profiles(id)
--- V3 INTEGRATION: Central clinical events table with supporting detail tables
+-- CRITICAL UX FEATURE: Link narratives to all relevant clinical data
+-- Enables storytelling UX where every clinical item tells its narrative story
 
--- Central clinical events table using O3's unified model (CRITICAL V3 COMPONENT)
+-- Clinical Narrative to Conditions Linking
+CREATE TABLE IF NOT EXISTS narrative_condition_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    condition_id UUID NOT NULL REFERENCES patient_conditions(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'primary_focus', 'secondary_condition', 'comorbidity', 'differential_diagnosis', 'resolved_condition'
+    )),
+    clinical_relevance TEXT NOT NULL CHECK (clinical_relevance IN ('primary', 'secondary', 'contextual', 'historical')),
+    
+    -- Narrative Context
+    condition_role_in_narrative TEXT, -- "This diabetes management journey focuses on optimizing blood sugar control"
+    narrative_impact_on_condition TEXT, -- "Resulted in A1C improvement from 8.2% to 6.8%"
+    
+    -- Timeline Context  
+    condition_phase TEXT, -- "initial_diagnosis", "active_management", "stable_control", "complication_management"
+    condition_status_at_narrative TEXT, -- "newly_diagnosed", "well_controlled", "poorly_controlled", "resolved"
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, condition_id)
+);
+
+-- Clinical Narrative to Medications Linking  
+CREATE TABLE IF NOT EXISTS narrative_medication_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    medication_id UUID NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'primary_treatment', 'adjunct_therapy', 'symptom_management', 'preventive_medication', 'discontinued_medication'
+    )),
+    medication_role TEXT NOT NULL, -- "Initial first-line therapy for diabetes management"
+    
+    -- Clinical Context in Narrative
+    prescription_context TEXT, -- "Started after failed dietary modifications"
+    therapeutic_outcome TEXT, -- "Achieved target A1C reduction with excellent tolerance"
+    medication_narrative_impact TEXT, -- "Key medication in diabetes control journey"
+    
+    -- Timeline Context
+    medication_phase TEXT, -- "initiation", "optimization", "maintenance", "discontinuation"
+    dosage_at_narrative TEXT, -- Medication dosage during this narrative timeframe
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, medication_id)
+);
+
+-- Clinical Narrative to Allergies Linking
+CREATE TABLE IF NOT EXISTS narrative_allergy_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    allergy_id UUID NOT NULL REFERENCES patient_allergies(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'discovery_event', 'reaction_occurrence', 'avoidance_context', 'historical_reference'
+    )),
+    
+    -- Narrative Context
+    discovery_circumstances TEXT, -- "Discovered during initial antibiotic treatment for pneumonia"
+    reaction_description_in_narrative TEXT, -- "Patient developed urticaria within 2 hours of amoxicillin administration"
+    clinical_impact TEXT, -- "Required antibiotic change and delayed recovery"
+    
+    -- Timeline Context
+    allergy_status_at_narrative TEXT, -- "newly_discovered", "known_allergy", "suspected_allergy"
+    
+    -- Audit  
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, allergy_id)
+);
+
+-- Clinical Narrative to Immunizations Linking
+CREATE TABLE IF NOT EXISTS narrative_immunization_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    immunization_id UUID NOT NULL REFERENCES patient_immunizations(id) ON DELETE CASCADE,
+    
+    -- Link Classification  
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'routine_vaccination', 'travel_preparation', 'high_risk_indication', 'outbreak_response', 'occupational_requirement'
+    )),
+    
+    -- Clinical Context
+    indication_for_vaccination TEXT, -- "Required for travel to endemic malaria region"
+    vaccination_context_in_narrative TEXT, -- "Part of comprehensive travel medicine consultation"
+    clinical_outcome TEXT, -- "Well tolerated with good antibody response"
+    
+    -- Timeline Context
+    vaccination_timing TEXT, -- "pre_travel", "routine_schedule", "catch_up_vaccination"
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, immunization_id)  
+);
+
+-- Clinical Narrative to Vitals Linking (for significant vital sign patterns)
+CREATE TABLE IF NOT EXISTS narrative_vital_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    vital_id UUID NOT NULL REFERENCES patient_vitals(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'diagnostic_indicator', 'treatment_response', 'monitoring_parameter', 'baseline_measurement', 'concerning_trend'
+    )),
+    
+    -- Clinical Context
+    vital_significance TEXT, -- "Blood pressure reading that confirmed hypertension diagnosis"
+    clinical_interpretation TEXT, -- "Elevated BP (160/95) indicating medication adjustment needed"
+    narrative_impact TEXT, -- "Led to medication titration in this management journey"
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, vital_id)
+);
+
+-- =============================================================================
+-- SECTION 2C: NARRATIVE SOURCE MAPPINGS
+-- =============================================================================
+
+-- Narrative Source Mappings (detailed page/section references)
+CREATE TABLE IF NOT EXISTS narrative_source_mappings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Denormalized for performance
+    
+    -- Source Location Details
+    page_number INTEGER NOT NULL,
+    section_start_position INTEGER, -- Character position where narrative content starts
+    section_end_position INTEGER, -- Character position where narrative content ends
+    source_text_excerpt TEXT, -- Key text excerpt from this section
+    
+    -- Content Classification
+    content_type TEXT CHECK (content_type IN (
+        'clinical_note', 'lab_result', 'medication_order', 'assessment_plan', 
+        'patient_history', 'physical_exam', 'diagnostic_interpretation'
+    )),
+    clinical_significance TEXT CHECK (clinical_significance IN ('primary', 'supporting', 'contextual', 'administrative')),
+    
+    -- Processing Metadata
+    extraction_confidence NUMERIC(3,2) CHECK (extraction_confidence BETWEEN 0 AND 1),
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- =============================================================================
+-- SECTION 3: ENHANCED CLINICAL DATA TABLES (V3 Core + Narrative Integration)
+-- =============================================================================
+-- Add narrative_id references to all clinical tables for storytelling UX
+
+-- Update existing clinical tables to reference clinical narratives
+-- Note: These will be ALTER TABLE statements in migration, shown as CREATE for clarity
+
+-- Patient Clinical Events (V3 Core Hub) - ENHANCED with dual reference system
 CREATE TABLE IF NOT EXISTS patient_clinical_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     encounter_id UUID, -- Will reference healthcare_encounters(id) - constraint added later
+    
+    -- DUAL REFERENCE SYSTEM (Hybrid Architecture)
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Always present (system functional)
+    narrative_id UUID REFERENCES clinical_narratives(id) ON DELETE SET NULL, -- Optional enhancement (Pass 3 result)
     
     -- O3's Two-Axis Classification System
     activity_type TEXT NOT NULL CHECK (activity_type IN ('observation', 'intervention')),
@@ -210,21 +412,38 @@ CREATE TABLE IF NOT EXISTS patient_clinical_events (
     -- Timing and Context
     event_date TIMESTAMPTZ NOT NULL,
     performed_by TEXT, -- Healthcare provider or facility
-    
-    -- Data Quality and Provenance (V3 AI Processing)
-    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
-    requires_review BOOLEAN DEFAULT FALSE,
-    source_document_id UUID REFERENCES documents(id),
+    facility_name TEXT,
+    service_date DATE,
     
     -- V3 AI Processing Integration
     ai_extracted BOOLEAN DEFAULT FALSE,
     ai_confidence NUMERIC(4,3) CHECK (ai_confidence BETWEEN 0 AND 1),
     ai_model_version TEXT DEFAULT 'v3',
     entity_id TEXT, -- Links back to Pass 1 entity detection
+    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
+    requires_review BOOLEAN DEFAULT FALSE,
+    
+    -- V3 AI Processing enhancements
+    ai_processing_version TEXT DEFAULT 'v3',
+    entity_extraction_completed BOOLEAN DEFAULT FALSE,
+    clinical_data_extracted BOOLEAN DEFAULT FALSE,
+    requires_manual_review BOOLEAN DEFAULT FALSE,
+    ai_confidence_scores JSONB DEFAULT '{}',
+    
+    -- V3 CRITICAL ADDITION: AI-Generated Document Intelligence
+    ai_document_summary TEXT, -- "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
+    ai_document_purpose TEXT, -- "Post-surgical discharge planning with follow-up care instructions"  
+    ai_key_findings TEXT[], -- ["Successful stent placement", "Blood pressure stable", "Home care approved"]
+    ai_document_confidence NUMERIC(3,2) CHECK (ai_document_confidence BETWEEN 0 AND 1), -- Overall confidence in document analysis
     
     -- V2 Medical Coding Integration
     coding_confidence NUMERIC(4,3) CHECK (coding_confidence BETWEEN 0 AND 1),
     coding_method TEXT DEFAULT 'automated_ai' CHECK (coding_method IN ('automated_ai', 'manual_verification', 'hybrid_validation')),
+    
+    -- Security and compliance
+    contains_phi BOOLEAN DEFAULT TRUE, -- Assume PHI until proven otherwise
+    encryption_key_id TEXT,
+    retention_period INTERVAL DEFAULT '7 years',
     
     -- Audit and Lifecycle Management
     archived BOOLEAN NOT NULL DEFAULT FALSE,
@@ -232,11 +451,21 @@ CREATE TABLE IF NOT EXISTS patient_clinical_events (
     archived_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ, -- Soft delete for compliance
     
     -- User Review Tracking
     reviewed_by UUID REFERENCES auth.users(id),
     reviewed_at TIMESTAMPTZ
 );
+
+-- =============================================================================
+-- SECTION 3: V3 CORE CLINICAL ARCHITECTURE (O3 Two-Axis Classification)
+-- =============================================================================
+-- CRITICAL FIX: All patient_id columns now reference user_profiles(id)
+-- V3 INTEGRATION: Central clinical events table with supporting detail tables
+
+-- NOTE: patient_clinical_events table already defined above with hybrid architecture
+-- This section defines the supporting detail tables that extend the central hub
 
 -- Observation details table for information gathering events (CRITICAL V3 COMPONENT)
 CREATE TABLE IF NOT EXISTS patient_observations (
@@ -404,13 +633,18 @@ CREATE TABLE IF NOT EXISTS healthcare_timeline_events (
 -- =============================================================================
 -- These tables provide additional clinical detail alongside the V3 core architecture
 
--- Patient medical conditions (specialized detail table)
+-- Patient medical conditions (specialized detail table) - ENHANCED with narrative linking
 CREATE TABLE IF NOT EXISTS patient_conditions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     
     -- Link to V3 core architecture
     clinical_event_id UUID REFERENCES patient_clinical_events(id),
+    
+    -- NARRATIVE LINKING SYSTEM - Core UX Feature
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Source document reference
+    primary_narrative_id UUID REFERENCES clinical_narratives(id) ON DELETE SET NULL, -- Primary storyline for this condition
+    -- Note: Full narrative linking handled by narrative_condition_links table (many-to-many)
     
     -- Condition details
     condition_name TEXT NOT NULL,
@@ -433,7 +667,6 @@ CREATE TABLE IF NOT EXISTS patient_conditions (
     
     -- Source information
     diagnosed_by TEXT, -- Provider name
-    source_document_id UUID REFERENCES documents(id),
     confidence_score NUMERIC(3,2) DEFAULT 1.0,
     
     -- V3 AI Processing enhancements

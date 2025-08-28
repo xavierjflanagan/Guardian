@@ -36,16 +36,16 @@ END $$;
 -- SECTION 1: AI PROCESSING SESSION MANAGEMENT
 -- =============================================================================
 
--- AI processing sessions for document processing coordination
+-- AI processing sessions for document processing coordination - UPDATED for semantic architecture
 CREATE TABLE IF NOT EXISTS ai_processing_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Updated reference
     
     -- Session metadata
     session_type TEXT NOT NULL CHECK (session_type IN (
         'document_processing', 'entity_extraction', 'clinical_validation',
-        'profile_classification', 'decision_support'
+        'profile_classification', 'decision_support', 'semantic_processing' -- Added Pass 3
     )),
     session_status TEXT NOT NULL DEFAULT 'initiated' CHECK (session_status IN (
         'initiated', 'processing', 'completed', 'failed', 'cancelled'
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS ai_processing_sessions (
     -- Processing workflow
     workflow_step TEXT NOT NULL DEFAULT 'entity_detection' CHECK (workflow_step IN (
         'entity_detection', 'profile_classification', 'clinical_extraction',
-        'validation', 'decision_support', 'completed'
+        'semantic_processing', 'validation', 'decision_support', 'completed' -- Added Pass 3 step
     )),
     total_steps INTEGER DEFAULT 5,
     completed_steps INTEGER DEFAULT 0,
@@ -324,126 +324,8 @@ CREATE TABLE IF NOT EXISTS ai_confidence_scoring (
 -- =============================================================================
 -- SECTION 5: CLINICAL DECISION SUPPORT RULE ENGINE
 -- =============================================================================
--- CRITICAL FIX: patient_id references corrected to user_profiles(id)
-
--- Clinical alert rules configuration
-CREATE TABLE IF NOT EXISTS clinical_alert_rules (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    rule_name TEXT UNIQUE NOT NULL,
-    rule_type TEXT NOT NULL CHECK (rule_type IN (
-        'medication', 'screening', 'lab_value', 'vital_sign', 'care_gap', 
-        'drug_interaction', 'allergy_alert', 'immunization'
-    )),
-    
-    -- Rule definition
-    rule_description TEXT NOT NULL,
-    trigger_condition JSONB NOT NULL, -- Conditions that trigger this rule
-    alert_priority TEXT NOT NULL CHECK (alert_priority IN (
-        'routine', 'moderate', 'urgent', 'critical'
-    )),
-    
-    -- Clinical context
-    clinical_rationale TEXT,
-    evidence_links TEXT[],
-    specialty_specific TEXT[], -- Which specialties this applies to
-    age_range_min INTEGER,
-    age_range_max INTEGER,
-    gender_specific TEXT CHECK (gender_specific IN ('male', 'female', 'any')),
-    
-    -- Australian healthcare context
-    pbs_relevant BOOLEAN DEFAULT FALSE,
-    mbs_item_numbers TEXT[], -- Medicare Benefits Schedule items
-    clinical_guideline_source TEXT, -- RACGP, NHMRC, etc.
-    
-    -- Action configuration
-    suggested_action TEXT,
-    billing_codes TEXT[],
-    quality_measures TEXT[],
-    estimated_consultation_time INTERVAL,
-    
-    -- AI processing integration
-    ai_trigger_confidence_threshold NUMERIC(4,3) DEFAULT 0.7,
-    requires_human_validation BOOLEAN DEFAULT TRUE,
-    auto_action_allowed BOOLEAN DEFAULT FALSE,
-    
-    -- Rule lifecycle
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    version INTEGER DEFAULT 1,
-    effective_from TIMESTAMPTZ DEFAULT NOW(),
-    effective_until TIMESTAMPTZ,
-    
-    -- Performance metrics
-    trigger_count INTEGER DEFAULT 0,
-    success_rate NUMERIC(4,3) CHECK (success_rate BETWEEN 0 AND 1),
-    false_positive_rate NUMERIC(4,3) CHECK (false_positive_rate BETWEEN 0 AND 1),
-    
-    -- Audit fields
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Provider action items for clinical decision support
-CREATE TABLE IF NOT EXISTS provider_action_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    processing_session_id UUID REFERENCES ai_processing_sessions(id) ON DELETE SET NULL,
-    clinical_alert_rule_id UUID REFERENCES clinical_alert_rules(id) ON DELETE SET NULL,
-    
-    -- Action details
-    action_type TEXT NOT NULL CHECK (action_type IN (
-        'medication_review', 'dose_optimization', 'polypharmacy_check',
-        'screening_due', 'vaccination_due', 'follow_up_needed',
-        'drug_interaction', 'allergy_alert', 'contraindication',
-        'lab_abnormal', 'vital_sign_alert', 'care_gap'
-    )),
-    priority TEXT NOT NULL CHECK (priority IN ('routine', 'moderate', 'urgent', 'critical')),
-    
-    -- Clinical context
-    related_entity_type TEXT CHECK (related_entity_type IN (
-        'medication', 'condition', 'screening', 'lab_result', 'vital_sign',
-        'immunization', 'allergy', 'document'
-    )),
-    related_entity_id UUID, -- Generic reference to clinical entities
-    
-    -- The action request
-    question TEXT NOT NULL,
-    context TEXT,
-    ai_generated_rationale TEXT,
-    supporting_data JSONB DEFAULT '{}', -- Lab values, risk scores, calculations
-    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
-    
-    -- Provider assignment and response
-    assigned_provider_type TEXT CHECK (assigned_provider_type IN (
-        'gp', 'specialist', 'pharmacist', 'nurse_practitioner', 'any'
-    )),
-    assigned_provider_id TEXT, -- External provider system reference
-    provider_response TEXT,
-    provider_action_taken TEXT,
-    responded_at TIMESTAMPTZ,
-    
-    -- Australian healthcare specifics
-    applicable_billing_codes TEXT[], -- MBS item numbers
-    quality_measure_codes TEXT[], -- HEDIS, RACGP quality metrics
-    estimated_reimbursement NUMERIC(10,2),
-    bulk_billing_eligible BOOLEAN DEFAULT FALSE,
-    
-    -- Status and lifecycle
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
-        'pending', 'assigned', 'reviewed', 'actioned', 'deferred', 'not_applicable'
-    )),
-    due_date TIMESTAMPTZ,
-    resolved_at TIMESTAMPTZ,
-    resolution_notes TEXT,
-    
-    -- Quality tracking
-    outcome_rating INTEGER CHECK (outcome_rating BETWEEN 1 AND 5),
-    provider_satisfaction INTEGER CHECK (provider_satisfaction BETWEEN 1 AND 5),
-    clinical_impact_score NUMERIC(4,3) CHECK (clinical_impact_score BETWEEN 0 AND 1),
-    
-    -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- NOTE: Clinical alert rules and provider action items are defined in 05_healthcare_journey.sql
+-- This section focuses on AI-specific processing and validation infrastructure
 
 -- =============================================================================
 -- SECTION 6: PERFORMANCE INDEXES
@@ -845,6 +727,268 @@ BEGIN
             table_count, index_count, policy_count, function_count;
     END IF;
 END $$;
+
+-- =============================================================================
+-- SECTION 6: PASS 3 SEMANTIC PROCESSING INFRASTRUCTURE
+-- =============================================================================
+-- NEW: Pass 3 semantic narrative creation and dual-lens user experience
+
+-- Semantic processing sessions for Pass 3 narrative creation
+CREATE TABLE IF NOT EXISTS semantic_processing_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    
+    -- Session metadata
+    session_type TEXT NOT NULL DEFAULT 'narrative_creation' CHECK (session_type IN (
+        'narrative_creation', 'narrative_linking', 'shell_file_synthesis'
+    )),
+    session_status TEXT NOT NULL DEFAULT 'initiated' CHECK (session_status IN (
+        'initiated', 'processing', 'completed', 'failed', 'cancelled'
+    )),
+    
+    -- Pass 3 specific workflow
+    processing_phase TEXT NOT NULL DEFAULT 'narrative_detection' CHECK (processing_phase IN (
+        'narrative_detection', 'narrative_creation', 'clinical_linking', 'shell_synthesis', 'completed'
+    )),
+    
+    -- Input data for Pass 3 (structured clinical events from Pass 2)
+    input_clinical_events JSONB NOT NULL, -- Structured JSON from Pass 2 results
+    input_event_count INTEGER NOT NULL DEFAULT 0,
+    
+    -- Pass 3 processing results
+    narratives_created INTEGER DEFAULT 0,
+    clinical_links_created INTEGER DEFAULT 0,
+    shell_synthesis_completed BOOLEAN DEFAULT FALSE,
+    
+    -- Quality metrics
+    overall_narrative_confidence NUMERIC(4,3) CHECK (overall_narrative_confidence BETWEEN 0 AND 1),
+    semantic_coherence_score NUMERIC(4,3) CHECK (semantic_coherence_score BETWEEN 0 AND 1),
+    requires_human_review BOOLEAN DEFAULT FALSE,
+    
+    -- AI model configuration
+    ai_model_version TEXT NOT NULL DEFAULT 'gpt-4o-mini',
+    model_config JSONB DEFAULT '{}',
+    prompt_template_version TEXT DEFAULT 'v3.0',
+    
+    -- Processing times and costs
+    processing_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processing_completed_at TIMESTAMPTZ,
+    total_processing_time INTERVAL,
+    token_usage_input INTEGER,
+    token_usage_output INTEGER,
+    processing_cost_usd NUMERIC(8,4),
+    
+    -- Error handling
+    error_message TEXT,
+    error_context JSONB,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 2,
+    
+    -- Audit fields
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Narrative creation audit trail for Pass 3 processing
+CREATE TABLE IF NOT EXISTS narrative_creation_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    semantic_processing_session_id UUID NOT NULL REFERENCES semantic_processing_sessions(id) ON DELETE CASCADE,
+    narrative_id UUID REFERENCES clinical_narratives(id) ON DELETE SET NULL, -- May not exist yet during processing
+    
+    -- Narrative creation details
+    narrative_purpose TEXT NOT NULL, -- Intended clinical purpose
+    narrative_classification TEXT NOT NULL,
+    creation_method TEXT DEFAULT 'ai_pass_3' CHECK (creation_method IN (
+        'ai_pass_3', 'manual_creation', 'template_based', 'hybrid_approach'
+    )),
+    
+    -- AI processing context
+    input_events_analyzed INTEGER DEFAULT 0,
+    narrative_confidence NUMERIC(4,3) CHECK (narrative_confidence BETWEEN 0 AND 1),
+    semantic_coherence_score NUMERIC(4,3) CHECK (semantic_coherence_score BETWEEN 0 AND 1),
+    clinical_complexity_assessment TEXT CHECK (clinical_complexity_assessment IN (
+        'simple', 'moderate', 'complex', 'highly_complex'
+    )),
+    
+    -- AI prompt and response details
+    ai_prompt_used TEXT, -- The actual prompt sent to AI model
+    ai_response_raw TEXT, -- Raw AI response before processing
+    ai_processing_duration INTERVAL,
+    ai_token_usage JSONB, -- {"input": 1200, "output": 800, "total": 2000}
+    
+    -- Quality validation
+    validation_checks_passed INTEGER DEFAULT 0,
+    validation_concerns TEXT[],
+    requires_manual_review BOOLEAN DEFAULT FALSE,
+    manual_review_reason TEXT,
+    
+    -- Clinical linking results
+    conditions_linked INTEGER DEFAULT 0,
+    medications_linked INTEGER DEFAULT 0,
+    allergies_linked INTEGER DEFAULT 0,
+    immunizations_linked INTEGER DEFAULT 0,
+    vitals_linked INTEGER DEFAULT 0,
+    
+    -- Audit and lifecycle
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    processing_completed_at TIMESTAMPTZ
+);
+
+-- Shell file synthesis results for post-Pass 3 document summaries
+CREATE TABLE IF NOT EXISTS shell_file_synthesis_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    semantic_processing_session_id UUID NOT NULL REFERENCES semantic_processing_sessions(id) ON DELETE CASCADE,
+    
+    -- Synthesis input data
+    narratives_analyzed INTEGER NOT NULL DEFAULT 0,
+    clinical_events_count INTEGER DEFAULT 0,
+    total_pages_processed INTEGER DEFAULT 0,
+    
+    -- AI synthesis results
+    ai_synthesized_summary TEXT NOT NULL, -- Intelligent overview of all narratives
+    synthesis_confidence NUMERIC(4,3) CHECK (synthesis_confidence BETWEEN 0 AND 1),
+    synthesis_approach TEXT CHECK (synthesis_approach IN (
+        'single_narrative', 'multi_narrative_summary', 'complex_integration'
+    )),
+    
+    -- Synthesis metadata
+    key_clinical_themes TEXT[], -- Primary medical themes identified
+    provider_entities_mentioned TEXT[], -- Healthcare providers mentioned
+    temporal_span_assessment TEXT, -- "single_visit", "episodic_care", "longitudinal_management"
+    clinical_urgency_assessment TEXT CHECK (clinical_urgency_assessment IN (
+        'routine', 'urgent', 'emergent', 'mixed_urgency'
+    )),
+    
+    -- AI processing details
+    ai_model_version TEXT DEFAULT 'gpt-4o-mini',
+    ai_processing_duration INTERVAL,
+    ai_token_usage JSONB,
+    ai_prompt_template TEXT,
+    
+    -- Quality and validation
+    synthesis_quality_score NUMERIC(4,3) CHECK (synthesis_quality_score BETWEEN 0 AND 1),
+    coherence_validation_passed BOOLEAN DEFAULT FALSE,
+    clinical_accuracy_validated BOOLEAN DEFAULT FALSE,
+    
+    -- Audit fields
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    synthesis_completed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================================================
+-- SECTION 7: DUAL-LENS USER EXPERIENCE INFRASTRUCTURE
+-- =============================================================================
+-- Support for shell file view vs clinical narrative view user preferences
+
+-- User preferences for dual-lens viewing experience
+CREATE TABLE IF NOT EXISTS dual_lens_user_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    profile_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE, -- Profile-specific preferences
+    
+    -- View preferences
+    default_view_lens TEXT NOT NULL DEFAULT 'shell_file_view' CHECK (default_view_lens IN (
+        'shell_file_view', 'clinical_narrative_view', 'hybrid_view', 'auto_detect'
+    )),
+    fallback_behavior TEXT DEFAULT 'graceful_degradation' CHECK (fallback_behavior IN (
+        'graceful_degradation', 'prefer_shell_file', 'prefer_narrative', 'show_both'
+    )),
+    
+    -- Enhancement preferences
+    show_narrative_enhancement_status BOOLEAN DEFAULT TRUE,
+    auto_switch_to_narrative_when_available BOOLEAN DEFAULT FALSE,
+    prefer_rich_context_popups BOOLEAN DEFAULT TRUE,
+    
+    -- Timeline preferences
+    timeline_organization_preference TEXT DEFAULT 'narrative_grouped' CHECK (timeline_organization_preference IN (
+        'chronological_only', 'narrative_grouped', 'hybrid_timeline', 'clinical_significance_ordered'
+    )),
+    
+    -- Clinical data display preferences
+    medication_context_level TEXT DEFAULT 'full_context' CHECK (medication_context_level IN (
+        'basic_info', 'narrative_context', 'full_context', 'clinical_journey'
+    )),
+    condition_storytelling_preference TEXT DEFAULT 'narrative_focused' CHECK (condition_storytelling_preference IN (
+        'clinical_facts_only', 'narrative_focused', 'provider_perspective', 'patient_journey'
+    )),
+    
+    -- Performance preferences
+    enable_narrative_view_caching BOOLEAN DEFAULT TRUE,
+    preload_narrative_contexts BOOLEAN DEFAULT TRUE,
+    
+    -- Audit fields
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_preference_change TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(user_id, profile_id)
+);
+
+-- Narrative view rendering cache for performance optimization
+CREATE TABLE IF NOT EXISTS narrative_view_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    view_type TEXT NOT NULL CHECK (view_type IN (
+        'narrative_timeline', 'condition_narrative_context', 'medication_narrative_context',
+        'clinical_story_summary', 'narrative_dashboard_widget'
+    )),
+    
+    -- Cache key and content
+    cache_key TEXT NOT NULL, -- Hash of view parameters
+    cached_content JSONB NOT NULL,
+    content_format TEXT DEFAULT 'json' CHECK (content_format IN ('json', 'html', 'markdown')),
+    
+    -- Cache metadata
+    source_narratives UUID[], -- Narratives included in this cached view
+    last_data_change TIMESTAMPTZ, -- When underlying narrative data last changed
+    cache_generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    cache_expires_at TIMESTAMPTZ, -- Optional cache expiration
+    
+    -- Performance metrics
+    generation_time_ms INTEGER,
+    cache_hit_count INTEGER DEFAULT 0,
+    last_accessed TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Cache validation
+    cache_valid BOOLEAN DEFAULT TRUE,
+    invalidation_reason TEXT,
+    
+    -- Audit fields
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(profile_id, view_type, cache_key)
+);
+
+-- =============================================================================
+-- PASS 3 SEMANTIC PROCESSING INDEXES
+-- =============================================================================
+
+-- Semantic processing sessions indexes
+CREATE INDEX IF NOT EXISTS idx_semantic_processing_sessions_shell_file ON semantic_processing_sessions(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_semantic_processing_sessions_status ON semantic_processing_sessions(session_status);
+CREATE INDEX IF NOT EXISTS idx_semantic_processing_sessions_patient ON semantic_processing_sessions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_semantic_processing_sessions_created ON semantic_processing_sessions(created_at);
+
+-- Narrative creation audit indexes
+CREATE INDEX IF NOT EXISTS idx_narrative_creation_audit_session ON narrative_creation_audit(semantic_processing_session_id);
+CREATE INDEX IF NOT EXISTS idx_narrative_creation_audit_narrative ON narrative_creation_audit(narrative_id) WHERE narrative_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_narrative_creation_audit_confidence ON narrative_creation_audit(narrative_confidence);
+
+-- Shell file synthesis indexes
+CREATE INDEX IF NOT EXISTS idx_shell_file_synthesis_shell_file ON shell_file_synthesis_results(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_shell_file_synthesis_session ON shell_file_synthesis_results(semantic_processing_session_id);
+
+-- Dual-lens user experience indexes
+CREATE INDEX IF NOT EXISTS idx_dual_lens_user_preferences_user ON dual_lens_user_preferences(user_id);
+CREATE INDEX IF NOT EXISTS idx_dual_lens_user_preferences_profile ON dual_lens_user_preferences(profile_id) WHERE profile_id IS NOT NULL;
+
+-- Narrative view cache indexes
+CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_profile ON narrative_view_cache(profile_id);
+CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_type ON narrative_view_cache(view_type);
+CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_valid ON narrative_view_cache(cache_valid) WHERE cache_valid = TRUE;
+CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_expires ON narrative_view_cache(cache_expires_at) WHERE cache_expires_at IS NOT NULL;
 
 COMMIT;
 
