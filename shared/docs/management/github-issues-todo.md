@@ -132,17 +132,28 @@
 **Dependencies:** Understanding of Supabase auth state management and middleware integration  
 **Technical Fix:** Implement cross-tab auth state detection via Supabase auth listener or polling
 
-### [Issue #41](https://github.com/xavierjflanagan/Guardian/issues/41) - 🗃️ Database Migration Refactoring & Missing Clinical Tables
+### [Issue #41](https://github.com/xavierjflanagan/Guardian/issues/41) - 🗃️ Database Migration Refactoring & Missing Clinical Tables **[RESOLVED VIA V3]**
+**Status:** ✅ **RESOLVED** (August 28, 2025) - **Database V3 Foundation Complete**  
+**Original Problem:** Large monolithic migration files (003_multi_profile_management.sql - 417 lines) create maintenance challenges and deployment risks. Missing clinical tables referenced in V3 AI processing.  
+**V3 Resolution:**
+- ✅ **Modular Migration Structure**: 7 clean, domain-specific SQL files (01_foundations.sql through 07_optimization.sql)
+- ✅ **All Missing V3 Tables**: Complete semantic architecture, AI processing tables, enhanced clinical tables implemented
+- ✅ **Technical Debt Eliminated**: No more 417-line monolithic files, proper separation of concerns
+- ✅ **AI Accuracy Enhanced**: Provider directory, enhanced demographics, medical coding reference tables all implemented
+**Implementation Impact:** V3 database foundation ready for deployment with all enhancements
+
+### [Issue #42](https://github.com/xavierjflanagan/Guardian/issues/42) - 🔄 Profile Ownership Transfer System - Child-to-Adult Account Migration
 **Urgency:** ⚠️ **MEDIUM**  
-**Healthcare Impact:** MEDIUM - AI accuracy improvements and developer experience enhancement  
-**Estimated Time:** 4 weeks (2 weeks refactoring + 2 weeks new tables)  
-**Description:** Large monolithic migration files (003_multi_profile_management.sql - 417 lines) create maintenance challenges and deployment risks. Additionally, several clinical tables referenced in V3 AI processing are missing, causing AI to fall back to less optimal existing tables.  
+**Healthcare Impact:** HIGH - Critical for patient autonomy and continuity of care as children transition to independent healthcare management  
+**Estimated Time:** 4 weeks (complex security and dual-consent workflows)  
+**Description:** Implement secure profile ownership transfer system allowing child profiles managed by parents to be transferred to independent adult accounts when children reach legal age (16+ in Australia).  
 **Context Documentation:** 
-- [Current Migration Structure](../../../supabase/migrations/003_multi_profile_management.sql) - Monolithic structure needing refactoring
-- [V3 AI Schema Architecture](../architecture/ai-processing-v3/ai-to-database-schema-architecture/) - Missing table requirements  
-**Dependencies:** Issue #40 (RLS Security Function) for new table policies, Issue #38 (ID System Architecture) for semantic clarity  
-**Technical Debt:** Large migrations difficult to review, test, and rollback individually  
-**AI Accuracy Impact:** Missing provider directory, enhanced demographics, and medical coding reference tables limit V3 processing effectiveness
+- [Deletion Scenarios Analysis](../architecture/database-foundation-v3/deletion-scenarios-analysis.md) - Profile transfer workflow design
+- [GitHub Issue #42](https://github.com/xavierjflanagan/Guardian/issues/42) - Detailed requirements and implementation plan  
+**Dependencies:** Issue #38 (ID System Architecture - RESOLVED), Issue #40 (RLS Security Function - RESOLVED), V3 Database Foundation deployment  
+**Security Requirements:** Dual consent (parent + child), email verification, cryptographic transfer tokens, complete audit trail  
+**Healthcare Compliance:** Australian healthcare consent age (16+), identity verification, continuity of medical records  
+**Implementation Status:** PLANNED - Post-V3 deployment feature with complete technical specification ready
 
 ### ✅ [Issue #36](https://github.com/xavierjflanagan/Guardian/issues/36) - 🚨 File Upload System Failures **[RESOLVED]**
 **Status:** ✅ **CLOSED** (August 18, 2025)  
@@ -171,16 +182,16 @@
 ### By Priority Level
 - 🚨 **CRITICAL:** 3 issues (ID system architecture alignment, AI Pass 1 validation, RLS security function)
 - 🔥 **HIGH:** 2 issues (PII detection, security monitoring)  
-- ⚠️ **MEDIUM:** 6 issues (RLS testing framework [DEFERRED], TypeScript safety, Edge Runtime, CSP headers, Auth UX, database migration improvements)
+- ⚠️ **MEDIUM:** 6 issues (RLS testing framework [DEFERRED], TypeScript safety, Edge Runtime, CSP headers, Auth UX, profile ownership transfer)
 - 🟢 **LOW:** 0 issues
-- ✅ **RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
+- ✅ **RESOLVED:** 4 issues (Test framework, file upload system, CI infrastructure, database migration refactoring)
 
 ### By Healthcare Impact
 - **CRITICAL:** 4 issues (ID system architecture alignment, AI Pass 1 validation, RLS security function, RLS policy testing [DEFERRED])
-- **HIGH:** 3 issues (PII detection, monitoring, auth UX)
-- **MEDIUM:** 3 issues (TypeScript safety, Edge Runtime, database migration improvements)
+- **HIGH:** 4 issues (PII detection, monitoring, auth UX, profile ownership transfer)
+- **MEDIUM:** 2 issues (TypeScript safety, Edge Runtime)
 - **LOW:** 1 issue (CSP middleware)
-- **✅ RESOLVED:** 3 issues (Test framework, file upload system, CI infrastructure)
+- **✅ RESOLVED:** 4 issues (Test framework, file upload system, CI infrastructure, database migration refactoring)
 
 ### By Implementation Time
 - **Quick fixes (<1 day):** Issues #33, #35

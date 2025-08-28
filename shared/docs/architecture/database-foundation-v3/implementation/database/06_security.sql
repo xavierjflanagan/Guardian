@@ -391,7 +391,7 @@ CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
 -- Provider Registry RLS Policies (providers can see their own data + basic info for others)
 CREATE POLICY provider_registry_self_access ON provider_registry
     FOR ALL USING (
-        id = auth.uid()::UUID -- Provider accessing their own record
+        id = auth.uid() -- Provider accessing their own record
         OR verification_status = 'full_verified' -- Public directory access for verified providers
         OR is_admin() -- Admin access
     );
@@ -400,7 +400,7 @@ CREATE POLICY provider_registry_self_access ON provider_registry
 CREATE POLICY patient_provider_access_patient_view ON patient_provider_access
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see their provider relationships
-        OR provider_id = auth.uid()::UUID -- Provider can see their patient relationships
+        OR provider_id = auth.uid() -- Provider can see their patient relationships
         OR is_admin() -- Admin access
     );
 
@@ -408,7 +408,7 @@ CREATE POLICY patient_provider_access_patient_view ON patient_provider_access
 CREATE POLICY provider_access_log_patient_provider_access ON provider_access_log
     FOR SELECT USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see access logs for their data
-        OR provider_id = auth.uid()::UUID -- Provider can see their access logs
+        OR provider_id = auth.uid() -- Provider can see their access logs
         OR is_admin() -- Admin access
     );
 
@@ -416,8 +416,8 @@ CREATE POLICY provider_access_log_patient_provider_access ON provider_access_log
 CREATE POLICY provider_action_items_access ON provider_action_items
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see their action items
-        OR provider_id = auth.uid()::UUID -- Provider can see action items they created
-        OR assigned_to = auth.uid()::UUID -- Provider can see action items assigned to them
+        OR provider_id = auth.uid() -- Provider can see action items they created
+        OR assigned_to = auth.uid() -- Provider can see action items assigned to them
         OR is_admin()
     );
 
@@ -425,14 +425,14 @@ CREATE POLICY provider_action_items_access ON provider_action_items
 CREATE POLICY provider_clinical_notes_access ON provider_clinical_notes
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see their clinical notes
-        OR provider_id = auth.uid()::UUID -- Provider can see notes they created
+        OR provider_id = auth.uid() -- Provider can see notes they created
         OR is_admin()
     );
 
 -- Clinical Alert Rules RLS Policies (read-only for providers, admin only for modifications)
 CREATE POLICY clinical_alert_rules_provider_read ON clinical_alert_rules
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM provider_registry WHERE id = auth.uid()::UUID AND active = TRUE)
+        EXISTS (SELECT 1 FROM provider_registry WHERE id = auth.uid() AND active = TRUE)
         OR is_admin()
     );
 
@@ -442,7 +442,7 @@ CREATE POLICY clinical_alert_rules_admin_modify ON clinical_alert_rules
 -- Healthcare Provider Context RLS Policies
 CREATE POLICY healthcare_provider_context_self_access ON healthcare_provider_context
     FOR ALL USING (
-        provider_id = auth.uid()::UUID -- Provider accessing their own context
+        provider_id = auth.uid() -- Provider accessing their own context
         OR is_admin() -- Admin access
     );
 
@@ -454,7 +454,7 @@ CREATE POLICY healthcare_provider_context_self_access ON healthcare_provider_con
 CREATE POLICY patient_consents_profile_access ON patient_consents
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient/guardian can manage their consents
-        OR (provider_id IS NOT NULL AND provider_id = auth.uid()::UUID) -- Provider-specific consent access
+        OR (provider_id IS NOT NULL AND provider_id = auth.uid()) -- Provider-specific consent access
         OR is_admin()
     );
 
