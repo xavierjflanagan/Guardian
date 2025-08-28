@@ -51,8 +51,8 @@ CREATE TABLE user_profiles (
     -- Profile Lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    transferred_from UUID REFERENCES user_profiles(id), -- For profile transfers
-    transferred_to UUID REFERENCES user_profiles(id),
+    transferred_from UUID REFERENCES user_profiles(id) ON DELETE SET NULL, -- For profile transfers
+    transferred_to UUID REFERENCES user_profiles(id) ON DELETE SET NULL,
     
     -- Enhanced Archival System (GPT-5 & Gemini recommended)
     archived BOOLEAN NOT NULL DEFAULT FALSE, -- Legacy compatibility
@@ -448,9 +448,9 @@ GRANT EXECUTE ON FUNCTION get_accessible_profiles(UUID) TO authenticated;
 -- 8. PERFORMANCE INDEXES
 -- =============================================================================
 
--- Profile management indexes
-CREATE INDEX idx_user_profiles_owner ON user_profiles(account_owner_id) WHERE archived IS NOT TRUE;
-CREATE INDEX idx_user_profiles_type ON user_profiles(profile_type) WHERE archived IS NOT TRUE;
+-- Profile management indexes (optimized for soft deletes)
+CREATE INDEX idx_user_profiles_owner ON user_profiles(account_owner_id) WHERE archived IS NOT TRUE AND archived_at IS NULL;
+CREATE INDEX idx_user_profiles_type ON user_profiles(profile_type) WHERE archived IS NOT TRUE AND archived_at IS NULL;
 CREATE INDEX idx_profile_access_user ON profile_access_permissions(user_id) WHERE revoked_at IS NULL;
 CREATE INDEX idx_profile_access_profile ON profile_access_permissions(profile_id) WHERE revoked_at IS NULL;
 
