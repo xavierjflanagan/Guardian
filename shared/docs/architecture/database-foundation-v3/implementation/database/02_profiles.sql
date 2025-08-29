@@ -96,7 +96,10 @@ CREATE TABLE profile_access_permissions (
     granted_by UUID REFERENCES auth.users(id),
     granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     revoked_at TIMESTAMPTZ,
-    revoke_reason TEXT
+    revoke_reason TEXT,
+    
+    -- CRITICAL FIX: Prevent duplicate permissions (Issue #3)
+    CONSTRAINT uk_profile_access_user UNIQUE(profile_id, user_id)
 );
 
 -- Profile switching context
@@ -169,7 +172,7 @@ CREATE TABLE pregnancy_journey_events (
     
     -- Links to source data (will be added as FKs after clinical tables exist)
     clinical_event_id UUID, -- Will reference patient_clinical_events(id)
-    document_id UUID, -- Will reference documents(id)
+    shell_file_id UUID, -- Will reference shell_files(id) after 03 runs
     
     -- Pregnancy-specific metrics
     gestational_week INTEGER,
@@ -395,12 +398,21 @@ BEGIN
         RETURN TRUE;
     END IF;
     
-    -- Then check explicit permissions
+    -- Then check explicit permissions using whitelist (safer than enum ordering)
     RETURN EXISTS (
         SELECT 1 FROM profile_access_permissions pap
         WHERE pap.user_id = p_user_id
         AND pap.profile_id = p_profile_id
-        AND pap.permission_level >= p_required_level -- Assuming enum ordering
+        AND pap.permission_level::TEXT = ANY(
+            CASE p_required_level
+                WHEN 'emergency' THEN ARRAY['emergency', 'read_only', 'read_write', 'full_access', 'owner']
+                WHEN 'read_only' THEN ARRAY['read_only', 'read_write', 'full_access', 'owner']
+                WHEN 'read_write' THEN ARRAY['read_write', 'full_access', 'owner']
+                WHEN 'full_access' THEN ARRAY['full_access', 'owner']
+                WHEN 'owner' THEN ARRAY['owner']
+                ELSE ARRAY[]::TEXT[] -- Invalid level returns no matches
+            END
+        ) -- ✅ FIXED: Use explicit whitelist instead of dangerous enum ordering
         AND (pap.access_end_date IS NULL OR pap.access_end_date > NOW())
         AND pap.revoked_at IS NULL
     );

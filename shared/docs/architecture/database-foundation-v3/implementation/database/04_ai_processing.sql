@@ -13,8 +13,8 @@ BEGIN;
 -- Verification that dependencies exist
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents') THEN
-        RAISE EXCEPTION 'DEPENDENCY ERROR: documents table not found. Run 03_clinical_core.sql first.';
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shell_files') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: shell_files table not found. Run 03_clinical_core.sql first.';
     END IF;
     
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'patient_clinical_events') THEN
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS ai_processing_sessions (
 CREATE TABLE IF NOT EXISTS entity_processing_audit_v2 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
     entity_id TEXT NOT NULL,
     
     -- V3 Core Fields (Enhanced)
@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit_v2 (
 CREATE TABLE IF NOT EXISTS profile_classification_audit (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
     
     -- Profile Classification Results
     recommended_profile_type TEXT NOT NULL CHECK (recommended_profile_type IN (
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS manual_review_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
     
     -- Review context
     review_type TEXT NOT NULL CHECK (review_type IN (
@@ -333,13 +333,13 @@ CREATE TABLE IF NOT EXISTS ai_confidence_scoring (
 
 -- AI processing sessions indexes
 CREATE INDEX IF NOT EXISTS idx_ai_sessions_patient ON ai_processing_sessions(patient_id) WHERE session_status != 'cancelled';
-CREATE INDEX IF NOT EXISTS idx_ai_sessions_document ON ai_processing_sessions(document_id, session_status);
+CREATE INDEX IF NOT EXISTS idx_ai_sessions_shell_file ON ai_processing_sessions(shell_file_id, session_status);
 CREATE INDEX IF NOT EXISTS idx_ai_sessions_status ON ai_processing_sessions(session_status, processing_started_at);
 CREATE INDEX IF NOT EXISTS idx_ai_sessions_review ON ai_processing_sessions(requires_human_review) WHERE requires_human_review = true;
 
 -- Entity processing audit indexes
 CREATE INDEX IF NOT EXISTS idx_entity_audit_session ON entity_processing_audit_v2(processing_session_id);
-CREATE INDEX IF NOT EXISTS idx_entity_audit_document ON entity_processing_audit_v2(document_id);
+CREATE INDEX IF NOT EXISTS idx_entity_audit_shell_file ON entity_processing_audit_v2(shell_file_id);
 CREATE INDEX IF NOT EXISTS idx_entity_audit_category ON entity_processing_audit_v2(entity_category, entity_subtype);
 CREATE INDEX IF NOT EXISTS idx_entity_audit_validation ON entity_processing_audit_v2(validation_status) WHERE validation_status != 'validated';
 CREATE INDEX IF NOT EXISTS idx_entity_audit_confidence ON entity_processing_audit_v2(pass1_confidence) WHERE pass1_confidence < 0.8;
@@ -348,7 +348,7 @@ CREATE INDEX IF NOT EXISTS idx_entity_audit_encounter ON entity_processing_audit
 
 -- Profile classification indexes
 CREATE INDEX IF NOT EXISTS idx_profile_class_session ON profile_classification_audit(processing_session_id);
-CREATE INDEX IF NOT EXISTS idx_profile_class_document ON profile_classification_audit(document_id);
+CREATE INDEX IF NOT EXISTS idx_profile_class_shell_file ON profile_classification_audit(shell_file_id);
 CREATE INDEX IF NOT EXISTS idx_profile_class_risk ON profile_classification_audit(contamination_risk_score) WHERE contamination_risk_score > 0.3;
 CREATE INDEX IF NOT EXISTS idx_profile_class_review ON profile_classification_audit(manual_review_required) WHERE manual_review_required = true;
 
@@ -363,16 +363,8 @@ CREATE INDEX IF NOT EXISTS idx_confidence_session ON ai_confidence_scoring(proce
 CREATE INDEX IF NOT EXISTS idx_confidence_overall ON ai_confidence_scoring(overall_confidence) WHERE overall_confidence < 0.7;
 CREATE INDEX IF NOT EXISTS idx_confidence_outlier ON ai_confidence_scoring(outlier_detection) WHERE outlier_detection = true;
 
--- Clinical alert rules indexes
-CREATE INDEX IF NOT EXISTS idx_alert_rules_type ON clinical_alert_rules(rule_type, is_active) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_alert_rules_priority ON clinical_alert_rules(alert_priority, is_active) WHERE is_active = true;
-CREATE INDEX IF NOT EXISTS idx_alert_rules_performance ON clinical_alert_rules(success_rate, trigger_count);
-
--- Provider action items indexes
-CREATE INDEX IF NOT EXISTS idx_action_items_patient ON provider_action_items(patient_id);
-CREATE INDEX IF NOT EXISTS idx_action_items_status ON provider_action_items(status, priority);
-CREATE INDEX IF NOT EXISTS idx_action_items_type ON provider_action_items(action_type, status);
-CREATE INDEX IF NOT EXISTS idx_action_items_due ON provider_action_items(due_date) WHERE due_date IS NOT NULL AND status = 'pending';
+-- MOVED TO 05_healthcare_journey.sql: Clinical alert rules and provider action items indexes
+-- These indexes reference tables defined in file 05, so they belong there
 
 -- =============================================================================
 -- SECTION 7: ROW LEVEL SECURITY POLICIES
@@ -384,8 +376,7 @@ ALTER TABLE entity_processing_audit_v2 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profile_classification_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE manual_review_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_confidence_scoring ENABLE ROW LEVEL SECURITY;
-ALTER TABLE clinical_alert_rules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE provider_action_items ENABLE ROW LEVEL SECURITY;
+-- MOVED TO 05_healthcare_journey.sql: clinical_alert_rules and provider_action_items RLS
 
 -- AI processing sessions - profile-based access
 CREATE POLICY ai_sessions_access ON ai_processing_sessions
@@ -466,29 +457,8 @@ CREATE POLICY confidence_scoring_access ON ai_confidence_scoring
         )
     );
 
--- Clinical alert rules - readable by all authenticated users (configuration data)
-CREATE POLICY alert_rules_read ON clinical_alert_rules
-    FOR SELECT TO authenticated
-    USING (is_active = true);
-
--- Only admins can modify alert rules
-CREATE POLICY alert_rules_admin ON clinical_alert_rules
-    FOR ALL TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
-
--- Provider action items - profile-based access
-CREATE POLICY action_items_access ON provider_action_items
-    FOR ALL TO authenticated
-    USING (
-        has_profile_access(auth.uid(), patient_id)
-        OR is_admin()
-        OR assigned_provider_id = auth.uid()::text
-    )
-    WITH CHECK (
-        has_profile_access(auth.uid(), patient_id)
-        OR is_admin()
-    );
+-- MOVED TO 05_healthcare_journey.sql: All clinical_alert_rules and provider_action_items policies
+-- These policies reference tables defined in file 05, so they belong there
 
 -- =============================================================================
 -- SECTION 8: AI PROCESSING UTILITY FUNCTIONS
@@ -497,7 +467,7 @@ CREATE POLICY action_items_access ON provider_action_items
 -- Start AI processing session
 CREATE OR REPLACE FUNCTION start_ai_processing_session(
     p_patient_id UUID,
-    p_document_id UUID,
+    p_shell_file_id UUID,
     p_session_type TEXT DEFAULT 'document_processing',
     p_model_version TEXT DEFAULT 'v3'
 )
@@ -512,9 +482,9 @@ BEGIN
     
     -- Create processing session
     INSERT INTO ai_processing_sessions (
-        patient_id, document_id, session_type, ai_model_version
+        patient_id, shell_file_id, session_type, ai_model_version
     ) VALUES (
-        p_patient_id, p_document_id, p_session_type, p_model_version
+        p_patient_id, p_shell_file_id, p_session_type, p_model_version
     ) RETURNING id INTO session_id;
     
     RETURN session_id;
@@ -562,7 +532,7 @@ END $$;
 CREATE OR REPLACE FUNCTION add_to_manual_review_queue(
     p_patient_id UUID,
     p_processing_session_id UUID,
-    p_document_id UUID,
+    p_shell_file_id UUID,
     p_review_type TEXT,
     p_priority TEXT DEFAULT 'normal',
     p_title TEXT DEFAULT 'AI Processing Review Required',
@@ -579,10 +549,10 @@ BEGIN
     
     -- Add to review queue
     INSERT INTO manual_review_queue (
-        patient_id, processing_session_id, document_id,
+        patient_id, processing_session_id, shell_file_id,
         review_type, priority, review_title, review_description
     ) VALUES (
-        p_patient_id, p_processing_session_id, p_document_id,
+        p_patient_id, p_processing_session_id, p_shell_file_id,
         p_review_type, p_priority, p_title, p_description
     ) RETURNING id INTO review_id;
     
@@ -643,7 +613,7 @@ BEGIN
     WHERE table_schema = 'public' 
     AND table_name IN (
         'ai_processing_sessions', 'entity_processing_audit_v2', 'profile_classification_audit',
-        'manual_review_queue', 'ai_confidence_scoring', 'clinical_alert_rules', 'provider_action_items'
+        'manual_review_queue', 'ai_confidence_scoring'
     );
     
     -- Count created indexes
@@ -664,7 +634,7 @@ BEGIN
     WHERE schemaname = 'public' 
     AND tablename IN (
         'ai_processing_sessions', 'entity_processing_audit_v2', 'profile_classification_audit',
-        'manual_review_queue', 'ai_confidence_scoring', 'clinical_alert_rules', 'provider_action_items'
+        'manual_review_queue', 'ai_confidence_scoring'
     );
     
     -- Count utility functions
@@ -676,7 +646,7 @@ BEGIN
         'add_to_manual_review_queue', 'get_pending_reviews'
     );
     
-    IF table_count = 7 AND index_count >= 20 AND policy_count >= 10 AND function_count = 4 THEN
+    IF table_count = 5 AND index_count >= 12 AND policy_count >= 8 AND function_count = 4 THEN
         RAISE NOTICE '';
         RAISE NOTICE '==================================================================';
         RAISE NOTICE 'FRESH START BLUEPRINT: 04_ai_processing.sql DEPLOYMENT SUCCESS';

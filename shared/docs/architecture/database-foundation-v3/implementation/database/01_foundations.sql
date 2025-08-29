@@ -476,9 +476,9 @@ BEGIN
     BEGIN
         RETURN EXISTS (
             SELECT 1 FROM provider_registry pr
-            WHERE pr.id = user_id
-            AND pr.account_verified = TRUE
-            AND pr.has_guardian_account = TRUE
+            WHERE pr.user_id = user_id
+            AND pr.active = TRUE
+            AND pr.verification_status IN ('credential_verified','full_verified')
         );
     EXCEPTION
         WHEN undefined_table THEN

@@ -239,8 +239,8 @@ DECLARE
     provider_access BOOLEAN DEFAULT FALSE;
 BEGIN
     -- Check profile access including delegated permissions
-    -- Use 'read' level for basic semantic data access
-    SELECT has_profile_access_level(p_user_id, p_profile_id, 'read') INTO has_basic_access;
+    -- Use 'read_only' level for basic semantic data access (matches enum values)
+    SELECT has_profile_access_level(p_user_id, p_profile_id, 'read_only') INTO has_basic_access;
     
     IF NOT has_basic_access THEN
         RETURN FALSE;
@@ -391,7 +391,7 @@ CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
 -- Provider Registry RLS Policies (providers can see their own data + basic info for others)
 CREATE POLICY provider_registry_self_access ON provider_registry
     FOR ALL USING (
-        id = auth.uid() -- Provider accessing their own record
+        user_id = auth.uid() -- ✅ FIXED: Provider accessing their own record via auth user ID
         OR verification_status = 'full_verified' -- Public directory access for verified providers
         OR is_admin() -- Admin access
     );
@@ -400,7 +400,11 @@ CREATE POLICY provider_registry_self_access ON provider_registry
 CREATE POLICY patient_provider_access_patient_view ON patient_provider_access
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see their provider relationships
-        OR provider_id = auth.uid() -- Provider can see their patient relationships
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = patient_provider_access.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- ✅ FIXED: Provider can see their patient relationships via proper join
         OR is_admin() -- Admin access
     );
 
@@ -408,7 +412,11 @@ CREATE POLICY patient_provider_access_patient_view ON patient_provider_access
 CREATE POLICY provider_access_log_patient_provider_access ON provider_access_log
     FOR SELECT USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see access logs for their data
-        OR provider_id = auth.uid() -- Provider can see their access logs
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_access_log.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- ✅ FIXED: Provider can see their access logs via proper join
         OR is_admin() -- Admin access
     );
 
@@ -416,8 +424,16 @@ CREATE POLICY provider_access_log_patient_provider_access ON provider_access_log
 CREATE POLICY provider_action_items_access ON provider_action_items
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see their action items
-        OR provider_id = auth.uid() -- Provider can see action items they created
-        OR assigned_to = auth.uid() -- Provider can see action items assigned to them
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_action_items.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- ✅ FIXED: Provider can see action items they created
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_action_items.assigned_to 
+            AND pr.user_id = auth.uid()
+        ) -- ✅ FIXED: Provider can see action items assigned to them
         OR is_admin()
     );
 
@@ -425,14 +441,21 @@ CREATE POLICY provider_action_items_access ON provider_action_items
 CREATE POLICY provider_clinical_notes_access ON provider_clinical_notes
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient can see their clinical notes
-        OR provider_id = auth.uid() -- Provider can see notes they created
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_clinical_notes.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- ✅ FIXED: Provider can see notes they created via proper join
         OR is_admin()
     );
 
 -- Clinical Alert Rules RLS Policies (read-only for providers, admin only for modifications)
 CREATE POLICY clinical_alert_rules_provider_read ON clinical_alert_rules
     FOR SELECT USING (
-        EXISTS (SELECT 1 FROM provider_registry WHERE id = auth.uid() AND active = TRUE)
+        EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.user_id = auth.uid() AND pr.active = TRUE
+        ) -- ✅ FIXED: Any active provider can read rules via proper auth join
         OR is_admin()
     );
 
@@ -442,7 +465,11 @@ CREATE POLICY clinical_alert_rules_admin_modify ON clinical_alert_rules
 -- Healthcare Provider Context RLS Policies
 CREATE POLICY healthcare_provider_context_self_access ON healthcare_provider_context
     FOR ALL USING (
-        provider_id = auth.uid() -- Provider accessing their own context
+        EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = healthcare_provider_context.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- ✅ FIXED: Provider accessing their own context via proper join
         OR is_admin() -- Admin access
     );
 
@@ -454,7 +481,11 @@ CREATE POLICY healthcare_provider_context_self_access ON healthcare_provider_con
 CREATE POLICY patient_consents_profile_access ON patient_consents
     FOR ALL USING (
         has_profile_access(auth.uid(), patient_id) -- Patient/guardian can manage their consents
-        OR (provider_id IS NOT NULL AND provider_id = auth.uid()) -- Provider-specific consent access
+        OR (provider_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = patient_consents.provider_id 
+            AND pr.user_id = auth.uid()
+        )) -- ✅ FIXED: Provider-specific consent access via proper join
         OR is_admin()
     );
 
