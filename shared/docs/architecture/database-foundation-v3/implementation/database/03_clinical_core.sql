@@ -564,9 +564,9 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     visit_duration_minutes INTEGER,
     billing_codes TEXT[], -- CPT codes for billing
     
-    -- Document Links
-    primary_document_id UUID REFERENCES documents(id),
-    related_document_ids UUID[] DEFAULT '{}',
+    -- Document Links  
+    primary_shell_file_id UUID REFERENCES shell_files(id),
+    related_shell_file_ids UUID[] DEFAULT '{}',
     
     -- V3 AI Processing Integration
     ai_extracted BOOLEAN DEFAULT FALSE,
@@ -603,7 +603,7 @@ CREATE TABLE IF NOT EXISTS healthcare_timeline_events (
     -- Source Links (Comprehensive Provenance - Russian Babushka Doll)
     encounter_id UUID REFERENCES healthcare_encounters(id),
     clinical_event_ids UUID[] DEFAULT '{}', -- Multiple related clinical events
-    document_id UUID REFERENCES documents(id), -- Source document
+    shell_file_id UUID REFERENCES shell_files(id), -- Source shell file
     
     -- Timeline Optimization
     is_major_event BOOLEAN DEFAULT FALSE, -- Show in compact timeline view
@@ -711,7 +711,7 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
     onset_description TEXT, -- 'immediate', 'delayed', etc.
     
     -- Source and verification
-    source_document_id UUID REFERENCES documents(id),
+    source_shell_file_id UUID REFERENCES shell_files(id),
     verified_by TEXT, -- Provider name
     verified_date DATE,
     confidence_score NUMERIC(3,2) DEFAULT 1.0,
@@ -754,7 +754,7 @@ CREATE TABLE IF NOT EXISTS patient_vitals (
     
     -- Source information
     measured_by TEXT, -- Provider, patient, device
-    source_document_id UUID REFERENCES documents(id),
+    source_shell_file_id UUID REFERENCES shell_files(id),
     device_info JSONB, -- Device manufacturer, model, etc.
     
     -- Clinical context
@@ -823,7 +823,7 @@ CREATE TABLE IF NOT EXISTS patient_immunizations (
     -- Data Quality and Provenance (V3)
     coding_confidence NUMERIC(4,3) CHECK (coding_confidence BETWEEN 0 AND 1),
     requires_review BOOLEAN DEFAULT FALSE,
-    source_document_id UUID REFERENCES documents(id),
+    source_shell_file_id UUID REFERENCES shell_files(id),
     
     -- AI Processing Integration
     ai_extracted BOOLEAN DEFAULT FALSE,
@@ -876,7 +876,7 @@ CREATE TABLE IF NOT EXISTS patient_medications (
     adherence_notes TEXT,
     
     -- Source information
-    source_document_id UUID REFERENCES documents(id),
+    source_shell_file_id UUID REFERENCES shell_files(id),
     confidence_score NUMERIC(3,2) DEFAULT 1.0,
     
     -- AI Processing Integration (V3)
@@ -953,13 +953,11 @@ CREATE INDEX IF NOT EXISTS idx_medication_ref_rxnorm ON medication_reference(rxn
 CREATE INDEX IF NOT EXISTS idx_medication_ref_pbs ON medication_reference(pbs_code) WHERE pbs_code IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_medication_ref_generic ON medication_reference(generic_name);
 
--- Documents table indexes
-CREATE INDEX IF NOT EXISTS idx_documents_patient ON documents(patient_id) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status) WHERE status != 'archived';
-CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(document_type, document_subtype);
-CREATE INDEX IF NOT EXISTS idx_documents_service_date ON documents(patient_id, service_date DESC);
-CREATE INDEX IF NOT EXISTS idx_documents_processing ON documents(status, processing_started_at) WHERE status = 'processing';
-CREATE INDEX IF NOT EXISTS idx_documents_ai_review ON documents(requires_manual_review) WHERE requires_manual_review = true;
+-- Shell files table indexes
+CREATE INDEX IF NOT EXISTS idx_shell_files_patient ON shell_files(patient_id);  
+CREATE INDEX IF NOT EXISTS idx_shell_files_status ON shell_files(status) WHERE status != 'archived';
+CREATE INDEX IF NOT EXISTS idx_shell_files_type ON shell_files(document_type, document_subtype);
+CREATE INDEX IF NOT EXISTS idx_shell_files_processing ON shell_files(status, processing_started_at) WHERE status = 'processing';
 
 -- Patient conditions indexes
 CREATE INDEX IF NOT EXISTS idx_conditions_patient ON patient_conditions(patient_id) WHERE archived_at IS NULL;
@@ -1090,8 +1088,8 @@ CREATE POLICY medication_ref_read ON medication_reference
     FOR SELECT TO authenticated
     USING (status = 'active');
 
--- Documents table - profile-based access using has_profile_access()
-CREATE POLICY documents_access ON documents
+-- Shell files table - profile-based access using has_profile_access()
+CREATE POLICY shell_files_access ON shell_files
     FOR ALL TO authenticated
     USING (
         has_profile_access(auth.uid(), patient_id)

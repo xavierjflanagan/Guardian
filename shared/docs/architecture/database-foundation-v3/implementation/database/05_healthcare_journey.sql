@@ -354,13 +354,13 @@ DECLARE
     partition_exists BOOLEAN;
     partition_name TEXT;
 BEGIN
-    -- Check if we have partition coverage for the future date
+    -- Check if we have partition coverage for the future date using standard catalogs
     SELECT EXISTS (
-        SELECT 1 FROM pg_partitions 
-        WHERE schemaname = 'public' 
-        AND tablename LIKE table_name || '_%'
-        AND rangestart::DATE <= future_date 
-        AND rangeend::DATE > future_date
+        SELECT 1 FROM pg_tables pt
+        WHERE pt.schemaname = 'public' 
+        AND pt.tablename LIKE table_name || '_%'
+        -- Note: Without pg_partman, we'll need to implement partition date checking differently
+        -- For now, just check if partition tables exist
     ) INTO partition_exists;
     
     IF partition_exists THEN
@@ -661,6 +661,52 @@ CREATE INDEX IF NOT EXISTS idx_provider_clinical_notes_narrative ON provider_cli
 
 CREATE INDEX IF NOT EXISTS idx_healthcare_provider_context_provider ON healthcare_provider_context(provider_id);
 CREATE INDEX IF NOT EXISTS idx_healthcare_provider_context_setting ON healthcare_provider_context(practice_setting);
+
+-- =============================================================================
+-- MOVED FROM 04_ai_processing.sql: Clinical Alert Rules and Provider Action Items
+-- =============================================================================
+
+-- Clinical alert rules indexes (fixed field names from 04)
+CREATE INDEX IF NOT EXISTS idx_alert_rules_category ON clinical_alert_rules(rule_category, active) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_alert_rules_priority ON clinical_alert_rules(alert_priority, active) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_alert_rules_performance ON clinical_alert_rules(success_rate, trigger_count);
+
+-- Provider action items indexes  
+CREATE INDEX IF NOT EXISTS idx_action_items_patient ON provider_action_items(patient_id);
+CREATE INDEX IF NOT EXISTS idx_action_items_status ON provider_action_items(status, priority);
+CREATE INDEX IF NOT EXISTS idx_action_items_type ON provider_action_items(action_type, status);
+CREATE INDEX IF NOT EXISTS idx_action_items_due ON provider_action_items(due_date) WHERE due_date IS NOT NULL AND status = 'pending';
+
+-- Enable RLS for moved tables
+ALTER TABLE clinical_alert_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provider_action_items ENABLE ROW LEVEL SECURITY;
+
+-- Clinical alert rules policies
+CREATE POLICY alert_rules_read ON clinical_alert_rules
+    FOR SELECT TO authenticated
+    USING (active = true);
+
+CREATE POLICY alert_rules_admin ON clinical_alert_rules
+    FOR ALL TO authenticated
+    USING (is_admin())
+    WITH CHECK (is_admin());
+
+-- Provider action items policy (fixed RLS type mismatch)
+CREATE POLICY action_items_access ON provider_action_items
+    FOR ALL TO authenticated
+    USING (
+        has_profile_access(auth.uid(), patient_id)
+        OR is_admin()
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_action_items.assigned_to 
+            AND pr.user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        has_profile_access(auth.uid(), patient_id)
+        OR is_admin()
+    );
 
 COMMIT;
 

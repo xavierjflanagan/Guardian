@@ -277,7 +277,7 @@ CREATE INDEX IF NOT EXISTS idx_user_events_narrative ON user_events(narrative_id
 CREATE INDEX IF NOT EXISTS idx_patient_clinical_events_patient_date ON patient_clinical_events(patient_id, event_date DESC);
 CREATE INDEX IF NOT EXISTS idx_patient_clinical_events_narrative_date ON patient_clinical_events(narrative_id, event_date DESC) WHERE narrative_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_patient_clinical_events_shell_file ON patient_clinical_events(shell_file_id, event_date DESC);
-CREATE INDEX IF NOT EXISTS idx_patient_clinical_events_type_confidence ON patient_clinical_events(event_type, confidence_score) WHERE confidence_score IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_patient_clinical_events_type_confidence ON patient_clinical_events(activity_type, confidence_score) WHERE confidence_score IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_patient_observations_event_type ON patient_observations(event_id, observation_type);
 CREATE INDEX IF NOT EXISTS idx_patient_observations_value_range ON patient_observations(observation_type, value_numeric) WHERE value_numeric IS NOT NULL;
@@ -287,10 +287,10 @@ CREATE INDEX IF NOT EXISTS idx_patient_interventions_substance ON patient_interv
 
 -- Clinical Data Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_patient_conditions_patient_active ON patient_conditions(patient_id, status) WHERE status = 'active';
-CREATE INDEX IF NOT EXISTS idx_patient_conditions_narrative_active ON patient_conditions(primary_narrative_id, status) WHERE primary_narrative_id IS NOT NULL AND status = 'active';
+-- Removed: primary_narrative_id column does not exist in patient_conditions
 
 CREATE INDEX IF NOT EXISTS idx_patient_medications_patient_active ON patient_medications(patient_id, status) WHERE status = 'active';
-CREATE INDEX IF NOT EXISTS idx_patient_medications_narrative_active ON patient_medications(primary_narrative_id, status) WHERE primary_narrative_id IS NOT NULL AND status = 'active';
+-- Removed: primary_narrative_id column does not exist in patient_medications
 
 CREATE INDEX IF NOT EXISTS idx_patient_allergies_patient_severity ON patient_allergies(patient_id, severity);
 CREATE INDEX IF NOT EXISTS idx_patient_immunizations_patient_date ON patient_immunizations(patient_id, administration_date DESC);
