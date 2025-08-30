@@ -1004,7 +1004,7 @@ ALTER TABLE healthcare_timeline_events ENABLE ROW LEVEL SECURITY;
 -- Enable RLS on supplementary clinical tables
 ALTER TABLE medical_condition_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medication_reference ENABLE ROW LEVEL SECURITY;
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shell_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_conditions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_allergies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_vitals ENABLE ROW LEVEL SECURITY;
@@ -1245,7 +1245,7 @@ BEGIN
         'patient_clinical_events', 'patient_observations', 'patient_interventions',
         'healthcare_encounters', 'healthcare_timeline_events',
         -- Reference Tables
-        'medical_condition_codes', 'medication_reference', 'documents',
+        'medical_condition_codes', 'medication_reference', 'shell_files',
         -- Specialized Clinical Tables 
         'patient_conditions', 'patient_allergies', 'patient_vitals',
         'patient_immunizations', 'patient_medications'
@@ -1261,7 +1261,7 @@ BEGIN
     OR indexname LIKE 'idx_encounters%'
     OR indexname LIKE 'idx_timeline%'
     OR indexname LIKE 'idx_medical%'
-    OR indexname LIKE 'idx_documents%'
+    OR indexname LIKE 'idx_shell_files%'
     OR indexname LIKE 'idx_conditions%'
     OR indexname LIKE 'idx_allergies%'
     OR indexname LIKE 'idx_vitals%'
@@ -1277,7 +1277,7 @@ BEGIN
         'patient_clinical_events', 'patient_observations', 'patient_interventions',
         'healthcare_encounters', 'healthcare_timeline_events',
         -- Reference and Specialized Tables
-        'medical_condition_codes', 'medication_reference', 'documents',
+        'medical_condition_codes', 'medication_reference', 'shell_files',
         'patient_conditions', 'patient_allergies', 'patient_vitals',
         'patient_immunizations', 'patient_medications'
     );
