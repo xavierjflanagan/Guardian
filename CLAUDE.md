@@ -67,6 +67,14 @@ git push            # This deploys to exorahealth.com.au for beta testers
 - **Production**: Clean interface with no development indicators
 - **Browser Titles**: "[STAGING]" suffix on staging environment only
 
+### V3 Background Processing Architecture
+**Render.com Worker Service:** `exora-v3-worker`
+- **Staging Deployment**: `staging` branch → Render.com with enhanced debugging
+- **Production Deployment**: `main` branch → Render.com with production optimization
+- **Purpose**: V3 job queue processing (shell file processing, AI document analysis)
+- **Integration**: Supabase service role + V3 job coordination functions
+- **Configuration**: See [Render.com Deployment Guide](shared/docs/architecture/database-foundation-v3/render-com-deployment-guide.md)
+
 ### Testing (Updated August 2025)
 Jest + React Testing Library with **production-quality infrastructure**:
 - **Centralized Supabase mocking**: `test-utils/supabase-mocks.ts` for consistent, typed mocks

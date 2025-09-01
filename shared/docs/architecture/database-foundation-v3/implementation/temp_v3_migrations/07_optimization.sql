@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS job_queue (
     processing_node TEXT, -- Server/container processing this job
     lock_acquired_at TIMESTAMPTZ, -- For distributed job processing
     lock_expires_at TIMESTAMPTZ,
+    heartbeat_at TIMESTAMPTZ, -- V5: Worker heartbeat timestamp
+    dead_letter_at TIMESTAMPTZ, -- V5: When job moved to dead letter queue
     
     -- Patient and Profile Context (for healthcare jobs)
     patient_id UUID REFERENCES user_profiles(id) ON DELETE SET NULL,
@@ -274,6 +276,9 @@ CREATE INDEX IF NOT EXISTS idx_job_queue_type_category ON job_queue(job_type, jo
 CREATE INDEX IF NOT EXISTS idx_job_queue_patient ON job_queue(patient_id) WHERE patient_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_job_queue_dependencies ON job_queue USING GIN(depends_on) WHERE array_length(depends_on, 1) > 0;
 CREATE INDEX IF NOT EXISTS idx_job_queue_worker ON job_queue(worker_id, status) WHERE worker_id IS NOT NULL;
+-- V5 Phase 2: Heartbeat and dead letter monitoring indexes
+CREATE INDEX IF NOT EXISTS idx_job_queue_heartbeat ON job_queue(heartbeat_at) WHERE status = 'processing';
+CREATE INDEX IF NOT EXISTS idx_job_queue_dead_letter ON job_queue(dead_letter_at) WHERE dead_letter_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_failed_audit_events_status ON failed_audit_events(recovery_status) WHERE recovery_status IN ('pending', 'retrying');
 CREATE INDEX IF NOT EXISTS idx_failed_audit_events_next_retry ON failed_audit_events(next_retry_at) WHERE next_retry_at IS NOT NULL;

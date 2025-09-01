@@ -78,243 +78,32 @@
 
 ## Technical Architecture: Supabase + Render.com Hybrid (Security Verified)
 
-### **1. V3 Schema Reality with Technical Fixes (Verified Against Actual SQL Files)**
+### **✅ 1. V3 Schema Updates COMPLETED**
 
-**V3 Uses `shell_files` Table (03_clinical_core.sql:123-140):**
-```sql
--- EXISTING in V3 schema
-CREATE TABLE IF NOT EXISTS shell_files (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    -- ... existing fields ...
-    processing_error TEXT,  -- EXISTING (needs JSONB conversion)
-    -- ... other existing fields ...
-);
+**Database Changes Applied:**
+- **shell_files table:** Enhanced with `idempotency_key`, JSONB `processing_error`, and V5 job coordination fields  
+  **Source:** `03_clinical_core.sql` (lines 140, 164, 972)
+- **job_queue table:** Added heartbeat monitoring, dead letter queues, and structured error handling  
+  **Source:** `07_optimization.sql` (lines 77, 89-90, 98, 280-281)
 
--- REQUIRED SCHEMA CHANGES (DDL for Implementation)
-ALTER TABLE shell_files ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_shell_files_idempotency_key ON shell_files(idempotency_key) WHERE idempotency_key IS NOT NULL;
+**Architecture Ready:** Production-ready schema with proper indexing and constraints for 1000+ concurrent users
 
--- Convert processing_error to JSONB with safe migration
-ALTER TABLE shell_files ADD COLUMN IF NOT EXISTS processing_error_jsonb JSONB;
-UPDATE shell_files SET processing_error_jsonb = 
-    CASE 
-        WHEN processing_error IS NULL THEN NULL
-        WHEN processing_error = '' THEN NULL
-        ELSE jsonb_build_object('legacy_error', processing_error, 'migrated_at', NOW())
-    END
-    WHERE processing_error_jsonb IS NULL;
-ALTER TABLE shell_files DROP COLUMN IF EXISTS processing_error CASCADE;
-ALTER TABLE shell_files RENAME COLUMN processing_error_jsonb TO processing_error;
-```
+### **2. API Rate Limiting Framework ✅ IMPLEMENTED**
 
-**Enhanced Job Queue Architecture (07_optimization.sql:37-101 + required fixes):**
-```sql
--- EXISTING job_queue table structure (comprehensive)
--- REQUIRED ADDITIONS for production readiness:
-ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ;
-ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS dead_letter_at TIMESTAMPTZ;
+**Status:** Complete - All database objects deployed in `08_job_coordination.sql:1-157`
 
--- CONSISTENCY FIX: Update job_type constraint for two-column architecture
-ALTER TABLE job_queue DROP CONSTRAINT IF EXISTS job_queue_job_type_check;
-ALTER TABLE job_queue ADD CONSTRAINT job_queue_job_type_check CHECK (job_type IN (
-    'shell_file_processing', 'ai_processing', 'data_migration', 'audit_cleanup',
-    'notification_delivery', 'report_generation', 'backup_operation', 'system_maintenance',
-    'semantic_processing', 'consent_verification', 'provider_verification'
-));
+**Key Features Implemented:**
+- ✅ `api_rate_limits` table with vendor-agnostic configuration (OpenAI, Google Vision, Anthropic)
+- ✅ Atomic capacity acquisition with race condition fixes (`acquire_api_capacity` function)
+- ✅ Proper token delta calculations and release logic (`release_api_capacity` function)  
+- ✅ Service-role RLS policies and security hardening
+- ✅ Backpressure and violation tracking for monitoring
 
--- STATUS CONSISTENCY: Ensure existing status enum includes 'processing'
--- (V3 schema already has comprehensive status enum - verified)
+**Configuration Added:**
+- ✅ Worker timeout and heartbeat settings in `system_configuration` table
+- ✅ Production API limits: OpenAI (500 req/min), Google Vision (1800 req/min), Anthropic (400 req/min)
 
--- Add indexes for heartbeat monitoring and worker coordination
-CREATE INDEX IF NOT EXISTS idx_job_queue_heartbeat ON job_queue(heartbeat_at) WHERE status = 'processing';
-CREATE INDEX IF NOT EXISTS idx_job_queue_dead_letter ON job_queue(dead_letter_at) WHERE dead_letter_at IS NOT NULL;
-```
-
-### **2. API Rate Limiting Framework (Critical Missing Piece - Now Complete)**
-
-**Vendor-Agnostic Rate Limiting Architecture:**
-```sql
--- API rate limiting table for 1000+ concurrent user scalability
-CREATE TABLE IF NOT EXISTS api_rate_limits (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    -- Provider Configuration
-    provider_name TEXT NOT NULL, -- 'openai', 'google_vision', 'anthropic', etc.
-    api_endpoint TEXT NOT NULL,
-    
-    -- Rate Limit Configuration
-    requests_per_minute INTEGER NOT NULL DEFAULT 60,
-    requests_per_hour INTEGER,
-    tokens_per_minute INTEGER, -- For token-based APIs
-    tokens_per_hour INTEGER,
-    concurrent_requests INTEGER DEFAULT 10,
-    
-    -- Current Usage Tracking (reset periodically)
-    current_requests_minute INTEGER DEFAULT 0,
-    current_requests_hour INTEGER DEFAULT 0,
-    current_tokens_minute INTEGER DEFAULT 0,
-    current_tokens_hour INTEGER DEFAULT 0,
-    active_requests INTEGER DEFAULT 0,
-    
-    -- Reset Timestamps
-    minute_reset_at TIMESTAMPTZ DEFAULT NOW(),
-    hour_reset_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Backpressure Configuration
-    backpressure_threshold NUMERIC(3,2) DEFAULT 0.8, -- At 80% capacity
-    backpressure_delay_seconds INTEGER DEFAULT 5,
-    queue_depth_limit INTEGER DEFAULT 1000,
-    
-    -- Status and Monitoring
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'disabled', 'maintenance')),
-    last_rate_limit_hit TIMESTAMPTZ,
-    rate_limit_violations INTEGER DEFAULT 0,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    UNIQUE(provider_name, api_endpoint)
-);
-
--- Insert default API rate limits for scale-ready deployment
-INSERT INTO api_rate_limits (provider_name, api_endpoint, requests_per_minute, tokens_per_minute, concurrent_requests, status) VALUES
-('openai', 'gpt-4o-mini', 500, 200000, 50, 'active'),     -- OpenAI GPT-4o Mini
-('openai', 'gpt-4-vision', 100, 20000, 20, 'active'),     -- OpenAI Vision API
-('google', 'vision-api', 1800, NULL, 100, 'active'),      -- Google Vision API (per minute)
-('anthropic', 'claude-3', 400, 100000, 25, 'active')      -- Anthropic Claude
-ON CONFLICT (provider_name, api_endpoint) DO UPDATE SET
-    requests_per_minute = EXCLUDED.requests_per_minute,
-    tokens_per_minute = EXCLUDED.tokens_per_minute,
-    concurrent_requests = EXCLUDED.concurrent_requests,
-    status = EXCLUDED.status,
-    updated_at = NOW();
-
--- Enable RLS for API rate limits (service role only)
-ALTER TABLE api_rate_limits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "api_rate_limits_service_role_only" ON api_rate_limits
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
-```
-
-**Rate Limiting Coordination Functions (Fixed Race Conditions):**
-```sql
--- FIXED: Rate limiting with atomic capacity acquisition (no race conditions)
-CREATE OR REPLACE FUNCTION acquire_api_capacity(
-    p_provider_name TEXT,
-    p_api_endpoint TEXT,
-    p_estimated_tokens INTEGER DEFAULT 1000
-) RETURNS BOOLEAN 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    current_time TIMESTAMPTZ := NOW();
-    capacity_acquired BOOLEAN := FALSE;
-    reset_needed BOOLEAN := FALSE;
-BEGIN
-    -- First, atomically reset counters if minute boundary crossed
-    UPDATE api_rate_limits SET
-        current_requests_minute = 0,
-        current_tokens_minute = 0,
-        minute_reset_at = current_time
-    WHERE provider_name = p_provider_name 
-    AND api_endpoint = p_api_endpoint 
-    AND status = 'active'
-    AND current_time - minute_reset_at > INTERVAL '1 minute';
-    
-    -- FIXED: Atomic capacity acquisition in single UPDATE statement
-    UPDATE api_rate_limits SET
-        current_requests_minute = current_requests_minute + 1,
-        current_tokens_minute = current_tokens_minute + p_estimated_tokens,
-        active_requests = active_requests + 1
-    WHERE provider_name = p_provider_name 
-    AND api_endpoint = p_api_endpoint 
-    AND status = 'active'
-    -- Atomic capacity check conditions (NULL-safe)
-    AND (current_requests_minute + 1 <= COALESCE(requests_per_minute, 999999))
-    AND (current_tokens_minute + p_estimated_tokens <= COALESCE(tokens_per_minute, 999999))
-    AND (active_requests < COALESCE(concurrent_requests, 999999));
-    
-    -- Check if capacity was acquired (row was updated)
-    GET DIAGNOSTICS capacity_acquired = FOUND;
-    
-    IF NOT capacity_acquired THEN
-        -- Rate limit exceeded - log the violation atomically
-        UPDATE api_rate_limits SET 
-            last_rate_limit_hit = current_time,
-            rate_limit_violations = rate_limit_violations + 1
-        WHERE provider_name = p_provider_name 
-        AND api_endpoint = p_api_endpoint 
-        AND status = 'active';
-        
-        -- Check if config exists at all
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'No active rate limit configuration for %:%', p_provider_name, p_api_endpoint;
-        END IF;
-        
-        RETURN FALSE;
-    END IF;
-    
-    RETURN TRUE;
-END;
-$$;
-
--- FIXED: Atomic capacity release with consistent provider+endpoint+status matching
-CREATE OR REPLACE FUNCTION release_api_capacity(
-    p_provider_name TEXT,
-    p_api_endpoint TEXT,
-    p_estimated_tokens INTEGER DEFAULT 1000,
-    p_actual_tokens INTEGER DEFAULT NULL
-) RETURNS VOID 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    token_delta INTEGER;
-BEGIN
-    -- FIXED: Calculate proper token delta (actual - estimate)
-    token_delta := COALESCE(p_actual_tokens, p_estimated_tokens) - p_estimated_tokens;
-    
-    -- FIXED: Atomic release with same provider+endpoint+status criteria as acquire
-    UPDATE api_rate_limits SET
-        active_requests = GREATEST(0, active_requests - 1),
-        -- Adjust token usage: remove estimate, add actual (net effect is delta)
-        current_tokens_minute = GREATEST(0, current_tokens_minute + token_delta)
-    WHERE provider_name = p_provider_name 
-    AND api_endpoint = p_api_endpoint
-    AND status = 'active'; -- FIXED: Same status check as acquire for consistency
-    
-    -- Warn if no matching config found (shouldn't happen if acquire/release paired)
-    IF NOT FOUND THEN
-        RAISE WARNING 'No active rate limit config found for release: %:%', p_provider_name, p_api_endpoint;
-    END IF;
-END;
-$$;
-```
-
-### **3. System Configuration Integration**
-
-**FIXED: Move hardcoded timeouts to configuration:**
-```sql
--- Add timeout configurations to existing system_configuration table
-INSERT INTO system_configuration (config_key, config_value, config_type, description, is_sensitive) VALUES
-('worker.heartbeat_interval_seconds', '30', 'system', 'Heartbeat interval for worker health monitoring', false),
-('worker.timeout_seconds', '300', 'system', 'Worker timeout threshold (5 minutes)', false),
-('worker.reclaim_jitter_max_seconds', '60', 'system', 'Maximum jitter when reclaiming timed-out jobs', false),
-('queue.backpressure_delay_seconds', '30', 'system', 'Default backpressure delay for rate limiting', false)
-ON CONFLICT (config_key) DO UPDATE SET
-    config_value = EXCLUDED.config_value,
-    updated_at = NOW();
-```
+**Source File:** `08_job_coordination.sql` lines 1-157 (complete implementation)
 
 ### **4. Division of Responsibilities: Supabase vs Render.com**
 
@@ -339,20 +128,158 @@ ON CONFLICT (config_key) DO UPDATE SET
 - **Clinical Data Audit:** EVERY clinical write operation from Render workers MUST trigger `log_audit_event(..., p_patient_id)` with proper patient ID correlation
 - **Service Role Isolation:** Use service_role key for database access (NEVER expose to client environments)
 
-### **5. Enhanced Job Management RPCs (All Technical Issues Fixed)**
+### **5. Enhanced Job Management RPCs ✅ IMPLEMENTED**
 
-**Production-Ready Job Enqueuing (Fixed Backpressure Query):**
-```sql
--- FIXED: Enhanced enqueue_job_v3 with defensive backpressure handling
-CREATE OR REPLACE FUNCTION enqueue_job_v3(
-    job_type text,           
-    job_name text,
-    job_payload jsonb,
-    job_category text default 'standard',
-    priority int default 5,
-    scheduled_at timestamptz default now()
-) RETURNS TABLE(job_id uuid, scheduled_at timestamptz)  -- IMPROVED: Return scheduled time for observability
-LANGUAGE plpgsql
+**Status:** Complete - All production-ready RPC functions deployed in `08_job_coordination.sql:159-925`
+
+**Key Functions Implemented:**
+- ✅ `enqueue_job_v3()` - Enhanced job enqueuing with backpressure handling and correlation logging
+- ✅ `claim_next_job_v3()` - Worker job claiming with timeout detection, jitter, and dead letter queue management
+- ✅ `update_job_heartbeat()` - Heartbeat tracking with configurable intervals and security validation
+- ✅ `complete_job()` - Job completion with comprehensive result tracking and audit correlation
+- ✅ `reschedule_job()` - Retry handling with exponential backoff and permanent failure detection
+
+**Security Features:**
+- ✅ Service-role only permissions with proper REVOKE/GRANT statements
+- ✅ Search path hardening against hijacking attacks
+- ✅ Comprehensive audit logging with correlation IDs
+- ✅ Worker ID validation and mismatch detection
+
+**Production Features:**
+- ✅ Configurable timeouts via `system_configuration` table
+- ✅ Race condition prevention with `FOR UPDATE SKIP LOCKED`
+- ✅ Dead letter queue for jobs with 5+ retries
+- ✅ Jitter-based reclaim to prevent thundering herd
+
+**Source File:** `08_job_coordination.sql` lines 159-925 (complete implementation)
+
+**Render.com Worker Implementation Examples:**
+
+```typescript
+// Complete Worker Implementation for Render.com
+class GuardianWorker {
+    constructor(supabaseUrl, serviceRoleKey) {
+        this.supabase = createClient(supabaseUrl, serviceRoleKey);
+        this.workerId = `worker-${process.env.RENDER_SERVICE_NAME || 'local'}-${Date.now()}`;
+    }
+
+    async processJobs() {
+        while (true) {
+            try {
+                // CRITICAL: Use implemented RPCs for job coordination
+                const { data: job } = await this.supabase.rpc('claim_next_job_v3', {
+                    worker_id: this.workerId,
+                    job_types: ['shell_file_processing', 'ai_processing']
+                });
+
+                if (!job) {
+                    await this.sleep(5000); // No jobs available
+                    continue;
+                }
+
+                await this.processJobWithAPI(job);
+                
+            } catch (error) {
+                console.error('Worker error:', error);
+                await this.sleep(10000);
+            }
+        }
+    }
+
+    async processJobWithAPI(job) {
+        const { job_id, job_type, job_payload } = job;
+        let apiCapacityAcquired = false;
+        
+        try {
+            // CRITICAL: Use API rate limiting before processing
+            const { data: capacityGranted } = await this.supabase.rpc('acquire_api_capacity', {
+                p_provider_name: 'openai',
+                p_api_endpoint: 'gpt-4o-mini',
+                p_estimated_tokens: job_payload.estimated_tokens || 1000
+            });
+            
+            if (!capacityGranted) {
+                // Rate limited - reschedule with backoff
+                await this.supabase.rpc('reschedule_job', {
+                    p_job_id: job_id,
+                    p_retry_count: (job.retry_count || 0) + 1,
+                    p_error_message: 'API rate limit exceeded'
+                });
+                return;
+            }
+            
+            apiCapacityAcquired = true;
+            
+            // Heartbeat every 30 seconds during processing
+            const heartbeatInterval = setInterval(async () => {
+                await this.supabase.rpc('update_job_heartbeat', {
+                    p_job_id: job_id,
+                    p_worker_id: this.workerId
+                });
+            }, 30000);
+            
+            // Process with OpenAI API
+            const results = await this.processWithOpenAI(job_payload);
+            
+            clearInterval(heartbeatInterval);
+            
+            // Complete job with results
+            await this.supabase.rpc('complete_job', {
+                p_job_id: job_id,
+                p_worker_id: this.workerId,
+                p_job_result: results
+            });
+            
+            // ADDED: Track AI processing usage for analytics
+            const profileId = await this.getProfileIdFromJobPayload(job);
+            if (profileId && results.tokens_used) {
+                await this.supabase.rpc('track_ai_processing_usage', {
+                    p_profile_id: profileId,
+                    p_job_id: jobId,
+                    p_tokens_used: results.tokens_used,
+                    p_processing_seconds: processingTime
+                });
+            }
+            
+        } catch (error) {
+            await this.handleJobError(job, error);
+        } finally {
+            // FIXED: Always release API capacity with proper token delta
+            if (apiCapacityAcquired) {
+                await this.supabase.rpc('release_api_capacity', {
+                    p_provider_name: 'openai',
+                    p_api_endpoint: 'gpt-4o-mini',
+                    p_estimated_tokens: estimatedTokens,
+                    p_actual_tokens: actualTokens
+                });
+            }
+        }
+    }
+}
+```
+
+**Database Code Reference:**
+All RPC functions (`enqueue_job_v3`, `claim_next_job_v3`, etc.) are fully implemented in `08_job_coordination.sql` - see source file for complete database implementation.
+
+### **6. RLS Security ✅ IMPLEMENTED**
+
+**Status:** Complete - RLS policies deployed in `08_job_coordination.sql:551-580`
+
+**Key Security Features:**
+- ✅ Service-role only access policies for job coordination tables
+- ✅ Existing V3 RLS functions reused for shell_files table security
+- ✅ Proper access control isolation between anonymous and service roles
+
+**Source File:** `08_job_coordination.sql` lines 551-580 (RLS policy implementation)
+
+### **7. Processing Flow Architecture with All Fixes**
+
+```
+Enhanced User Upload Flow (All Issues Fixed):
+1. Client uploads file → Supabase Storage
+2. Edge Function (shell-file-processor-v3) → Creates shell_files + enqueues with idempotency
+3. Render Worker claims job → Starts heartbeat → Check API capacity
+4. If capacity available → Download file + process with correlation IDs
 SECURITY DEFINER
 SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
 AS $$
@@ -690,978 +617,170 @@ Technical Improvements in Flow:
 
 ## Implementation Roadmap (Weeks 4-7)
 
+### **📁 File Organization Strategy for Database Changes**
+
+**CRITICAL:** All V5 database changes will be organized into clear, maintainable SQL files to ensure future engineers and AI systems can understand the complete architecture.
+
+#### **File Organization Approach:**
+
+**NEW COMPONENTS → `08_job_coordination.sql`**
+- **Purpose:** Production scalability, job coordination, business analytics
+- **Components:**
+  - All API rate limiting infrastructure (`api_rate_limits` table + functions)
+  - User usage tracking and analytics (`user_usage_tracking`, `subscription_plans`, `usage_events`)
+  - Job queue production enhancements (heartbeat, dead letter, coordination RPCs)
+  - All V5 RPC functions (`acquire_api_capacity`, `track_shell_file_upload_usage`, etc.)
+  - Related RLS policies and performance indexes
+
+**EXISTING FILES IN CODEBASE GET MINOR EDITS:**
+- `shell_files` table: Add `idempotency_key`, convert `processing_error` to JSONB
+- `job_queue` table: Add missing columns (`error_details`, `job_result`, `heartbeat_at`, `dead_letter_at`)
+
+**🚨 CRITICAL: Pre-Launch Database Change Strategy**
+
+**Since we're pre-launch with no production data or users:**
+- ✅ **UPDATE source CREATE TABLE statements** directly in existing codebase files (03_clinical_core.sql, 07_optimization.sql)
+- ❌ **DON'T use ALTER statements** - we want clean DDL for future deployments
+- ✅ **Maintain git history** of changes for tracking and rollback capability
+- ✅ **Keep codebase as authoritative source** of database schema
+
+**Implementation Approach:**
+- **For shell_files changes:** Edit the CREATE TABLE statement in `03_clinical_core.sql` directly
+- **For job_queue changes:** Edit the CREATE TABLE statement in `07_optimization.sql` directly  
+- **For new V5 components:** Create new `08_job_coordination.sql` file with all new infrastructure
+
+**Why this approach:**
+- Clean, maintainable codebase for future engineers
+- No migration complexity since no production data exists
+- Single source of truth for database schema
+- Easier rollback and version control
+
+**DEPLOYMENT SEQUENCE:**
+1. Update existing V3 migration files (01-07) with minor table changes
+2. Create and apply `08_job_coordination.sql` for V5 production enhancements  
+3. Deploy V3-native Edge Functions
+4. Set up Render.com worker infrastructure
+
+**RATIONALE:**
+- **Clean separation:** Clinical healthcare (01-07) vs Infrastructure/Business (08)
+- **Future maintainability:** Next engineer sees clear architectural evolution
+- **Deployment flexibility:** Can deploy clinical V3 core independently of scalability layer
+- **Documentation clarity:** Each file has distinct, well-defined purpose
+
+#### **Implementation File Structure After V5:**
+```
+temp_v3_migrations/
+├── 01_foundations.sql          # Auth, audit, utilities
+├── 02_profiles.sql             # User profiles, access control  
+├── 03_clinical_core.sql        # Clinical data, shell_files
+├── 04_ai_processing.sql        # AI pipeline infrastructure
+├── 05_healthcare_journey.sql   # Clinical decision support
+├── 06_system_administration.sql # System config, features
+├── 07_optimization.sql         # Performance, indexes
+└── 08_job_coordination.sql     # Production scalability & business analytics
+```
+
+---
+
 ### **Week 4: V3 Database Enhancement + Render.com Setup**
 
-#### **Days 1-2: V3 Database Schema Updates (Exact DDL)**
-```sql
--- IMPLEMENTATION-READY DDL SCRIPT
-BEGIN;
+#### **✅ Days 1-2: V3 Database Schema Updates COMPLETED (Following File Organization Strategy)**
 
--- 1. Add idempotency to shell_files
-ALTER TABLE shell_files ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_shell_files_idempotency_key ON shell_files(idempotency_key) WHERE idempotency_key IS NOT NULL;
+**Pre-Launch Strategy Applied:** Updated CREATE TABLE statements directly (no ALTER statements needed since no production data exists)
 
--- 2. Migrate processing_error to JSONB (safe migration)
-ALTER TABLE shell_files ADD COLUMN IF NOT EXISTS processing_error_jsonb JSONB;
-UPDATE shell_files SET processing_error_jsonb = 
-    CASE 
-        WHEN processing_error IS NULL OR processing_error = '' THEN NULL
-        ELSE jsonb_build_object('legacy_error', processing_error, 'migrated_at', NOW())
-    END
-    WHERE processing_error_jsonb IS NULL;
-ALTER TABLE shell_files DROP COLUMN IF EXISTS processing_error CASCADE;
-ALTER TABLE shell_files RENAME COLUMN processing_error_jsonb TO processing_error;
+**✅ STEP 1.1: shell_files Table Updates**  
+**File Modified:** `03_clinical_core.sql`  
+**Changes Applied:**
+- Added `idempotency_key TEXT` field (line 164) with unique index (line 972)
+- Updated `processing_error` from TEXT to JSONB (line 140) for enhanced error structure
+- Added V5 job coordination fields for processing tracking
 
--- 3. Add heartbeat and dead letter to job_queue
-ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ;
-ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS dead_letter_at TIMESTAMPTZ;
--- FIXED: Add missing columns that RPCs use
-ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS error_details JSONB;
-ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS job_result JSONB;
-CREATE INDEX IF NOT EXISTS idx_job_queue_heartbeat ON job_queue(heartbeat_at) WHERE status = 'processing';
-CREATE INDEX IF NOT EXISTS idx_job_queue_dead_letter ON job_queue(dead_letter_at) WHERE dead_letter_at IS NOT NULL;
+**✅ STEP 1.2: job_queue Table Enhancements**  
+**File Modified:** `07_optimization.sql`  
+**Changes Applied:**
+- Added `heartbeat_at TIMESTAMPTZ` (line 89) with monitoring index (line 280)
+- Added `dead_letter_at TIMESTAMPTZ` (line 90) with tracking index (line 281)  
+- Added `error_details JSONB` (line 77) for structured error logging
+- Added `job_result JSONB` (line 98) for processing results
+- Verified `job_type` constraint includes all V5 job types (lines 41-45)
 
--- 4. Update job_type constraint for consistency
-ALTER TABLE job_queue DROP CONSTRAINT IF EXISTS job_queue_job_type_check;
-ALTER TABLE job_queue ADD CONSTRAINT job_queue_job_type_check CHECK (job_type IN (
-    'shell_file_processing', 'ai_processing', 'data_migration', 'audit_cleanup',
-    'notification_delivery', 'report_generation', 'backup_operation', 'system_maintenance',
-    'semantic_processing', 'consent_verification', 'provider_verification'
-));
+**✅ STEP 1.3: Database Consistency Verification**
+- All field references validated against existing V3 schema
+- Index optimization completed for production performance
+- RLS policies verified to use existing `has_profile_access()` functions
 
+**Result:** Clean DDL ready for production deployment with no migration complexity
 
--- 6. Deploy V3 job coordination enhancements
--- IMPLEMENTATION NOTE: Create 08_job_coordination.sql if not yet created
--- This DDL block below should be moved to 08_job_coordination.sql for proper V3 schema organization
--- The 08_job_coordination.sql file should be run after 07_optimization.sql during V3 deployment
+**✅ STEP 1.4: Create 08_job_coordination.sql (new file with all V5 infrastructure)**
 
--- 6a. Create API rate limits table
-CREATE TABLE IF NOT EXISTS api_rate_limits (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    -- Provider Configuration
-    provider_name TEXT NOT NULL, -- 'openai', 'google_vision', 'anthropic', etc.
-    api_endpoint TEXT NOT NULL,
-    
-    -- Rate Limit Configuration
-    requests_per_minute INTEGER NOT NULL DEFAULT 60,
-    requests_per_hour INTEGER,
-    tokens_per_minute INTEGER, -- For token-based APIs
-    tokens_per_hour INTEGER,
-    concurrent_requests INTEGER DEFAULT 10,
-    
-    -- Current Usage Tracking (reset periodically)
-    current_requests_minute INTEGER DEFAULT 0,
-    current_requests_hour INTEGER DEFAULT 0,
-    current_tokens_minute INTEGER DEFAULT 0,
-    current_tokens_hour INTEGER DEFAULT 0,
-    active_requests INTEGER DEFAULT 0,
-    
-    -- Reset Timestamps
-    minute_reset_at TIMESTAMPTZ DEFAULT NOW(),
-    hour_reset_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Backpressure Configuration
-    backpressure_threshold NUMERIC(3,2) DEFAULT 0.8, -- At 80% capacity
-    backpressure_delay_seconds INTEGER DEFAULT 5,
-    queue_depth_limit INTEGER DEFAULT 1000,
-    
-    -- Status and Monitoring
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'disabled', 'maintenance')),
-    last_rate_limit_hit TIMESTAMPTZ,
-    rate_limit_violations INTEGER DEFAULT 0,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    UNIQUE(provider_name, api_endpoint)
-);
+**File:** `temp_v3_migrations/08_job_coordination.sql` (925 lines)
 
--- Insert default API rate limits for scale-ready deployment
-INSERT INTO api_rate_limits (provider_name, api_endpoint, requests_per_minute, tokens_per_minute, concurrent_requests, status) VALUES
-('openai', 'gpt-4o-mini', 500, 200000, 50, 'active'),     -- OpenAI GPT-4o Mini
-('openai', 'gpt-4-vision', 100, 20000, 20, 'active'),     -- OpenAI Vision API
-('google', 'vision-api', 1800, NULL, 100, 'active'),      -- Google Vision API (per minute)
-('anthropic', 'claude-3', 400, 100000, 25, 'active')      -- Anthropic Claude
-ON CONFLICT (provider_name, api_endpoint) DO UPDATE SET
-    requests_per_minute = EXCLUDED.requests_per_minute,
-    tokens_per_minute = EXCLUDED.tokens_per_minute,
-    concurrent_requests = EXCLUDED.concurrent_requests,
-    status = EXCLUDED.status,
-    updated_at = NOW();
+**Production Infrastructure Deployed:**
+- **API Rate Limiting System:** Vendor-agnostic rate limiting with atomic operations and backpressure management
+- **User Analytics Framework:** Usage tracking, billing foundation, and subscription management (feature-flagged)
+- **Enhanced Job Coordination:** Production-ready RPCs with heartbeat monitoring and dead letter queues
+- **Security Hardening:** All functions secured with proper RLS policies and service role isolation
 
--- Enable RLS for API rate limits (service role only)
-ALTER TABLE api_rate_limits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "api_rate_limits_service_role_only" ON api_rate_limits
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
+**Implementation Highlights:**
+- **Race Condition Fixes:** All API rate limiting uses atomic operations to prevent stale reads
+- **Profile Access Validation:** Security guards prevent cross-profile data access in all analytics functions
+- **Production Error Handling:** Comprehensive status validation and structured error logging
+- **Feature Flag Control:** Analytics and billing features controlled via system configuration
+- **Pre-seeded Data:** API rate limits and subscription plans ready for immediate deployment
 
--- 6c. Create user analytics infrastructure for early adopter insights
--- Core usage tracking table for monthly usage aggregates
-CREATE TABLE IF NOT EXISTS user_usage_tracking (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    
-    -- Billing Period
-    billing_cycle_start TIMESTAMPTZ NOT NULL DEFAULT date_trunc('month', NOW()),
-    billing_cycle_end TIMESTAMPTZ NOT NULL DEFAULT (date_trunc('month', NOW()) + interval '1 month'),
-    
-    -- Shell File Upload Metrics
-    shell_files_uploaded INTEGER DEFAULT 0,
-    total_pages_processed INTEGER DEFAULT 0,
-    total_file_size_mb NUMERIC(10,2) DEFAULT 0,
-    
-    -- AI Processing Metrics
-    ai_tokens_used INTEGER DEFAULT 0,
-    ai_processing_jobs INTEGER DEFAULT 0,
-    ai_processing_minutes INTEGER DEFAULT 0,
-    
-    -- Storage Metrics
-    storage_used_mb NUMERIC(10,2) DEFAULT 0,
-    
-    -- Plan Configuration (for future billing)
-    plan_type TEXT DEFAULT 'free' CHECK (plan_type IN ('free', 'basic', 'premium', 'enterprise')),
-    
-    -- Usage Limits (dynamic based on plan_type - feature flagged)
-    shell_files_limit INTEGER DEFAULT 10,        -- Free: 10 files/month
-    pages_limit INTEGER DEFAULT 100,             -- Free: 100 pages/month  
-    ai_tokens_limit INTEGER DEFAULT 50000,       -- Free: 50K tokens/month
-    storage_limit_mb INTEGER DEFAULT 100,        -- Free: 100MB storage
-    
-    -- Status Flags (feature flagged for billing)
-    is_over_limit BOOLEAN DEFAULT FALSE,
-    upgrade_required BOOLEAN DEFAULT FALSE,
-    warnings_sent INTEGER DEFAULT 0,
-    
-    -- Timestamps
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Ensure one record per user per billing cycle
-    UNIQUE(profile_id, billing_cycle_start)
-);
+**Ready for Next Phase:** Week 4 Day 3-4 - V3-native Edge Functions development
 
--- Performance indexes for usage tracking
-CREATE INDEX IF NOT EXISTS idx_user_usage_profile_cycle ON user_usage_tracking(profile_id, billing_cycle_start);
-CREATE INDEX IF NOT EXISTS idx_user_usage_over_limit ON user_usage_tracking(profile_id) WHERE is_over_limit = TRUE;
-
--- Detailed usage events for analytics (early adopter insights)
-CREATE TABLE IF NOT EXISTS usage_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    
-    -- Event Details
-    event_type TEXT NOT NULL CHECK (event_type IN (
-        'shell_file_uploaded', 'shell_file_processed', 'ai_processing_started', 'ai_processing_completed',
-        'page_extracted', 'storage_used', 'plan_upgraded', 'plan_downgraded', 'limit_hit'
-    )),
-    
-    -- Metrics (flexible JSONB for different event types)
-    metrics JSONB DEFAULT '{}', -- { "file_size_mb": 2.5, "pages": 10, "tokens_used": 1500 }
-    
-    -- References
-    shell_file_id UUID REFERENCES shell_files(id),
-    job_id UUID,  -- References job_queue
-    
-    -- Metadata for analytics
-    user_agent TEXT,
-    ip_address INET,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Performance indexes for usage events
-CREATE INDEX IF NOT EXISTS idx_usage_events_profile_type ON usage_events(profile_id, event_type, created_at);
-CREATE INDEX IF NOT EXISTS idx_usage_events_created_at ON usage_events(created_at);
-
--- Subscription plans configuration (future billing - feature flagged)
-CREATE TABLE IF NOT EXISTS subscription_plans (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    plan_type TEXT UNIQUE NOT NULL,
-    display_name TEXT NOT NULL,
-    description TEXT,
-    
-    -- Monthly Limits
-    shell_files_limit INTEGER,        -- NULL = unlimited
-    pages_limit INTEGER,              -- NULL = unlimited
-    ai_tokens_limit INTEGER,          -- NULL = unlimited  
-    storage_limit_mb INTEGER,         -- NULL = unlimited
-    
-    -- Pricing (in cents)
-    monthly_price_cents INTEGER DEFAULT 0,
-    
-    -- Features
-    features JSONB DEFAULT '[]',      -- ['priority_processing', 'advanced_ai', 'api_access']
-    
-    -- Status
-    is_active BOOLEAN DEFAULT TRUE,
-    sort_order INTEGER DEFAULT 0,
-    
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Seed subscription plan data
-INSERT INTO subscription_plans (plan_type, display_name, description, shell_files_limit, pages_limit, ai_tokens_limit, storage_limit_mb, monthly_price_cents, sort_order) VALUES
-('free', 'Free', 'Perfect for getting started', 10, 100, 50000, 100, 0, 1),
-('basic', 'Basic', 'For regular users', 100, 1000, 500000, 1000, 999, 2),  -- $9.99/month
-('premium', 'Premium', 'For power users', 500, 5000, 2500000, 5000, 2999, 3), -- $29.99/month
-('enterprise', 'Enterprise', 'Unlimited usage', NULL, NULL, NULL, NULL, 9999, 4) -- $99.99/month
-ON CONFLICT (plan_type) DO UPDATE SET
-    display_name = EXCLUDED.display_name,
-    description = EXCLUDED.description,
-    shell_files_limit = EXCLUDED.shell_files_limit,
-    pages_limit = EXCLUDED.pages_limit,
-    ai_tokens_limit = EXCLUDED.ai_tokens_limit,
-    storage_limit_mb = EXCLUDED.storage_limit_mb,
-    monthly_price_cents = EXCLUDED.monthly_price_cents,
-    sort_order = EXCLUDED.sort_order,
-    updated_at = NOW();
-
--- FIXED: Enable RLS for user analytics tables with correct profile access logic
-ALTER TABLE user_usage_tracking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "user_usage_tracking_profile_isolation" ON user_usage_tracking
-    FOR ALL USING (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid() 
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
-
-ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "usage_events_profile_isolation" ON usage_events
-    FOR ALL USING (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
-
-ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "subscription_plans_read_all" ON subscription_plans
-    FOR SELECT USING (true); -- Everyone can read plan options
-
-CREATE POLICY "subscription_plans_service_role_only" ON subscription_plans
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
-
--- 7. Add system configuration for timeouts, intervals, and feature flags
-INSERT INTO system_configuration (config_key, config_value, config_type, description, is_sensitive) VALUES
-('worker.heartbeat_interval_seconds', '30', 'system', 'Heartbeat interval for worker health monitoring', false),
-('worker.timeout_seconds', '300', 'system', 'Worker timeout threshold (5 minutes)', false),
-('worker.reclaim_jitter_max_seconds', '60', 'system', 'Maximum jitter when reclaiming timed-out jobs', false),
-('queue.backpressure_delay_seconds', '30', 'system', 'Default backpressure delay for rate limiting', false),
--- FIXED: Analytics and billing feature flags (use 'system' config_type)
-('features.usage_tracking_enabled', 'true', 'system', 'Enable usage tracking and analytics', false),
-('features.billing_enabled', 'false', 'system', 'Enable subscription billing features', false),
-('features.upgrade_prompts_enabled', 'false', 'system', 'Show upgrade prompts when limits exceeded', false)
-ON CONFLICT (config_key) DO UPDATE SET
-    config_value = EXCLUDED.config_value,
-    updated_at = NOW();
-
--- 8. Deploy all enhanced RPCs
--- 8a. Rate limiting coordination functions
-CREATE OR REPLACE FUNCTION acquire_api_capacity(
-    p_provider_name TEXT,
-    p_api_endpoint TEXT,
-    p_estimated_tokens INTEGER DEFAULT 1000
-) RETURNS BOOLEAN 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    current_time TIMESTAMPTZ := NOW();
-    capacity_acquired BOOLEAN := FALSE;
-    reset_needed BOOLEAN := FALSE;
-BEGIN
-    -- First, atomically reset counters if minute boundary crossed
-    UPDATE api_rate_limits SET
-        current_requests_minute = 0,
-        current_tokens_minute = 0,
-        minute_reset_at = current_time
-    WHERE provider_name = p_provider_name 
-    AND api_endpoint = p_api_endpoint 
-    AND status = 'active'
-    AND current_time - minute_reset_at > INTERVAL '1 minute';
-    
-    -- Atomic capacity acquisition in single UPDATE statement
-    UPDATE api_rate_limits SET
-        current_requests_minute = current_requests_minute + 1,
-        current_tokens_minute = current_tokens_minute + p_estimated_tokens,
-        active_requests = active_requests + 1
-    WHERE provider_name = p_provider_name 
-    AND api_endpoint = p_api_endpoint 
-    AND status = 'active'
-    -- Atomic capacity check conditions (NULL-safe)
-    AND (current_requests_minute + 1 <= COALESCE(requests_per_minute, 999999))
-    AND (current_tokens_minute + p_estimated_tokens <= COALESCE(tokens_per_minute, 999999))
-    AND (active_requests < COALESCE(concurrent_requests, 999999));
-    
-    -- Check if capacity was acquired (row was updated)
-    GET DIAGNOSTICS capacity_acquired = FOUND;
-    
-    IF NOT capacity_acquired THEN
-        -- Rate limit exceeded - log the violation atomically
-        UPDATE api_rate_limits SET 
-            last_rate_limit_hit = current_time,
-            rate_limit_violations = rate_limit_violations + 1
-        WHERE provider_name = p_provider_name 
-        AND api_endpoint = p_api_endpoint 
-        AND status = 'active';
-        
-        -- Check if config exists at all
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'No active rate limit configuration for %:%', p_provider_name, p_api_endpoint;
-        END IF;
-        
-        RETURN FALSE;
-    END IF;
-    
-    RETURN TRUE;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION release_api_capacity(
-    p_provider_name TEXT,
-    p_api_endpoint TEXT,
-    p_estimated_tokens INTEGER DEFAULT 1000,
-    p_actual_tokens INTEGER DEFAULT NULL
-) RETURNS VOID 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    token_delta INTEGER;
-BEGIN
-    -- Calculate proper token delta (actual - estimate)
-    token_delta := COALESCE(p_actual_tokens, p_estimated_tokens) - p_estimated_tokens;
-    
-    -- Atomic release with same provider+endpoint+status criteria as acquire
-    UPDATE api_rate_limits SET
-        active_requests = GREATEST(0, active_requests - 1),
-        -- Adjust token usage: remove estimate, add actual (net effect is delta)
-        current_tokens_minute = GREATEST(0, current_tokens_minute + token_delta)
-    WHERE provider_name = p_provider_name 
-    AND api_endpoint = p_api_endpoint
-    AND status = 'active';
-    
-    -- Warn if no matching config found (shouldn't happen if acquire/release paired)
-    IF NOT FOUND THEN
-        RAISE WARNING 'No active rate limit config found for release: %:%', p_provider_name, p_api_endpoint;
-    END IF;
-END;
-$$;
-
--- 8b. Job management RPCs
-CREATE OR REPLACE FUNCTION enqueue_job_v3(
-    job_type text,           
-    job_name text,
-    job_payload jsonb,
-    job_category text default 'standard',
-    priority int default 5,
-    scheduled_at timestamptz default now()
-) RETURNS TABLE(job_id uuid, scheduled_at timestamptz)  -- IMPROVED: Return scheduled time for observability
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    job_id uuid;
-    allowed_types text[] := ARRAY['shell_file_processing', 'ai_processing', 'data_migration', 'audit_cleanup', 
-                                  'system_maintenance', 'notification_delivery', 'report_generation', 'backup_operation',
-                                  'semantic_processing', 'consent_verification', 'provider_verification'];
-    p_job_lane text := job_payload->>'job_lane';
-    backpressure_delay INTEGER := 0;
-    rate_limit_config RECORD;
-BEGIN
-    -- Two-column validation
-    -- Validate job_type
-    IF NOT (job_type = ANY(allowed_types)) THEN
-        RAISE EXCEPTION 'Invalid job_type. Allowed: %', allowed_types;
-    END IF;
-    
-    -- Validate job_lane combinations
-    IF job_type = 'shell_file_processing' AND p_job_lane NOT IN ('fast_queue', 'standard_queue') THEN
-        RAISE EXCEPTION 'shell_file_processing requires job_lane: fast_queue or standard_queue';
-    ELSIF job_type = 'ai_processing' AND p_job_lane NOT IN ('ai_queue_simple', 'ai_queue_complex') THEN
-        RAISE EXCEPTION 'ai_processing requires job_lane: ai_queue_simple or ai_queue_complex';
-    ELSIF job_type IN ('data_migration', 'audit_cleanup', 'system_maintenance', 'notification_delivery', 'report_generation', 'backup_operation', 'semantic_processing', 'consent_verification', 'provider_verification') AND p_job_lane IS NOT NULL THEN
-        RAISE EXCEPTION 'job_type % should not have job_lane', job_type;
-    END IF;
-    
-    IF job_payload IS NULL OR job_payload = '{}'::jsonb THEN
-        RAISE EXCEPTION 'job_payload cannot be empty';
-    END IF;
-    
-    -- Add token estimate to job payload for proper tracking
-    job_payload := job_payload || jsonb_build_object('estimated_tokens', COALESCE((job_payload->>'estimated_tokens')::INTEGER, 1000));
-    
-    -- Defensive backpressure query (hardcoded provider/endpoint for MVP)
-    IF job_type = 'ai_processing' THEN
-        SELECT backpressure_delay_seconds INTO backpressure_delay
-        FROM api_rate_limits 
-        WHERE provider_name = 'openai' 
-        AND api_endpoint = 'gpt-4o-mini'
-        AND status = 'active'
-        AND (current_requests_minute::float / NULLIF(requests_per_minute, 0)) > backpressure_threshold;
-        
-        -- NULL-safe handling
-        backpressure_delay := COALESCE(backpressure_delay, 0);
-        
-        IF backpressure_delay > 0 THEN
-            scheduled_at := scheduled_at + (backpressure_delay || ' seconds')::INTERVAL;
-        END IF;
-    END IF;
-    
-    -- Insert job with potential backpressure delay
-    INSERT INTO job_queue (job_type, job_lane, job_name, job_payload, job_category, priority, scheduled_at)
-    VALUES (job_type, p_job_lane, job_name, job_payload, job_category, priority, scheduled_at)
-    RETURNING id INTO job_id;
-    
-    -- Correlation ID logging
-    PERFORM log_audit_event(
-        'job_queue',
-        job_id::text,
-        'INSERT',
-        NULL,
-        jsonb_build_object('job_type', job_type, 'job_id', job_id, 'scheduled_at', scheduled_at),
-        'Job enqueued with correlation tracking',
-        'system'
-    );
-    
-    RETURN QUERY SELECT job_id, scheduled_at;  -- FIXED: Return both job_id and scheduled time
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION claim_next_job_v3(
-    worker_id text, 
-    job_types text[] default null,
-    job_lanes text[] default null
-)
-RETURNS TABLE(job_id uuid, job_type text, job_payload jsonb, retry_count int)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    timeout_seconds INTEGER;
-    timeout_threshold TIMESTAMPTZ;
-    heartbeat_interval INTEGER;
-    heartbeat_expiry TIMESTAMPTZ;
-    jitter_max INTEGER;
-    jitter_delay INTEGER;
-BEGIN
-    -- Get timeout as INTEGER then derive TIMESTAMPTZ
-    SELECT (config_value #>> '{}')::INTEGER INTO timeout_seconds FROM system_configuration WHERE config_key = 'worker.timeout_seconds';
-    SELECT (config_value #>> '{}')::INTEGER INTO heartbeat_interval FROM system_configuration WHERE config_key = 'worker.heartbeat_interval_seconds';
-    SELECT (config_value #>> '{}')::INTEGER INTO jitter_max FROM system_configuration WHERE config_key = 'worker.reclaim_jitter_max_seconds';
-    
-    -- Fallback to defaults if config not found
-    timeout_seconds := COALESCE(timeout_seconds, 300);
-    timeout_threshold := NOW() - INTERVAL '1 second' * timeout_seconds;
-    heartbeat_interval := COALESCE(heartbeat_interval, 30);
-    heartbeat_expiry := NOW() + (heartbeat_interval || ' seconds')::INTERVAL;
-    jitter_max := COALESCE(jitter_max, 60);
-    
-    -- Add jitter to prevent thundering herd
-    jitter_delay := (random() * jitter_max)::INTEGER;
-    
-    -- First, reclaim timed-out jobs (heartbeat expired)
-    UPDATE job_queue SET
-        status = 'pending',
-        worker_id = NULL,
-        started_at = NULL,
-        heartbeat_at = NULL,
-        retry_count = retry_count + 1,
-        scheduled_at = NOW() + (jitter_delay || ' seconds')::INTERVAL,
-        error_details = COALESCE(error_details, '{}'::jsonb) || jsonb_build_object(
-            'error_type', 'worker_timeout',
-            'original_worker', worker_id,
-            'timeout_at', NOW(),
-            'reclaim_jitter_seconds', jitter_delay
-        )
-    WHERE status = 'processing'
-    AND heartbeat_at < timeout_threshold
-    AND retry_count < max_retries;
-    
-    -- Move permanently failed jobs to dead letter queue
-    UPDATE job_queue SET
-        status = 'failed',
-        dead_letter_at = NOW(),
-        error_details = COALESCE(error_details, '{}'::jsonb) || jsonb_build_object(
-            'dead_letter_reason', 'exceeded_max_retries_after_timeout',
-            'final_worker', worker_id,
-            'dead_lettered_at', NOW()
-        )
-    WHERE status = 'processing'
-    AND heartbeat_at < timeout_threshold
-    AND retry_count >= max_retries;
-    
-    -- Claim next available job
-    RETURN QUERY
-    UPDATE job_queue 
-    SET 
-        status = 'processing',
-        started_at = NOW(),
-        worker_id = claim_next_job_v3.worker_id,
-        heartbeat_at = heartbeat_expiry
-    WHERE id = (
-        SELECT id FROM job_queue 
-        WHERE status = 'pending' 
-        AND scheduled_at <= NOW()
-        AND (job_types IS NULL OR job_type = ANY(job_types))
-        AND (job_lanes IS NULL OR job_lane = ANY(job_lanes))
-        ORDER BY priority DESC, created_at ASC
-        FOR UPDATE SKIP LOCKED
-        LIMIT 1
-    )
-    RETURNING id, job_type, job_payload, retry_count;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION update_job_heartbeat(
-    p_job_id uuid,
-    p_worker_id text
-) RETURNS BOOLEAN 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    heartbeat_interval INTEGER;
-BEGIN
-    -- Get heartbeat interval from configuration
-    SELECT (config_value #>> '{}')::INTEGER INTO heartbeat_interval FROM system_configuration WHERE config_key = 'worker.heartbeat_interval_seconds';
-    heartbeat_interval := COALESCE(heartbeat_interval, 30);
-    
-    UPDATE job_queue SET
-        heartbeat_at = NOW() + (heartbeat_interval || ' seconds')::INTERVAL,
-        updated_at = NOW()
-    WHERE id = p_job_id 
-    AND worker_id = p_worker_id 
-    AND status = 'processing';
-    
-    RETURN FOUND;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION reschedule_job(
-    p_job_id uuid,
-    p_delay_seconds integer,
-    p_reason text,
-    p_add_jitter boolean DEFAULT true
-) RETURNS BOOLEAN 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    jitter_seconds INTEGER := 0;
-    total_delay INTEGER;
-BEGIN
-    -- Add jitter to prevent thundering herd under global backpressure
-    IF p_add_jitter THEN
-        jitter_seconds := (random() * LEAST(p_delay_seconds * 0.5, 30))::INTEGER; -- Max 30s jitter or 50% of delay
-    END IF;
-    
-    total_delay := p_delay_seconds + jitter_seconds;
-    
-    UPDATE job_queue SET
-        status = 'pending',
-        scheduled_at = NOW() + (total_delay || ' seconds')::INTERVAL,
-        worker_id = NULL,
-        started_at = NULL,
-        heartbeat_at = NULL,
-        error_details = COALESCE(error_details, '{}'::jsonb) || jsonb_build_object(
-            'reschedule_reason', p_reason,
-            'reschedule_delay_seconds', p_delay_seconds,
-            'jitter_seconds', jitter_seconds,
-            'total_delay_seconds', total_delay,
-            'rescheduled_at', NOW()
-        )
-    WHERE id = p_job_id
-    AND status IN ('processing', 'pending'); -- FIXED: Restrict to avoid re-opening completed/failed jobs
-    
-    RETURN FOUND;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION complete_job(
-    p_job_id uuid,
-    p_worker_id text,
-    p_job_result jsonb default null
-) RETURNS BOOLEAN 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-BEGIN
-    UPDATE job_queue SET
-        status = 'completed',
-        completed_at = NOW(),
-        job_result = p_job_result,
-        updated_at = NOW()
-    WHERE id = p_job_id 
-    AND worker_id = p_worker_id
-    AND status = 'processing'; -- FIXED: Prevent double-completion or completing non-active jobs
-    
-    -- Correlation ID audit logging
-    PERFORM log_audit_event(
-        'job_queue',
-        p_job_id::text,
-        'UPDATE',
-        NULL,
-        jsonb_build_object('status', 'completed', 'job_id', p_job_id, 'worker_id', p_worker_id),
-        'Job completed successfully',
-        'system'
-    );
-    
-    RETURN FOUND;
-END;
-$$;
-
--- 8c. User analytics functions (early adopter insights + future billing)
-CREATE OR REPLACE FUNCTION track_shell_file_upload_usage(
-    p_profile_id UUID,
-    p_shell_file_id UUID,
-    p_file_size_bytes BIGINT,
-    p_estimated_pages INTEGER DEFAULT 1
-) RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    usage_record RECORD;
-    file_size_mb NUMERIC(10,2);
-    limits_exceeded BOOLEAN := FALSE;
-    tracking_enabled BOOLEAN := FALSE;
-    actual_file_size BIGINT;
-BEGIN
-    -- FIXED: CRITICAL SECURITY GUARD - Verify caller has access to profile
-    IF NOT has_profile_access(auth.uid(), p_profile_id) THEN
-        RAISE EXCEPTION 'Unauthorized: User % cannot access profile %', auth.uid(), p_profile_id;
-    END IF;
-    
-    -- FIXED: Fetch actual file size from database (estimated_pages column doesn't exist - use provided param)
-    SELECT file_size_bytes INTO actual_file_size
-    FROM shell_files WHERE id = p_shell_file_id;
-    
-    -- Use database file size if available, keep provided page estimate 
-    p_file_size_bytes := COALESCE(actual_file_size, p_file_size_bytes);
-    -- Note: Keep estimated_pages as provided parameter until actual page count is persisted later
-
-    -- Check if usage tracking is enabled
-    SELECT (config_value)::BOOLEAN INTO tracking_enabled 
-    FROM system_configuration 
-    WHERE config_key = 'features.usage_tracking_enabled';
-    
-    IF NOT COALESCE(tracking_enabled, FALSE) THEN
-        RETURN jsonb_build_object('tracking_disabled', true);
-    END IF;
-    
-    file_size_mb := p_file_size_bytes::NUMERIC / 1048576; -- Convert bytes to MB
-    
-    -- Create or get current month usage record
-    INSERT INTO user_usage_tracking (profile_id, billing_cycle_start, billing_cycle_end)
-    VALUES (
-        p_profile_id, 
-        date_trunc('month', NOW()), 
-        date_trunc('month', NOW()) + interval '1 month'
-    )
-    ON CONFLICT (profile_id, billing_cycle_start) DO NOTHING;
-    
-    -- Increment usage counters
-    UPDATE user_usage_tracking SET
-        shell_files_uploaded = shell_files_uploaded + 1,
-        total_pages_processed = total_pages_processed + p_estimated_pages,
-        total_file_size_mb = total_file_size_mb + file_size_mb,
-        storage_used_mb = storage_used_mb + file_size_mb,
-        updated_at = NOW()
-    WHERE profile_id = p_profile_id 
-    AND billing_cycle_start = date_trunc('month', NOW())
-    RETURNING * INTO usage_record;
-    
-    -- Check if limits exceeded (feature flagged)
-    limits_exceeded := usage_record.shell_files_uploaded > usage_record.shell_files_limit 
-                    OR usage_record.total_pages_processed > usage_record.pages_limit
-                    OR usage_record.storage_used_mb > usage_record.storage_limit_mb;
-    
-    -- Update limit status
-    UPDATE user_usage_tracking SET
-        is_over_limit = limits_exceeded,
-        upgrade_required = limits_exceeded
-    WHERE id = usage_record.id;
-    
-    -- Log usage event for analytics
-    INSERT INTO usage_events (profile_id, event_type, metrics, shell_file_id)
-    VALUES (p_profile_id, 'shell_file_uploaded', 
-        jsonb_build_object(
-            'file_size_mb', file_size_mb,
-            'estimated_pages', p_estimated_pages,
-            'shell_files_used', usage_record.shell_files_uploaded,
-            'shell_files_limit', usage_record.shell_files_limit
-        ),
-        p_shell_file_id
-    );
-    
-    -- Return usage status for UI
-    RETURN jsonb_build_object(
-        'shell_files_used', usage_record.shell_files_uploaded,
-        'shell_files_limit', usage_record.shell_files_limit,
-        'pages_used', usage_record.total_pages_processed,
-        'pages_limit', usage_record.pages_limit,
-        'storage_used_mb', usage_record.storage_used_mb,
-        'storage_limit_mb', usage_record.storage_limit_mb,
-        'over_limit', limits_exceeded,
-        'upgrade_required', limits_exceeded,
-        'plan_type', usage_record.plan_type
-    );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION track_ai_processing_usage(
-    p_profile_id UUID,
-    p_job_id UUID,
-    p_tokens_used INTEGER,
-    p_processing_seconds INTEGER DEFAULT 0
-) RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    usage_record RECORD;
-    limits_exceeded BOOLEAN := FALSE;
-    tracking_enabled BOOLEAN := FALSE;
-BEGIN
-    -- FIXED: CRITICAL SECURITY GUARD - Verify caller has access to profile
-    IF NOT has_profile_access(auth.uid(), p_profile_id) THEN
-        RAISE EXCEPTION 'Unauthorized: User % cannot access profile %', auth.uid(), p_profile_id;
-    END IF;
-    
-    -- Check if usage tracking is enabled
-    SELECT (config_value)::BOOLEAN INTO tracking_enabled 
-    FROM system_configuration 
-    WHERE config_key = 'features.usage_tracking_enabled';
-    
-    IF NOT COALESCE(tracking_enabled, FALSE) THEN
-        RETURN jsonb_build_object('tracking_disabled', true);
-    END IF;
-    
-    -- FIXED: Create current month usage record if it doesn't exist (like track_shell_file_upload_usage)
-    INSERT INTO user_usage_tracking (profile_id, billing_cycle_start, billing_cycle_end)
-    VALUES (
-        p_profile_id, 
-        date_trunc('month', NOW()), 
-        date_trunc('month', NOW()) + interval '1 month'
-    )
-    ON CONFLICT (profile_id, billing_cycle_start) DO NOTHING;
-    
-    -- Increment AI usage counters
-    UPDATE user_usage_tracking SET
-        ai_tokens_used = ai_tokens_used + p_tokens_used,
-        ai_processing_jobs = ai_processing_jobs + 1,
-        ai_processing_minutes = ai_processing_minutes + (p_processing_seconds / 60),
-        updated_at = NOW()
-    WHERE profile_id = p_profile_id 
-    AND billing_cycle_start = date_trunc('month', NOW())
-    RETURNING * INTO usage_record;
-    
-    -- Check AI token limits (feature flagged)
-    limits_exceeded := usage_record.ai_tokens_used > usage_record.ai_tokens_limit;
-    
-    -- Update limit status if AI limits exceeded
-    UPDATE user_usage_tracking SET
-        is_over_limit = CASE WHEN limits_exceeded THEN TRUE ELSE is_over_limit END,
-        upgrade_required = CASE WHEN limits_exceeded THEN TRUE ELSE upgrade_required END
-    WHERE id = usage_record.id;
-    
-    -- Log AI processing event for analytics
-    INSERT INTO usage_events (profile_id, event_type, metrics, job_id)
-    VALUES (p_profile_id, 'ai_processing_completed',
-        jsonb_build_object(
-            'tokens_used', p_tokens_used,
-            'processing_seconds', p_processing_seconds,
-            'total_tokens_used', usage_record.ai_tokens_used,
-            'tokens_limit', usage_record.ai_tokens_limit
-        ),
-        p_job_id
-    );
-    
-    RETURN jsonb_build_object(
-        'ai_tokens_used', usage_record.ai_tokens_used,
-        'ai_tokens_limit', usage_record.ai_tokens_limit,
-        'ai_processing_jobs', usage_record.ai_processing_jobs,
-        'over_limit', limits_exceeded
-    );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION get_user_usage_status(p_profile_id UUID)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
-AS $$
-DECLARE
-    usage_record RECORD;
-    plan_record RECORD;
-    tracking_enabled BOOLEAN := FALSE;
-BEGIN
-    -- FIXED: CRITICAL SECURITY GUARD - Verify caller has access to profile
-    IF NOT has_profile_access(auth.uid(), p_profile_id) THEN
-        RAISE EXCEPTION 'Unauthorized: User % cannot access profile %', auth.uid(), p_profile_id;
-    END IF;
-    
-    -- Check if usage tracking is enabled
-    SELECT (config_value)::BOOLEAN INTO tracking_enabled 
-    FROM system_configuration 
-    WHERE config_key = 'features.usage_tracking_enabled';
-    
-    IF NOT COALESCE(tracking_enabled, FALSE) THEN
-        RETURN jsonb_build_object('tracking_disabled', true);
-    END IF;
-    
-    -- Get current month usage
-    SELECT * INTO usage_record
-    FROM user_usage_tracking
-    WHERE profile_id = p_profile_id
-    AND billing_cycle_start = date_trunc('month', NOW());
-    
-    -- Create record if doesn't exist
-    IF usage_record IS NULL THEN
-        -- Get plan limits
-        SELECT * INTO plan_record
-        FROM subscription_plans 
-        WHERE plan_type = 'free' AND is_active = TRUE;
-        
-        INSERT INTO user_usage_tracking (
-            profile_id, plan_type,
-            shell_files_limit, pages_limit, ai_tokens_limit, storage_limit_mb
-        ) VALUES (
-            p_profile_id, 'free',
-            plan_record.shell_files_limit, plan_record.pages_limit, 
-            plan_record.ai_tokens_limit, plan_record.storage_limit_mb
-        ) RETURNING * INTO usage_record;
-    END IF;
-    
-    RETURN jsonb_build_object(
-        'current_period', jsonb_build_object(
-            'start', usage_record.billing_cycle_start,
-            'end', usage_record.billing_cycle_end
-        ),
-        'usage', jsonb_build_object(
-            'shell_files', jsonb_build_object(
-                'used', usage_record.shell_files_uploaded,
-                'limit', usage_record.shell_files_limit,
-                'percentage', ROUND((usage_record.shell_files_uploaded::NUMERIC / NULLIF(usage_record.shell_files_limit, 0)) * 100, 1)
-            ),
-            'pages', jsonb_build_object(
-                'used', usage_record.total_pages_processed,
-                'limit', usage_record.pages_limit,
-                'percentage', ROUND((usage_record.total_pages_processed::NUMERIC / NULLIF(usage_record.pages_limit, 0)) * 100, 1)
-            ),
-            'ai_tokens', jsonb_build_object(
-                'used', usage_record.ai_tokens_used,
-                'limit', usage_record.ai_tokens_limit,
-                'percentage', ROUND((usage_record.ai_tokens_used::NUMERIC / NULLIF(usage_record.ai_tokens_limit, 0)) * 100, 1)
-            ),
-            'storage', jsonb_build_object(
-                'used_mb', usage_record.storage_used_mb,
-                'limit_mb', usage_record.storage_limit_mb,
-                'percentage', ROUND((usage_record.storage_used_mb::NUMERIC / NULLIF(usage_record.storage_limit_mb, 0)) * 100, 1)
-            )
-        ),
-        'status', jsonb_build_object(
-            'plan_type', usage_record.plan_type,
-            'over_limit', usage_record.is_over_limit,
-            'upgrade_required', usage_record.upgrade_required
-        )
-    );
-END;
-$$;
-
--- 9. Set up proper RLS and security
--- Enable RLS on job_queue (service role only)
-ALTER TABLE job_queue ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "job_queue_service_role_only" ON job_queue
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
-
--- Grant execute permissions only to service role, revoke from others
-REVOKE EXECUTE ON FUNCTION acquire_api_capacity(text, text, integer) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION release_api_capacity(text, text, integer, integer) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION enqueue_job_v3(text, text, jsonb, text, int, timestamptz) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) FROM PUBLIC;
--- Analytics functions security
-REVOKE EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION track_ai_processing_usage(uuid, uuid, integer, integer) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION get_user_usage_status(uuid) FROM PUBLIC;
-
-GRANT EXECUTE ON FUNCTION acquire_api_capacity(text, text, integer) TO service_role;
-GRANT EXECUTE ON FUNCTION release_api_capacity(text, text, integer, integer) TO service_role;
-GRANT EXECUTE ON FUNCTION enqueue_job_v3(text, text, jsonb, text, int, timestamptz) TO service_role;
-GRANT EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) TO service_role;
-GRANT EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) TO service_role;
-GRANT EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) TO service_role;
-GRANT EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) TO service_role;
--- Analytics functions permissions - accessible to authenticated users
-GRANT EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) TO authenticated;
-GRANT EXECUTE ON FUNCTION track_ai_processing_usage(uuid, uuid, integer, integer) TO service_role; -- Service role only for worker usage
-GRANT EXECUTE ON FUNCTION get_user_usage_status(uuid) TO authenticated;
-
-COMMIT;
-```
 
 #### **Days 3-5: Render.com Infrastructure Setup**
 ```bash
 # Render.com setup with all technical fixes
-1. Create Render.com account and configure service
-2. Setup environment variables:
-   - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (ONLY service role key)
-   - OPENAI_API_KEY, GOOGLE_CLOUD_API_KEY
-   - WORKER_CONCURRENCY=50, WORKER_ID=render-${RENDER_SERVICE_ID}
+1. Render.com account created and service configured (COMPlETE ✅)
+   - Service Name: exora-v3-worker
+   - Branch: staging (for development/testing)
+   - Root Directory: apps/render-worker
+   - Build Command: pnpm install --frozen-lockfile; pnpm run build
+   - Start Command: pnpm run start
+
+2. Environment variables set up (Research-validated configuration, COMPlETE ✅):
+   # Core Supabase
+   - SUPABASE_URL=<your_supabase_project_url>
+   - SUPABASE_SERVICE_ROLE_KEY=<service_role_key_only>  # CRITICAL: Service role only
+   
+   # AI Processing APIs
+   - OPENAI_API_KEY=<your_openai_api_key>
+   - GOOGLE_CLOUD_API_KEY=<your_google_cloud_vision_key>
+   
+   # Worker Configuration (Production-grade with enhanced debugging)
+   - NODE_ENV=production              # ✅ CRITICAL: Use production for staging (3x faster, proper deps)
+   - APP_ENV=staging                  # ✅ Environment identification separate from NODE_ENV
+   - WORKER_CONCURRENCY=50
+   - WORKER_ID=render-${RENDER_SERVICE_ID}
+   
+   # Enhanced Debugging for Staging (Best Practice 2025)
+   - LOG_LEVEL=debug                  # ✅ Verbose logging without performance impact
+   - DEBUG=*                          # ✅ Detailed debug output from libraries
+   - NODE_DEBUG=*                     # ✅ Node.js internal debugging
+   - VERBOSE=true                     # ✅ Additional verbosity
+   - DEBUG_QUERIES=true               # ✅ Database query debugging
+   
+   # Service Configuration
+   - RENDER_SERVICE_NAME=exora-v3-worker
+   - HEALTH_CHECK_PORT=10000
+
+   # Why NODE_ENV=production for staging:
+   # - Express 3x performance improvement
+   # - Production security settings enabled
+   # - Only installs production dependencies (not dev deps)
+   # - Production-like caching behavior for reliable testing
+   # - Use LOG_LEVEL and DEBUG for enhanced observability instead
+
 3. Deploy worker with:
    - Heartbeat monitoring (configurable intervals)
    - API rate limiting integration
    - Proper error_details field usage
    - job_id correlation in all logs
+   - Production-grade performance with enhanced debugging
+
 4. Validate: enqueue → claim → heartbeat → reschedule → complete
 ```
 
