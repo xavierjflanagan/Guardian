@@ -53,13 +53,15 @@ patient_clinical_events (Central Hub)
 
 ### 1. AI Processing Pipeline Flow
 
-**Document Upload → Pass 1 Entity Detection → Pass 2 Schema Enrichment → V3 Database Storage**
+**File Upload → Pass 1 Entity Detection → Pass 2 Schema Enrichment → V3 Database Storage**
 
 ```mermaid
 flowchart TD
-    A[Document Upload] --> B[Pass 1: Entity Detection]
+    A[Shell File Upload] --> A1[Usage Tracking]
+    A1 --> B[Pass 1: Entity Detection]
     B --> C[Entity Classification]
     C --> D[Pass 2: Schema Enrichment]
+    D --> D1[AI Usage Tracking]
     D --> E[V3 Core Storage]
     D --> F[Specialized Table Storage]
     
@@ -72,6 +74,11 @@ flowchart TD
     F --> L[patient_medications]
     F --> M[patient_vitals]
     F --> N[patient_allergies]
+    
+    A1 --> O[user_usage_tracking]
+    D1 --> P[usage_events]
+    O --> Q[Business Analytics]
+    P --> Q
 ```
 
 ### 2. Russian Babushka Doll Contextual Layering
@@ -118,7 +125,7 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 | **profile_access_permissions** | Cross-profile access control | `user_id → auth.users, profile_id → user_profiles` | ✅ Enhanced in V3 |
 | **user_profile_context** | Profile switching context | `current_profile_id → user_profiles(id)` | ✅ Core to V3 |
 
-### **V3 Semantic Document Architecture** (Revolutionary Clinical Storytelling)
+### **V3 Semantic File Architecture** (Revolutionary Clinical Storytelling)
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
@@ -171,8 +178,8 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **entity_processing_audit** | AI entity processing audit trail | `document_id → documents(id)` | ✅ **V3 ENHANCED** |
-| **profile_classification_audit** | Profile detection audit | `document_id → documents(id)` | ✅ **V3 ENHANCED** |
+| **entity_processing_audit_v2** | AI entity processing audit trail | `shell_file_id → shell_files(id)` | ✅ **V3 ENHANCED** |
+| **profile_classification_audit** | Profile detection audit | `shell_file_id → shell_files(id)` | ✅ **V3 ENHANCED** |
 
 ### **Clinical Decision Support & Care Management**
 
@@ -191,7 +198,7 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 | **smart_health_features** | Profile health feature configuration | `profile_id → user_profiles(id)` ✅ | ✅ Preserved in V3 |
 | **pregnancy_journey_events** | Pregnancy-specific tracking | `profile_id → user_profiles(id)` ✅ | ✅ Enhanced in V3 |
 | **profile_verification_rules** | Identity verification workflows | Profile-based rules | ✅ Enhanced in V3 |
-| **profile_detection_patterns** | AI document-to-profile routing | Pattern matching | ✅ **V3 CRITICAL** |
+| **profile_detection_patterns** | AI shellfile-to-profile routing | Pattern matching | ✅ **V3 CRITICAL** |
 | **profile_auth_progression** | Authentication level progression | `profile_id → user_profiles(id)` ✅ | ✅ Enhanced in V3 |
 | **profile_appointments** | Healthcare appointment management | `profile_id → user_profiles(id)` ✅ | ✅ Enhanced in V3 |
 
@@ -202,6 +209,14 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 | **patient_consents** | GDPR consent management | ❌ `patient_id → auth.users(id)` | 🔄 **V3 CORRECTION:** → user_profiles |
 | **patient_consent_audit** | Consent change audit | Via consent records | ✅ Preserved in V3 |
 | **user_consent_preferences** | User consent preferences | `user_id → auth.users(id)` ✅ | ✅ Preserved in V3 |
+
+### **User Analytics & Subscription Management** (Business Intelligence & Monetization)
+
+| Table | Purpose | Key Relationships | V3 Status |
+|-------|---------|-------------------|-----------|  
+| **user_usage_tracking** | Monthly usage metrics and billing cycles | `profile_id → user_profiles(id)` ✅ | ✅ **V3 NEW ARCHITECTURE** |
+| **subscription_plans** | Plan configuration and pricing tiers | Reference table for billing | ✅ **V3 NEW ARCHITECTURE** |
+| **usage_events** | Detailed usage analytics and audit trail | `profile_id → user_profiles(id)` ✅ | ✅ **V3 NEW ARCHITECTURE** |
 
 ### **System Infrastructure & Operations**
 
@@ -221,7 +236,7 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 | Category | V2 Tables | ID Corrections Needed | V3 Integration |
 |----------|-----------|----------------------|----------------|
 | **✅ Foundation** | 4 tables | 0 corrections | Core to V3 architecture |
-| **🔄 Document Processing** | 3 tables | 1 major evolution | Shell files + clinical narratives |
+| **🔄 Shell File Processing** | 3 tables | 1 major evolution | Shell files + clinical narratives |
 | **✅ V3 Core Hub** | 5 tables | 0 corrections | Central V3 architecture |
 | **🔄 Clinical Context** | 6 tables | 5 ID corrections | Links to V3 core |
 | **🔄 Provider Care** | 5 tables | 2 ID corrections | Enhanced in V3 |
@@ -229,9 +244,10 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 | **🔄 Decision Support** | 5 tables | 2 ID corrections | Enhanced workflows |
 | **✅ Profile Features** | 6 tables | 0 corrections | Core V3 functionality |
 | **🔄 Compliance** | 3 tables | 2 ID corrections | Enhanced security |
+| **✅ User Analytics & Subscription** | 3 tables | 0 corrections | Business intelligence foundation |
 | **🔄 System Infrastructure** | 8 tables | 2 ID corrections | Foundation preservation |
 
-**Total**: 47 tables | **ID Corrections Needed**: 14 tables | **V3 Evolution**: 47 tables enhanced or integrated
+**Total**: 50 tables | **ID Corrections Needed**: 14 tables | **V3 Evolution**: 50 tables enhanced or integrated
 
 ---
 
@@ -251,12 +267,20 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 
 | Table | Purpose | Key Fields | V3 Integration |
 |-------|---------|------------|----------------|
-| **documents** | File management | filename, status, ai_document_summary, extracted_text | Source for all clinical data |
+| **shell_files** | File management | filename, status, ai_document_summary, extracted_text | Source for all clinical data |
 | **patient_conditions** | Diagnosis details | condition_name, severity, status, diagnosed_date | Links to clinical_event_id |
 | **patient_medications** | Prescription tracking | medication_name, prescribed_dose, status, adherence_notes | Medication-specific context |
 | **patient_vitals** | Measurement specifics | vital_type, measurement_value, is_abnormal, clinical_context | Vital sign details |
 | **patient_allergies** | Safety information | allergen_name, reaction_type, severity, symptoms | Critical safety data |
 | **patient_immunizations** | Vaccination records | vaccine_name, administration_date, dose_number, adverse_reactions | Immunization tracking |
+
+### User Analytics & Subscription Tables (3 tables)
+
+| Table | Purpose | Key Fields | V3 Integration |
+|-------|---------|------------|----------------|
+| **user_usage_tracking** | Monthly usage metrics | profile_id, shell_files_uploaded, ai_tokens_used, plan_type | Core analytics foundation |
+| **subscription_plans** | Plan configuration | plan_type, shell_files_limit, monthly_price_cents, features | Billing infrastructure |
+| **usage_events** | Detailed usage analytics | profile_id, event_type, metrics, shell_file_id | Behavioral analytics |
 
 ### Reference Tables (2 tables)
 
@@ -269,7 +293,7 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 
 | Table | Purpose | Key Fields | V3 Integration |
 |-------|---------|------------|----------------|
-| **entity_processing_audit** | Entity tracking audit | entity_category, processing_metadata | V3 entity processing audit |
+| **entity_processing_audit_v2** | Entity tracking audit | entity_category, processing_metadata | V3 entity processing audit |
 | **profile_classification_audit** | Profile detection audit | recommended_profile_type, contamination_risk_score | V2 safety integration |
 | **clinical_alert_rules** | Decision support rules | rule_type, trigger_condition, alert_priority | Clinical decision engine |
 | **provider_action_items** | Care recommendations | action_type, question, supporting_data | Provider workflow integration |
@@ -338,7 +362,7 @@ SELECT
     ce.event_name, ce.ai_confidence, ce.ai_model_version,
     ea.entity_category, ea.processing_metadata
 FROM patient_clinical_events ce
-JOIN entity_processing_audit ea ON ea.document_id = ce.document_id
+JOIN entity_processing_audit_v2 ea ON ea.shell_file_id = ce.shell_file_id
 WHERE ce.patient_id = $1
 ORDER BY ce.event_date DESC;
 ```
@@ -408,13 +432,64 @@ WHERE clinical_event_id IS NULL; -- Only promote unlinked records
 
 ---
 
+## 📊 **Usage Tracking & Analytics Integration**
+
+### Usage Tracking Architecture
+
+The V3 database includes comprehensive usage tracking integrated directly into the clinical data flow:
+
+**Key Integration Points:**
+1. **File Upload Flow**: Automatic usage tracking on file upload
+2. **AI Processing Flow**: Token usage and processing time tracking
+3. **Real-time Limits**: Dynamic limit enforcement based on subscription plans
+4. **Business Analytics**: Comprehensive user behavior and conversion tracking
+
+### Core Usage Functions
+
+| Function | Purpose | Integration Point | Usage Pattern |
+|----------|---------|------------------|---------------|
+| `track_file_upload_usage()` | Track file uploads and storage | File upload API/Edge Function | Called after successful upload |
+| `track_ai_processing_usage()` | Track AI tokens and processing time | AI processing workers | Called after AI job completion |
+| `get_user_usage_status()` | Get current usage metrics for UI | Frontend components | Called for dashboard display |
+
+### Usage Tracking Data Flow
+
+```sql
+-- File Upload Integration
+File Upload → Shell File Creation → track_file_upload_usage() → Usage Limits Check
+
+-- AI Processing Integration  
+AI Job Start → Processing → Completion → track_ai_processing_usage() → Token Limit Check
+
+-- Frontend Integration
+Dashboard Load → get_user_usage_status() → Display Usage Metrics → Upgrade Prompts
+```
+
+### Business Intelligence Capabilities
+
+**Analytics Queries Available:**
+- Daily/monthly user activity trends
+- Plan upgrade conversion tracking
+- Usage pattern analysis by user demographics
+- Revenue projection from usage data
+- Feature utilization metrics
+
+**Key Metrics Tracked:**
+- Files uploaded per billing cycle
+- Pages processed per user
+- AI tokens consumed
+- Storage utilization
+- Plan upgrade triggers and conversions
+
+---
+
 ## ✅ **Implementation Success Metrics**
 
 ### Database Foundation Metrics
-- **22 Total Tables**: 5 V3 core + 8 specialized + 2 reference + 7 AI processing
-- **40+ Performance Indexes**: Optimized for AI processing and clinical queries
-- **25+ RLS Policies**: Profile-based security throughout
-- **8 Utility Functions**: Clinical data access and AI processing workflow
+- **25 Total Tables**: 5 V3 core + 8 specialized + 3 analytics + 2 reference + 7 AI processing
+- **45+ Performance Indexes**: Optimized for AI processing, clinical queries, and usage analytics
+- **28+ RLS Policies**: Profile-based security throughout including analytics
+- **11 Utility Functions**: Clinical data access, AI processing workflow, and usage tracking
 
 ### Architectural Achievement Validation
 - [x] **Blueprint Issue #38 ID System**: RESOLVED - All clinical tables use user_profiles(id)
@@ -439,9 +514,11 @@ WHERE clinical_event_id IS NULL; -- Only promote unlinked records
 3. **Clinical Decision Support**: Rule-based alerts and provider action items
 4. **Audit and Compliance**: Complete processing provenance and validation workflows
 5. **Multi-Profile Healthcare**: Family healthcare management with secure data isolation
+6. **User Analytics & Business Intelligence**: Usage tracking, conversion analysis, and revenue optimization
+7. **Subscription Management**: Freemium model with usage-based billing and plan management
 
 ### Future Enhancement Capabilities:
-- **Semantic Document Architecture**: Ready for shell files + clinical narratives integration
+- **Semantic File Architecture**: Ready for shell files + clinical narratives integration
 - **Advanced AI Models**: Multi-modal processing support built-in
 - **FHIR Integration**: Healthcare interoperability framework prepared
 - **Scalability**: Horizontal scaling with optimized partitioning ready
@@ -467,6 +544,11 @@ SPECIALIZED CLINICAL CONTEXT
 ├── patient_vitals (Vital signs)
 ├── patient_allergies (Safety data)
 └── patient_immunizations (Vaccines)
+
+USER ANALYTICS & SUBSCRIPTION
+├── user_usage_tracking (Monthly metrics)
+├── subscription_plans (Plan configuration)
+└── usage_events (Behavioral analytics)
 
 AI PROCESSING INFRASTRUCTURE
 ├── entity_processing_audit (Entity tracking)

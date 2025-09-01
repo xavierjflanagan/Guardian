@@ -333,7 +333,7 @@ ON CONFLICT (config_key) DO UPDATE SET
 - **Queue Processing:** Claim jobs with heartbeat updates and timeout detection
 - **Retry Logic:** Exponential backoff with jitter and API rate limit awareness
 - **Scalability:** Horizontal scaling with API capacity coordination
-- **OS Dependencies:** ImageMagick, poppler, tesseract for document processing
+- **OS Dependencies:** ImageMagick, poppler, tesseract for shell_file processing
 - **Dead Letter Queue:** Final error handling with structured error logging
 - **Correlation Tracking:** Include job_id in all audit events and log lines
 - **Clinical Data Audit:** EVERY clinical write operation from Render workers MUST trigger `log_audit_event(..., p_patient_id)` with proper patient ID correlation
