@@ -36,7 +36,7 @@ END $$;
 -- SECTION 1: AI PROCESSING SESSION MANAGEMENT
 -- =============================================================================
 
--- AI processing sessions for document processing coordination - UPDATED for semantic architecture
+-- AI processing sessions for shell file processing coordination - UPDATED for semantic architecture
 CREATE TABLE IF NOT EXISTS ai_processing_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit_v2 (
     
     -- V3 Core Fields (Enhanced)
     entity_category TEXT NOT NULL CHECK (entity_category IN (
-        'clinical_event', 'healthcare_context', 'document_structure'
+        'clinical_event', 'healthcare_context', 'file_structure'
     )),
     entity_subtype TEXT NOT NULL,
     pass1_confidence NUMERIC(4,3) CHECK (pass1_confidence BETWEEN 0 AND 1),
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit_v2 (
 -- =============================================================================
 -- SECTION 3: PROFILE CLASSIFICATION & SAFETY (V2 Integration)
 -- =============================================================================
--- CRITICAL FIX: Proper document references and profile-based access
+-- CRITICAL FIX: Proper file references and profile-based access
 
 -- Profile classification audit for V2 safety validation
 CREATE TABLE IF NOT EXISTS profile_classification_audit (
@@ -657,7 +657,7 @@ BEGIN
         RAISE NOTICE '    - patient_clinical_events integration established';
         RAISE NOTICE '    - patient_observations and patient_interventions linking operational';
         RAISE NOTICE '    - healthcare_encounters context tracking enabled';
-        RAISE NOTICE '  V3 entity classification (clinical_event, healthcare_context, document_structure)';
+        RAISE NOTICE '  V3 entity classification (clinical_event, healthcare_context, file_structure)';
         RAISE NOTICE '  V2 safety validation and contamination prevention integrated';
         RAISE NOTICE '';
         RAISE NOTICE 'MANUAL REVIEW SYSTEM (Blueprint Issue #39):';
@@ -805,7 +805,7 @@ CREATE TABLE IF NOT EXISTS narrative_creation_audit (
     processing_completed_at TIMESTAMPTZ
 );
 
--- Shell file synthesis results for post-Pass 3 document summaries
+-- Shell file synthesis results for post-Pass 3 shell file summaries
 CREATE TABLE IF NOT EXISTS shell_file_synthesis_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,

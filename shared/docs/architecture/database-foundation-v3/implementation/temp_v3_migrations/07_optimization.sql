@@ -183,7 +183,7 @@ ALTER TABLE user_events ADD COLUMN IF NOT EXISTS impersonated_profile_id UUID RE
 
 -- Add event classification (enhance existing action field)
 ALTER TABLE user_events ADD COLUMN IF NOT EXISTS event_type TEXT CHECK (event_type IN (
-    'login', 'logout', 'profile_switch', 'document_upload', 'document_view', 'document_download',
+    'login', 'logout', 'profile_switch', 'file_upload', 'file_view', 'file_download',
     'consent_given', 'consent_withdrawn', 'data_export', 'provider_access_granted',
     'medication_added', 'condition_added', 'allergy_reported', 'appointment_scheduled',
     'narrative_viewed', 'clinical_data_modified', 'security_alert'

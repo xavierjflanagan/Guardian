@@ -46,7 +46,7 @@ CREATE TABLE user_profiles (
     auth_level access_level_type NOT NULL DEFAULT 'read_write', -- Strong typed access level
     auth_verified_at TIMESTAMPTZ,
     auth_verification_status verification_status_type DEFAULT 'unverified', -- Strong typed verification
-    auth_method TEXT, -- 'document_extraction', 'manual_entry', 'id_verification', 'bank_verification'
+    auth_method TEXT, -- 'file_extraction', 'manual_entry', 'id_verification', 'bank_verification'
     
     -- Profile Lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -82,8 +82,8 @@ CREATE TABLE profile_access_permissions (
     permission_level access_level_type NOT NULL, -- Strong typed access level
     
     -- Granular Permissions
-    can_upload_documents BOOLEAN NOT NULL DEFAULT FALSE,
-    can_view_documents BOOLEAN NOT NULL DEFAULT FALSE,
+    can_upload_files BOOLEAN NOT NULL DEFAULT FALSE,
+    can_view_files BOOLEAN NOT NULL DEFAULT FALSE,
     can_edit_medical_data BOOLEAN NOT NULL DEFAULT FALSE,
     can_share_data BOOLEAN NOT NULL DEFAULT FALSE,
     can_manage_permissions BOOLEAN NOT NULL DEFAULT FALSE,
@@ -197,7 +197,7 @@ CREATE TABLE profile_verification_rules (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Profile detection patterns for document analysis
+-- Profile detection patterns for file analysis
 CREATE TABLE profile_detection_patterns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pattern_type TEXT NOT NULL CHECK (pattern_type IN ('name', 'dob', 'pet_name', 'identifier')),
@@ -211,7 +211,7 @@ CREATE TABLE profile_detection_patterns (
 CREATE TABLE profile_auth_progression (
     profile_id UUID PRIMARY KEY REFERENCES user_profiles(id),
     
-    -- Soft Authentication (from first document)
+    -- Soft Authentication (from first file)
     soft_auth_completed BOOLEAN DEFAULT FALSE,
     soft_auth_data JSONB, -- Extracted patient details
     soft_auth_confidence NUMERIC(3,2),

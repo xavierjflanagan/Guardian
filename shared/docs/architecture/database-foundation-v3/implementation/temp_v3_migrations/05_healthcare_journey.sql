@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS patient_provider_access (
     referral_reason TEXT,
     referral_date DATE,
     referral_expiry_date DATE,
-    referral_document_reference TEXT,
+    referral_file_reference TEXT,
     
     -- Patient Consent and Authorization
     patient_consent_given BOOLEAN NOT NULL DEFAULT FALSE,
@@ -403,7 +403,7 @@ CREATE TABLE IF NOT EXISTS provider_action_items (
     clinical_context TEXT NOT NULL, -- Detailed clinical reasoning
     
     -- SEMANTIC ARCHITECTURE INTEGRATION
-    shell_file_id UUID REFERENCES shell_files(id), -- Source document if applicable
+    shell_file_id UUID REFERENCES shell_files(id), -- Source file if applicable
     narrative_id UUID REFERENCES clinical_narratives(id), -- Related clinical narrative
     clinical_event_id UUID REFERENCES patient_clinical_events(id), -- Triggering clinical event
     
@@ -510,7 +510,7 @@ CREATE TABLE IF NOT EXISTS provider_clinical_notes (
     )),
     
     -- SEMANTIC ARCHITECTURE INTEGRATION
-    shell_file_id UUID REFERENCES shell_files(id), -- Source document if transcribed/extracted
+    shell_file_id UUID REFERENCES shell_files(id), -- Source file if transcribed/extracted
     narrative_id UUID REFERENCES clinical_narratives(id), -- Related clinical narrative
     clinical_event_id UUID REFERENCES patient_clinical_events(id), -- Associated clinical event
     
