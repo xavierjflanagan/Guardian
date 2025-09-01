@@ -37,12 +37,13 @@ END $$;
 CREATE TABLE IF NOT EXISTS job_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
-    -- Job Classification
+    -- Job Classification - Two-column architecture: job_type (category) + job_lane (routing)
     job_type TEXT NOT NULL CHECK (job_type IN (
-        'document_processing', 'ai_processing', 'data_migration', 'audit_cleanup',
+        'shell_file_processing', 'ai_processing', 'data_migration', 'audit_cleanup',
         'notification_delivery', 'report_generation', 'backup_operation', 'system_maintenance',
         'semantic_processing', 'consent_verification', 'provider_verification'
     )),
+    job_lane TEXT, -- Fine-grained routing within job_type
     job_category TEXT NOT NULL CHECK (job_category IN (
         'critical', 'high_priority', 'standard', 'background', 'maintenance'
     )),
@@ -55,7 +56,7 @@ CREATE TABLE IF NOT EXISTS job_queue (
     
     -- Job Status and Lifecycle
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
-        'pending', 'running', 'completed', 'failed', 'cancelled', 'retrying', 'deferred'
+        'pending', 'processing', 'completed', 'failed', 'cancelled', 'retrying', 'deferred'
     )),
     scheduled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     started_at TIMESTAMPTZ,
@@ -99,6 +100,19 @@ CREATE TABLE IF NOT EXISTS job_queue (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Job lane constraint (fine-grained routing within job_type)
+ALTER TABLE job_queue ADD CONSTRAINT job_queue_job_lane_check CHECK (
+    (job_type = 'shell_file_processing' AND job_lane IN ('fast_queue', 'standard_queue')) OR
+    (job_type = 'ai_processing' AND job_lane IN ('ai_queue_simple', 'ai_queue_complex')) OR
+    (job_type IN ('data_migration', 'audit_cleanup', 'system_maintenance', 'notification_delivery', 
+                  'report_generation', 'backup_operation', 'semantic_processing', 'consent_verification', 
+                  'provider_verification') AND job_lane IS NULL)
+);
+
+-- Index for worker lane-specific queries
+CREATE INDEX IF NOT EXISTS idx_job_queue_type_lane_status ON job_queue(job_type, job_lane, status, priority DESC, scheduled_at ASC)
+WHERE status IN ('pending', 'processing');
 
 -- Failed audit event recovery and retry system
 CREATE TABLE IF NOT EXISTS failed_audit_events (
@@ -254,7 +268,7 @@ ALTER TABLE user_events ADD CONSTRAINT fk_user_events_clinical_event
 -- =============================================================================
 
 -- System Infrastructure Performance Indexes
-CREATE INDEX IF NOT EXISTS idx_job_queue_status_priority ON job_queue(status, priority) WHERE status IN ('pending', 'running');
+CREATE INDEX IF NOT EXISTS idx_job_queue_status_priority ON job_queue(status, priority) WHERE status IN ('pending', 'processing');
 CREATE INDEX IF NOT EXISTS idx_job_queue_scheduled ON job_queue(scheduled_at) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_job_queue_type_category ON job_queue(job_type, job_category);
 CREATE INDEX IF NOT EXISTS idx_job_queue_patient ON job_queue(patient_id) WHERE patient_id IS NOT NULL;
@@ -418,7 +432,7 @@ BEGIN
         COUNT(*)::NUMERIC as metric_value,
         50::NUMERIC as threshold_warning,
         200::NUMERIC as threshold_critical
-    FROM job_queue WHERE status IN ('pending', 'running');
+    FROM job_queue WHERE status IN ('pending', 'processing');
     
 END;
 $$ LANGUAGE plpgsql;

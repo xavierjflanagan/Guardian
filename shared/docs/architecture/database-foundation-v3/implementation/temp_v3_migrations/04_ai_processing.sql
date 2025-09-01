@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS ai_processing_sessions (
     
     -- Session metadata
     session_type TEXT NOT NULL CHECK (session_type IN (
-        'document_processing', 'entity_extraction', 'clinical_validation',
+        'shell_file_processing', 'entity_extraction', 'clinical_validation',
         'profile_classification', 'decision_support', 'semantic_processing' -- Added Pass 3
     )),
     session_status TEXT NOT NULL DEFAULT 'initiated' CHECK (session_status IN (
@@ -468,7 +468,7 @@ CREATE POLICY confidence_scoring_access ON ai_confidence_scoring
 CREATE OR REPLACE FUNCTION start_ai_processing_session(
     p_patient_id UUID,
     p_shell_file_id UUID,
-    p_session_type TEXT DEFAULT 'document_processing',
+    p_session_type TEXT DEFAULT 'shell_file_processing',
     p_model_version TEXT DEFAULT 'v3'
 )
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
