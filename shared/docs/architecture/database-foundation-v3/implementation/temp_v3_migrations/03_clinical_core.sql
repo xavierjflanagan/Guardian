@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS shell_files (
     )),
     processing_started_at TIMESTAMPTZ,
     processing_completed_at TIMESTAMPTZ,
-    processing_error TEXT,
+    processing_error JSONB, -- Enhanced error details with structure
     
     -- File classification
     file_type TEXT CHECK (file_type IN (
@@ -156,6 +156,16 @@ CREATE TABLE IF NOT EXISTS shell_files (
     ai_synthesized_summary TEXT, -- Intelligent overview of all narratives in this shell file
     narrative_count INTEGER DEFAULT 0, -- Number of clinical narratives created from this shell file
     synthesis_completed_at TIMESTAMPTZ, -- When Pass 3 synthesis completed
+    
+    -- V5 Phase 2: Job Coordination Integration
+    processing_job_id UUID, -- Will reference job_queue(id) after 08_job_coordination.sql deployment
+    processing_worker_id VARCHAR(100), -- Worker that processed this file
+    processing_priority INTEGER DEFAULT 100, -- Processing priority (lower = higher priority)
+    idempotency_key TEXT, -- Prevents duplicate processing
+    
+    -- V5 Business Analytics Integration
+    processing_cost_estimate DECIMAL(10,4) DEFAULT 0, -- Estimated processing cost
+    processing_duration_seconds INTEGER, -- Actual processing time
     
     -- Upload and processing metadata
     language_detected TEXT DEFAULT 'en',
@@ -431,7 +441,7 @@ CREATE TABLE IF NOT EXISTS patient_clinical_events (
     ai_confidence_scores JSONB DEFAULT '{}',
     
     -- V3 CRITICAL ADDITION: AI-Generated File Intelligence
-    ai_file_summary TEXT, -- "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
+    ai_document_summary TEXT, -- "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
     ai_file_purpose TEXT, -- "Post-surgical discharge planning with follow-up care instructions"  
     ai_key_findings TEXT[], -- ["Successful stent placement", "Blood pressure stable", "Home care approved"]
     ai_file_confidence NUMERIC(3,2) CHECK (ai_file_confidence BETWEEN 0 AND 1), -- Overall confidence in file analysis
@@ -958,6 +968,11 @@ CREATE INDEX IF NOT EXISTS idx_shell_files_patient ON shell_files(patient_id);
 CREATE INDEX IF NOT EXISTS idx_shell_files_status ON shell_files(status) WHERE status != 'archived';
 CREATE INDEX IF NOT EXISTS idx_shell_files_type ON shell_files(file_type, file_subtype);
 CREATE INDEX IF NOT EXISTS idx_shell_files_processing ON shell_files(status, processing_started_at) WHERE status = 'processing';
+-- V5 Phase 2 indexes for job coordination
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shell_files_idempotency_key ON shell_files(idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shell_files_job_id ON shell_files(processing_job_id) WHERE processing_job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shell_files_worker ON shell_files(processing_worker_id) WHERE processing_worker_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shell_files_priority ON shell_files(processing_priority) WHERE status IN ('uploaded', 'processing');
 
 -- Patient conditions indexes
 CREATE INDEX IF NOT EXISTS idx_conditions_patient ON patient_conditions(patient_id) WHERE archived_at IS NULL;
