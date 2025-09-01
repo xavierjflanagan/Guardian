@@ -96,7 +96,7 @@ BEGIN
         -- Check that critical tables have RLS enabled
         PERFORM 1 FROM pg_class c 
         JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relname IN ('user_profiles', 'patient_clinical_events', 'documents')
+        WHERE c.relname IN ('user_profiles', 'patient_clinical_events')
         AND c.relrowsecurity = true
         AND n.nspname = 'public';
         
@@ -160,7 +160,7 @@ BEGIN
     RAISE NOTICE 'Critical FK constraints found: %', 
         (SELECT COUNT(*) FROM information_schema.table_constraints 
          WHERE constraint_type = 'FOREIGN KEY' 
-         AND table_name IN ('patient_clinical_events', 'documents', 'shell_files')
+         AND table_name IN ('patient_clinical_events', 'shell_files')
          AND table_schema = 'public');
 END;
 $$;

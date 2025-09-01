@@ -2,7 +2,7 @@
 -- FRESH START BLUEPRINT: 03_clinical_core.sql
 -- =============================================================================
 -- Purpose: Core clinical data tables with correct ID architecture
--- Components: Documents + Patient Clinical Data + Medical Coding References + V3 AI Processing Ready
+-- Components: Shell files + Patient Clinical Data + Medical Coding References + V3 AI Processing Ready
 -- Dependencies: 01_foundations.sql (audit), 02_profiles.sql (user_profiles table)
 -- Key Fix: All patient_id columns correctly reference user_profiles(id) instead of auth.users(id)
 -- Created: 2025-08-27 (Fresh Start Implementation)
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS medication_reference (
 
 -- =============================================================================
 -- =============================================================================
--- SECTION 2: SEMANTIC DOCUMENT ARCHITECTURE - SHELL FILES + CLINICAL NARRATIVES
+-- SECTION 2: SEMANTIC FILE ARCHITECTURE - SHELL FILES + CLINICAL NARRATIVES
 -- =============================================================================
 -- CRITICAL CHANGE: Replace primitive document intelligence with semantic architecture
 -- This eliminates dangerous mixed medical contexts and enables clinical storytelling
@@ -139,12 +139,12 @@ CREATE TABLE IF NOT EXISTS shell_files (
     processing_completed_at TIMESTAMPTZ,
     processing_error TEXT,
     
-    -- Document classification
-    document_type TEXT CHECK (document_type IN (
+    -- File classification
+    file_type TEXT CHECK (file_type IN (
         'medical_record', 'lab_result', 'imaging_report', 'prescription',
         'discharge_summary', 'referral', 'insurance_card', 'id_document', 'other'
     )),
-    document_subtype TEXT,
+    file_subtype TEXT,
     confidence_score NUMERIC(3,2),
     
     -- Content analysis
@@ -430,11 +430,11 @@ CREATE TABLE IF NOT EXISTS patient_clinical_events (
     requires_manual_review BOOLEAN DEFAULT FALSE,
     ai_confidence_scores JSONB DEFAULT '{}',
     
-    -- V3 CRITICAL ADDITION: AI-Generated Document Intelligence
-    ai_document_summary TEXT, -- "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
-    ai_document_purpose TEXT, -- "Post-surgical discharge planning with follow-up care instructions"  
+    -- V3 CRITICAL ADDITION: AI-Generated File Intelligence
+    ai_file_summary TEXT, -- "7-day hospital stay for cardiac evaluation with stent placement and medication adjustments"
+    ai_file_purpose TEXT, -- "Post-surgical discharge planning with follow-up care instructions"  
     ai_key_findings TEXT[], -- ["Successful stent placement", "Blood pressure stable", "Home care approved"]
-    ai_document_confidence NUMERIC(3,2) CHECK (ai_document_confidence BETWEEN 0 AND 1), -- Overall confidence in document analysis
+    ai_file_confidence NUMERIC(3,2) CHECK (ai_file_confidence BETWEEN 0 AND 1), -- Overall confidence in file analysis
     
     -- V2 Medical Coding Integration
     coding_confidence NUMERIC(4,3) CHECK (coding_confidence BETWEEN 0 AND 1),
@@ -564,7 +564,7 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     visit_duration_minutes INTEGER,
     billing_codes TEXT[], -- CPT codes for billing
     
-    -- Document Links  
+    -- File Links  
     primary_shell_file_id UUID REFERENCES shell_files(id),
     related_shell_file_ids UUID[] DEFAULT '{}',
     
@@ -642,7 +642,7 @@ CREATE TABLE IF NOT EXISTS patient_conditions (
     clinical_event_id UUID REFERENCES patient_clinical_events(id),
     
     -- NARRATIVE LINKING SYSTEM - Core UX Feature
-    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Source document reference
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Source file reference
     primary_narrative_id UUID REFERENCES clinical_narratives(id) ON DELETE SET NULL, -- Primary storyline for this condition
     -- Note: Full narrative linking handled by narrative_condition_links table (many-to-many)
     
@@ -956,7 +956,7 @@ CREATE INDEX IF NOT EXISTS idx_medication_ref_generic ON medication_reference(ge
 -- Shell files table indexes
 CREATE INDEX IF NOT EXISTS idx_shell_files_patient ON shell_files(patient_id);  
 CREATE INDEX IF NOT EXISTS idx_shell_files_status ON shell_files(status) WHERE status != 'archived';
-CREATE INDEX IF NOT EXISTS idx_shell_files_type ON shell_files(document_type, document_subtype);
+CREATE INDEX IF NOT EXISTS idx_shell_files_type ON shell_files(file_type, file_subtype);
 CREATE INDEX IF NOT EXISTS idx_shell_files_processing ON shell_files(status, processing_started_at) WHERE status = 'processing';
 
 -- Patient conditions indexes
@@ -1356,7 +1356,7 @@ COMMIT;
 \echo '03_clinical_core.sql - CLINICAL DATA FOUNDATION'
 \echo 'Components:'
 \echo '- Medical Coding Reference Tables (ICD-10, SNOMED-CT, PBS)'
-\echo '- Core Clinical Tables (Documents, Conditions, Allergies, Vitals)'
+\echo '- Core Clinical Tables (Shell_files, Conditions, Allergies, Vitals)'
 \echo '- V3 Enhanced Tables (Immunizations, Medications)'
 \echo '- Profile-Based Security with has_profile_access()'
 \echo '- AI Processing V3 Integration Ready'

@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS patient_consent_audit (
     session_id UUID,
     
     -- Evidence and Documentation
-    supporting_documentation TEXT[], -- References to supporting documents
+    supporting_documentation TEXT[], -- References to supporting files
     audit_evidence JSONB, -- Technical evidence of the audit event
     
     -- Compliance and Validation

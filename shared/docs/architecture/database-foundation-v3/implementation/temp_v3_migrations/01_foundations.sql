@@ -146,7 +146,7 @@ CREATE TYPE profile_relationship_type AS ENUM (
     'pet_dog', 'pet_cat', 'pet_bird', 'pet_other'
 );
 
--- Verification status for identity and document verification
+-- Verification status for identity and file verification
 CREATE TYPE verification_status_type AS ENUM (
     'unverified', 'pending', 'verified', 'expired', 'rejected', 'disputed'
 );
@@ -162,7 +162,7 @@ CREATE TYPE access_level_type AS ENUM (
     'none', 'emergency', 'read_only', 'read_write', 'full_access', 'owner'
 );
 
--- Processing status for document and AI workflows
+-- Processing status for file and AI workflows
 CREATE TYPE processing_status_type AS ENUM (
     'uploaded', 'processing', 'completed', 'failed', 'cancelled', 'archived'
 );
@@ -541,12 +541,12 @@ CREATE INDEX IF NOT EXISTS idx_feature_flags_enabled ON feature_flags(enabled);
 INSERT INTO feature_flags (feature_name, enabled, description, configuration) VALUES
 -- Phase 2 Core Features
 ('fhir_integration', false, 'FHIR R4 healthcare interoperability integration', 
- '{"supported_resources": ["Patient", "Observation", "MedicationRequest", "DocumentReference"]}'),
+ '{"supported_resources": ["Patient", "Observation", "MedicationRequest", "FileReference"]}'),
 ('enhanced_consent', false, 'GDPR Article 7 compliant granular consent management',
  '{"require_explicit_consent": true, "temporal_consent": true}'),
 ('user_preferences_v2', false, 'Enhanced user preferences and personalization system',
  '{"accessibility_features": true, "notification_controls": true}'),
-('document_queue_v2', false, 'Enhanced document processing queue with priority lanes',
+('file_queue_v2', false, 'Enhanced file processing queue with priority lanes',
  '{"priority_processing": true, "dead_letter_queue": true}'),
 
 -- Phase 3 Advanced Features  
