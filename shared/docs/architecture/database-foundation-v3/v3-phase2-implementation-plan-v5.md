@@ -619,7 +619,7 @@ Technical Improvements in Flow:
 
 ### **📁 File Organization Strategy for Database Changes**
 
-**CRITICAL:** All V5 database changes will be organized into clear, maintainable SQL files to ensure future engineers and AI systems can understand the complete architecture.
+**CRITICAL:** All V5 database changes will be organized into clear, maintainable SQL files to ensure future engineers and AI systems can understand the complete architecture - refer to shared/docs/architecture/database-foundation-v3/V3_ARCHITECTURE_MASTER_GUIDE.md for this. 
 
 #### **File Organization Approach:**
 
@@ -728,8 +728,6 @@ temp_v3_migrations/
 - **Feature Flag Control:** Analytics and billing features controlled via system configuration
 - **Pre-seeded Data:** API rate limits and subscription plans ready for immediate deployment
 
-**Ready for Next Phase:** Week 4 Day 3-4 - V3-native Edge Functions development
-
 
 #### **Days 3-5: Render.com Infrastructure Setup**
 ```bash
@@ -782,6 +780,71 @@ temp_v3_migrations/
    - Production-grade performance with enhanced debugging
 
 4. Validate: enqueue → claim → heartbeat → reschedule → complete
+```
+
+#### **Days 5.5-6: V3 Database Schema Deployment (Fresh Start)**
+```bash
+# CRITICAL: Pre-launch V3 fresh start deployment sequence
+# Since no production data exists, we can do clean rebuilds instead of migrations
+
+# PHASE 1: Supabase Reset Process (Complete V2 → V3 Migration)
+1. Database Reset Preparation:
+   - Backup existing environment variables from Supabase dashboard
+   - Document current project configuration
+   - Prepare rollback procedures (git revert capability)
+
+2. Clean V2 Removal: ✅ COMPLETED
+   - Delete all existing V2 tables and functions from Supabase
+   - Reset to clean PostgreSQL instance
+   - Maintain same project URL and keys (no frontend changes needed)
+
+# PHASE 2: V3 Schema Deployment (Sequential 01-08) ✅ COMPLETED
+3. Deploy V3 Foundation Layer: ✅ COMPLETED
+   - 01_foundations.sql     # Core infrastructure, audit logging
+   - 02_profiles.sql        # User profiles, access control
+
+4. Deploy V3 Clinical Layer:✅ COMPLETED
+   - 03_clinical_core.sql   # Shell files, clinical data, medical coding
+   - 04_ai_processing.sql   # AI pipeline infrastructure
+   - 05_healthcare_journey.sql  # Provider integration
+
+5. Deploy V3 Infrastructure Layer:✅ COMPLETED
+   - 06_security.sql        # RLS policies, compliance
+   - 07_optimization.sql    # Performance, job queue
+   - 08_job_coordination.sql # V3 worker coordination, rate limiting
+
+# PHASE 3: Deployment Verification ✅ COMPLETED
+6. Database Validation Results:
+   - ✅ All 14 V3 clinical tables verified (hub-and-spoke architecture confirmed)
+   - ✅ All 10 V3 RPC functions operational (job coordination deployed)
+   - ✅ RLS policies validated: 80 policies protecting 62 tables
+   - ✅ API rate limiting configured: 4 provider records with advanced features
+
+7. Function Availability Testing Results:
+   - ✅ V3 job coordination functions exist (enqueue_job_v3, claim_next_job_v3, complete_job, update_job_heartbeat)
+   - ✅ API capacity functions exist (acquire_api_capacity, release_api_capacity)
+   - ✅ Security functions exist and callable (4 functions: is_admin, has_profile_access, etc.)
+   - ✅ Infrastructure tables operational (job_queue, api_rate_limits, user_usage_tracking)
+
+8. Integration Testing Status:
+   - ⚠️ **PENDING**: End-to-end job processing workflow (enqueue → claim → complete)
+   - ⚠️ **PENDING**: API capacity acquisition with real profiles
+   - ⚠️ **PENDING**: Worker coordination under load testing
+   - ⚠️ **PENDING**: Rate limiting enforcement validation
+
+9. Verification Scripts (Final):
+   - Database Status: `operations/verify_v3_deployment_results.sql`
+   - RLS Security: `operations/test_rls_comprehensive.sql`
+   - Function Tests: `operations/test_v3_functions_results.sql`
+   - Rate Limits: `operations/check_api_rate_limits_fixed.sql` + `operations/check_api_rate_limits_population.sql`
+
+# Benefits of Fresh Start Approach:
+Clean V3 schema without migration complexity
+No production data constraints or downtime
+Enhanced SQL headers provide AI-friendly documentation
+Single source of truth maintained in temp_v3_migrations/
+Git history preserved for rollback capability
+Ready for Render.com worker integration
 ```
 
 #### **Days 6-7: V3 Native Edge Functions Development + Analytics Integration**

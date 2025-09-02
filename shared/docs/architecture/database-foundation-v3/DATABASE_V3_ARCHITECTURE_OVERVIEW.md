@@ -15,7 +15,7 @@ Database V3 represents a revolutionary architecture that seamlessly integrates A
 
 ---
 
-## 🏗️ **V3 Core Architecture Overview**
+## **V3 Core Architecture Overview**
 
 ### Central Hub: patient_clinical_events
 
@@ -49,7 +49,62 @@ patient_clinical_events (Central Hub)
 
 ---
 
-## 🔄 **Data Flow Architecture**
+## **Architectural Design Principles**
+
+### Persistent Clinical States vs Transactional Events
+
+The V3 architecture makes a critical distinction that reflects real-world healthcare workflows and clinical decision-making patterns:
+
+**PERSISTENT CLINICAL STATES** (Specialized Tables):
+- **Characteristics**: Ongoing conditions requiring status management over time, critical for clinical decision support
+- **Status Tracking**: Active/resolved/remission lifecycles, adherence monitoring, compliance tracking
+- **Performance Requirements**: Sub-second query response for safety-critical operations
+- **Examples**: 
+  - `patient_conditions` - Current diagnoses requiring ongoing management
+  - `patient_medications` - Active prescriptions for drug interaction checking
+  - `patient_allergies` - Safety alerts for clinical decision support
+  - `patient_immunizations` - Vaccination status for compliance monitoring
+  - `patient_vitals` - Measurement tracking for trend analysis
+
+**TRANSACTIONAL CLINICAL EVENTS** (Hub-and-Spoke Model):
+- **Characteristics**: Point-in-time occurrences with flexible classification needs
+- **Context Requirements**: Rich narrative context, complex analytical queries, historical analysis
+- **Performance Profile**: Optimized for comprehensive data retrieval and trend analysis
+- **Examples**:
+  - Lab results, imaging studies - Via `patient_observations` linked to `patient_clinical_events`
+  - Surgical procedures, treatments - Via `patient_interventions` linked to `patient_clinical_events`
+  - Administrative events, referrals - Via document classification and encounter context
+
+### Clinical Decision Support Architecture
+
+**Life-Critical Query Patterns** (Specialized Tables):
+```sql
+-- Drug allergy screening (< 50ms response required)
+SELECT allergen_name, severity, reaction_description 
+FROM patient_allergies 
+WHERE patient_id = ? AND status = 'active' AND allergen_type = 'medication';
+
+-- Active medication review (< 100ms response required)
+SELECT medication_name, prescribed_dose, drug_class, contraindications
+FROM patient_medications pm
+JOIN medication_reference mr ON mr.id = pm.medication_reference_id
+WHERE pm.patient_id = ? AND pm.status = 'active';
+```
+
+**Clinical Analysis Patterns** (Hub-and-Spoke):
+```sql
+-- Surgical history with narrative context (< 500ms acceptable)
+SELECT pce.event_name, pce.event_date, pi.technique, cn.narrative_content
+FROM patient_clinical_events pce
+JOIN patient_interventions pi ON pi.event_id = pce.id
+LEFT JOIN clinical_narratives cn ON cn.id = pce.narrative_id
+WHERE pce.patient_id = ? AND pi.intervention_type = 'surgery'
+ORDER BY pce.event_date DESC;
+```
+
+---
+
+## **Data Flow Architecture**
 
 ### 1. AI Processing Pipeline Flow
 
@@ -112,7 +167,7 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 
 ---
 
-## 📋 **Complete V2 Database Table Inventory (Current State)**
+## **Complete V2 Database Table Inventory (Current State)**
 
 *This section documents all existing V2 tables organized by logical patient data flow - essential for understanding the V2→V3 migration path.*
 
@@ -120,138 +175,138 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **auth.users** | Supabase authentication accounts | Primary account holders | ✅ Unchanged |
-| **user_profiles** | Patient profiles (self, child, pet, dependent) | `account_owner_id → auth.users(id)` | ✅ Core to V3 |
-| **profile_access_permissions** | Cross-profile access control | `user_id → auth.users, profile_id → user_profiles` | ✅ Enhanced in V3 |
-| **user_profile_context** | Profile switching context | `current_profile_id → user_profiles(id)` | ✅ Core to V3 |
+| **auth.users** | Supabase authentication accounts | Primary account holders | Unchanged |
+| **user_profiles** | Patient profiles (self, child, pet, dependent) | `account_owner_id → auth.users(id)` | Core to V3 |
+| **profile_access_permissions** | Cross-profile access control | `user_id → auth.users, profile_id → user_profiles` | Enhanced in V3 |
+| **user_profile_context** | Profile switching context | `current_profile_id → user_profiles(id)` | Core to V3 |
 
 ### **V3 Semantic File Architecture** (Revolutionary Clinical Storytelling)
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **shell_files** | Physical upload containers (renamed from documents) | ✅ `patient_id → user_profiles(id)` | ✅ **V3 IMPLEMENTED** |
-| **clinical_narratives** | AI-determined semantic storylines | `shell_file_id → shell_files(id)` | ✅ **V3 NEW ARCHITECTURE** |
-| **narrative_source_mappings** | Detailed page/section references | `narrative_id → clinical_narratives(id)` | ✅ **V3 NEW ARCHITECTURE** |
+| **shell_files** | Physical upload containers (renamed from documents) | `patient_id → user_profiles(id)` | **V3 IMPLEMENTED** |
+| **clinical_narratives** | AI-determined semantic storylines | `shell_file_id → shell_files(id)` | **V3 NEW ARCHITECTURE** |
+| **narrative_source_mappings** | Detailed page/section references | `narrative_id → clinical_narratives(id)` | **V3 NEW ARCHITECTURE** |
 
 ### **Clinical Narrative Linking System** (Rich UX Context)
 
 | Table | Purpose | Key Relationships | UX Impact |
 |-------|---------|-------------------|-----------|
-| **narrative_condition_links** | Links narratives to conditions | Many-to-many with therapeutic context | 🎯 **Click condition → see full story** |
-| **narrative_medication_links** | Links narratives to medications | Rich prescription context & outcomes | 🎯 **Click medication → see why prescribed** |
-| **narrative_allergy_links** | Links narratives to allergies | Discovery circumstances & clinical impact | 🎯 **Click allergy → see discovery story** |
-| **narrative_immunization_links** | Links narratives to vaccines | Clinical indications & outcomes | 🎯 **Click vaccine → see clinical context** |
-| **narrative_vital_links** | Links narratives to vital patterns | Clinical significance & interpretation | 🎯 **Click vitals → see clinical meaning** |
+| **narrative_condition_links** | Links narratives to conditions | Many-to-many with therapeutic context | **Click condition → see full story** |
+| **narrative_medication_links** | Links narratives to medications | Rich prescription context & outcomes | **Click medication → see why prescribed** |
+| **narrative_allergy_links** | Links narratives to allergies | Discovery circumstances & clinical impact | **Click allergy → see discovery story** |
+| **narrative_immunization_links** | Links narratives to vaccines | Clinical indications & outcomes | **Click vaccine → see clinical context** |
+| **narrative_vital_links** | Links narratives to vital patterns | Clinical significance & interpretation | **Click vitals → see clinical meaning** |
 
 ### **Core Clinical Data Flow** (V3 Hub Architecture)
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **patient_clinical_events** | 🎯 V3 Central Hub: All clinical activity | `patient_id → user_profiles(id)` ✅ | ✅ **V3 CORE HUB** |
-| **patient_observations** | V3 Core: Lab results, measurements | `event_id → patient_clinical_events(id)` | ✅ **V3 CORE** |
-| **patient_interventions** | V3 Core: Medications, procedures | `event_id → patient_clinical_events(id)` | ✅ **V3 CORE** |
-| **healthcare_encounters** | V3 Core: Provider visit context | Referenced by clinical events | ✅ **V3 CORE** |
-| **healthcare_timeline_events** | V3 Core: UI timeline optimization | References multiple core tables | ✅ **V3 CORE** |
+| **patient_clinical_events** | **V3 Central Hub: All clinical activity** | `patient_id → user_profiles(id)` | **V3 CORE HUB** |
+| **patient_observations** | V3 Core: Lab results, measurements | `event_id → patient_clinical_events(id)` | **V3 CORE** |
+| **patient_interventions** | V3 Core: Medications, procedures | `event_id → patient_clinical_events(id)` | **V3 CORE** |
+| **healthcare_encounters** | V3 Core: Provider visit context | Referenced by clinical events | **V3 CORE** |
+| **healthcare_timeline_events** | V3 Core: UI timeline optimization | References multiple core tables | **V3 CORE** |
 
 ### **Specialized Clinical Context** (Detailed Medical Data)
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **patient_conditions** | Medical diagnoses | ❌ `patient_id → auth.users(id)` | 🔄 **V3 INTEGRATION:** Links to clinical_events |
-| **patient_allergies** | Allergies and reactions | ❌ `patient_id → auth.users(id)` | 🔄 **V3 INTEGRATION:** Links to clinical_events |
-| **patient_vitals** | Vital signs | ❌ `patient_id → auth.users(id)` | 🔄 **V3 INTEGRATION:** Links to observations |
-| **patient_immunizations** | Vaccination records | ❌ `patient_id → auth.users(id)` | 🔄 **V3 INTEGRATION:** Links to interventions |
-| **patient_demographics** | Extended demographic data | ❌ `patient_id → auth.users(id)` | 🔄 **V3 INTEGRATION:** Links to profiles |
-| **patient_imaging_reports** | Imaging studies and results | Via clinical events | ✅ Preserved in V3 |
+| **patient_conditions** | Medical diagnoses | `patient_id → auth.users(id)` (V2) | **V3 INTEGRATION:** Links to clinical_events |
+| **patient_allergies** | Allergies and reactions | `patient_id → auth.users(id)` (V2) | **V3 INTEGRATION:** Links to clinical_events |
+| **patient_vitals** | Vital signs | `patient_id → auth.users(id)` (V2) | **V3 INTEGRATION:** Links to observations |
+| **patient_immunizations** | Vaccination records | `patient_id → auth.users(id)` (V2) | **V3 INTEGRATION:** Links to interventions |
+| **patient_demographics** | Extended demographic data | `patient_id → auth.users(id)` (V2) | **V3 INTEGRATION:** Links to profiles |
+| **patient_imaging_reports** | Imaging studies and results | Via clinical events | Preserved in V3 |
 
 ### **Healthcare Provider & Care Coordination**
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **provider_registry** | Healthcare provider directory | `id → auth.users(id)` for provider accounts | ✅ Enhanced in V3 |
-| **registered_doctors_au** | Australian doctor verification | `ahpra_id` verification | ✅ Reference data |
-| **patient_provider_access** | Provider access to patient data | ❌ `patient_id → auth.users(id)` | 🔄 **V3 CORRECTION:** → user_profiles |
-| **provider_access_log** | Provider access audit (partitioned) | Quarterly partitions | ✅ Preserved in V3 |
-| **healthcare_provider_context** | Provider context metadata | Provider-specific settings | ✅ Enhanced in V3 |
+| **provider_registry** | Healthcare provider directory | `id → auth.users(id)` for provider accounts |  Enhanced in V3 |
+| **registered_doctors_au** | Australian doctor verification | `ahpra_id` verification |  Reference data |
+| **patient_provider_access** | Provider access to patient data | (V2) `patient_id → auth.users(id)` |  **V3 CORRECTION:** → user_profiles |
+| **provider_access_log** | Provider access audit (partitioned) | Quarterly partitions |  Preserved in V3 |
+| **healthcare_provider_context** | Provider context metadata | Provider-specific settings | Enhanced in V3 |
 
 ### **AI Processing & Validation Infrastructure**
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **entity_processing_audit_v2** | AI entity processing audit trail | `shell_file_id → shell_files(id)` | ✅ **V3 ENHANCED** |
-| **profile_classification_audit** | Profile detection audit | `shell_file_id → shell_files(id)` | ✅ **V3 ENHANCED** |
+| **entity_processing_audit_v2** | AI entity processing audit trail | `shell_file_id → shell_files(id)` |  **V3 ENHANCED** |
+| **profile_classification_audit** | Profile detection audit | `shell_file_id → shell_files(id)` |  **V3 ENHANCED** |
 
 ### **Clinical Decision Support & Care Management**
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **provider_action_items** | Provider workflow items | ❌ `patient_id → auth.users(id)` | 🔄 **V3 CORRECTION:** → user_profiles |
-| **clinical_alert_rules** | Clinical decision support rules | Configuration table | ✅ **V3 ENHANCED** |
-| **provider_clinical_notes** | Provider notes and assessments | Via encounters | ✅ Enhanced in V3 |
-| **healthcare_provider_context** | Provider context metadata | Provider-specific settings | ✅ Enhanced in V3 |
-| **administrative_data** | Healthcare admin data | ❌ `patient_id → auth.users(id)` | 🔄 **V3 CORRECTION:** → user_profiles |
+| **provider_action_items** | Provider workflow items | (V2) `patient_id → auth.users(id)` |  **V3 CORRECTION:** → user_profiles |
+| **clinical_alert_rules** | Clinical decision support rules | Configuration table |  **V3 ENHANCED** |
+| **provider_clinical_notes** | Provider notes and assessments | Via encounters |  Enhanced in V3 |
+| **healthcare_provider_context** | Provider context metadata | Provider-specific settings | Enhanced in V3 |
+| **administrative_data** | Healthcare admin data | (V2) `patient_id → auth.users(id)` |  **V3 CORRECTION:** → user_profiles |
 
 ### **Profile-Specific Features & Workflows**
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **smart_health_features** | Profile health feature configuration | `profile_id → user_profiles(id)` ✅ | ✅ Preserved in V3 |
-| **pregnancy_journey_events** | Pregnancy-specific tracking | `profile_id → user_profiles(id)` ✅ | ✅ Enhanced in V3 |
-| **profile_verification_rules** | Identity verification workflows | Profile-based rules | ✅ Enhanced in V3 |
-| **profile_detection_patterns** | AI shellfile-to-profile routing | Pattern matching | ✅ **V3 CRITICAL** |
-| **profile_auth_progression** | Authentication level progression | `profile_id → user_profiles(id)` ✅ | ✅ Enhanced in V3 |
-| **profile_appointments** | Healthcare appointment management | `profile_id → user_profiles(id)` ✅ | ✅ Enhanced in V3 |
+| **smart_health_features** | Profile health feature configuration | `profile_id → user_profiles(id)`  |  Preserved in V3 |
+| **pregnancy_journey_events** | Pregnancy-specific tracking | `profile_id → user_profiles(id)`  |  Enhanced in V3 |
+| **profile_verification_rules** | Identity verification workflows | Profile-based rules |  Enhanced in V3 |
+| **profile_detection_patterns** | AI shellfile-to-profile routing | Pattern matching |  **V3 CRITICAL** |
+| **profile_auth_progression** | Authentication level progression | `profile_id → user_profiles(id)`  |  Enhanced in V3 |
+| **profile_appointments** | Healthcare appointment management | `profile_id → user_profiles(id)`  |  Enhanced in V3 |
 
 ### **Consent Management & Compliance**
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **patient_consents** | GDPR consent management | ❌ `patient_id → auth.users(id)` | 🔄 **V3 CORRECTION:** → user_profiles |
-| **patient_consent_audit** | Consent change audit | Via consent records | ✅ Preserved in V3 |
-| **user_consent_preferences** | User consent preferences | `user_id → auth.users(id)` ✅ | ✅ Preserved in V3 |
+| **patient_consents** | GDPR consent management | (V2) `patient_id → auth.users(id)` |  **V3 CORRECTION:** → user_profiles |
+| **patient_consent_audit** | Consent change audit | Via consent records |  Preserved in V3 |
+| **user_consent_preferences** | User consent preferences | `user_id → auth.users(id)`  |  Preserved in V3 |
 
 ### **User Analytics & Subscription Management** (Business Intelligence & Monetization)
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|  
-| **user_usage_tracking** | Monthly usage metrics and billing cycles | `profile_id → user_profiles(id)` ✅ | ✅ **V3 NEW ARCHITECTURE** |
-| **subscription_plans** | Plan configuration and pricing tiers | Reference table for billing | ✅ **V3 NEW ARCHITECTURE** |
-| **usage_events** | Detailed usage analytics and audit trail | `profile_id → user_profiles(id)` ✅ | ✅ **V3 NEW ARCHITECTURE** |
+| **user_usage_tracking** | Monthly usage metrics and billing cycles | `profile_id → user_profiles(id)`  |  **V3 NEW ARCHITECTURE** |
+| **subscription_plans** | Plan configuration and pricing tiers | Reference table for billing |  **V3 NEW ARCHITECTURE** |
+| **usage_events** | Detailed usage analytics and audit trail | `profile_id → user_profiles(id)`  |  **V3 NEW ARCHITECTURE** |
 
 ### **System Infrastructure & Operations**
 
 | Table | Purpose | Key Relationships | V3 Status |
 |-------|---------|-------------------|-----------|
-| **audit_log** | System-wide audit trail | ❌ `patient_id → auth.users(id)` | 🔄 **V3 CORRECTION:** → user_profiles |
-| **system_notifications** | Internal notifications | `target_user_id → auth.users(id)` ✅ | ✅ Preserved in V3 |
-| **system_configuration** | Application configuration | System settings | ✅ Preserved in V3 |
-| **feature_flags** | Progressive rollout control | System configuration | ✅ Preserved in V3 |
-| **implementation_sessions** | Migration tracking | System operations | ✅ Preserved in V3 |
-| **user_events** | User action audit | `user_id → auth.users(id)` ✅ | ✅ Preserved in V3 |
-| **job_queue** | Background job processing | System operations | ✅ Preserved in V3 |
-| **failed_audit_events** | Audit failure recovery | System resilience | ✅ Preserved in V3 |
+| **audit_log** | System-wide audit trail | (V2) `patient_id → auth.users(id)` |  **V3 CORRECTION:** → user_profiles |
+| **system_notifications** | Internal notifications | `target_user_id → auth.users(id)`  |  Preserved in V3 |
+| **system_configuration** | Application configuration | System settings |  Preserved in V3 |
+| **feature_flags** | Progressive rollout control | System configuration |  Preserved in V3 |
+| **implementation_sessions** | Migration tracking | System operations |  Preserved in V3 |
+| **user_events** | User action audit | `user_id → auth.users(id)`  |  Preserved in V3 |
+| **job_queue** | Background job processing | System operations |  Preserved in V3 |
+| **failed_audit_events** | Audit failure recovery | System resilience |  Preserved in V3 |
 
 ### **V2→V3 Migration Summary**
 
 | Category | V2 Tables | ID Corrections Needed | V3 Integration |
 |----------|-----------|----------------------|----------------|
-| **✅ Foundation** | 4 tables | 0 corrections | Core to V3 architecture |
-| **🔄 Shell File Processing** | 3 tables | 1 major evolution | Shell files + clinical narratives |
-| **✅ V3 Core Hub** | 5 tables | 0 corrections | Central V3 architecture |
-| **🔄 Clinical Context** | 6 tables | 5 ID corrections | Links to V3 core |
-| **🔄 Provider Care** | 5 tables | 2 ID corrections | Enhanced in V3 |
-| **✅ AI Processing** | 2 tables | 0 ID corrections | V3 enhanced audit systems |
-| **🔄 Decision Support** | 5 tables | 2 ID corrections | Enhanced workflows |
-| **✅ Profile Features** | 6 tables | 0 corrections | Core V3 functionality |
-| **🔄 Compliance** | 3 tables | 2 ID corrections | Enhanced security |
-| **✅ User Analytics & Subscription** | 3 tables | 0 corrections | Business intelligence foundation |
-| **🔄 System Infrastructure** | 8 tables | 2 ID corrections | Foundation preservation |
+| **Foundation** | 4 tables | 0 corrections | Core to V3 architecture |
+| **Shell File Processing** | 3 tables | 1 major evolution | Shell files + clinical narratives |
+| **V3 Core Hub** | 5 tables | 0 corrections | Central V3 architecture |
+| **Clinical Context** | 6 tables | 5 ID corrections | Links to V3 core |
+| **Provider Care** | 5 tables | 2 ID corrections | Enhanced in V3 |
+| **AI Processing** | 2 tables | 0 ID corrections | V3 enhanced audit systems |
+| **Decision Support** | 5 tables | 2 ID corrections | Enhanced workflows |
+| **Profile Features** | 6 tables | 0 corrections | Core V3 functionality |
+| **Compliance** | 3 tables | 2 ID corrections | Enhanced security |
+| **User Analytics & Subscription** | 3 tables | 0 corrections | Business intelligence foundation |
+| **System Infrastructure** | 8 tables | 2 ID corrections | Foundation preservation |
 
 **Total**: 50 tables | **ID Corrections Needed**: 14 tables | **V3 Evolution**: 50 tables enhanced or integrated
 
 ---
 
-## 📊 **Complete Table Structure Reference**
+## **Complete Table Structure Reference**
 
 ### V3 Core Architecture Tables (5 tables)
 
@@ -301,13 +356,13 @@ Each data point provides **multiple layers of context** for comprehensive clinic
 
 ---
 
-## 🔐 **Security Architecture**
+## **Security Architecture**
 
 ### Profile-Based Access Control
 
 **ALL tables use correct ID relationships:**
-- `patient_id UUID REFERENCES user_profiles(id)` ✅
-- **Zero** `auth.users(id)` references in clinical data ✅
+- `patient_id UUID REFERENCES user_profiles(id)` (V3 Corrected)
+- **Zero** `auth.users(id)` references in clinical data (V3 Achievement)
 - Row Level Security enabled on all clinical tables
 
 ### Access Pattern Example
@@ -321,9 +376,73 @@ WHERE patient_id IN (
 
 ---
 
-## 🚀 **Query Patterns and Performance**
+## **Query Patterns and Performance**
 
-### 1. Timeline Display Query (User Interface)
+### Clinical Decision Support Queries (Specialized Tables)
+
+**Pattern 1: Drug Safety Screening (< 50ms)**
+```sql
+-- Critical allergy check before prescribing medication
+SELECT 
+    pa.allergen_name,
+    pa.severity,
+    pa.reaction_type,
+    pa.symptoms,
+    pa.reaction_description
+FROM patient_allergies pa
+WHERE pa.patient_id = $1 
+AND pa.status = 'active'
+AND pa.allergen_type = 'medication'
+AND (pa.allergen_name ILIKE '%' || $2 || '%' OR pa.allergen_code = $3);
+```
+
+**Pattern 2: Active Medication Review (< 100ms)**
+```sql
+-- Current medication regimen with interaction data
+SELECT 
+    pm.medication_name,
+    pm.prescribed_dose,
+    pm.frequency,
+    pm.indication,
+    mr.drug_class,
+    mr.contraindications,
+    mr.common_interactions
+FROM patient_medications pm
+LEFT JOIN medication_reference mr ON mr.id = pm.medication_reference_id
+WHERE pm.patient_id = $1 
+AND pm.status = 'active'
+ORDER BY pm.start_date DESC;
+```
+
+### Clinical Analysis Queries (Hub-and-Spoke)
+
+**Pattern 3: Surgical History Analysis (< 500ms)**
+```sql
+-- Comprehensive surgical history with narrative context
+SELECT 
+    pce.event_name as surgery_name,
+    pce.event_date,
+    pce.performed_by,
+    pce.facility_name,
+    pi.technique,
+    pi.immediate_outcome,
+    pi.complications,
+    pi.followup_required,
+    cn.narrative_content as clinical_story,
+    sf.ai_synthesized_summary as document_context
+FROM patient_clinical_events pce
+JOIN patient_interventions pi ON pi.event_id = pce.id
+LEFT JOIN clinical_narratives cn ON cn.id = pce.narrative_id
+LEFT JOIN shell_files sf ON sf.id = pce.shell_file_id
+WHERE pce.patient_id = $1
+AND pce.activity_type = 'intervention'
+AND pi.intervention_type IN ('surgery', 'major_procedure')
+ORDER BY pce.event_date DESC;
+```
+
+### Timeline Display Queries (UI Optimization)
+
+**Pattern 4: Timeline Display Query (User Interface)**
 ```sql
 -- Optimized timeline with Russian Babushka Doll context
 SELECT 
@@ -369,7 +488,7 @@ ORDER BY ce.event_date DESC;
 
 ---
 
-## 📈 **Performance Optimization**
+## **Performance Optimization**
 
 ### Strategic Indexing
 - **V3 Core Tables**: 8 specialized indexes per table
@@ -377,15 +496,37 @@ ORDER BY ce.event_date DESC;
 - **AI Processing**: Confidence-based and validation-status indexes
 - **Clinical Queries**: Patient-date composite indexes
 
-### Query Performance Targets
-- Timeline queries: < 100ms for 1000+ events
-- Clinical detail queries: < 200ms with full Russian Babushka Doll context
-- AI processing queries: < 50ms for audit trails
-- Search queries: < 300ms across all clinical data using GIN indexes
+### Clinical Decision Support Performance Requirements
+
+**Life-Critical Queries** (Specialized Tables):
+- **Drug allergy screening**: < 50ms (safety-critical, millisecond response required)
+- **Active medication review**: < 100ms (clinical workflow optimization)
+- **Immunization status check**: < 75ms (compliance verification)
+- **Current condition summary**: < 100ms (care coordination)
+
+**Clinical Analysis Queries** (Hub-and-Spoke):
+- **Surgical history review**: < 500ms (comprehensive analysis acceptable)
+- **Lab trend analysis**: < 750ms (complex aggregations with narrative context)
+- **Clinical event timeline**: < 300ms (UI display optimization)
+
+**Hybrid Queries** (Cross-Architecture):
+- **Complete patient summary**: < 1s (combines both specialized and hub-and-spoke data)
+- **Clinical decision support alerts**: < 100ms (specialized tables with hub context)
+
+### Query Performance Targets by Use Case
+
+| Query Type | Response Time | Architecture | Use Case |
+|------------|---------------|--------------|----------|
+| Drug Safety Check | < 50ms | Specialized Tables | Pre-prescription screening |
+| Medication Review | < 100ms | Specialized Tables | Morning rounds |
+| Allergy Alert | < 30ms | Specialized Tables | Emergency situations |
+| Surgical History | < 500ms | Hub-and-Spoke | Pre-operative assessment |
+| Lab Trends | < 750ms | Hub-and-Spoke | Chronic disease monitoring |
+| Timeline Display | < 300ms | Hybrid | Patient portal |
 
 ---
 
-## 🔧 **Data Migration Patterns**
+## **Data Migration Patterns**
 
 ### Pattern 1: AI-Generated Clinical Events
 ```typescript
@@ -432,7 +573,7 @@ WHERE clinical_event_id IS NULL; -- Only promote unlinked records
 
 ---
 
-## 📊 **Usage Tracking & Analytics Integration**
+## **Usage Tracking & Analytics Integration**
 
 ### Usage Tracking Architecture
 
@@ -483,7 +624,7 @@ Dashboard Load → get_user_usage_status() → Display Usage Metrics → Upgrade
 
 ---
 
-## ✅ **Implementation Success Metrics**
+## **Implementation Success Metrics**
 
 ### Database Foundation Metrics
 - **25 Total Tables**: 5 V3 core + 8 specialized + 3 analytics + 2 reference + 7 AI processing
@@ -506,7 +647,7 @@ Dashboard Load → get_user_usage_status() → Display Usage Metrics → Upgrade
 
 ---
 
-## 🎯 **Strategic Planning Reference**
+## **Strategic Planning Reference**
 
 ### Database V3 Provides Foundation For:
 1. **AI Processing Pipeline V3**: Direct entity-to-schema mapping with confidence scoring
@@ -525,7 +666,7 @@ Dashboard Load → get_user_usage_status() → Display Usage Metrics → Upgrade
 
 ---
 
-## 📋 **Quick Reference: Table Relationships**
+## **Quick Reference: Table Relationships**
 
 ```
 SECURITY FOUNDATION
@@ -563,4 +704,4 @@ REFERENCE DATA
 
 **This Database V3 Architecture Overview provides everything needed to understand table structures, relationships, and data flows at a glance - exactly what you requested for strategic planning and implementation oversight.**
 
-**Status**: ✅ **READY FOR IMPLEMENTATION** - All tables designed, all relationships mapped, all performance optimizations planned.
+**Status**: **READY FOR IMPLEMENTATION** - All tables designed, all relationships mapped, all performance optimizations planned.

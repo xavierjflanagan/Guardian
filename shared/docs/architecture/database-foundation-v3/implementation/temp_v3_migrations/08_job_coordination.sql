@@ -1,15 +1,92 @@
 -- =============================================================================
--- 08_job_coordination.sql - PRODUCTION SCALABILITY & BUSINESS ANALYTICS  
+-- 08_JOB_COORDINATION.SQL - V3 Production Scalability & Render.com Worker Coordination
 -- =============================================================================
--- Purpose: Job coordination, API rate limiting, usage tracking for 1000+ users
--- Components: Render.com integration, early adopter analytics, subscription foundation
--- Dependencies: 01-07 (all previous V3 files must be applied first)
--- Created: V5 Implementation Plan - Production Ready Scalability Layer
+-- Purpose: Complete V3 job coordination system with API rate limiting, worker coordination, and business analytics foundation
+-- Architecture: Render.com worker integration + vendor-agnostic API rate limiting + usage analytics + subscription billing foundation
+-- Dependencies: 01_foundations.sql through 07_optimization.sql (complete V3 schema stack required)
+-- 
+-- DESIGN DECISIONS:
+-- - V3 job coordination: Enhanced job queue with heartbeat monitoring, dead letter queues, and worker coordination
+-- - Vendor-agnostic API rate limiting: Multi-provider API quota management with backpressure and atomic operations
+-- - Render.com worker integration: Complete RPC interface for exora-v3-worker service coordination
+-- - Business analytics foundation: Usage tracking for early adopter insights and subscription billing preparation
+-- - Production scalability: 1000+ user capacity with atomic operations preventing race conditions
+-- - User analytics infrastructure: Early adopter behavior tracking with privacy-compliant data collection  
+-- - Subscription billing foundation: Usage metering and billing cycle tracking for future monetization
+-- - Healthcare compliance: Audit-compliant job processing with correlation IDs and complete traceability
+-- 
+-- KEY INFRASTRUCTURE COMPONENTS:
+-- API Rate Limiting System:
+--   - api_rate_limits table with multi-provider configuration
+--   - user_usage_tracking table for billing cycle management
+--   - subscription_plans table for future billing integration
+-- 
+-- V3 Job Coordination Functions (10 functions):
+-- API Management:
+--   - acquire_api_capacity(), release_api_capacity() - Atomic API quota management
+-- Job Lifecycle:
+--   - enqueue_job_v3(), claim_next_job_v3() - Worker coordination with heartbeat monitoring
+--   - update_job_heartbeat(), reschedule_job(), complete_job() - Production job lifecycle management
+-- Analytics & Business:
+--   - track_shell_file_upload_usage(), track_ai_processing_usage() - Usage metering
+--   - get_user_usage_status() - Real-time usage dashboard support
+-- 
+-- PRODUCTION FEATURES:
+-- - Atomic API rate limiting prevents quota violations under high concurrency
+-- - Heartbeat monitoring with configurable intervals for worker health tracking  
+-- - Dead letter queue support for failed job recovery
+-- - Job correlation IDs for complete audit trail and healthcare compliance
+-- - Usage analytics with privacy-compliant data aggregation
+-- - Subscription billing foundation with monthly billing cycle management
+-- 
+-- INTEGRATION POINTS:
+-- - Provides complete RPC interface for exora-v3-worker Render.com service
+-- - Integrates with shell_files table for document processing job tracking
+-- - Usage analytics feed business intelligence and subscription billing systems
+-- - API rate limiting supports OpenAI GPT-4o Mini, Google Vision, Anthropic Claude
+-- - Job coordination enables V3 three-pass AI processing pipeline at scale
 -- =============================================================================
 
 BEGIN;
 
+-- =============================================================================
+-- DEPENDENCY VALIDATION
+-- =============================================================================
+
+DO $$
+BEGIN
+    -- Check required tables from previous migrations
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_queue') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: job_queue missing. Run 07_optimization.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'system_configuration') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: system_configuration missing. Run 01_foundations.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_profiles') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: user_profiles missing. Run 02_profiles.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shell_files') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: shell_files missing. Run 03_clinical_core.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'clinical_narratives') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: clinical_narratives missing. Run 03_clinical_core.sql first.';
+    END IF;
+    
+    -- Check required functions
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'has_profile_access') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: has_profile_access() missing. Run 02_profiles.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'is_service_role') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: is_service_role() missing. Run 01_foundations.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'log_audit_event') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: log_audit_event() missing. Run 01_foundations.sql first.';
+    END IF;
+END $$;
+
+-- =============================================================================
 -- SECTION 1: API RATE LIMITING INFRASTRUCTURE
+-- =============================================================================
 -- 6a. Create API rate limits table
 CREATE TABLE IF NOT EXISTS api_rate_limits (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,15 +144,21 @@ ON CONFLICT (provider_name, api_endpoint) DO UPDATE SET
 
 -- Enable RLS for API rate limits (service role only)
 ALTER TABLE api_rate_limits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "api_rate_limits_service_role_only" ON api_rate_limits
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND policyname = 'api_rate_limits_service_role_only') THEN
+        CREATE POLICY "api_rate_limits_service_role_only" ON api_rate_limits
+            FOR ALL USING (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            )
+            WITH CHECK (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            );
+    END IF;
+END $$;
 
 -- 6c. Create user analytics infrastructure for early adopter insights
 -- Core usage tracking table for monthly usage aggregates
@@ -201,48 +284,71 @@ ON CONFLICT (plan_type) DO UPDATE SET
 
 -- FIXED: Enable RLS for user analytics tables with correct profile access logic
 ALTER TABLE user_usage_tracking ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "user_usage_tracking_profile_isolation" ON user_usage_tracking
-    FOR ALL USING (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid() 
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND policyname = 'user_usage_tracking_profile_isolation') THEN
+        CREATE POLICY "user_usage_tracking_profile_isolation" ON user_usage_tracking
+            FOR ALL USING (
+                -- FIXED: Use has_profile_access instead of profile_id = auth.uid() 
+                has_profile_access(auth.uid(), profile_id)
+                OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            )
+            WITH CHECK (
+                -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
+                has_profile_access(auth.uid(), profile_id)
+                OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            );
+    END IF;
+END $$;
 
 ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "usage_events_profile_isolation" ON usage_events
-    FOR ALL USING (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
-        has_profile_access(auth.uid(), profile_id)
-        OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND policyname = 'usage_events_profile_isolation') THEN
+        CREATE POLICY "usage_events_profile_isolation" ON usage_events
+            FOR ALL USING (
+                -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
+                has_profile_access(auth.uid(), profile_id)
+                OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            )
+            WITH CHECK (
+                -- FIXED: Use has_profile_access instead of profile_id = auth.uid()
+                has_profile_access(auth.uid(), profile_id)
+                OR current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            );
+    END IF;
+END $$;
 
 ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "subscription_plans_read_all" ON subscription_plans
-    FOR SELECT USING (true); -- Everyone can read plan options
 
-CREATE POLICY "subscription_plans_service_role_only" ON subscription_plans
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND policyname = 'subscription_plans_read_all') THEN
+        CREATE POLICY "subscription_plans_read_all" ON subscription_plans
+            FOR SELECT USING (true); -- Everyone can read plan options
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND policyname = 'subscription_plans_service_role_only') THEN
+        CREATE POLICY "subscription_plans_service_role_only" ON subscription_plans
+            FOR ALL USING (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            )
+            WITH CHECK (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            );
+    END IF;
+END $$;
 
 -- 7. Add system configuration for timeouts, intervals, and feature flags
 INSERT INTO system_configuration (config_key, config_value, config_type, description, is_sensitive) VALUES
@@ -298,7 +404,7 @@ BEGIN
     AND (active_requests < COALESCE(concurrent_requests, 999999));
     
     -- Check if capacity was acquired (row was updated)
-    GET DIAGNOSTICS capacity_acquired = FOUND;
+    capacity_acquired := FOUND;
     
     IF NOT capacity_acquired THEN
         -- Rate limit exceeded - log the violation atomically
@@ -360,7 +466,7 @@ CREATE OR REPLACE FUNCTION enqueue_job_v3(
     job_payload jsonb,
     job_category text default 'standard',
     priority int default 5,
-    scheduled_at timestamptz default now()
+    p_scheduled_at timestamptz default now()
 ) RETURNS TABLE(job_id uuid, scheduled_at timestamptz)  -- IMPROVED: Return scheduled time for observability
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -410,13 +516,13 @@ BEGIN
         backpressure_delay := COALESCE(backpressure_delay, 0);
         
         IF backpressure_delay > 0 THEN
-            scheduled_at := scheduled_at + (backpressure_delay || ' seconds')::INTERVAL;
+            p_scheduled_at := p_scheduled_at + (backpressure_delay || ' seconds')::INTERVAL;
         END IF;
     END IF;
     
     -- Insert job with potential backpressure delay
     INSERT INTO job_queue (job_type, job_lane, job_name, job_payload, job_category, priority, scheduled_at)
-    VALUES (job_type, p_job_lane, job_name, job_payload, job_category, priority, scheduled_at)
+    VALUES (job_type, p_job_lane, job_name, job_payload, job_category, priority, p_scheduled_at)
     RETURNING id INTO job_id;
     
     -- Correlation ID logging
@@ -425,12 +531,12 @@ BEGIN
         job_id::text,
         'INSERT',
         NULL,
-        jsonb_build_object('job_type', job_type, 'job_id', job_id, 'scheduled_at', scheduled_at),
+        jsonb_build_object('job_type', job_type, 'job_id', job_id, 'scheduled_at', p_scheduled_at),
         'Job enqueued with correlation tracking',
         'system'
     );
     
-    RETURN QUERY SELECT job_id, scheduled_at;  -- FIXED: Return both job_id and scheduled time
+    RETURN QUERY SELECT job_id, p_scheduled_at;  -- FIXED: Return both job_id and scheduled time
 END;
 $$;
 
@@ -886,15 +992,21 @@ $$;
 -- 9. Set up proper RLS and security
 -- Enable RLS on job_queue (service role only)
 ALTER TABLE job_queue ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "job_queue_service_role_only" ON job_queue
-    FOR ALL USING (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    )
-    WITH CHECK (
-        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-        OR is_service_role()
-    );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND policyname = 'job_queue_service_role_only') THEN
+        CREATE POLICY "job_queue_service_role_only" ON job_queue
+            FOR ALL USING (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            )
+            WITH CHECK (
+                current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+                OR is_service_role()
+            );
+    END IF;
+END $$;
 
 -- Grant execute permissions only to service role, revoke from others
 REVOKE EXECUTE ON FUNCTION acquire_api_capacity(text, text, integer) FROM PUBLIC;

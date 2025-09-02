@@ -1,12 +1,49 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 02_profiles.sql
+-- 02_PROFILES.SQL - Multi-Profile Management & Identity Architecture
 -- =============================================================================
--- Purpose: Multi-profile management system with correct ID architecture
--- Components: Profile Tables + User Events + Audit Log Completion + Access Security
--- Dependencies: 01_foundations.sql (extensions, audit infrastructure)
--- Key Fix: Establishes correct auth.users(id) vs user_profiles(id) architecture
--- Eliminates: get_allowed_patient_ids() workaround function (Blueprint Issue #38)
--- Created: 2025-08-27 (Fresh Start Implementation)
+-- VERSION: 1.1 (HOTFIX 2025-09-02: GPT-5 security hardening)
+--   - Guarded audit_log.patient_id column addition with existence check
+--   - Added WITH CHECK clauses to all FOR ALL policies  
+--   - Added search_path security to profile access functions
+-- Purpose: Complete multi-profile system with correct V3 ID architecture and access control
+-- Architecture: Profile-centric healthcare data architecture supporting families, pets, and dependents
+-- Dependencies: 01_foundations.sql (audit infrastructure, ENUMs, security functions)
+-- 
+-- DESIGN DECISIONS:
+-- - V3 ID Architecture: auth.users(id) = account owners, user_profiles(id) = data subjects/patients
+-- - Profile contamination prevention: Demographic/clinical/temporal verification rules
+-- - Smart health features: AI-driven health journey detection (pregnancy, chronic conditions)
+-- - Enhanced appointments: Profile-aware scheduling with guardian consent support
+-- - Security functions: has_profile_access() replaces get_allowed_patient_ids() workaround
+-- - Audit log integration: Completes patient_id column from 01_foundations.sql deferred creation
+-- - Soft/hard authentication: Progressive identity verification with feature restrictions
+-- 
+-- TABLES CREATED (10 tables):
+-- Profile Core:
+--   - user_profiles, profile_access_permissions, user_profile_context
+-- Smart Health Features:
+--   - smart_health_features, pregnancy_journey_events  
+-- Profile Safety:
+--   - profile_verification_rules, profile_detection_patterns, profile_auth_progression
+-- Enhanced Features:
+--   - profile_appointments, user_events
+-- 
+-- KEY FUNCTIONS:
+-- - has_profile_access(): Core profile access checking (replaces workaround functions)
+-- - has_profile_access_level(): Permission-level access validation with explicit whitelisting
+-- - get_accessible_profiles(): Returns profiles accessible to user with access type
+-- - Enhanced log_audit_event(): Now fully functional with patient_id column
+-- 
+-- AUDIT LOG INTEGRATION:
+-- - Adds patient_id column to audit_log table (deferred from 01_foundations.sql)
+-- - Updates RLS policies with correct profile ownership logic
+-- - Eliminates auth.uid() vs profile_id confusion from V2 architecture
+-- 
+-- INTEGRATION POINTS:
+-- - Provides profile access functions for all subsequent clinical tables
+-- - Smart health features activate based on clinical events (connected in 03_clinical_core.sql)
+-- - Profile detection patterns support AI-powered profile switching
+-- - User events table provides correct profile context for frontend analytics
 -- =============================================================================
 
 BEGIN;
@@ -302,7 +339,18 @@ CREATE TABLE user_events (
 -- =============================================================================
 
 -- Add patient_id column to audit_log table (created in 01_foundations.sql)
-ALTER TABLE audit_log ADD COLUMN patient_id UUID REFERENCES user_profiles(id);
+-- HOTFIX 2025-09-02: Guard column addition with existence check
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'audit_log' 
+        AND column_name = 'patient_id'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE audit_log ADD COLUMN patient_id UUID REFERENCES user_profiles(id);
+    END IF;
+END $$;
 
 -- Add patient_id index for performance
 CREATE INDEX idx_audit_log_patient ON audit_log(patient_id) WHERE patient_id IS NOT NULL;
@@ -369,7 +417,7 @@ EXCEPTION
         RAISE WARNING 'Audit logging failed for % %: %', p_table_name, p_record_id, SQLERRM;
         RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp SET search_path = public, pg_temp;
 
 -- =============================================================================
 -- 7. PROFILE ACCESS SECURITY FUNCTIONS (Blueprint Issue #40)
@@ -387,7 +435,7 @@ BEGIN
         AND archived = FALSE
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp SET search_path = public, pg_temp;
 
 -- Enhanced profile access checking with permission levels
 CREATE OR REPLACE FUNCTION has_profile_access_level(p_user_id UUID, p_profile_id UUID, p_required_level TEXT)
@@ -412,17 +460,17 @@ BEGIN
                 WHEN 'owner' THEN ARRAY['owner']
                 ELSE ARRAY[]::TEXT[] -- Invalid level returns no matches
             END
-        ) -- ✅ FIXED: Use explicit whitelist instead of dangerous enum ordering
+        ) -- FIXED: Use explicit whitelist instead of dangerous enum ordering
         AND (pap.access_end_date IS NULL OR pap.access_end_date > NOW())
         AND pap.revoked_at IS NULL
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp SET search_path = public, pg_temp;
 
 -- Get profiles accessible by user (replaces get_allowed_patient_ids workaround)
 CREATE OR REPLACE FUNCTION get_accessible_profiles(p_user_id UUID DEFAULT auth.uid())
 RETURNS TABLE(profile_id UUID, access_type TEXT, relationship TEXT)
-LANGUAGE plpgsql SECURITY DEFINER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
 AS $$
 BEGIN
     RETURN QUERY
@@ -503,40 +551,59 @@ ALTER TABLE profile_appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_events ENABLE ROW LEVEL SECURITY;
 
 -- Profile management policies (using correct has_profile_access function)
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY user_profiles_owner_access ON user_profiles
-    FOR ALL USING (account_owner_id = auth.uid() AND archived IS NOT TRUE);
+    FOR ALL USING (account_owner_id = auth.uid() AND archived IS NOT TRUE)
+    WITH CHECK (account_owner_id = auth.uid() AND archived IS NOT TRUE);
 
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY profile_access_permissions_owner ON profile_access_permissions
     FOR ALL USING (
         has_profile_access(auth.uid(), profile_access_permissions.profile_id)
         OR user_id = auth.uid()
+    )
+    WITH CHECK (
+        has_profile_access(auth.uid(), profile_access_permissions.profile_id)
+        OR user_id = auth.uid()
     );
 
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY user_profile_context_owner ON user_profile_context
-    FOR ALL USING (user_id = auth.uid());
+    FOR ALL USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
 
 -- Smart features policies (using has_profile_access function)
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY smart_health_features_access ON smart_health_features
-    FOR ALL USING (has_profile_access(auth.uid(), smart_health_features.profile_id));
+    FOR ALL USING (has_profile_access(auth.uid(), smart_health_features.profile_id))
+    WITH CHECK (has_profile_access(auth.uid(), smart_health_features.profile_id));
 
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY pregnancy_journey_events_access ON pregnancy_journey_events
-    FOR ALL USING (has_profile_access(auth.uid(), pregnancy_journey_events.profile_id));
+    FOR ALL USING (has_profile_access(auth.uid(), pregnancy_journey_events.profile_id))
+    WITH CHECK (has_profile_access(auth.uid(), pregnancy_journey_events.profile_id));
 
 -- Profile verification rules - accessible to all authenticated users
 CREATE POLICY profile_verification_rules_read_all ON profile_verification_rules
     FOR SELECT USING (auth.uid() IS NOT NULL);
 
 -- Profile detection patterns - owner only
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY profile_detection_patterns_owner ON profile_detection_patterns
-    FOR ALL USING (has_profile_access(auth.uid(), profile_detection_patterns.profile_id));
+    FOR ALL USING (has_profile_access(auth.uid(), profile_detection_patterns.profile_id))
+    WITH CHECK (has_profile_access(auth.uid(), profile_detection_patterns.profile_id));
 
 -- Profile auth progression - owner only
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY profile_auth_progression_owner ON profile_auth_progression
-    FOR ALL USING (has_profile_access(auth.uid(), profile_auth_progression.profile_id));
+    FOR ALL USING (has_profile_access(auth.uid(), profile_auth_progression.profile_id))
+    WITH CHECK (has_profile_access(auth.uid(), profile_auth_progression.profile_id));
 
 -- Profile appointments - owner access
+-- HOTFIX 2025-09-02: Added WITH CHECK clause
 CREATE POLICY profile_appointments_owner ON profile_appointments
-    FOR ALL USING (account_owner_id = auth.uid());
+    FOR ALL USING (account_owner_id = auth.uid())
+    WITH CHECK (account_owner_id = auth.uid());
 
 -- User events policies (using correct profile access)
 CREATE POLICY user_events_profile_access ON user_events
