@@ -159,6 +159,33 @@ apps/
 
 ## Database Architecture (V3 Schema)
 
+### **Schema Documentation Approach**
+
+Each SQL file contains **enhanced header comments** that provide complete context without separate README files:
+
+```sql
+-- =============================================================================
+-- [FILE_NAME].SQL - [PURPOSE_TITLE]
+-- =============================================================================
+-- Purpose: [One-line purpose]
+-- Architecture: [Key architectural pattern]
+-- Dependencies: [What this file requires]
+-- 
+-- DESIGN DECISIONS:
+-- - [Key decision 1]: [Why this choice]
+-- - [Key decision 2]: [Why this choice]
+-- 
+-- TABLES CREATED ([number] tables):
+-- [Category 1]: [table1], [table2], [table3]
+-- [Category 2]: [table4], [table5]
+-- 
+-- KEY FUNCTIONS: [function1()], [function2()]
+-- INTEGRATION POINTS: [How components use this]
+-- =============================================================================
+```
+
+**Benefits:** Context at source, no maintenance overhead, AI-friendly, version control integrated.
+
 ### **Core Database Components**
 
 #### **1. Foundation Layer (01-02)**

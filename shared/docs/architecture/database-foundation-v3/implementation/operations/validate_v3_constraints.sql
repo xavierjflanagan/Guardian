@@ -28,10 +28,10 @@ BEGIN
         PERFORM 'clinical'::data_classification_type;
         
         passed_count := passed_count + 1;
-        RAISE NOTICE '✅ Test %: % - PASSED', test_count, test_name;
+        RAISE NOTICE 'Test %: % - PASSED', test_count, test_name;
     EXCEPTION
         WHEN OTHERS THEN
-            RAISE NOTICE '❌ Test %: % - FAILED: %', test_count, test_name, SQLERRM;
+            RAISE NOTICE 'Test %: % - FAILED: %', test_count, test_name, SQLERRM;
     END;
 
     -- Test 2: Verify enhanced archival fields exist
@@ -47,10 +47,10 @@ BEGIN
         PERFORM 1 FROM information_schema.tables WHERE table_name = 'user_account_archival';
         
         passed_count := passed_count + 1;
-        RAISE NOTICE '✅ Test %: % - PASSED', test_count, test_name;
+        RAISE NOTICE 'Test %: % - PASSED', test_count, test_name;
     EXCEPTION
         WHEN OTHERS THEN
-            RAISE NOTICE '❌ Test %: % - FAILED: %', test_count, test_name, SQLERRM;
+            RAISE NOTICE 'Test %: % - FAILED: %', test_count, test_name, SQLERRM;
     END;
 
     -- Test 3: Verify ON DELETE RESTRICT policies work
@@ -66,10 +66,10 @@ BEGIN
         AND kcu.column_name = 'patient_id';
         
         passed_count := passed_count + 1;
-        RAISE NOTICE '✅ Test %: % - PASSED', test_count, test_name;
+        RAISE NOTICE 'Test %: % - PASSED', test_count, test_name;
     EXCEPTION
         WHEN OTHERS THEN
-            RAISE NOTICE '❌ Test %: % - FAILED: %', test_count, test_name, SQLERRM;
+            RAISE NOTICE 'Test %: % - FAILED: %', test_count, test_name, SQLERRM;
     END;
 
     -- Test 4: Verify critical functions exist
@@ -83,10 +83,10 @@ BEGIN
         PERFORM 1 FROM pg_proc WHERE proname = 'has_semantic_data_access';
         
         passed_count := passed_count + 1;
-        RAISE NOTICE '✅ Test %: % - PASSED', test_count, test_name;
+        RAISE NOTICE 'Test %: % - PASSED', test_count, test_name;
     EXCEPTION
         WHEN OTHERS THEN
-            RAISE NOTICE '❌ Test %: % - FAILED: %', test_count, test_name, SQLERRM;
+            RAISE NOTICE 'Test %: % - FAILED: %', test_count, test_name, SQLERRM;
     END;
 
     -- Test 5: Verify RLS policies are applied
@@ -101,10 +101,10 @@ BEGIN
         AND n.nspname = 'public';
         
         passed_count := passed_count + 1;
-        RAISE NOTICE '✅ Test %: % - PASSED', test_count, test_name;
+        RAISE NOTICE 'Test %: % - PASSED', test_count, test_name;
     EXCEPTION
         WHEN OTHERS THEN
-            RAISE NOTICE '❌ Test %: % - FAILED: %', test_count, test_name, SQLERRM;
+            RAISE NOTICE 'Test %: % - FAILED: %', test_count, test_name, SQLERRM;
     END;
 
     -- Test 6: Verify partition management functions exist
@@ -116,10 +116,10 @@ BEGIN
         PERFORM 1 FROM pg_proc WHERE proname = 'check_partition_health';
         
         passed_count := passed_count + 1;
-        RAISE NOTICE '✅ Test %: % - PASSED', test_count, test_name;
+        RAISE NOTICE 'Test %: % - PASSED', test_count, test_name;
     EXCEPTION
         WHEN OTHERS THEN
-            RAISE NOTICE '❌ Test %: % - FAILED: %', test_count, test_name, SQLERRM;
+            RAISE NOTICE 'Test %: % - FAILED: %', test_count, test_name, SQLERRM;
     END;
 
     -- Summary
@@ -130,7 +130,7 @@ BEGIN
     IF passed_count = test_count THEN
         RAISE NOTICE '🎉 ALL TESTS PASSED - V3 Foundation Ready for Deployment!';
     ELSE
-        RAISE NOTICE '⚠️  % tests failed - Review errors above before deployment', (test_count - passed_count);
+        RAISE NOTICE '% tests failed - Review errors above before deployment', (test_count - passed_count);
     END IF;
     
     RAISE NOTICE '================================================================';

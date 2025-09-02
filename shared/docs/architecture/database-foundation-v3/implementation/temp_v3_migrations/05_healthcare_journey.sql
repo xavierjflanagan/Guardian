@@ -1,10 +1,44 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 05_healthcare_journey.sql
--- Healthcare Provider System & Clinical Decision Support
+-- 05_HEALTHCARE_JOURNEY.SQL - Provider Integration & Care Coordination Platform
 -- =============================================================================
--- Purpose: Provider relationships, clinical decision support, and care coordination
--- Dependencies: 01_foundations.sql, 02_profiles.sql, 03_clinical_core.sql, 04_ai_processing.sql
--- Tables: 12 (8 Healthcare Provider System + 4 Clinical Decision Support)
+-- Purpose: Healthcare provider integration, patient-provider relationships, and clinical decision support infrastructure
+-- Architecture: Provider registry with credential verification + patient care coordination + clinical decision support automation
+-- Dependencies: 01_foundations.sql (audit, security), 02_profiles.sql (user_profiles), 03_clinical_core.sql (clinical_events), 04_ai_processing.sql (AI insights)
+-- 
+-- DESIGN DECISIONS:
+-- - Provider registry: Comprehensive healthcare provider directory with AHPRA/NPI credential verification
+-- - Patient-provider relationships: Secure access control with audit logging and time-based permissions
+-- - Australian healthcare integration: Registered doctors verification with Medicare provider numbers
+-- - Partitioned audit logging: Quarterly partitions for high-volume provider access logs
+-- - Clinical decision support: Rule-based alert system for provider workflows
+-- - Care coordination: Action items and task management for healthcare teams
+-- - Provider context management: Workflow state persistence for complex care scenarios
+-- - Healthcare journey tracking: Longitudinal care coordination across multiple providers
+-- 
+-- TABLES CREATED (12 tables + partitions):
+-- Healthcare Provider System (8 tables):
+--   - provider_registry, registered_doctors_au, patient_provider_access
+--   - provider_access_log (partitioned), provider_action_items
+-- Clinical Decision Support (4 tables):
+--   - clinical_alert_rules, provider_clinical_notes, healthcare_provider_context
+-- Audit Partitions:
+--   - provider_access_log_2025_q1, q2, q3, q4 (quarterly partitions)
+-- 
+-- KEY FEATURES:
+-- - provider_registry.registration_number: AHPRA/NPI credential verification support
+-- - patient_provider_access.permission_scope: Granular clinical data access control
+-- - provider_access_log: High-performance partitioned audit trail
+-- - clinical_alert_rules.condition_logic: AI-powered clinical decision support
+-- - provider_clinical_notes: Healthcare provider assessment and care plan documentation
+-- - healthcare_provider_context: Persistent workflow state for complex care scenarios
+-- 
+-- INTEGRATION POINTS:
+-- - Patient clinical events trigger provider alerts and action items
+-- - AI processing insights feed clinical decision support rules
+-- - Provider notes integrate with patient clinical narratives
+-- - Care coordination workflows connect multiple healthcare providers
+-- - Audit logs support healthcare compliance and quality assurance
+-- =============================================================================
 
 BEGIN;
 
@@ -26,6 +60,10 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'has_profile_access') THEN
         RAISE EXCEPTION 'DEPENDENCY ERROR: has_profile_access() function not found. Run 02_profiles.sql first.';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'is_admin') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: is_admin() missing. Run 01_foundations.sql first.';
     END IF;
 END $$;
 
@@ -306,8 +344,8 @@ BEGIN
             
             -- Check if partition already exists
             IF NOT EXISTS (
-                SELECT 1 FROM information_schema.tables 
-                WHERE table_name = partition_name AND table_schema = 'public'
+                SELECT 1 FROM information_schema.tables t
+                WHERE t.table_name = partition_name AND t.table_schema = 'public'
             ) THEN
                 -- Create partition
                 sql_statement := format(
@@ -666,32 +704,32 @@ CREATE INDEX IF NOT EXISTS idx_healthcare_provider_context_setting ON healthcare
 -- MOVED FROM 04_ai_processing.sql: Clinical Alert Rules and Provider Action Items
 -- =============================================================================
 
--- Clinical alert rules indexes (fixed field names from 04)
+-- Clinical alert rules indexes (corrected - removed invalid column references)
 CREATE INDEX IF NOT EXISTS idx_alert_rules_category ON clinical_alert_rules(rule_category, active) WHERE active = true;
-CREATE INDEX IF NOT EXISTS idx_alert_rules_priority ON clinical_alert_rules(alert_priority, active) WHERE active = true;
-CREATE INDEX IF NOT EXISTS idx_alert_rules_performance ON clinical_alert_rules(success_rate, trigger_count);
+-- REMOVED: idx_alert_rules_priority (alert_priority column does not exist)
+-- REMOVED: idx_alert_rules_performance (success_rate, trigger_count columns do not exist)
 
--- Provider action items indexes  
-CREATE INDEX IF NOT EXISTS idx_action_items_patient ON provider_action_items(patient_id);
-CREATE INDEX IF NOT EXISTS idx_action_items_status ON provider_action_items(status, priority);
-CREATE INDEX IF NOT EXISTS idx_action_items_type ON provider_action_items(action_type, status);
-CREATE INDEX IF NOT EXISTS idx_action_items_due ON provider_action_items(due_date) WHERE due_date IS NOT NULL AND status = 'pending';
+-- REMOVED: Duplicate provider_action_items indexes (already created in lines 677-682)
+-- This "Moved from 04" section contained redundant indexes with different names
 
 -- Enable RLS for moved tables
 ALTER TABLE clinical_alert_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE provider_action_items ENABLE ROW LEVEL SECURITY;
 
--- Clinical alert rules policies
+-- Clinical alert rules policies (idempotent)
+DROP POLICY IF EXISTS alert_rules_read ON clinical_alert_rules;
 CREATE POLICY alert_rules_read ON clinical_alert_rules
     FOR SELECT TO authenticated
     USING (active = true);
 
+DROP POLICY IF EXISTS alert_rules_admin ON clinical_alert_rules;
 CREATE POLICY alert_rules_admin ON clinical_alert_rules
     FOR ALL TO authenticated
     USING (is_admin())
     WITH CHECK (is_admin());
 
 -- Provider action items policy (fixed RLS type mismatch)
+DROP POLICY IF EXISTS action_items_access ON provider_action_items;
 CREATE POLICY action_items_access ON provider_action_items
     FOR ALL TO authenticated
     USING (
@@ -706,6 +744,83 @@ CREATE POLICY action_items_access ON provider_action_items
     WITH CHECK (
         has_profile_access(auth.uid(), patient_id)
         OR is_admin()
+    );
+
+-- =============================================================================
+-- MISSING RLS POLICIES (GPT-5 Security Hardening)
+-- =============================================================================
+
+-- provider_registry - Self-read + admin full access
+ALTER TABLE provider_registry ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS provider_registry_self_read ON provider_registry;
+CREATE POLICY provider_registry_self_read ON provider_registry
+    FOR SELECT TO authenticated
+    USING (user_id = auth.uid() OR is_admin());
+DROP POLICY IF EXISTS provider_registry_admin_all ON provider_registry;
+CREATE POLICY provider_registry_admin_all ON provider_registry
+    FOR ALL TO authenticated
+    USING (is_admin()) WITH CHECK (is_admin());
+
+-- registered_doctors_au - Directory: read-only to authenticated; admin can manage
+ALTER TABLE registered_doctors_au ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS registered_doctors_read ON registered_doctors_au;
+CREATE POLICY registered_doctors_read ON registered_doctors_au
+    FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS registered_doctors_admin_all ON registered_doctors_au;
+CREATE POLICY registered_doctors_admin_all ON registered_doctors_au
+    FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- patient_provider_access - Gate by patient access or admin
+ALTER TABLE patient_provider_access ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS patient_provider_access_access ON patient_provider_access;
+CREATE POLICY patient_provider_access_access ON patient_provider_access
+    FOR ALL TO authenticated
+    USING (has_profile_access(auth.uid(), patient_id) OR is_admin())
+    WITH CHECK (has_profile_access(auth.uid(), patient_id) OR is_admin());
+
+-- provider_access_log - Partitioned; apply to parent
+ALTER TABLE provider_access_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS provider_access_log_access ON provider_access_log;
+CREATE POLICY provider_access_log_access ON provider_access_log
+    FOR SELECT TO authenticated
+    USING (
+        has_profile_access(auth.uid(), patient_id) OR is_admin() OR
+        EXISTS (
+            SELECT 1 FROM provider_registry pr
+            WHERE pr.id = provider_id AND pr.user_id = auth.uid()
+        )
+    );
+
+-- provider_clinical_notes - By patient access or assigned provider or admin
+ALTER TABLE provider_clinical_notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS provider_notes_access ON provider_clinical_notes;
+CREATE POLICY provider_notes_access ON provider_clinical_notes
+    FOR ALL TO authenticated
+    USING (
+        has_profile_access(auth.uid(), patient_id) OR is_admin() OR
+        EXISTS (
+            SELECT 1 FROM provider_registry pr
+            WHERE pr.id = provider_clinical_notes.provider_id AND pr.user_id = auth.uid()
+        )
+    )
+    WITH CHECK (has_profile_access(auth.uid(), patient_id) OR is_admin());
+
+-- healthcare_provider_context - Provider-owned or admin
+ALTER TABLE healthcare_provider_context ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS provider_context_owner ON healthcare_provider_context;
+CREATE POLICY provider_context_owner ON healthcare_provider_context
+    FOR ALL TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM provider_registry pr
+            WHERE pr.id = healthcare_provider_context.provider_id AND pr.user_id = auth.uid()
+        ) OR is_admin()
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM provider_registry pr
+            WHERE pr.id = healthcare_provider_context.provider_id AND pr.user_id = auth.uid()
+        ) OR is_admin()
     );
 
 COMMIT;
@@ -740,7 +855,7 @@ BEGIN
     WHERE table_name LIKE 'provider_access_log_2025_%';
     
     IF table_count >= 12 AND index_count >= 25 AND partition_count = 4 THEN
-        RAISE NOTICE '✅ Healthcare Journey deployment successful!';
+        RAISE NOTICE 'Healthcare Journey deployment successful!';
         RAISE NOTICE '  - Tables: %/12, Indexes: %/25+, Partitions: %/4', 
             table_count, index_count, partition_count;
         RAISE NOTICE '  - Provider directory and credentials system ready';

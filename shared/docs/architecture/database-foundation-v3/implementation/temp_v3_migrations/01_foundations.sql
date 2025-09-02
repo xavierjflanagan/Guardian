@@ -1,11 +1,46 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 01_foundations.sql
+-- 01_FOUNDATIONS.SQL - System Infrastructure Foundation  
 -- =============================================================================
--- Purpose: Core system foundation with corrected ID references
--- Components: Extensions + System Infrastructure + Feature Flags
--- Dependencies: None (foundation for all other files)
--- Key Fix: audit_log.patient_id now correctly references user_profiles(id)
--- Created: 2025-08-27 (Fresh Start Implementation)
+-- VERSION: 1.1 (HOTFIX 2025-09-02: GPT-5 security hardening)
+--   - Fixed is_admin() function to align with seeded admin_email_domains
+--   - Restricted audit_log INSERT policy to service role only  
+--   - Added search_path security to SECURITY DEFINER functions
+-- Purpose: Core system foundation with PostgreSQL extensions, audit infrastructure, and security framework
+-- Architecture: Comprehensive system infrastructure providing audit, notifications, configuration, and feature flags
+-- Dependencies: None - This is the foundation for all other V3 schema files
+-- 
+-- DESIGN DECISIONS:
+-- - audit_log.patient_id: DEFERRED to 02_profiles.sql after user_profiles table exists (V3 ID architecture fix)
+-- - Enhanced archival system: GDPR-compliant account deletion with 30-day recovery window
+-- - Strongly-typed ENUMs: 6 reusable ENUM types for schema consistency
+-- - Security functions: Canonical role checking available to all subsequent scripts
+-- - Feature flags: Progressive rollout system for safe deployment of new features
+-- - RLS policies: Row Level Security enabled on all system tables
+-- 
+-- TABLES CREATED (6 tables):
+-- System Infrastructure:
+--   - audit_log, system_notifications, system_configuration
+-- Account Management:
+--   - user_account_archival  
+-- Feature Management:
+--   - feature_flags
+-- 
+-- ENUM TYPES CREATED (6 types):
+-- - profile_relationship_type, verification_status_type, consent_status_type
+-- - access_level_type, processing_status_type, data_classification_type
+-- 
+-- KEY FUNCTIONS:
+-- - log_audit_event(): System-wide audit logging with healthcare compliance
+-- - is_admin(), is_service_role(), is_developer(), is_healthcare_provider(): Role checking
+-- - is_feature_enabled_for_user(): Feature flag evaluation with rollout percentage
+-- - create_system_notification(): Internal system notification management
+-- - update_updated_at_column(): Reusable trigger function for updated_at columns
+-- 
+-- INTEGRATION POINTS:
+-- - Provides audit infrastructure for all clinical tables
+-- - Security functions used by RLS policies in all subsequent scripts  
+-- - Feature flags control progressive rollout of V3 capabilities
+-- - Account archival supports GDPR Article 17 compliance across platform
 -- =============================================================================
 
 BEGIN;
@@ -42,7 +77,7 @@ BEGIN
     END LOOP;
     
     IF installed_count = array_length(expected_extensions, 1) THEN
-        RAISE NOTICE '✅ All required extensions successfully installed!';
+        RAISE NOTICE 'All required extensions successfully installed!';
     ELSE
         RAISE WARNING 'Only % of % expected extensions installed', installed_count, array_length(expected_extensions, 1);
     END IF;
@@ -291,9 +326,13 @@ CREATE POLICY audit_log_admin_read ON audit_log
     );
 
 -- System can insert audit entries
+-- HOTFIX 2025-09-02: Restricted to service role only for security
 CREATE POLICY audit_log_system_write ON audit_log
     FOR INSERT TO authenticated
-    WITH CHECK (true); -- All authenticated users can create audit entries
+    WITH CHECK (
+        current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+        OR is_service_role()
+    ); -- Only service role can create audit entries
 
 -- System notifications policies
 CREATE POLICY system_notifications_user_access ON system_notifications
@@ -361,7 +400,7 @@ EXCEPTION
         RAISE WARNING 'Audit logging failed for % %: %', p_table_name, p_record_id, SQLERRM;
         RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- System notification function
 CREATE OR REPLACE FUNCTION create_system_notification(
@@ -386,13 +425,14 @@ BEGIN
     
     RETURN notification_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- =============================================================================
 -- CANONICAL SECURITY FUNCTIONS (Available to all subsequent scripts)
 -- =============================================================================
 
 -- Create canonical admin checking function
+-- HOTFIX 2025-09-02: Fixed to use admin_email_domains from seeded config + added search_path security
 CREATE OR REPLACE FUNCTION is_admin(user_id UUID DEFAULT auth.uid())
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -404,19 +444,19 @@ BEGIN
             -- Method 1: User metadata role
             auth.users.raw_user_meta_data->>'role' = 'admin'
             OR
-            -- Method 2: Email domain check
-            auth.users.email LIKE '%@guardian-admin.com'
-            OR
-            -- Method 3: Explicit admin list from system config
-            auth.users.email = ANY(
+            -- Method 2: Email domain check using seeded admin_email_domains
+            SPLIT_PART(auth.users.email, '@', 2) = ANY(
                 SELECT jsonb_array_elements_text(config_value) 
                 FROM system_configuration 
-                WHERE config_key = 'security.admin_emails'
+                WHERE config_key = 'security.admin_email_domains'
             )
+            OR
+            -- Method 3: Fallback hardcoded check (for reliability)
+            auth.users.email LIKE '%@guardian-admin.com'
         )
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Create canonical service role checking function
 CREATE OR REPLACE FUNCTION is_service_role()
@@ -429,7 +469,7 @@ BEGIN
         current_setting('role') = 'service_role'
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Create canonical developer checking function
 CREATE OR REPLACE FUNCTION is_developer(user_id UUID DEFAULT auth.uid())
@@ -448,7 +488,7 @@ BEGIN
         )
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Create canonical healthcare provider checking function
 CREATE OR REPLACE FUNCTION is_healthcare_provider(user_id UUID DEFAULT auth.uid())
@@ -497,7 +537,7 @@ BEGIN
             );
     END;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- =============================================================================
 -- UPDATED_AT TRIGGERS
@@ -615,7 +655,7 @@ BEGIN
     
     RETURN false;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 CREATE OR REPLACE FUNCTION enable_feature_for_user(
     p_feature_name TEXT,
@@ -635,7 +675,7 @@ BEGIN
     
     RETURN FOUND;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 CREATE OR REPLACE FUNCTION disable_feature_for_user(
     p_feature_name TEXT,
@@ -649,7 +689,7 @@ BEGIN
     
     RETURN FOUND;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Create implementation tracking table
 CREATE TABLE IF NOT EXISTS implementation_sessions (
@@ -787,14 +827,14 @@ BEGIN
     SELECT COUNT(*) INTO feature_count FROM feature_flags;
     
     IF table_count = 5 AND function_count >= 9 AND config_count >= 6 AND feature_count >= 12 THEN
-        RAISE NOTICE '✅ Foundation deployment successful!';
+        RAISE NOTICE 'Foundation deployment successful!';
         RAISE NOTICE '   - % system tables created', table_count;
         RAISE NOTICE '   - % utility functions created', function_count;
         RAISE NOTICE '   - % configuration entries loaded', config_count;
         RAISE NOTICE '   - % feature flags created', feature_count;
-        RAISE NOTICE '📋 NOTE: audit_log.patient_id column will be added in 02_profiles.sql';
+        RAISE NOTICE 'NOTE: audit_log.patient_id column will be added in 02_profiles.sql';
     ELSE
-        RAISE WARNING '❌ Foundation deployment incomplete:';
+        RAISE WARNING 'Foundation deployment incomplete:';
         RAISE WARNING '   - Tables: %/5, Functions: %/9, Config: %/6, Features: %/12', 
                      table_count, function_count, config_count, feature_count;
     END IF;
@@ -807,16 +847,16 @@ COMMIT;
 -- SUCCESS MESSAGE
 -- =============================================================================
 
-\echo '🎯 01_foundations.sql deployed successfully!'
-\echo 'Components available:'
-\echo '- PostgreSQL Extensions (6 extensions)'
-\echo '- System Infrastructure (audit_log with CORRECTED patient_id reference)'
-\echo '- System Notifications & Configuration'
-\echo '- Feature Flags System (12 flags)'
-\echo '- Security Functions (admin, developer, provider checks)'
-\echo '- Audit Logging Infrastructure'
-\echo ''
-\echo '📋 KEY CHANGE:'
-\echo '  audit_log.patient_id column deferred to 02_profiles.sql (after user_profiles table exists)'
-\echo ''
-\echo 'Next step: Run 02_profiles.sql'
+-- 01_foundations.sql deployed successfully!
+-- Components available:
+-- - PostgreSQL Extensions (6 extensions)
+-- - System Infrastructure (audit_log with CORRECTED patient_id reference)
+-- - System Notifications & Configuration
+-- - Feature Flags System (12 flags)
+-- - Security Functions (admin, developer, provider checks)
+-- - Audit Logging Infrastructure
+-- 
+-- KEY CHANGE:
+-- audit_log.patient_id column deferred to 02_profiles.sql (after user_profiles table exists)
+-- 
+-- Next step: Run 02_profiles.sql

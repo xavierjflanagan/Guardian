@@ -1,11 +1,47 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 04_ai_processing.sql
+-- 04_AI_PROCESSING.SQL - V3 Three-Pass AI Processing Pipeline & Dual-Lens Experience
 -- =============================================================================
--- Purpose: AI processing pipeline infrastructure with V3 entity classification
--- Components: Entity Processing + AI Confidence + Manual Review + Clinical Decision Support
--- Dependencies: 01_foundations.sql, 02_profiles.sql, 03_clinical_core.sql
--- Key Fix: All references use correct user_profiles(id) relationships
--- Created: 2025-08-27 (Fresh Start Implementation)
+-- VERSION: 1.1 (HOTFIX 2025-09-02: GPT-5 dependency validation)
+--   - Added is_admin() dependency check (policies use it)
+--   - Enhanced preflight validation for core dependencies
+-- Purpose: Complete V3 AI processing infrastructure with three-pass pipeline and dual-lens user experience
+-- Architecture: Pass 1 (entity detection) → Pass 2 (clinical extraction) → Pass 3 (semantic narrative creation) with human-in-the-loop validation
+-- Dependencies: 01_foundations.sql (audit, security), 02_profiles.sql (user_profiles), 03_clinical_core.sql (shell_files, clinical_narratives)
+-- 
+-- DESIGN DECISIONS:
+-- - Three-pass AI architecture: Sequential processing with increasing sophistication
+-- - Entity processing audit: Complete traceability of all AI entity extraction decisions
+-- - Profile classification safety: Contamination prevention through demographic/clinical validation
+-- - Manual review queue: Human-in-the-loop validation for low-confidence AI results
+-- - Semantic processing infrastructure: Pass 3 clinical narrative creation with coherence scoring
+-- - Shell file synthesis: Post-Pass 3 intelligent summaries replacing primitive document intelligence
+-- - Dual-lens user experience: Document-centric vs narrative-centric viewing with user preference persistence
+-- - Clinical decision support: Rule engine for AI-powered clinical insights and recommendations
+-- 
+-- TABLES CREATED (10 tables):
+-- AI Processing Core:
+--   - ai_processing_sessions, entity_processing_audit_v2, profile_classification_audit
+-- Quality & Validation:
+--   - manual_review_queue, ai_confidence_scoring
+-- Pass 3 Semantic Infrastructure:
+--   - semantic_processing_sessions, narrative_creation_audit, shell_file_synthesis_results
+-- Dual-Lens User Experience:
+--   - dual_lens_user_preferences, narrative_view_cache
+-- 
+-- KEY FEATURES:
+-- - ai_processing_sessions.workflow_step: Tracks progression through three-pass pipeline
+-- - entity_processing_audit_v2: V3-enhanced audit with correct shell_files references
+-- - semantic_processing_sessions: Pass 3 narrative creation session management
+-- - dual_lens_user_preferences: User choice between document-minded and clinical-minded experiences
+-- - narrative_view_cache: Performance optimization for complex narrative queries
+-- - Human-in-the-loop validation: Quality assurance for healthcare-critical AI decisions
+-- 
+-- INTEGRATION POINTS:
+-- - Processing sessions coordinate with V3 job queue (08_job_coordination.sql)
+-- - Entity audit feeds clinical decision support algorithms
+-- - Semantic processing creates clinical narratives in 03_clinical_core.sql
+-- - Dual-lens preferences drive frontend UI/UX presentation layer
+-- - Manual review queue supports healthcare provider validation workflows
 -- =============================================================================
 
 BEGIN;
@@ -29,7 +65,29 @@ BEGIN
         RAISE EXCEPTION 'DEPENDENCY ERROR: has_profile_access() function not found. Run 02_profiles.sql first.';
     END IF;
     
-    RAISE NOTICE 'Dependencies verified: V3 core clinical tables and profile access functions exist';
+    -- Additional dependency checks from GPT-5 review
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_profiles') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: user_profiles missing. Run 02_profiles.sql.';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'clinical_narratives') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: clinical_narratives missing. Run 03_clinical_core.sql.';
+    END IF;
+
+    -- Check all patient_* tables required by FKs
+    PERFORM 1 FROM information_schema.tables WHERE table_name IN (
+        'patient_observations','patient_interventions','patient_conditions',
+        'patient_medications','patient_immunizations','patient_vitals','patient_allergies'
+    );
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: One or more patient_* tables missing. Run 03_clinical_core.sql.';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'is_admin') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: is_admin() missing. Run 01_foundations.sql.';
+    END IF;
+    
+    RAISE NOTICE 'Dependencies verified: All required tables and functions exist';
 END $$;
 
 -- =============================================================================
@@ -378,7 +436,8 @@ ALTER TABLE manual_review_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_confidence_scoring ENABLE ROW LEVEL SECURITY;
 -- MOVED TO 05_healthcare_journey.sql: clinical_alert_rules and provider_action_items RLS
 
--- AI processing sessions - profile-based access
+-- AI processing sessions - profile-based access (idempotent)
+DROP POLICY IF EXISTS ai_sessions_access ON ai_processing_sessions;
 CREATE POLICY ai_sessions_access ON ai_processing_sessions
     FOR ALL TO authenticated
     USING (
@@ -390,7 +449,8 @@ CREATE POLICY ai_sessions_access ON ai_processing_sessions
         OR is_admin()
     );
 
--- Entity processing audit - profile-based access via session
+-- Entity processing audit - profile-based access via session (idempotent)
+DROP POLICY IF EXISTS entity_audit_access ON entity_processing_audit_v2;
 CREATE POLICY entity_audit_access ON entity_processing_audit_v2
     FOR ALL TO authenticated
     USING (
@@ -408,7 +468,8 @@ CREATE POLICY entity_audit_access ON entity_processing_audit_v2
         )
     );
 
--- Profile classification audit - similar access pattern
+-- Profile classification audit - similar access pattern (idempotent)
+DROP POLICY IF EXISTS profile_classification_access ON profile_classification_audit;
 CREATE POLICY profile_classification_access ON profile_classification_audit
     FOR ALL TO authenticated
     USING (
@@ -426,7 +487,8 @@ CREATE POLICY profile_classification_access ON profile_classification_audit
         )
     );
 
--- Manual review queue - profile-based access
+-- Manual review queue - profile-based access (idempotent)
+DROP POLICY IF EXISTS review_queue_access ON manual_review_queue;
 CREATE POLICY review_queue_access ON manual_review_queue
     FOR ALL TO authenticated
     USING (
@@ -439,7 +501,8 @@ CREATE POLICY review_queue_access ON manual_review_queue
         OR is_admin()
     );
 
--- AI confidence scoring - access via processing session
+-- AI confidence scoring - access via processing session (idempotent)
+DROP POLICY IF EXISTS confidence_scoring_access ON ai_confidence_scoring;
 CREATE POLICY confidence_scoring_access ON ai_confidence_scoring
     FOR ALL TO authenticated
     USING (
@@ -460,7 +523,7 @@ CREATE POLICY confidence_scoring_access ON ai_confidence_scoring
 -- MOVED TO 05_healthcare_journey.sql: All clinical_alert_rules and provider_action_items policies
 -- These policies reference tables defined in file 05, so they belong there
 
--- =============================================================================
+-- NOTE: GPT-5 Security Policies moved to after all tables are created (avoid forward references)
 -- SECTION 8: AI PROCESSING UTILITY FUNCTIONS
 -- =============================================================================
 
@@ -695,6 +758,55 @@ BEGIN
         RAISE WARNING 'AI processing deployment incomplete:';
         RAISE WARNING '  - Tables: %/7, Indexes: %/20, Policies: %/10, Functions: %/4', 
             table_count, index_count, policy_count, function_count;
+    END IF;
+END $$;
+
+-- =============================================================================
+-- SECTION 9B: PASS 3 VERIFICATION (GPT-5 Enhancement)
+-- =============================================================================
+
+-- Additional verification for Pass 3 semantic processing tables
+DO $$
+DECLARE
+    pass3_table_count INTEGER;
+    pass3_policy_count INTEGER;
+BEGIN
+    -- Count Pass 3 tables
+    SELECT COUNT(*) INTO pass3_table_count
+    FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name IN (
+        'semantic_processing_sessions', 'narrative_creation_audit', 'shell_file_synthesis_results',
+        'dual_lens_user_preferences', 'narrative_view_cache'
+    );
+    
+    -- Count Pass 3 RLS policies
+    SELECT COUNT(*) INTO pass3_policy_count
+    FROM pg_policies 
+    WHERE schemaname = 'public'
+    AND tablename IN (
+        'semantic_processing_sessions', 'narrative_creation_audit', 'shell_file_synthesis_results',
+        'dual_lens_user_preferences', 'narrative_view_cache'
+    );
+    
+    IF pass3_table_count = 5 AND pass3_policy_count >= 5 THEN
+        RAISE NOTICE '==================================================================';
+        RAISE NOTICE 'PASS 3 SEMANTIC PROCESSING INFRASTRUCTURE DEPLOYMENT SUCCESS';
+        RAISE NOTICE '==================================================================';
+        RAISE NOTICE '';
+        RAISE NOTICE 'PASS 3 COMPONENTS DEPLOYED:';
+        RAISE NOTICE '  - % semantic processing tables with RLS protection', pass3_table_count;
+        RAISE NOTICE '  - % security policies for healthcare data protection', pass3_policy_count;
+        RAISE NOTICE '';
+        RAISE NOTICE 'SEMANTIC CAPABILITIES READY:';
+        RAISE NOTICE '  - Clinical narrative creation and audit tracking';
+        RAISE NOTICE '  - Shell file synthesis with post-AI intelligence';
+        RAISE NOTICE '  - Dual-lens user experience (document vs clinical views)';
+        RAISE NOTICE '  - Narrative view caching for performance optimization';
+        RAISE NOTICE '';
+    ELSE
+        RAISE WARNING 'Pass 3 deployment incomplete: Tables: %/5, Policies: %/5', 
+                     pass3_table_count, pass3_policy_count;
     END IF;
 END $$;
 
@@ -959,6 +1071,71 @@ CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_profile ON narrative_view_ca
 CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_type ON narrative_view_cache(view_type);
 CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_valid ON narrative_view_cache(cache_valid) WHERE cache_valid = TRUE;
 CREATE INDEX IF NOT EXISTS idx_narrative_view_cache_expires ON narrative_view_cache(cache_expires_at) WHERE cache_expires_at IS NOT NULL;
+
+-- =============================================================================
+-- SECTION 7B: PASS 3 RLS POLICIES (GPT-5 Security Hardening)
+-- =============================================================================
+-- Enable RLS and create policies for Pass 3 tables (moved here after all tables exist)
+
+-- Semantic Processing Sessions - Enable RLS and create policy (idempotent)
+ALTER TABLE semantic_processing_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS semantic_processing_sessions_access ON semantic_processing_sessions;
+CREATE POLICY semantic_processing_sessions_access ON semantic_processing_sessions
+    FOR ALL TO authenticated
+    USING (has_profile_access(auth.uid(), patient_id) OR is_admin())
+    WITH CHECK (has_profile_access(auth.uid(), patient_id) OR is_admin());
+
+-- Narrative Creation Audit - Enable RLS and create policy (session-linked, idempotent)
+ALTER TABLE narrative_creation_audit ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS narrative_creation_audit_access ON narrative_creation_audit;
+CREATE POLICY narrative_creation_audit_access ON narrative_creation_audit
+    FOR ALL TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM semantic_processing_sessions s
+            WHERE s.id = narrative_creation_audit.semantic_processing_session_id
+            AND (has_profile_access(auth.uid(), s.patient_id) OR is_admin())
+        )
+    )
+    WITH CHECK (TRUE);
+
+-- Shell File Synthesis Results - Enable RLS and create policy (session-linked, idempotent)
+ALTER TABLE shell_file_synthesis_results ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS shell_file_synthesis_results_access ON shell_file_synthesis_results;
+CREATE POLICY shell_file_synthesis_results_access ON shell_file_synthesis_results
+    FOR ALL TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM semantic_processing_sessions s
+            WHERE s.id = shell_file_synthesis_results.semantic_processing_session_id
+            AND (has_profile_access(auth.uid(), s.patient_id) OR is_admin())
+        )
+    )
+    WITH CHECK (TRUE);
+
+-- Dual Lens User Preferences - Enable RLS and create policy (owner-based, idempotent)
+ALTER TABLE dual_lens_user_preferences ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS dual_lens_user_preferences_owner ON dual_lens_user_preferences;
+CREATE POLICY dual_lens_user_preferences_owner ON dual_lens_user_preferences
+    FOR ALL TO authenticated
+    USING (
+        user_id = auth.uid()
+        OR (profile_id IS NOT NULL AND has_profile_access(auth.uid(), profile_id))
+        OR is_admin()
+    )
+    WITH CHECK (
+        user_id = auth.uid()
+        OR (profile_id IS NOT NULL AND has_profile_access(auth.uid(), profile_id))
+        OR is_admin()
+    );
+
+-- Narrative View Cache - Enable RLS and create policy (profile-based, idempotent)
+ALTER TABLE narrative_view_cache ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS narrative_view_cache_profile_access ON narrative_view_cache;
+CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
+    FOR ALL TO authenticated
+    USING (has_profile_access(auth.uid(), profile_id) OR is_admin())
+    WITH CHECK (has_profile_access(auth.uid(), profile_id) OR is_admin());
 
 COMMIT;
 

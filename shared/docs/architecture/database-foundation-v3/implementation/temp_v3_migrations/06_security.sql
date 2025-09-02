@@ -1,10 +1,48 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 06_security.sql
--- Enhanced Consent Management & Comprehensive RLS Policies
+-- 06_SECURITY.SQL - GDPR Consent Management & Comprehensive RLS Security Framework (v1.1)
 -- =============================================================================
--- Purpose: GDPR-compliant consent management, advanced security policies, and data protection
--- Dependencies: 01_foundations.sql, 02_profiles.sql, 03_clinical_core.sql, 04_ai_processing.sql, 05_healthcare_journey.sql
--- Tables: 3 Enhanced Consent Management + Comprehensive RLS Policy Framework
+-- Purpose: GDPR Article 7 compliant consent management and comprehensive Row Level Security policies for entire V3 system
+-- Architecture: Granular consent tracking with audit trails + complete RLS security framework protecting all V3 clinical data
+-- Dependencies: 01_foundations.sql (security functions), 02_profiles.sql (has_profile_access), 03_clinical_core.sql (shell_files, clinical_narratives), 04_ai_processing.sql (AI tables), 05_healthcare_journey.sql (provider tables)
+-- Version: 1.1 - GPT-5 Security Hardening Applied
+-- 
+-- DESIGN DECISIONS:
+-- - GDPR Article 7 compliance: Demonstrable consent with evidence, withdrawal rights, and granular purpose specification
+-- - Comprehensive RLS framework: Every clinical table protected by patient_id -> user_profiles(id) access control
+-- - Consent audit trail: Complete consent change history for regulatory compliance and legal protection
+-- - Granular consent categories: Essential, functional, analytical, marketing, research consent types
+-- - Legal basis tracking: GDPR legal basis documentation with legitimate interest assessments
+-- - User consent preferences: Persistent user preference management for consent workflow optimization
+-- - Healthcare-specific consents: Provider access, AI processing, telehealth, emergency contact consents
+-- - Time-limited consents: Automatic consent expiry with renewal workflows
+-- 
+-- TABLES CREATED (3 tables):
+-- GDPR Consent Management:
+--   - patient_consents, patient_consent_audit, user_consent_preferences
+-- 
+-- RLS POLICY FRAMEWORK (Comprehensive):
+-- Semantic Architecture Protection:
+--   - shell_files, clinical_narratives, narrative_*_links tables
+-- Clinical Data Protection:
+--   - patient_clinical_events, patient_*, healthcare_encounters tables
+-- AI Processing Protection:
+--   - ai_processing_sessions, entity_processing_audit_v2, semantic_processing_sessions
+-- Provider System Protection:
+--   - provider_registry, patient_provider_access, provider_clinical_notes
+-- 
+-- KEY COMPLIANCE FEATURES:
+-- - patient_consents.consent_evidence: GDPR Article 7 demonstrable consent requirement
+-- - patient_consents.data_categories: Granular purpose limitation compliance
+-- - patient_consent_audit: Complete consent change audit trail for regulatory investigations
+-- - Legal basis tracking: GDPR legal basis documentation with legitimate interest assessments
+-- - Consent withdrawal rights: Automated data processing restriction upon consent withdrawal
+-- 
+-- INTEGRATION POINTS:
+-- - All V3 clinical tables protected by RLS policies using has_profile_access() function
+-- - Consent status affects AI processing permissions and provider access rights
+-- - Consent audit integrates with system-wide audit_log table for comprehensive compliance
+-- - Provider access governed by both technical RLS and consent-based permissions
+-- =============================================================================
 
 BEGIN;
 
@@ -24,8 +62,24 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'provider_registry') THEN
         RAISE EXCEPTION 'DEPENDENCY ERROR: provider_registry table not found. Run 05_healthcare_journey.sql first.';
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'patient_provider_access') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: patient_provider_access missing. Run 05_healthcare_journey.sql first.';
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'has_profile_access') THEN
         RAISE EXCEPTION 'DEPENDENCY ERROR: has_profile_access() function not found. Run 02_profiles.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'is_admin') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: is_admin() missing. Run 01_foundations.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'has_profile_access_level') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: has_profile_access_level() missing. Run 02_profiles.sql first.';
+    END IF;
+    -- Check for tables used in policies to avoid CREATE POLICY errors
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'clinical_alert_rules') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: clinical_alert_rules missing. Run 05_healthcare_journey.sql first.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'provider_action_items') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: provider_action_items missing. Run 05_healthcare_journey.sql first.';
     END IF;
 END $$;
 
@@ -232,50 +286,86 @@ CREATE OR REPLACE FUNCTION has_semantic_data_access(
     p_user_id UUID, 
     p_profile_id UUID,
     p_resource_type TEXT DEFAULT 'general'
-) RETURNS BOOLEAN AS $$
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     has_basic_access BOOLEAN;
-    consent_status BOOLEAN DEFAULT TRUE;
-    provider_access BOOLEAN DEFAULT FALSE;
+    consent_status BOOLEAN := TRUE;
+    is_provider BOOLEAN;
+    provider_access BOOLEAN := FALSE;
 BEGIN
-    -- Check profile access including delegated permissions
-    -- Use 'read_only' level for basic semantic data access (matches enum values)
     SELECT has_profile_access_level(p_user_id, p_profile_id, 'read_only') INTO has_basic_access;
-    
     IF NOT has_basic_access THEN
         RETURN FALSE;
     END IF;
     
-    -- Check consent for specific resource types
-    IF p_resource_type IN ('ai_processing', 'narrative_data', 'semantic_analysis') THEN
+    IF p_resource_type IN ('ai_processing','narrative_data','semantic_analysis') THEN
         SELECT COUNT(*) > 0 INTO consent_status
         FROM patient_consents pc
         WHERE pc.patient_id = p_profile_id
-        AND pc.consent_type = 'ai_processing'
-        AND pc.consent_status = 'granted'
-        AND (pc.consent_expiry_date IS NULL OR pc.consent_expiry_date > NOW());
-        
+            AND pc.consent_type = 'ai_processing'
+            AND pc.consent_status = 'granted'
+            AND (pc.consent_expiry_date IS NULL OR pc.consent_expiry_date > NOW());
         IF NOT consent_status THEN
             RETURN FALSE;
         END IF;
     END IF;
     
-    -- Check provider access if user is a healthcare provider
-    IF EXISTS (SELECT 1 FROM provider_registry pr WHERE pr.user_id = p_user_id AND pr.active = TRUE) THEN
+    SELECT EXISTS (
+        SELECT 1 FROM provider_registry pr
+        WHERE pr.user_id = p_user_id AND pr.active = TRUE
+    ) INTO is_provider;
+    
+    IF is_provider THEN
         SELECT COUNT(*) > 0 INTO provider_access
         FROM patient_provider_access ppa
         JOIN provider_registry pr ON pr.id = ppa.provider_id
         WHERE ppa.patient_id = p_profile_id
-        AND pr.user_id = p_user_id
-        AND ppa.relationship_status = 'active'
-        AND ppa.patient_consent_given = TRUE;
+            AND pr.user_id = p_user_id
+            AND ppa.relationship_status = 'active'
+            AND ppa.patient_consent_given = TRUE;
         
-        RETURN provider_access;
+        RETURN (has_basic_access AND consent_status) OR provider_access;
     END IF;
     
     RETURN has_basic_access AND consent_status;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+-- =============================================================================
+-- SECTION 2A: ENABLE RLS ON ALL TABLES
+-- =============================================================================
+
+-- Enable RLS on consent tables
+ALTER TABLE patient_consents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_consent_audit ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_consent_preferences ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on semantic/Pass 3 tables
+ALTER TABLE semantic_processing_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_creation_audit ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shell_file_synthesis_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dual_lens_user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_view_cache ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on narrative link tables
+ALTER TABLE narrative_condition_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_medication_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_allergy_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_immunization_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_vital_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE narrative_source_mappings ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on provider system tables
+ALTER TABLE provider_registry ENABLE ROW LEVEL SECURITY;
+ALTER TABLE registered_doctors_au ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_provider_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provider_access_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provider_clinical_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE healthcare_provider_context ENABLE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- SECTION 3: RLS POLICIES FOR SEMANTIC ARCHITECTURE TABLES
@@ -283,15 +373,24 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Shell Files RLS Policies
 CREATE POLICY shell_files_profile_access ON shell_files
-    FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'shell_file'));
+    FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'shell_file'))
+    WITH CHECK (has_semantic_data_access(auth.uid(), patient_id, 'shell_file'));
 
 -- Clinical Narratives RLS Policies  
 CREATE POLICY clinical_narratives_profile_access ON clinical_narratives
-    FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'narrative_data'));
+    FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'narrative_data'))
+    WITH CHECK (has_semantic_data_access(auth.uid(), patient_id, 'narrative_data'));
 
 -- Clinical Narrative Linking Tables RLS Policies
 CREATE POLICY narrative_condition_links_access ON narrative_condition_links
     FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM clinical_narratives cn
+            WHERE cn.id = narrative_condition_links.narrative_id
+            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM clinical_narratives cn
             WHERE cn.id = narrative_condition_links.narrative_id
@@ -306,10 +405,24 @@ CREATE POLICY narrative_medication_links_access ON narrative_medication_links
             WHERE cn.id = narrative_medication_links.narrative_id
             AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
         )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM clinical_narratives cn
+            WHERE cn.id = narrative_medication_links.narrative_id
+            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
+        )
     );
 
 CREATE POLICY narrative_allergy_links_access ON narrative_allergy_links
     FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM clinical_narratives cn
+            WHERE cn.id = narrative_allergy_links.narrative_id
+            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM clinical_narratives cn
             WHERE cn.id = narrative_allergy_links.narrative_id
@@ -324,10 +437,24 @@ CREATE POLICY narrative_immunization_links_access ON narrative_immunization_link
             WHERE cn.id = narrative_immunization_links.narrative_id
             AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
         )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM clinical_narratives cn
+            WHERE cn.id = narrative_immunization_links.narrative_id
+            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
+        )
     );
 
 CREATE POLICY narrative_vital_links_access ON narrative_vital_links
     FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM clinical_narratives cn
+            WHERE cn.id = narrative_vital_links.narrative_id
+            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM clinical_narratives cn
             WHERE cn.id = narrative_vital_links.narrative_id
@@ -343,6 +470,13 @@ CREATE POLICY narrative_source_mappings_access ON narrative_source_mappings
             WHERE cn.id = narrative_source_mappings.narrative_id
             AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
         )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM clinical_narratives cn
+            WHERE cn.id = narrative_source_mappings.narrative_id
+            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
+        )
     );
 
 -- =============================================================================
@@ -350,12 +484,22 @@ CREATE POLICY narrative_source_mappings_access ON narrative_source_mappings
 -- =============================================================================
 
 -- Semantic Processing Sessions RLS Policies
+DROP POLICY IF EXISTS semantic_processing_sessions_access ON semantic_processing_sessions;
 CREATE POLICY semantic_processing_sessions_access ON semantic_processing_sessions
-    FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'ai_processing'));
+    FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'ai_processing'))
+    WITH CHECK (has_semantic_data_access(auth.uid(), patient_id, 'ai_processing'));
 
 -- Narrative Creation Audit RLS Policies
+DROP POLICY IF EXISTS narrative_creation_audit_access ON narrative_creation_audit;
 CREATE POLICY narrative_creation_audit_access ON narrative_creation_audit
     FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM semantic_processing_sessions sps
+            WHERE sps.id = narrative_creation_audit.semantic_processing_session_id
+            AND has_semantic_data_access(auth.uid(), sps.patient_id, 'ai_processing')
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM semantic_processing_sessions sps
             WHERE sps.id = narrative_creation_audit.semantic_processing_session_id
@@ -364,8 +508,16 @@ CREATE POLICY narrative_creation_audit_access ON narrative_creation_audit
     );
 
 -- Shell File Synthesis Results RLS Policies
+DROP POLICY IF EXISTS shell_file_synthesis_results_access ON shell_file_synthesis_results;
 CREATE POLICY shell_file_synthesis_results_access ON shell_file_synthesis_results
     FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM shell_files sf
+            WHERE sf.id = shell_file_synthesis_results.shell_file_id
+            AND has_semantic_data_access(auth.uid(), sf.patient_id, 'ai_processing')
+        )
+    )
+    WITH CHECK (
         EXISTS (
             SELECT 1 FROM shell_files sf
             WHERE sf.id = shell_file_synthesis_results.shell_file_id
@@ -374,15 +526,22 @@ CREATE POLICY shell_file_synthesis_results_access ON shell_file_synthesis_result
     );
 
 -- Dual Lens User Preferences RLS Policies
+DROP POLICY IF EXISTS dual_lens_user_preferences_owner ON dual_lens_user_preferences;
 CREATE POLICY dual_lens_user_preferences_owner ON dual_lens_user_preferences
     FOR ALL USING (
+        user_id = auth.uid() 
+        OR (profile_id IS NOT NULL AND has_profile_access(auth.uid(), profile_id))
+    )
+    WITH CHECK (
         user_id = auth.uid() 
         OR (profile_id IS NOT NULL AND has_profile_access(auth.uid(), profile_id))
     );
 
 -- Narrative View Cache RLS Policies
+DROP POLICY IF EXISTS narrative_view_cache_profile_access ON narrative_view_cache;
 CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
-    FOR ALL USING (has_profile_access(auth.uid(), profile_id));
+    FOR ALL USING (has_profile_access(auth.uid(), profile_id))
+    WITH CHECK (has_profile_access(auth.uid(), profile_id));
 
 -- =============================================================================
 -- SECTION 5: RLS POLICIES FOR HEALTHCARE PROVIDER TABLES
@@ -391,7 +550,7 @@ CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
 -- Provider Registry RLS Policies (providers can see their own data + basic info for others)
 CREATE POLICY provider_registry_self_access ON provider_registry
     FOR ALL USING (
-        user_id = auth.uid() -- ✅ FIXED: Provider accessing their own record via auth user ID
+        user_id = auth.uid() -- FIXED: Provider accessing their own record via auth user ID
         OR verification_status = 'full_verified' -- Public directory access for verified providers
         OR is_admin() -- Admin access
     );
@@ -404,7 +563,7 @@ CREATE POLICY patient_provider_access_patient_view ON patient_provider_access
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = patient_provider_access.provider_id 
             AND pr.user_id = auth.uid()
-        ) -- ✅ FIXED: Provider can see their patient relationships via proper join
+        ) -- FIXED: Provider can see their patient relationships via proper join
         OR is_admin() -- Admin access
     );
 
@@ -416,7 +575,7 @@ CREATE POLICY provider_access_log_patient_provider_access ON provider_access_log
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = provider_access_log.provider_id 
             AND pr.user_id = auth.uid()
-        ) -- ✅ FIXED: Provider can see their access logs via proper join
+        ) -- FIXED: Provider can see their access logs via proper join
         OR is_admin() -- Admin access
     );
 
@@ -428,12 +587,26 @@ CREATE POLICY provider_action_items_access ON provider_action_items
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = provider_action_items.provider_id 
             AND pr.user_id = auth.uid()
-        ) -- ✅ FIXED: Provider can see action items they created
+        ) -- FIXED: Provider can see action items they created
         OR EXISTS (
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = provider_action_items.assigned_to 
             AND pr.user_id = auth.uid()
-        ) -- ✅ FIXED: Provider can see action items assigned to them
+        ) -- FIXED: Provider can see action items assigned to them
+        OR is_admin()
+    )
+    WITH CHECK (
+        has_profile_access(auth.uid(), patient_id) -- Patient can see their action items
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_action_items.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- FIXED: Provider can see action items they created
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_action_items.assigned_to 
+            AND pr.user_id = auth.uid()
+        ) -- FIXED: Provider can see action items assigned to them
         OR is_admin()
     );
 
@@ -445,7 +618,16 @@ CREATE POLICY provider_clinical_notes_access ON provider_clinical_notes
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = provider_clinical_notes.provider_id 
             AND pr.user_id = auth.uid()
-        ) -- ✅ FIXED: Provider can see notes they created via proper join
+        ) -- FIXED: Provider can see notes they created via proper join
+        OR is_admin()
+    )
+    WITH CHECK (
+        has_profile_access(auth.uid(), patient_id) -- Patient can see their clinical notes
+        OR EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = provider_clinical_notes.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- FIXED: Provider can see notes they created via proper join
         OR is_admin()
     );
 
@@ -455,12 +637,18 @@ CREATE POLICY clinical_alert_rules_provider_read ON clinical_alert_rules
         EXISTS (
             SELECT 1 FROM provider_registry pr 
             WHERE pr.user_id = auth.uid() AND pr.active = TRUE
-        ) -- ✅ FIXED: Any active provider can read rules via proper auth join
+        ) -- FIXED: Any active provider can read rules via proper auth join
         OR is_admin()
     );
 
-CREATE POLICY clinical_alert_rules_admin_modify ON clinical_alert_rules
-    FOR INSERT, UPDATE, DELETE USING (is_admin());
+CREATE POLICY clinical_alert_rules_admin_insert ON clinical_alert_rules
+    FOR INSERT WITH CHECK (is_admin());
+
+CREATE POLICY clinical_alert_rules_admin_update ON clinical_alert_rules
+    FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
+
+CREATE POLICY clinical_alert_rules_admin_delete ON clinical_alert_rules
+    FOR DELETE USING (is_admin());
 
 -- Healthcare Provider Context RLS Policies
 CREATE POLICY healthcare_provider_context_self_access ON healthcare_provider_context
@@ -469,7 +657,15 @@ CREATE POLICY healthcare_provider_context_self_access ON healthcare_provider_con
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = healthcare_provider_context.provider_id 
             AND pr.user_id = auth.uid()
-        ) -- ✅ FIXED: Provider accessing their own context via proper join
+        ) -- FIXED: Provider accessing their own context via proper join
+        OR is_admin() -- Admin access
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = healthcare_provider_context.provider_id 
+            AND pr.user_id = auth.uid()
+        ) -- FIXED: Provider accessing their own context via proper join
         OR is_admin() -- Admin access
     );
 
@@ -485,7 +681,16 @@ CREATE POLICY patient_consents_profile_access ON patient_consents
             SELECT 1 FROM provider_registry pr 
             WHERE pr.id = patient_consents.provider_id 
             AND pr.user_id = auth.uid()
-        )) -- ✅ FIXED: Provider-specific consent access via proper join
+        )) -- FIXED: Provider-specific consent access via proper join
+        OR is_admin()
+    )
+    WITH CHECK (
+        has_profile_access(auth.uid(), patient_id) -- Patient/guardian can manage their consents
+        OR (provider_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM provider_registry pr 
+            WHERE pr.id = patient_consents.provider_id 
+            AND pr.user_id = auth.uid()
+        )) -- FIXED: Provider-specific consent access via proper join
         OR is_admin()
     );
 
@@ -499,6 +704,10 @@ CREATE POLICY patient_consent_audit_profile_access ON patient_consent_audit
 -- User Consent Preferences RLS Policies  
 CREATE POLICY user_consent_preferences_owner ON user_consent_preferences
     FOR ALL USING (
+        user_id = auth.uid()
+        OR (profile_id IS NOT NULL AND has_profile_access(auth.uid(), profile_id))
+    )
+    WITH CHECK (
         user_id = auth.uid()
         OR (profile_id IS NOT NULL AND has_profile_access(auth.uid(), profile_id))
     );
@@ -563,7 +772,7 @@ BEGIN
     AND (indexname LIKE '%consent%' OR indexname LIKE '%patient_active%');
     
     IF table_count >= 3 AND policy_count >= 15 AND function_count >= 1 THEN
-        RAISE NOTICE '✅ Security and consent management deployment successful!';
+        RAISE NOTICE 'Security and consent management deployment successful!';
         RAISE NOTICE '  - Tables: %/3, Policies: %/15+, Functions: %/1, Indexes: %/8+', 
             table_count, policy_count, function_count, index_count;
         RAISE NOTICE '  - GDPR-compliant consent management implemented';

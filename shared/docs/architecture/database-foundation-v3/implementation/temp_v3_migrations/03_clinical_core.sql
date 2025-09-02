@@ -1,11 +1,48 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 03_clinical_core.sql
+-- 03_CLINICAL_CORE.SQL - V3 Semantic Document Architecture & Clinical Data Hub
 -- =============================================================================
--- Purpose: Core clinical data tables with correct ID architecture
--- Components: Shell files + Patient Clinical Data + Medical Coding References + V3 AI Processing Ready
--- Dependencies: 01_foundations.sql (audit), 02_profiles.sql (user_profiles table)
--- Key Fix: All patient_id columns correctly reference user_profiles(id) instead of auth.users(id)
--- Created: 2025-08-27 (Fresh Start Implementation)
+-- VERSION: 1.1 (HOTFIX 2025-09-02: GPT-5 reliability fixes)
+--   - Added is_admin() dependency check in preflight validation
+--   - Made fk_clinical_events_encounter constraint addition idempotent
+-- Purpose: V3 semantic document architecture with shell files + clinical narratives + comprehensive clinical data management
+-- Architecture: Revolutionary semantic processing that eliminates dangerous multi-document context mixing while enabling clinical storytelling
+-- Dependencies: 01_foundations.sql (audit, ENUMs), 02_profiles.sql (user_profiles, has_profile_access)
+-- 
+-- DESIGN DECISIONS:
+-- - V3 Semantic Architecture: Shell files (physical containers) + clinical narratives (AI-generated medical storylines)
+-- - Multi-document safety: Prevents dangerous context mixing by maintaining document boundaries
+-- - Clinical narrative coherence: AI-determined storylines can span non-contiguous pages within single documents
+-- - Medical coding integration: ICD-10, SNOMED-CT, RxNorm, Australian PBS/Medicare integration
+-- - Two-axis clinical classification: Timeline events + specialized clinical data types
+-- - Narrative linking system: 5 junction tables connecting narratives to clinical concepts
+-- - Job coordination ready: Integration with V3 job queue system for async processing
+-- - Business analytics: Processing cost estimation and duration tracking
+-- 
+-- TABLES CREATED (19 tables):
+-- Medical Coding Reference:
+--   - medical_condition_codes, medication_reference
+-- V3 Semantic Architecture (7 tables):
+--   - shell_files, clinical_narratives
+--   - narrative_condition_links, narrative_medication_links, narrative_allergy_links
+--   - narrative_immunization_links, narrative_vital_links, narrative_source_mappings
+-- Clinical Data Hub (10 tables):
+--   - patient_clinical_events, patient_observations, patient_interventions
+--   - healthcare_encounters, healthcare_timeline_events
+--   - patient_conditions, patient_allergies, patient_vitals, patient_immunizations, patient_medications
+-- 
+-- KEY INNOVATIONS:
+-- - shell_files.ai_synthesized_summary: Post-Pass 3 synthesis replaces primitive document intelligence
+-- - clinical_narratives.source_page_ranges: Enables non-contiguous page narrative spanning
+-- - clinical_narratives.semantic_coherence_score: AI validation of narrative clinical coherence
+-- - Narrative linking system: Rich connections between AI narratives and structured clinical data
+-- - V3 job coordination integration: processing_job_id, processing_worker_id for async processing
+-- 
+-- INTEGRATION POINTS:
+-- - Provides shell_files table for V3 Edge Functions (shell-file-processor-v3)
+-- - Clinical narratives activate smart health features (pregnancy, chronic conditions)
+-- - Medical coding tables support clinical decision support and billing
+-- - Patient clinical events feed healthcare provider dashboards
+-- - All tables use correct patient_id -> user_profiles(id) V3 architecture
 -- =============================================================================
 
 BEGIN;
@@ -19,6 +56,10 @@ BEGIN
     
     IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'has_profile_access') THEN
         RAISE EXCEPTION 'DEPENDENCY ERROR: has_profile_access() function not found. Run 02_profiles.sql first.';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_name = 'is_admin') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: is_admin() function not found. Run 01_foundations.sql first.';
     END IF;
     
     RAISE NOTICE 'Dependencies verified: user_profiles table and has_profile_access() function exist';
@@ -225,136 +266,7 @@ CREATE TABLE IF NOT EXISTS clinical_narratives (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- =============================================================================
--- SECTION 2B: CLINICAL NARRATIVE LINKING SYSTEM 
--- =============================================================================
--- CRITICAL UX FEATURE: Link narratives to all relevant clinical data
--- Enables storytelling UX where every clinical item tells its narrative story
-
--- Clinical Narrative to Conditions Linking
-CREATE TABLE IF NOT EXISTS narrative_condition_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    condition_id UUID NOT NULL REFERENCES patient_conditions(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'primary_focus', 'secondary_condition', 'comorbidity', 'differential_diagnosis', 'resolved_condition'
-    )),
-    clinical_relevance TEXT NOT NULL CHECK (clinical_relevance IN ('primary', 'secondary', 'contextual', 'historical')),
-    
-    -- Narrative Context
-    condition_role_in_narrative TEXT, -- "This diabetes management journey focuses on optimizing blood sugar control"
-    narrative_impact_on_condition TEXT, -- "Resulted in A1C improvement from 8.2% to 6.8%"
-    
-    -- Timeline Context  
-    condition_phase TEXT, -- "initial_diagnosis", "active_management", "stable_control", "complication_management"
-    condition_status_at_narrative TEXT, -- "newly_diagnosed", "well_controlled", "poorly_controlled", "resolved"
-    
-    -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, condition_id)
-);
-
--- Clinical Narrative to Medications Linking  
-CREATE TABLE IF NOT EXISTS narrative_medication_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    medication_id UUID NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'primary_treatment', 'adjunct_therapy', 'symptom_management', 'preventive_medication', 'discontinued_medication'
-    )),
-    medication_role TEXT NOT NULL, -- "Initial first-line therapy for diabetes management"
-    
-    -- Clinical Context in Narrative
-    prescription_context TEXT, -- "Started after failed dietary modifications"
-    therapeutic_outcome TEXT, -- "Achieved target A1C reduction with excellent tolerance"
-    medication_narrative_impact TEXT, -- "Key medication in diabetes control journey"
-    
-    -- Timeline Context
-    medication_phase TEXT, -- "initiation", "optimization", "maintenance", "discontinuation"
-    dosage_at_narrative TEXT, -- Medication dosage during this narrative timeframe
-    
-    -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, medication_id)
-);
-
--- Clinical Narrative to Allergies Linking
-CREATE TABLE IF NOT EXISTS narrative_allergy_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    allergy_id UUID NOT NULL REFERENCES patient_allergies(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'discovery_event', 'reaction_occurrence', 'avoidance_context', 'historical_reference'
-    )),
-    
-    -- Narrative Context
-    discovery_circumstances TEXT, -- "Discovered during initial antibiotic treatment for pneumonia"
-    reaction_description_in_narrative TEXT, -- "Patient developed urticaria within 2 hours of amoxicillin administration"
-    clinical_impact TEXT, -- "Required antibiotic change and delayed recovery"
-    
-    -- Timeline Context
-    allergy_status_at_narrative TEXT, -- "newly_discovered", "known_allergy", "suspected_allergy"
-    
-    -- Audit  
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, allergy_id)
-);
-
--- Clinical Narrative to Immunizations Linking
-CREATE TABLE IF NOT EXISTS narrative_immunization_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    immunization_id UUID NOT NULL REFERENCES patient_immunizations(id) ON DELETE CASCADE,
-    
-    -- Link Classification  
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'routine_vaccination', 'travel_preparation', 'high_risk_indication', 'outbreak_response', 'occupational_requirement'
-    )),
-    
-    -- Clinical Context
-    indication_for_vaccination TEXT, -- "Required for travel to endemic malaria region"
-    vaccination_context_in_narrative TEXT, -- "Part of comprehensive travel medicine consultation"
-    clinical_outcome TEXT, -- "Well tolerated with good antibody response"
-    
-    -- Timeline Context
-    vaccination_timing TEXT, -- "pre_travel", "routine_schedule", "catch_up_vaccination"
-    
-    -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, immunization_id)  
-);
-
--- Clinical Narrative to Vitals Linking (for significant vital sign patterns)
-CREATE TABLE IF NOT EXISTS narrative_vital_links (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    vital_id UUID NOT NULL REFERENCES patient_vitals(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'diagnostic_indicator', 'treatment_response', 'monitoring_parameter', 'baseline_measurement', 'concerning_trend'
-    )),
-    
-    -- Clinical Context
-    vital_significance TEXT, -- "Blood pressure reading that confirmed hypertension diagnosis"
-    clinical_interpretation TEXT, -- "Elevated BP (160/95) indicating medication adjustment needed"
-    narrative_impact TEXT, -- "Led to medication titration in this management journey"
-    
-    -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, vital_id)
-);
+-- NOTE: Clinical Narrative Linking System moved to Section 4B after all clinical tables are created
 
 -- =============================================================================
 -- SECTION 2C: NARRATIVE SOURCE MAPPINGS
@@ -906,13 +818,150 @@ CREATE TABLE IF NOT EXISTS patient_medications (
 );
 
 -- =============================================================================
+-- SECTION 4B: CLINICAL NARRATIVE LINKING SYSTEM 
+-- =============================================================================
+-- CRITICAL UX FEATURE: Link narratives to all relevant clinical data
+-- Enables storytelling UX where every clinical item tells its narrative story
+-- MOVED HERE: After all clinical tables are created to avoid forward references
+
+-- Clinical Narrative to Conditions Linking
+CREATE TABLE IF NOT EXISTS narrative_condition_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    condition_id UUID NOT NULL REFERENCES patient_conditions(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'primary_focus', 'secondary_condition', 'comorbidity', 'differential_diagnosis', 'resolved_condition'
+    )),
+    clinical_relevance TEXT NOT NULL CHECK (clinical_relevance IN ('primary', 'secondary', 'contextual', 'historical')),
+    
+    -- Narrative Context
+    condition_role_in_narrative TEXT, -- "This diabetes management journey focuses on optimizing blood sugar control"
+    narrative_impact_on_condition TEXT, -- "Resulted in A1C improvement from 8.2% to 6.8%"
+    
+    -- Timeline Context  
+    condition_phase TEXT, -- "initial_diagnosis", "active_management", "stable_control", "complication_management"
+    condition_status_at_narrative TEXT, -- "newly_diagnosed", "well_controlled", "poorly_controlled", "resolved"
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, condition_id)
+);
+
+-- Clinical Narrative to Medications Linking  
+CREATE TABLE IF NOT EXISTS narrative_medication_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    medication_id UUID NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'primary_treatment', 'adjunct_therapy', 'symptom_management', 'preventive_medication', 'discontinued_medication'
+    )),
+    medication_role TEXT NOT NULL, -- "Initial first-line therapy for diabetes management"
+    
+    -- Clinical Context in Narrative
+    prescription_context TEXT, -- "Started after failed dietary modifications"
+    therapeutic_outcome TEXT, -- "Achieved target A1C reduction with excellent tolerance"
+    medication_narrative_impact TEXT, -- "Key medication in diabetes control journey"
+    
+    -- Timeline Context
+    medication_phase TEXT, -- "initiation", "optimization", "maintenance", "discontinuation"
+    dosage_at_narrative TEXT, -- Medication dosage during this narrative timeframe
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, medication_id)
+);
+
+-- Clinical Narrative to Allergies Linking
+CREATE TABLE IF NOT EXISTS narrative_allergy_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    allergy_id UUID NOT NULL REFERENCES patient_allergies(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'discovery_event', 'reaction_occurrence', 'avoidance_context', 'historical_reference'
+    )),
+    
+    -- Narrative Context
+    discovery_circumstances TEXT, -- "Discovered during initial antibiotic treatment for pneumonia"
+    reaction_description_in_narrative TEXT, -- "Patient developed urticaria within 2 hours of amoxicillin administration"
+    clinical_impact TEXT, -- "Required antibiotic change and delayed recovery"
+    
+    -- Timeline Context
+    allergy_status_at_narrative TEXT, -- "newly_discovered", "known_allergy", "suspected_allergy"
+    
+    -- Audit  
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, allergy_id)
+);
+
+-- Clinical Narrative to Immunizations Linking
+CREATE TABLE IF NOT EXISTS narrative_immunization_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    immunization_id UUID NOT NULL REFERENCES patient_immunizations(id) ON DELETE CASCADE,
+    
+    -- Link Classification  
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'routine_vaccination', 'travel_preparation', 'high_risk_indication', 'outbreak_response', 'occupational_requirement'
+    )),
+    
+    -- Clinical Context
+    indication_for_vaccination TEXT, -- "Required for travel to endemic malaria region"
+    vaccination_context_in_narrative TEXT, -- "Part of comprehensive travel medicine consultation"
+    clinical_outcome TEXT, -- "Well tolerated with good antibody response"
+    
+    -- Timeline Context
+    vaccination_timing TEXT, -- "pre_travel", "routine_schedule", "catch_up_vaccination"
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, immunization_id)  
+);
+
+-- Clinical Narrative to Vitals Linking (for significant vital sign patterns)
+CREATE TABLE IF NOT EXISTS narrative_vital_links (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    vital_id UUID NOT NULL REFERENCES patient_vitals(id) ON DELETE CASCADE,
+    
+    -- Link Classification
+    link_type TEXT NOT NULL CHECK (link_type IN (
+        'diagnostic_indicator', 'treatment_response', 'monitoring_parameter', 'baseline_measurement', 'concerning_trend'
+    )),
+    
+    -- Clinical Context
+    vital_significance TEXT, -- "Blood pressure reading that confirmed hypertension diagnosis"
+    clinical_interpretation TEXT, -- "Elevated BP (160/95) indicating medication adjustment needed"
+    narrative_impact TEXT, -- "Led to medication titration in this management journey"
+    
+    -- Audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    UNIQUE(narrative_id, vital_id)
+);
+
+-- =============================================================================
 -- SECTION 5: V3 CORE ARCHITECTURE CONSTRAINTS AND INDEXES
 -- =============================================================================
 
--- Add foreign key constraint for patient_clinical_events.encounter_id
-ALTER TABLE patient_clinical_events 
-ADD CONSTRAINT fk_clinical_events_encounter 
-FOREIGN KEY (encounter_id) REFERENCES healthcare_encounters(id);
+-- Add foreign key constraint for patient_clinical_events.encounter_id (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_clinical_events_encounter') THEN
+        ALTER TABLE patient_clinical_events 
+        ADD CONSTRAINT fk_clinical_events_encounter 
+        FOREIGN KEY (encounter_id) REFERENCES healthcare_encounters(id);
+    END IF;
+END $$;
 
 -- V3 Core Clinical Events indexes (CRITICAL for AI processing performance)
 CREATE INDEX IF NOT EXISTS idx_clinical_events_patient ON patient_clinical_events(patient_id) WHERE archived IS NOT TRUE;

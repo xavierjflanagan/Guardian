@@ -1,10 +1,48 @@
 -- =============================================================================
--- FRESH START BLUEPRINT: 07_optimization.sql
--- System Infrastructure Completion & Performance Optimization
+-- 07_OPTIMIZATION.SQL - Performance Optimization & Production Infrastructure (v1.1)
 -- =============================================================================
--- Purpose: Complete system infrastructure, performance optimization, monitoring and health checks
--- Dependencies: 01_foundations.sql through 06_security.sql
--- Tables: 3 System Infrastructure Completion + Comprehensive Performance Optimization
+-- Purpose: Production-ready performance optimization, comprehensive indexing, and system infrastructure completion
+-- Architecture: Complete job queue system + performance indexes + database constraints + health monitoring + production settings
+-- Dependencies: 01_foundations.sql through 06_security.sql (all previous V3 schema components must be deployed)
+-- Version: 1.1 - GPT-5 Security Hardening Applied
+-- 
+-- DESIGN DECISIONS:
+-- - Job queue system: Foundation for V3 background processing (enhanced in 08_job_coordination.sql)
+-- - Comprehensive performance indexes: Optimized access patterns for all V3 clinical and system tables
+-- - Database constraints: Data integrity validation for production healthcare data
+-- - Health monitoring functions: Real-time database performance and health checks
+-- - Production optimization settings: PostgreSQL configuration tuning for healthcare workloads
+-- - Failed audit event tracking: Resilient audit system with error recovery
+-- - Resource tracking: CPU/memory usage monitoring for job processing optimization
+-- - Dependency management: Job sequencing and prerequisite handling for complex workflows
+-- 
+-- TABLES CREATED (2+ tables):
+-- Infrastructure Completion:
+--   - job_queue, failed_audit_events
+-- 
+-- PERFORMANCE OPTIMIZATION FRAMEWORK:
+-- Comprehensive Indexing Strategy:
+--   - Clinical data access patterns (patient_id, date ranges, status filtering)
+--   - Semantic architecture indexes (shell_files, clinical_narratives)
+--   - AI processing indexes (session tracking, entity processing)
+--   - Provider system indexes (registry lookups, access logging)
+--   - Consent management indexes (GDPR compliance queries)
+--   - Job queue indexes (priority processing, status filtering)
+-- 
+-- KEY PRODUCTION FEATURES:
+-- - job_queue.priority: Healthcare-aware job prioritization (critical vs background)
+-- - job_queue.depends_on: Complex workflow dependency management
+-- - job_queue.error_details: Structured error logging for production debugging
+-- - Comprehensive database constraints ensuring data integrity for clinical data
+-- - Database health monitoring with alerting for production stability
+-- - PostgreSQL performance tuning for high-throughput healthcare applications
+-- 
+-- INTEGRATION POINTS:
+-- - Job queue provides foundation for 08_job_coordination.sql V3 worker coordination
+-- - Performance indexes optimize all V3 clinical data access patterns
+-- - Health monitoring integrates with system notifications for production alerting
+-- - Failed audit tracking ensures regulatory compliance even during system issues
+-- =============================================================================
 
 BEGIN;
 
@@ -26,6 +64,14 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'patient_consents') THEN
         RAISE EXCEPTION 'DEPENDENCY ERROR: patient_consents table not found. Run 06_security.sql first.';
+    END IF;
+    
+    -- Verify tables that this file modifies/indexes exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_events') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: user_events table not found. This file modifies user_events table.';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'provider_action_items') THEN
+        RAISE EXCEPTION 'DEPENDENCY ERROR: provider_action_items table not found. This file creates indexes on provider_action_items.';
     END IF;
 END $$;
 
@@ -104,13 +150,22 @@ CREATE TABLE IF NOT EXISTS job_queue (
 );
 
 -- Job lane constraint (fine-grained routing within job_type)
-ALTER TABLE job_queue ADD CONSTRAINT job_queue_job_lane_check CHECK (
-    (job_type = 'shell_file_processing' AND job_lane IN ('fast_queue', 'standard_queue')) OR
-    (job_type = 'ai_processing' AND job_lane IN ('ai_queue_simple', 'ai_queue_complex')) OR
-    (job_type IN ('data_migration', 'audit_cleanup', 'system_maintenance', 'notification_delivery', 
-                  'report_generation', 'backup_operation', 'semantic_processing', 'consent_verification', 
-                  'provider_verification') AND job_lane IS NULL)
-);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'job_queue_job_lane_check'
+          AND conrelid = 'job_queue'::regclass
+    ) THEN
+        ALTER TABLE job_queue ADD CONSTRAINT job_queue_job_lane_check CHECK (
+            (job_type = 'shell_file_processing' AND job_lane IN ('fast_queue', 'standard_queue')) OR
+            (job_type = 'ai_processing' AND job_lane IN ('ai_queue_simple', 'ai_queue_complex')) OR
+            (job_type IN ('data_migration', 'audit_cleanup', 'system_maintenance', 'notification_delivery', 
+                          'report_generation', 'backup_operation', 'semantic_processing', 'consent_verification', 
+                          'provider_verification') AND job_lane IS NULL)
+        );
+    END IF;
+END $$;
 
 -- Index for worker lane-specific queries
 CREATE INDEX IF NOT EXISTS idx_job_queue_type_lane_status ON job_queue(job_type, job_lane, status, priority DESC, scheduled_at ASC)
@@ -175,6 +230,15 @@ CREATE TABLE IF NOT EXISTS failed_audit_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Enable RLS for failed_audit_events (contains sensitive audit failure data)
+ALTER TABLE failed_audit_events ENABLE ROW LEVEL SECURITY;
+
+-- Admin-only access policy for failed audit events
+CREATE POLICY failed_audit_events_admin_only ON failed_audit_events
+    FOR ALL TO authenticated
+    USING (is_admin())
+    WITH CHECK (is_admin());
 
 -- Enhance existing user_events table with comprehensive audit fields
 -- Note: Base table already exists from 02_profiles.sql with core fields
@@ -253,17 +317,53 @@ ALTER TABLE user_events ADD COLUMN IF NOT EXISTS session_uuid UUID;
 
 -- Add foreign key constraints for deferred references
 -- Note: These are added after all tables exist to avoid dependency issues
-ALTER TABLE user_events ADD CONSTRAINT fk_user_events_provider_context 
-    FOREIGN KEY (provider_context) REFERENCES provider_registry(id) ON DELETE SET NULL;
-    
-ALTER TABLE user_events ADD CONSTRAINT fk_user_events_shell_file 
-    FOREIGN KEY (shell_file_id) REFERENCES shell_files(id) ON DELETE SET NULL;
-    
-ALTER TABLE user_events ADD CONSTRAINT fk_user_events_narrative 
-    FOREIGN KEY (narrative_id) REFERENCES clinical_narratives(id) ON DELETE SET NULL;
-    
-ALTER TABLE user_events ADD CONSTRAINT fk_user_events_clinical_event 
-    FOREIGN KEY (clinical_event_id) REFERENCES patient_clinical_events(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_user_events_provider_context'
+    ) THEN
+        ALTER TABLE user_events
+            ADD CONSTRAINT fk_user_events_provider_context
+            FOREIGN KEY (provider_context) REFERENCES provider_registry(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_user_events_shell_file'
+    ) THEN
+        ALTER TABLE user_events
+            ADD CONSTRAINT fk_user_events_shell_file
+            FOREIGN KEY (shell_file_id) REFERENCES shell_files(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_user_events_narrative'
+    ) THEN
+        ALTER TABLE user_events
+            ADD CONSTRAINT fk_user_events_narrative
+            FOREIGN KEY (narrative_id) REFERENCES clinical_narratives(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_user_events_clinical_event'
+    ) THEN
+        ALTER TABLE user_events
+            ADD CONSTRAINT fk_user_events_clinical_event
+            FOREIGN KEY (clinical_event_id) REFERENCES patient_clinical_events(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- =============================================================================
 -- SECTION 2: COMPREHENSIVE PERFORMANCE INDEXES
@@ -343,31 +443,94 @@ CREATE INDEX IF NOT EXISTS idx_patient_consents_expiry_active ON patient_consent
 -- =============================================================================
 
 -- Data Integrity Constraints
-ALTER TABLE patient_clinical_events ADD CONSTRAINT chk_confidence_score_valid 
-    CHECK (confidence_score IS NULL OR (confidence_score >= 0 AND confidence_score <= 1));
+-- Note: confidence_score and ai_narrative_confidence constraints already exist in 03_clinical_core.sql
 
-ALTER TABLE clinical_narratives ADD CONSTRAINT chk_narrative_confidence_valid
-    CHECK (ai_narrative_confidence >= 0 AND ai_narrative_confidence <= 1);
-
-ALTER TABLE clinical_narratives ADD CONSTRAINT chk_coherence_score_valid
-    CHECK (semantic_coherence_score IS NULL OR (semantic_coherence_score >= 0 AND semantic_coherence_score <= 1));
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_coherence_score_valid'
+          AND conrelid = 'clinical_narratives'::regclass
+    ) THEN
+        ALTER TABLE clinical_narratives ADD CONSTRAINT chk_coherence_score_valid
+            CHECK (semantic_coherence_score IS NULL OR (semantic_coherence_score >= 0 AND semantic_coherence_score <= 1));
+    END IF;
+END $$;
 
 -- Temporal Constraints
-ALTER TABLE patient_conditions ADD CONSTRAINT chk_condition_dates_logical
-    CHECK (diagnosed_date IS NULL OR onset_date IS NULL OR diagnosed_date >= onset_date);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_condition_dates_logical'
+          AND conrelid = 'patient_conditions'::regclass
+    ) THEN
+        ALTER TABLE patient_conditions ADD CONSTRAINT chk_condition_dates_logical
+            CHECK (diagnosed_date IS NULL OR onset_date IS NULL OR diagnosed_date >= onset_date);
+    END IF;
+END $$;
 
-ALTER TABLE patient_conditions ADD CONSTRAINT chk_resolved_date_logical
-    CHECK (resolved_date IS NULL OR diagnosed_date IS NULL OR resolved_date >= diagnosed_date);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_resolved_date_logical'
+          AND conrelid = 'patient_conditions'::regclass
+    ) THEN
+        ALTER TABLE patient_conditions ADD CONSTRAINT chk_resolved_date_logical
+            CHECK (resolved_date IS NULL OR diagnosed_date IS NULL OR resolved_date >= diagnosed_date);
+    END IF;
+END $$;
 
-ALTER TABLE patient_provider_access ADD CONSTRAINT chk_relationship_dates_logical
-    CHECK (relationship_end_date IS NULL OR relationship_end_date >= relationship_start_date);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_relationship_dates_logical'
+          AND conrelid = 'patient_provider_access'::regclass
+    ) THEN
+        ALTER TABLE patient_provider_access ADD CONSTRAINT chk_relationship_dates_logical
+            CHECK (relationship_end_date IS NULL OR relationship_end_date >= relationship_start_date);
+    END IF;
+END $$;
 
 -- Business Logic Constraints
-ALTER TABLE job_queue ADD CONSTRAINT chk_retry_logic
-    CHECK (retry_count <= max_retries);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_retry_logic'
+          AND conrelid = 'job_queue'::regclass
+    ) THEN
+        ALTER TABLE job_queue ADD CONSTRAINT chk_retry_logic
+            CHECK (retry_count <= max_retries);
+    END IF;
+END $$;
 
-ALTER TABLE failed_audit_events ADD CONSTRAINT chk_recovery_attempts_logic
-    CHECK (recovery_attempts <= max_recovery_attempts);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_recovery_attempts_logic'
+          AND conrelid = 'failed_audit_events'::regclass
+    ) THEN
+        ALTER TABLE failed_audit_events ADD CONSTRAINT chk_recovery_attempts_logic
+            CHECK (recovery_attempts <= max_recovery_attempts);
+    END IF;
+END $$;
+
+-- =============================================================================
+-- SECTION 3B: SECURITY FOR SENSITIVE TABLES
+-- =============================================================================
+
+-- Enable RLS on failed_audit_events (sensitive by nature)
+ALTER TABLE failed_audit_events ENABLE ROW LEVEL SECURITY;
+
+-- Admin-only access policy for failed audit events
+CREATE POLICY failed_audit_events_admin_only ON failed_audit_events
+    FOR ALL TO authenticated
+    USING (is_admin())
+    WITH CHECK (is_admin());
 
 -- =============================================================================
 -- SECTION 4: MONITORING AND HEALTH CHECK FUNCTIONS
@@ -382,7 +545,10 @@ RETURNS TABLE (
     metric_value NUMERIC,
     threshold_warning NUMERIC,
     threshold_critical NUMERIC
-) AS $$
+)
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     -- Check table row counts
     RETURN QUERY
@@ -440,7 +606,7 @@ BEGIN
     FROM job_queue WHERE status IN ('pending', 'processing');
     
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Performance monitoring function
 CREATE OR REPLACE FUNCTION performance_metrics()
@@ -449,7 +615,10 @@ RETURNS TABLE (
     metric_value NUMERIC,
     metric_unit TEXT,
     status TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     -- Average narrative confidence
     RETURN QUERY
@@ -487,7 +656,7 @@ BEGIN
     AND profile_id IS NOT NULL;
     
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Data quality assessment function
 CREATE OR REPLACE FUNCTION data_quality_assessment()
@@ -496,7 +665,10 @@ RETURNS TABLE (
     quality_score NUMERIC,
     issues_found INTEGER,
     recommendations TEXT
-) AS $$
+)
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
 BEGIN
     -- Clinical narrative quality
     RETURN QUERY
@@ -521,7 +693,7 @@ BEGIN
     FROM user_profiles WHERE archived = FALSE;
     
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- =============================================================================
 -- SECTION 5: PRODUCTION OPTIMIZATION SETTINGS
@@ -591,7 +763,7 @@ BEGIN
     WHERE proname IN ('database_health_check', 'performance_metrics', 'data_quality_assessment');
     
     IF table_count >= 3 AND index_count >= 20 AND function_count = 3 THEN
-        RAISE NOTICE '✅ System optimization deployment successful!';
+        RAISE NOTICE 'System optimization deployment successful!';
         RAISE NOTICE '  - Tables: %/3, Indexes: %/20+, Constraints: %, Functions: %/3', 
             table_count, index_count, constraint_count, function_count;
         RAISE NOTICE '  - System infrastructure completion: job queue, audit recovery, user events';
@@ -600,7 +772,7 @@ BEGIN
         RAISE NOTICE '  - Monitoring and health check functions active';
         RAISE NOTICE '  - Production optimization settings applied';
         RAISE NOTICE '';
-        RAISE NOTICE '🎉 V3 DATABASE DEPLOYMENT COMPLETE!';
+        RAISE NOTICE 'V3 DATABASE DEPLOYMENT COMPLETE!';
         RAISE NOTICE '  - All 7 migration files successfully deployed';
         RAISE NOTICE '  - Semantic architecture with clinical narrative linking operational';
         RAISE NOTICE '  - Pass 3 AI processing infrastructure ready';
