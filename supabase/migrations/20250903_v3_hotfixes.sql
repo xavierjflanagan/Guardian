@@ -1,0 +1,21 @@
+-- =============================================================================
+-- V3 HOTFIXES DEPLOYMENT RECORD
+-- =============================================================================
+-- Date: September 3, 2025
+-- Method: Manual deployment via Supabase SQL Editor
+-- 
+-- Hotfixes applied:
+-- 1. 20250903_fix_log_audit_event_parameter_mismatch.sql
+--    - Fixed log_audit_event function parameter mismatch
+-- 
+-- 2. 20250903_fix_claim_next_job_v3_proper_fix.sql
+--    - Fixed ambiguous column references in claim_next_job_v3
+--    - Changed parameters to use p_ prefix convention
+--    - Updated worker.ts to match new parameter names
+--
+-- Status: Complete - All hotfixes applied
+-- Source files updated: 08_job_coordination.sql
+-- =============================================================================
+
+-- No SQL commands - this is a deployment record only
+SELECT 'V3 hotfixes applied on 2025-09-03' as deployment_status;
