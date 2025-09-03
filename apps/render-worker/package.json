@@ -4,7 +4,7 @@
   "description": "V3 Background Job Processing Worker - Source of Truth",
   "main": "dist/worker.js",
   "scripts": {
-    "build": "npm install --include=dev && tsc",
+    "build": "npm install --include=dev --loglevel=verbose && tsc",
     "start": "node dist/worker.js",
     "dev": "tsx src/worker.ts",
     "test": "jest",
@@ -42,5 +42,8 @@
   ],
   "author": "Exora Health Pty Ltd",
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "config": {
+    "loglevel": "verbose"
+  }
 }
