@@ -376,7 +376,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
 AS $$
 DECLARE
-    current_time TIMESTAMPTZ := NOW();
+    current_timestamp_val TIMESTAMPTZ := NOW();  -- FIXED: Renamed to avoid collision with CURRENT_TIME built-in
     capacity_acquired BOOLEAN := FALSE;
     reset_needed BOOLEAN := FALSE;
 BEGIN
@@ -384,11 +384,11 @@ BEGIN
     UPDATE api_rate_limits SET
         current_requests_minute = 0,
         current_tokens_minute = 0,
-        minute_reset_at = current_time
+        minute_reset_at = current_timestamp_val
     WHERE provider_name = p_provider_name 
     AND api_endpoint = p_api_endpoint 
     AND status = 'active'
-    AND current_time - minute_reset_at > INTERVAL '1 minute';
+    AND (current_timestamp_val - minute_reset_at) > INTERVAL '1 minute';  -- FIXED: Proper timestamp subtraction
     
     -- Atomic capacity acquisition in single UPDATE statement
     UPDATE api_rate_limits SET
@@ -409,7 +409,7 @@ BEGIN
     IF NOT capacity_acquired THEN
         -- Rate limit exceeded - log the violation atomically
         UPDATE api_rate_limits SET 
-            last_rate_limit_hit = current_time,
+            last_rate_limit_hit = current_timestamp_val,
             rate_limit_violations = rate_limit_violations + 1
         WHERE provider_name = p_provider_name 
         AND api_endpoint = p_api_endpoint 
