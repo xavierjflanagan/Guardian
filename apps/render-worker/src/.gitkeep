@@ -1,0 +1,3 @@
+# This file keeps the src directory in version control
+# The actual worker source code will be copied from:
+# shared/docs/architecture/database-foundation-v3/current_workers/exora-v3-worker/src/

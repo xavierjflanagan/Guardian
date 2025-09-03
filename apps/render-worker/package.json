@@ -1,0 +1,44 @@
+{
+  "name": "@guardian/render-worker",
+  "version": "1.0.0",
+  "description": "V3 Background Job Processing Worker for Render.com",
+  "main": "dist/worker.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/worker.js",
+    "dev": "tsx src/worker.ts",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "openai": "^4.20.1",
+    "@google-cloud/vision": "^4.0.0",
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/express": "^4.17.19",
+    "typescript": "^5.2.2",
+    "tsx": "^3.14.0",
+    "eslint": "^8.51.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    "@typescript-eslint/parser": "^6.7.4",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "healthcare",
+    "background-processing",
+    "render-worker",
+    "v3-architecture"
+  ],
+  "author": "Exora Health Pty Ltd",
+  "license": "UNLICENSED",
+  "private": true
+}

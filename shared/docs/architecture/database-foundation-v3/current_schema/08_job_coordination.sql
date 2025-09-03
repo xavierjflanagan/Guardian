@@ -533,7 +533,8 @@ BEGIN
         NULL,
         jsonb_build_object('job_type', job_type, 'job_id', job_id, 'scheduled_at', p_scheduled_at),
         'Job enqueued with correlation tracking',
-        'system'
+        'system',
+        NULL -- p_patient_id (NULL for system operations)
     );
     
     RETURN QUERY SELECT job_id, p_scheduled_at;  -- FIXED: Return both job_id and scheduled time
@@ -720,7 +721,8 @@ BEGIN
         NULL,
         jsonb_build_object('status', 'completed', 'job_id', p_job_id, 'worker_id', p_worker_id),
         'Job completed successfully',
-        'system'
+        'system',
+        NULL -- p_patient_id (NULL for system operations)
     );
     
     RETURN FOUND;

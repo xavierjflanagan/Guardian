@@ -1,0 +1,20 @@
+{
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2.38.0"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --watch index.ts",
+    "test": "deno test --allow-net --allow-env",
+    "lint": "deno lint",
+    "fmt": "deno fmt"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./helpers": "./index.ts"
+  }
+}
