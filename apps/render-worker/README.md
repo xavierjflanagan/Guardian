@@ -21,9 +21,41 @@ git push origin staging  # or main for production
 
 ## Current Deployment Status
 
-- **V3 Worker Code:** ⏳ Pending (Phase 4 - Worker Implementation)
-- **Render.com Service:** ⏳ Pending setup
+- **V3 Worker Code:** ✅ Deployed and running
+- **Render.com Service:** ✅ Successfully deployed
 - **Environment:** Staging → `staging` branch | Production → `main` branch
+
+## Deployment Troubleshooting History
+
+### Known Issues and Solutions (September 2025)
+
+**Issue 1: TypeScript compilation failures with TS5057 error**
+- **Problem:** `Cannot find a tsconfig.json file at the specified directory`
+- **Root Cause:** Render.com build environment couldn't locate tsconfig.json
+- **Solution:** Added explicit path in build script: `tsc --project ./tsconfig.json`
+
+**Issue 2: Google Cloud Vision package build failures**
+- **Problem:** `@google-cloud/vision@4.3.3` failing during npm install with its own TypeScript errors
+- **Root Cause:** Package's internal tsconfig.json issues in monorepo environment
+- **Solution:** Removed `@google-cloud/vision` dependency from package.json (can re-add when needed)
+
+**Issue 3: Restrictive TypeScript type configuration**
+- **Problem:** `"types": ["node"]` in tsconfig.json was too restrictive
+- **Root Cause:** This setting excludes all other type definitions, breaking compilation
+- **Solution:** Removed the `"types"` array to allow access to all necessary type definitions
+
+### Final Working Configuration
+
+**Build Script:** `npm install --include=dev && tsc --project ./tsconfig.json`
+**Package Manager:** npm (changed from pnpm due to monorepo conflicts)
+**Dependencies:** Core packages only (Supabase, Express, OpenAI, dotenv)
+
+### Debugging Tips for Future Issues
+
+1. Check build logs for actual TypeScript errors (often buried in verbose output)
+2. Test builds locally with exact same commands as Render.com uses
+3. Verify tsconfig.json paths are explicit, not relative
+4. Remove problematic dependencies temporarily to isolate issues
 
 ## Service Configuration
 
