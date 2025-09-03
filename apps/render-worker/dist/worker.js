@@ -90,9 +90,9 @@ class V3Worker {
     async fetchNextJob() {
         const { data, error } = await this.supabase
             .rpc('claim_next_job_v3', {
-            worker_id: this.workerId, // FIXED: Correct parameter name (no p_ prefix)
-            job_types: ['shell_file_processing'], // Start with document processing
-            job_lanes: null // Optional parameter
+            p_worker_id: this.workerId, // FIXED: Correct parameter name (with p_ prefix)
+            p_job_types: ['shell_file_processing'], // Start with document processing
+            p_job_lanes: null // Optional parameter
         });
         if (error) {
             console.error(`[${this.workerId}] Error claiming job:`, error);
