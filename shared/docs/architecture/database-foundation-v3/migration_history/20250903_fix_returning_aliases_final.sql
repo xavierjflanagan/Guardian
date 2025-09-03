@@ -1,0 +1,97 @@
+-- =============================================================================
+-- FINAL FIX: Remove AS aliases in RETURNING clause
+-- =============================================================================
+-- Problem: Using AS aliases in RETURNING that match RETURNS TABLE column names
+-- Solution: Don't use AS aliases - just return the qualified columns directly
+-- Created: 2025-09-03
+-- =============================================================================
+
+DROP FUNCTION IF EXISTS claim_next_job_v3(text, text[], text[]);
+
+CREATE OR REPLACE FUNCTION claim_next_job_v3(
+    p_worker_id text,
+    p_job_types text[] default null,
+    p_job_lanes text[] default null
+)
+RETURNS TABLE(job_id uuid, job_type text, job_payload jsonb, retry_count int)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    timeout_seconds INTEGER;
+    timeout_threshold TIMESTAMPTZ;
+    heartbeat_interval INTEGER;
+    heartbeat_expiry TIMESTAMPTZ;
+BEGIN
+    -- Get timeout configuration
+    SELECT (config_value #>> '{}')::INTEGER INTO timeout_seconds 
+    FROM system_configuration 
+    WHERE config_key = 'worker.timeout_seconds';
+    
+    SELECT (config_value #>> '{}')::INTEGER INTO heartbeat_interval 
+    FROM system_configuration 
+    WHERE config_key = 'worker.heartbeat_interval_seconds';
+    
+    -- Fallback to defaults if config not found
+    timeout_seconds := COALESCE(timeout_seconds, 300);
+    timeout_threshold := NOW() - INTERVAL '1 second' * timeout_seconds;
+    heartbeat_interval := COALESCE(heartbeat_interval, 30);
+    heartbeat_expiry := NOW() + (heartbeat_interval || ' seconds')::INTERVAL;
+    
+    -- First, reclaim timed-out jobs (heartbeat expired)
+    UPDATE job_queue SET
+        status = 'pending',
+        worker_id = NULL,
+        started_at = NULL,
+        heartbeat_at = NULL,
+        retry_count = retry_count + 1,
+        scheduled_at = NOW() + INTERVAL '5 seconds',
+        error_details = COALESCE(error_details, '{}'::jsonb) || jsonb_build_object(
+            'error_type', 'worker_timeout',
+            'original_worker', worker_id,
+            'timeout_at', NOW()
+        )
+    WHERE status = 'processing'
+    AND heartbeat_at < timeout_threshold
+    AND retry_count < max_retries;
+    
+    -- Move permanently failed jobs to dead letter queue
+    UPDATE job_queue SET
+        status = 'failed',
+        dead_letter_at = NOW(),
+        error_details = COALESCE(error_details, '{}'::jsonb) || jsonb_build_object(
+            'dead_letter_reason', 'exceeded_max_retries_after_timeout',
+            'final_worker', worker_id,
+            'dead_lettered_at', NOW()
+        )
+    WHERE status = 'processing'
+    AND heartbeat_at < timeout_threshold
+    AND retry_count >= max_retries;
+    
+    -- Claim next available job
+    RETURN QUERY
+    UPDATE job_queue 
+    SET 
+        status = 'processing',
+        started_at = NOW(),
+        worker_id = p_worker_id,
+        heartbeat_at = heartbeat_expiry
+    WHERE id = (
+        SELECT id FROM job_queue 
+        WHERE status = 'pending' 
+        AND scheduled_at <= NOW()
+        AND (p_job_types IS NULL OR job_type = ANY(p_job_types))
+        AND (p_job_lanes IS NULL OR job_lane = ANY(p_job_lanes))
+        ORDER BY priority DESC, created_at ASC
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
+    )
+    -- CRITICAL FIX: Don't use AS aliases - PostgreSQL will map them to RETURNS TABLE columns automatically
+    RETURNING 
+        job_queue.id,           -- Maps to job_id in RETURNS TABLE
+        job_queue.job_type,     -- Maps to job_type in RETURNS TABLE
+        job_queue.job_payload,  -- Maps to job_payload in RETURNS TABLE
+        job_queue.retry_count;  -- Maps to retry_count in RETURNS TABLE
+END;
+$$;
