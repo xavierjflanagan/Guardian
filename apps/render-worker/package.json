@@ -1,10 +1,10 @@
 {
-  "name": "@guardian/v3-worker",
+  "name": "exora-v3-worker",
   "version": "1.0.0",
   "description": "V3 Background Job Processing Worker - Source of Truth",
   "main": "dist/worker.js",
   "scripts": {
-    "build": "pnpm install && tsc",
+    "build": "npm install && tsc",
     "start": "node dist/worker.js",
     "dev": "tsx src/worker.ts",
     "test": "jest",
@@ -14,7 +14,6 @@
     "deploy:production": "cp -r ./* ../../../../../../../apps/render-worker/ && cd ../../../../../../../ && git add apps/render-worker && git commit -m 'Deploy worker to production' && git push origin main"
   },
   "dependencies": {
-    "@google-cloud/vision": "^4.0.0",
     "@supabase/supabase-js": "^2.38.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
