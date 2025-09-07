@@ -58,23 +58,23 @@ apps/web/
 
 1. **Upload Flow:** Drag & drop health file → real-time upload progress
 2. **Processing Visualization:** Live status from Render.com workers ([Job Status Integration](../frontend-v3/integration/realtime-job-status.md))
-3. **Rich Data Display:** Clinical timeline with V3 semantic architecture  
-4. **Interactive Experience:** Clinical narrative popups and cross-referenced medical data
+3. **Rich Data Display:** Multi-tab Dashbaord with clinical timeline and V3 semantic architecture  
+4. **Interactive Experience:** Clinical narrative pop-ups and cross-referenced medical data
 
 ### **Clinical Data Experience (V3 Semantic Architecture):**
 **Implementation Guide:** [Frontend V3 Components](../frontend-v3/components/)
 
 **Key Features:**
-- **Interactive Healthcare Timeline** with Russian Babushka Doll data layering
+- **Interactive Healthcare Timeline** with clickthough 'Russian Babushka Doll' data layering. 
 - **Usage Analytics Dashboard** with subscription management ([Analytics UI](../frontend-v3/integration/usage-analytics-ui.md))
 - **Clinical Narrative System** with medication stories and condition timelines
 - **Real-time Processing Status** with worker job coordination
 
-### **Platform Strategy:**
+### **2 stage Platform Strategy:**
 **Detailed Planning:** [Mobile Architecture](../frontend-v3/mobile/)
 
-- **Phase 3A:** Web application (responsive design with mobile consideration)
-- **Phase 3B:** React Native mobile app - "app will be the major way people use the product"
+- **Web Phase:** Web application (responsive design with mobile consideration)
+- **Mobile Phase:** React Native mobile app - "app will be the major way people use the product"
 
 ---
 
@@ -119,7 +119,7 @@ Frontend Upload → shell-file-processor-v3 → Render Worker → V3 Database �
 
 **Mobile Architecture Planning:** [Frontend V3 Mobile Strategy](../frontend-v3/mobile/)
 
-### **Phase 3A: Web-First Approach (Current Focus)**
+### **Web-First Phase: Web-First Approach (Current Focus)**
 
 **Rationale:**
 - ✅ Faster iteration and testing of V3 concepts with operational backend
@@ -129,7 +129,7 @@ Frontend Upload → shell-file-processor-v3 → Render Worker → V3 Database �
 
 **Web MVP Features Reference:** [Frontend V3 Implementation Phases](../frontend-v3/implementation/)
 
-### **Phase 3B: Mobile App Strategy (Future Parallel Development)**
+### **Mobile Phase: Mobile App Strategy (Future Parallel Development)**
 
 **Key Insight:** "App will be the major way people use the product"
 
@@ -138,6 +138,7 @@ Frontend Upload → shell-file-processor-v3 → Render Worker → V3 Database �
 **Mobile-First Features:**
 - **Camera Integration:** [Document capture architecture](../frontend-v3/mobile/camera-integration.md)
 - **Email Integration:** [Patient communications](../patient-communications/) scanning features
+- **Photo library Integration & scanning:** 
 - **Offline Capabilities:** [Cached clinical data strategy](../frontend-v3/mobile/offline-capabilities.md)
 - **Push Notifications:** Processing completion, medication reminders
 
@@ -168,7 +169,7 @@ Frontend Upload → shell-file-processor-v3 → Render Worker → V3 Database �
 
 **Pass 1: Entity Classification**
 ```
-Document → OCR → Entity Detection → Category Classification → job_queue update
+File → OCR → Entity Detection → Category Classification → job_queue update
 ```
 
 **Pass 2: Clinical Schema Population**  

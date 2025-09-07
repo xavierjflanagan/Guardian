@@ -2,7 +2,7 @@
 
 ## Document Status
 - **Created**: 25 August 2025
-- **Purpose**: Define the file pre-processing system for document optimization before OCR and AI analysis
+- **Purpose**: Define the file pre-processing system for document optimization before OCR and three-pass AI processing
 - **Status**: Component specification for implementation
 - **Related**: Follows `01-file-upload-architecture.md` and precedes `03-ocr-processing-architecture.md`
 
@@ -413,6 +413,12 @@ interface OCRHandoff {
   processingPath: ProcessingPath;
   qualityMetrics: QualityMetrics;
   recommendedOCRStrategy: OCRStrategy;
+  // Pass 3 preparation metadata
+  semanticPreparation?: {
+    documentComplexity: 'single_narrative' | 'multi_narrative' | 'administrative';
+    potentialNarratives: number;        // Estimated clinical narratives for Pass 3
+    temporalSpan: string;               // Rough date range for narrative sequencing
+  };
 }
 ```
 
@@ -431,7 +437,7 @@ interface ProcessingAnalytics {
 
 ### Quality Monitoring
 - **Processing success rates** by document type and path
-- **Enhancement effectiveness** measured by downstream OCR accuracy
+- **Enhancement effectiveness** measured by downstream OCR and three-pass AI processing accuracy
 - **Cost optimization** tracking through duplicate detection
 - **Security threat detection** rates and false positive monitoring
 
@@ -465,4 +471,4 @@ interface ProcessingAnalytics {
 
 ---
 
-*This file pre-processing architecture provides intelligent, cost-effective document optimization that ensures downstream OCR and AI systems receive clean, analysis-ready content while maintaining healthcare-grade security and compliance.*
+*This file pre-processing architecture provides intelligent, cost-effective document optimization that ensures downstream OCR and three-pass AI processing systems receive clean, analysis-ready content while maintaining healthcare-grade security and compliance.*

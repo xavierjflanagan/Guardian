@@ -12,11 +12,11 @@
 **Frontend V3 Architecture** extends the excellent V2 foundation with V3 backend integration, semantic clinical UX, real-time worker processing, and mobile-first preparation.
 
 **Core V3 Differentiators:**
-- ✅ **V3 Backend Integration:** Operational Supabase + Render.com infrastructure
-- ✅ **Semantic Clinical UX:** Russian Babushka Doll data layering with clinical narratives
-- ✅ **Real-time Processing UI:** Live worker job status and AI processing visualization
-- ✅ **Usage Analytics Dashboard:** Subscription management and usage tracking interface
-- ✅ **Mobile-First Components:** Camera integration, offline capabilities, React Native prep
+- **V3 Backend Integration:** Operational Supabase + Render.com infrastructure
+- **Semantic Clinical UX:** Russian Babushka Doll data layering with clinical narratives
+- **Real-time Processing UI:** Live worker job status and AI processing visualization
+- **Usage Analytics Dashboard:** Subscription management and usage tracking interface
+- **Mobile-First Components:** Camera integration, offline capabilities, React Native prep
 
 ---
 
@@ -244,3 +244,82 @@ useClinicalNarratives()    // Medication/condition storytelling data
 ---
 
 **This Frontend V3 Architecture provides the foundation for rich clinical UX experiences while maintaining the excellent V2 production patterns and preparing for mobile-first healthcare management.**
+
+
+
+
+**Xaviers deliberations 5th Sep 2025**
+Deliberation point 1: The frontend-v3/readme.md file doesnt really convey what the overall high level UX is when they open their app and use the app. 
+This is fine for now i guess and maybe the readme shouldnt contain this kind of information, but it makes me wonder where it is that this high level planning/vision/design should be located and worked on?  - Whats your suggestion for a) where/how it should all be located and worked on? and b) what it should look like and contain in a broad high level sense for both engineers (file content, explanation) and users (UX)? 
+
+Deliberation point 2: My initial thoughts are; 
+- signup page (soft signup and soft authentication initially), sign in page and log out page etc, 
+    - soft and hard authentication identification verfiication progressive system (this is documented somewhere in the codebase, maybe in old v1 or v2 sub folders)
+- file upload page. 
+    - Maybe not for the MVP product but the the file upload page is one of the first pages that arguably could appear in place of the signup page to allow for extraction of personal details to facilatiate and speed up sign up process 
+    - See this old v2 file: shared/docs/architecture/database-foundation-v2/core/multi-profile.md : 
+        - Lines 61-79: Describes the "Soft Authentication" system. 
+        - Key concept: Users can simply upload their first healthcare document, and if it contains patient personal details, the system will auto-populate their profile
+        - Process: Document uploaded → AI extracts patient details (name, DOB, address, etc.). User confirms extracted details belong to them. Profile automatically created/updated with extracted data. Confidence score calculated based on data completeness
+    - For more potential info, here is another old v2 file that is outdate but could have some useful or inspiring material: shared/docs/architecture/ai-processing-v2/06-technical-specifications/database-bridge/ai-profile-classification.md and here is another: File: shared/docs/architecture/database-foundation-v2/implementation/sql/003_multi_profile_management.sql 
+    - proposed v2 WORKFLOW SUMMARY:
+            User uploads first healthcare document
+            AI processes document and extracts: Patient name, Date of birth, Contact information, Medical context
+            System prompts user to confirm extracted details belong to them
+            Profile automatically created/updated with extracted data
+            Confidence score calculated based on data completeness
+            User gains access to basic healthcare data management features
+- page for viewing uploaded files (file library, in lists, but also with the the capability to click through and see individual uploaded files and flick through thier pages), 
+- a page for viewing the user's actual summarized health info (main app dashboard, containing summaries and lists of all big hitting health points; i.e., speciality table data from the v3 schema system like conditions, medications, surgeries, allergies etc), 
+- a page for timeline of events (healthcare journey timeline, all time-tagged past appointments, medication start/stop/change, new diagnoses, illnesses start/stop, healthcare encounters, etc). May also include future appointments, but not sure how this would look from a UX pov. 
+- Individual pages for all sub sections (conditions tab, medications tab, allergies, immunizaations, past surgeries (maybe a subset of past interventions), past imaging reports, lab results, vitals etc), 
+- a page for clinical narrative feature (semantic core feature), 
+- a page for app settings etc (which i assume would include all the usage data stuff, billing and subscription stuff, admin data, personal details data, emergency contact data, user permissions toggle/adding page),
+- a page for the 'health email inbox' feature, 
+- a page for sharing profile 
+    - for when doctor is quickly asking for your health info and you provide them with login code/link 
+    - for exporting all previously uploaded health files (capability for this also present in file uplaod libary), 
+    - For controlling and toggling access permissions and emergency contact etc 
+    - i.e., this is the page for controlling one of the key aspects of the app which is user controlled external access/visiability to the outside world,
+- a page for appointments / appointments timeline (upcoming and past), 
+- a page for viewing, searching, and reviewing doctor profiles - 'Exora provider profiles'.
+    - with eventual/future capability for a provider booking page for finding and reading about and booking GPs (and for finding any health provider/store such as pharmacies, imaging, path labs etc).
+    - 'Exora provider profiles' for each doctor, containing user/patient reviews and ratings, whether theyre an active exora positive member contributer etc and will send data (the data they currently have about you, or at least the appointment report back to your exora profile)
+
+
+Deliberation point 3: AND importantly something i havent mentioned or highlighted enough is one of the core features of the app which will be the in-app AI chat which will in serve multiple purposes; the main one being a 'Dr Google' for all users where they get an health specific ai chat that answers all their ehalth related question BUT with the huge benefit of that AI having constant access to their entire health profile, so every response is tailored and calibrated to the user (this will  hopefully help add 'stickiness' and increase 'user retention' for the app). The second big role for the in-app ai chat bot will be kind of like a command line interface CLI type role where any question you have thats more logistical or administrative about the app it can help you and perform actions for you on your behalf (such as general help service instructing you where and how to change your phone number for example, or suggesting and then helping you find a local GP appointment, or helping you to find the cheapest medication for that which is on your new script)
+
+Deliberation point 4: I have always had an idea that along with ai extraction confidence values there could be another type of data metad-data labelling that helps quickly identify the quality of the source of the data. For example, if an uploaded file has a doctors header/footer or signature (isa  legit document) then all extracted data from that file gets highest source quality rating label, But if a file is uploaded that just is a handwritten list of medications on blank piece of paper it gets the lowest source quality rating etc. This source quality rating system idea would obviously need to be designed from the ground up (and maybe theres already systems like this available that we could learn and take from online). Also, there could be a tier rating for data that is updated/"validated" by the user in the app (lower tier), and a tier for data that is updated by a doctor in the app (hihgest tier). This is all off-the-cuff word vomit for now but the generla idea is there and something i would like to tease out much more. 
+
+
+
+Confidence Scoring UI Vision:
+
+  Per-data-piece granular display - confidence scores appear next to individual extracted medical data elements throughout the
+  clinical timeline and dashboard UI.
+
+  Implementation Pattern:
+  // Clinical data display with confidence indicators
+  <MedicationEntry>
+    <MedicationName>Metformin 500mg</MedicationName>
+    <ConfidenceIndicator score={0.95} /> {/* Green dot/badge */}
+    <StartDate>
+      2023-01-15 <ConfidenceIndicator score={0.73} /> {/* Yellow indicator */}
+    </StartDate>
+  </MedicationEntry>
+
+  Visual Strategy:
+  - High confidence (90%+): No visual indicator (trusted data)
+  - Medium confidence (70-89%): Subtle yellow dot/badge
+  - Low confidence (<70%): Orange warning indicator + review prompt
+
+  Manual Review Interface:
+
+  Contextual inline editing - users can click any flagged data element to validate/correct it directly within the clinical
+  timeline.
+
+  UX Flow:
+  1. User sees yellow/orange confidence indicator on extracted data
+  2. Clicks indicator → inline edit modal opens
+  3. Shows: Original document snippet + AI extraction + correction field
+  4. User validates/corrects → confidence updates to 100% (human-verified)
