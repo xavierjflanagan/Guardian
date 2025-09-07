@@ -1,59 +1,39 @@
 # AI Processing v3: Semantic Document Architecture with Hybrid Clinical Narratives
 
-**Status:** Architecture Complete - Ready for Implementation  
+**Status:** Infrastructure Complete - AI Model Integration Required  
 **Date:** 27 August 2025  
-**Updated:** 27 August 2025 - Semantic Document Architecture Integration  
-**Purpose:** Semantic shell file + clinical narratives architecture with three-pass AI processing  
-**Previous:** Built comprehensive pipeline architecture in [ai-processing-v2](../ai-processing-v2/)
+**Updated:** 6 September 2025 - Infrastructure Deployment Complete  
+**Purpose:** Operational V3 infrastructure requiring AI model integration for three-pass processing  
+**Previous:** Built pipeline architecture in [ai-processing-v2](../ai-processing-v2/)  
+**Current:** V3 worker deployed on Render.com with job coordination operational
 
 ---
 
 ## Overview
-AI Processing v3 implements a revolutionary **semantic document architecture** with hybrid shell file + clinical narratives approach. This system solves the critical multi-document problem while providing both document-centric and story-centric views of medical data, ensuring clinical safety and user choice.
+AI Processing v3 implements a revolutionary **semantic document architecture** with hybrid shell file + clinical narratives approach. This system solves the critical multi-document problem while providing both shell_file-centric and story-centric views of medical data, ensuring clinical safety and user choice.
 
-**Key Breakthrough:** Semantic segmentation of complex medical documents into clinically coherent narratives while maintaining reliable shell file fallback system.
+**Key Breakthrough:** Semantic segmentation of complex medical files into clinically coherent narratives while maintaining reliable shell file fallback system.
 
 ---
 
 ## File Structure
 
-```
-ai-processing-v3/
-├── README.md (this file)
-├── 09-semantic-migration-execution-plan.md    # Implementation execution plan
-├── v3-pipeline-planning/
-│   ├── 00-pipeline-overview.md                # Complete pipeline architecture
-│   ├── 04-ai-processing-architecture.md       # Three-pass AI processing
-│   ├── 05-entity-classification-taxonomy.md   # Entity classification system
-│   ├── 06-schema-driven-processing.md         # Schema loading architecture
-│   ├── 07-semantic-document-architecture.md   # Shell files + clinical narratives
-│   └── 08-clinical-journeys-architecture.md   # Future patient-scoped journeys
-├── ai-to-database-schema-architecture/
-│   ├── schemas/
-│   │   ├── entity_classifier.ts               # Pass 1 entity detection
-│   │   ├── schema_loader.ts                   # Dynamic schema loading
-│   │   ├── semantic_narrative_creator.ts      # Pass 3 narrative processor
-│   │   └── dual_lens_view_service.ts          # Hybrid viewing system
-│   └── tests/
-       ├── semantic_processing/                 # Semantic architecture tests
-       ├── hybrid_views/                       # Dual-lens view tests
-       └── clinical_narratives/                # Narrative creation tests
-```
+tbc
 
 ## Current Implementation Status
 
-### ✅ **COMPLETED: Semantic Architecture Design**
+### ✅ **COMPLETED: V3 Infrastructure Deployment**
 
-- [x] **Three-Pass Pipeline Architecture** - Pass 1 entity detection, Pass 2 clinical enrichment, Pass 3 semantic narratives
-- [x] **Semantic Document Architecture** - Shell files + clinical narratives hybrid system designed
-- [x] **Entity Classification Taxonomy** - 3-category system with semantic grouping capabilities
-- [x] **Hybrid Dual-Lens System** - Document-centric and story-centric viewing modes
-- [x] **Clinical Safety Solution** - Prevents dangerous multi-document context mixing
-- [x] **System Resilience Design** - Graceful degradation with shell file fallback
-- [x] **Migration Strategy** - Complete execution plan for primitive intelligence replacement
+- [x] **V3 Database Schema** - 50+ tables with job coordination deployed to production
+- [x] **Render.com Worker** - `exora-v3-worker` operational with job polling and heartbeat
+- [x] **Edge Functions** - `shell-file-processor-v3` and `audit-logger-v3` deployed
+- [x] **Job Coordination** - `claim_next_job_v3()`, `complete_job()`, heartbeat monitoring operational
+- [x] **API Rate Limiting** - Backpressure system with OpenAI/Google Vision capacity management
+- [x] **Healthcare Compliance** - Service role security and audit logging functional
+- [x] **File Processing Pipeline** - Upload → Storage → Job Queue → Worker claiming operational
 
 **Key Implementation Insights:**
-- Hybrid architecture eliminates clinical safety risks from multi-document uploads
+- Hybrid architecture eliminates clinical safety risks from multi-file uploads
 - Semantic narratives provide clinically coherent medical storylines  
 - Dual-lens system accommodates both document-minded and clinical-minded users
 - Progressive enhancement ensures system always remains functional
@@ -65,16 +45,22 @@ ai-processing-v3/
 - [x] **Timeline Evolution Strategy** - Path from document events to meaningful care stories
 - [x] **Healthcare Provider Integration** - Journey-aware clinical decision support architecture
 
-### 🚀 **READY FOR IMPLEMENTATION**
+### 🚧 **CRITICAL: AI MODEL INTEGRATION REQUIRED**
 
-**Implementation-ready components:**
-- Complete semantic migration execution plan (4 weeks)
-- Database schema changes for shell files + clinical narratives
-- Three-pass AI processing pipeline with semantic narrative creation
-- Dual-lens viewing system with graceful degradation
-- Foundation architecture for future clinical journeys
+**Operational Infrastructure (Ready):**
+- ✅ V3 worker polling jobs with `claim_next_job_v3()`
+- ✅ File upload creating jobs via `shell-file-processor-v3`
+- ✅ Job heartbeat monitoring and completion tracking
+- ✅ API capacity management for rate limiting
 
-**For detailed implementation planning, see:** [09-semantic-migration-execution-plan.md](09-semantic-migration-execution-plan.md)
+**Missing AI Processing Logic (Urgent):**
+- ❌ OpenAI GPT-4 API integration (env var unused)
+- ❌ Google Cloud Vision OCR (env var unused)
+- ❌ Three-pass processing implementation
+- ❌ Clinical data extraction to V3 tables
+- ❌ Semantic narrative creation
+
+**Current Worker Status:** Simulation mode only - no actual AI processing
 
 ---
 
@@ -100,8 +86,8 @@ ai-processing-v3/
 ## Semantic Architecture Overview
 
 **Shell Files (Physical Layer):**
-- Actual uploaded documents with metadata
-- AI synthesized summaries of all contained narratives
+- Actual uploaded files with extracted data and metadata
+- AI synthesized summaries of all contained narratives.
 - Always reliable reference point for clinical data
 
 **Clinical Narratives (Semantic Layer):**
@@ -121,13 +107,18 @@ Pass 3: Clinical events → Semantic narratives (enhancement layer)
 
 ## Next Immediate Action
 
-**Complete implementation execution plan is available in [09-semantic-migration-execution-plan.md](09-semantic-migration-execution-plan.md)**
+**CRITICAL PRIORITY:** Implement AI processing logic in operational worker
 
-**START HERE:** Begin with semantic migration to replace primitive document intelligence:
-1. **Week 1:** Remove primitive document intelligence + implement shell files + clinical narratives schema
-2. **Week 2:** Implement Pass 3 semantic narrative creator and dual-lens view service  
-3. **Week 3:** Dashboard dual-view interface with user preference system
-4. **Week 4:** Clinical safety validation and production readiness
+**Infrastructure Ready - AI Integration Required:**
+1. **URGENT:** Add OpenAI API integration to `worker.ts:204-238` (`processShellFile` method)
+2. **URGENT:** Add Google Cloud Vision OCR for text extraction with spatial coordinates
+3. **URGENT:** Implement clinical data extraction to V3 database tables
+4. **HIGH:** Add three-pass AI processing logic (Pass 1→2→3 pipeline)
+5. **HIGH:** Connect semantic narrative creation to existing `shell_files` table
+
+**Worker File Location:** `shared/docs/architecture/database-foundation-v3/current_workers/exora-v3-worker/src/worker.ts`
+
+**Current Status:** Worker is polling and claiming jobs successfully, but `processShellFile()` contains only simulation code
 
 ## Key Documents
 
