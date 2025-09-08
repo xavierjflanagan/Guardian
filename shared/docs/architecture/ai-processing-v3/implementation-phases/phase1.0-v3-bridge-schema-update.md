@@ -10,23 +10,23 @@
 
 ## **EXECUTIVE SUMMARY**
 
-**Critical Problem**: Current AI bridge schemas are incompatible with V3 architecture and three-pass AI processing system. Cross-reference with DATABASE_V3_ARCHITECTURE_OVERVIEW.md reveals **bridge schemas only cover 6 tables vs 26 V3 core processing tables**.
+**Critical Problem**: Current AI bridge schemas are incompatible with V3 architecture and three-pass AI processing system. Cross-reference with DATABASE_V3_ARCHITECTURE_OVERVIEW.md reveals **bridge schemas only cover 6 tables vs 27 V3 core processing tables**.
 
 **Current State**: 
 - ✅ V3 database operational (50+ tables with three-pass AI integration)
-- ❌ Bridge schemas only cover 6 tables vs **26 tables required for complete V3 processing**
-- ❌ **MISSING V3 Architecture**: shell_files, clinical_narratives, narrative linking system (6 tables)
+- ❌ Bridge schemas only cover 6 tables vs **27 tables required for complete V3 processing**
+- ❌ **MISSING V3 Architecture**: shell_files, clinical_narratives, narrative linking system (7 tables)
 - ❌ **MISSING Core Clinical**: patient_vitals, patient_medications, healthcare_encounters, patient_demographics
 - ❌ **MISSING AI Infrastructure**: entity_processing_audit_v2, profile_classification_audit
 - ❌ **MISSING Business Intelligence**: user_usage_tracking, subscription_plans, usage_events
 - ❌ Three-pass AI system cannot function without proper bridge schema support
 
 **Target State**:
-- ✅ **Complete V3 bridge schema coverage**: 26 core tables across all three passes
+- ✅ **Complete V3 bridge schema coverage**: 27 core tables across all three passes
 - ✅ **Pass 1 entity detection**: Specialized entity classification schema
 - ✅ **Pass 2 clinical enrichment**: Dynamic schema loading based on Pass 1 results  
 - ✅ **Pass 3 semantic narratives**: Clinical narrative creation and linking schemas
-- ✅ Three-tier system maintained: source → detailed → minimal for all 26 tables
+- ✅ Three-tier system maintained: source → detailed → minimal for all 27 tables
 - ✅ Australian healthcare compliance: PBS, Medicare, SNOMED integration
 
 ---
@@ -74,7 +74,7 @@ CREATE TABLE patient_clinical_events (
 
 **Pass 3: Semantic Narratives**
 - **Purpose**: Retrospectively create clinical storylines spanning multiple entities
-- **Bridge Schema Focus**: clinical_narratives + narrative linking system (6 tables)
+- **Bridge Schema Focus**: clinical_narratives + narrative linking system (7 tables: 1 core + 6 specialty)
 - **Database Writes**: Narrative creation + linking narrative_*_links tables to existing Pass 2 data
 - **Enhancement Layer**: Adds semantic intelligence on top of Pass 2 structured data
 
@@ -157,7 +157,7 @@ entity_classification_prompt: {
 }
 ```
 
-**PASS 2: Clinical Enrichment Bridge Schemas (20 tables)**
+**PASS 2: Clinical Enrichment Bridge Schemas (19 tables)**
 ```sql
 -- ✅ EXISTING (6 tables):
 patient_allergies           -- Safety-critical medical allergies  
@@ -284,7 +284,6 @@ entity_classification_schema: {
 ```
 
 **Implementation Tasks**:
-- [ ] **CRITICAL: V2→V3 Existing Schema Validation** - Line-by-line review of 6 existing bridge schemas
 - [ ] Create Pass 1 entity classification prompt schema
 - [ ] Create shell_files bridge schemas (source/detailed/minimal) 
 - [ ] Create clinical_narratives bridge schemas (source/detailed/minimal)
@@ -292,25 +291,7 @@ entity_classification_schema: {
 - [ ] Fix source tier gaps: patient_allergies.json, patient_conditions.json
 - [ ] Update schema_loader.ts for Pass 1→Pass 2 integration
 
-**V2→V3 Existing Schema Validation Requirements**:
-```typescript
-// EXISTING SCHEMAS REQUIRING V3 COMPATIBILITY VALIDATION (6 tables):
-'patient_allergies.json'        // Validate: patient_id → user_profiles(id), shell_file_id, narrative_id
-'patient_clinical_events.json'  // Validate: V3 O3 two-axis classification, shell_file_id, narrative_id  
-'patient_conditions.json'       // Validate: patient_id → user_profiles(id), shell_file_id, narrative_id
-'patient_interventions.json'    // Validate: patient_id → user_profiles(id), shell_file_id, narrative_id
-'patient_observations.json'     // Validate: patient_id → user_profiles(id), shell_file_id, narrative_id
-'medical_coding_standards.json' // Validate: Australian healthcare codes (PBS, Medicare)
-```
-
-**Critical V3 Fields to Add/Validate in Existing Schemas**:
-- `patient_id: UUID` - Must reference `user_profiles(id)` not `auth.users(id)`
-- `shell_file_id: UUID` - CRITICAL V3 field for document tracking
-- `narrative_id?: UUID` - Optional V3 field for Pass 3 semantic linking
-- Australian healthcare fields: `pbs_codes`, `medicare_item_numbers`
-- V3 AI processing fields: `confidence_score`, `ai_extracted`, `processing_job_id`
-
-**Success Criteria**: Three-pass AI system can initialize, all existing schemas V3-compatible, and Pass 1→Pass 2→Pass 3 flow functional
+**Success Criteria**: Three-pass AI system can initialize and Pass 1→Pass 2→Pass 3 flow functional
 
 ---
 
@@ -451,7 +432,7 @@ EXISTING SCHEMAS REQUIRING COMPLETE V3 VALIDATION:
 **Priority**: CRITICAL - Quality assurance and system validation
 
 **Three-Tier Validation Tasks**:
-- [ ] Validate source/detailed/minimal consistency across all 26 bridge schemas
+- [ ] Validate source/detailed/minimal consistency across all 27 bridge schemas
 - [ ] Test Pass 1 entity detection → Pass 2 schema selection workflow
 - [ ] Test Pass 2 clinical enrichment → V3 database integration
 - [ ] Test Pass 3 semantic narrative creation → narrative linking system
@@ -465,7 +446,7 @@ EXISTING SCHEMAS REQUIRING COMPLETE V3 VALIDATION:
 - [ ] Test complete V3 clinical data flow from document upload to narrative creation
 - [ ] Validate business intelligence and analytics data collection
 
-**Success Criteria**: Complete 26-table bridge schema system operational with three-pass AI integration
+**Success Criteria**: Complete 27-table bridge schema system operational with three-pass AI integration
 
 ---
 
@@ -568,125 +549,32 @@ interface Pass3SemanticNarratives {
 ---
 
 ### **Task 1.0.4: V3 Bridge Schema Creation**
-**Purpose**: Create TypeScript interfaces for all V3 tables that align perfectly with database structure
+**Purpose**: Create bridge schemas for all V3 tables that align perfectly with database structure
 
-**Patient Clinical Events Bridge Schema**:
+**Critical V3 Bridge Schema Requirements**:
 ```typescript
-// File: bridge-schemas/v3-patient-clinical-events.ts
-export interface PatientClinicalEventsV3BridgeSchema {
-  // Core identification (required)
-  patient_id: string;                    // UUID, references user_profiles(id)  
-  shell_file_id: string;                // UUID, source document reference
-  
-  // Event details (required)
-  event_date: string;                   // ISO timestamp of clinical event
-  event_type: 'observation' | 'intervention' | 'condition' | 'encounter';
-  event_name: string;                   // Human-readable event description
-  event_category: string;               // Specific clinical category
-  
-  // Clinical significance (required)  
-  clinical_significance: 'routine' | 'significant' | 'critical';
-  confidence_score: number;             // AI extraction confidence 0.0-1.0
-  
-  // V3 semantic architecture (optional)
-  narrative_id?: string;                // UUID, links to clinical narratives
-  narrative_context?: string;           // AI-generated clinical context
-  
-  // Medical coding (optional but preferred)
-  icd10_codes?: string[];              // ICD-10 diagnosis codes
-  snomed_codes?: string[];             // SNOMED-CT concept codes  
-  medicare_item_numbers?: string[];    // Australian Medicare items
-  
-  // Processing metadata (required)
-  processing_job_id?: string;          // Job coordination tracking
-  extraction_confidence: number;       // Specific to this extraction
-  manual_review_required: boolean;     // Flag for human review
-  
-  // Audit trail (auto-populated)
-  created_at?: string;                 // Auto-populated by database
-  updated_at?: string;                 // Auto-populated by database
+// All V3 bridge schemas must include these critical fields:
+interface V3BridgeSchemaBase {
+  patient_id: string;           // UUID → user_profiles(id) (V3 correction)
+  shell_file_id: string;        // UUID → shell_files(id) (V3 requirement)  
+  narrative_id?: string;        // UUID → clinical_narratives(id) (V3 semantic)
+  confidence_score: number;     // AI extraction confidence 0.0-1.0
+  processing_job_id?: string;   // V3 job coordination
+  ai_extracted: boolean;        // V3 AI processing provenance
 }
 ```
 
-**Patient Observations Bridge Schema**:
-```typescript  
-// File: bridge-schemas/v3-patient-observations.ts
-export interface PatientObservationsV3BridgeSchema {
-  // Core identification
-  patient_id: string;                  // References user_profiles(id)
-  clinical_event_id: string;           // Links to master timeline event
-  shell_file_id: string;              // Source document reference
-  
-  // Observation data
-  observation_date: string;            // ISO timestamp
-  observation_type: 'vital_sign' | 'lab_result' | 'assessment' | 'measurement';
-  observation_name: string;            // 'Blood Pressure', 'Heart Rate', etc.
-  
-  // Values and units (flexible for different observation types)
-  value_numeric?: number;              // Numeric value if applicable
-  value_text?: string;                // Text description or result
-  unit?: string;                      // Measurement unit ('mmHg', 'bpm', etc.)
-  reference_range?: string;           // Normal range if known
-  
-  // Clinical interpretation
-  interpretation?: 'normal' | 'abnormal' | 'critical' | 'borderline';
-  clinical_notes?: string;            // Additional clinical context
-  
-  // V3 enhancements
-  confidence_score: number;            // AI extraction confidence
-  spatial_coordinates?: {              // Click-to-zoom data
-    page: number;
-    x_min: number;
-    y_min: number; 
-    x_max: number;
-    y_max: number;
-  };
-  
-  // Australian healthcare context
-  pathology_provider?: string;        // Lab or testing facility
-  medicare_item_number?: string;      // Medicare billing item
-  pbs_code?: string;                 // Pharmaceutical benefits scheme
-}
-```
+**Australian Healthcare Integration**:
+- PBS codes, Medicare item numbers for medications/procedures
+- SNOMED-CT, LOINC, ICD-10, CPT medical coding standards
+- Pathology provider references for lab results
 
-**Patient Interventions Bridge Schema**:
-```typescript
-// File: bridge-schemas/v3-patient-interventions.ts  
-export interface PatientInterventionsV3BridgeSchema {
-  // Core identification
-  patient_id: string;
-  clinical_event_id: string;          // Links to master timeline
-  shell_file_id: string;
-  
-  // Intervention details  
-  intervention_date: string;
-  intervention_type: 'medication' | 'procedure' | 'therapy' | 'surgery' | 'diagnostic';
-  intervention_name: string;
-  
-  // Medication-specific fields (V3 enhanced for Australian healthcare)
-  medication_name?: string;
-  dosage?: string;                    // '10mg', '1 tablet', etc.
-  frequency?: string;                 // 'twice daily', 'as needed', etc.
-  duration?: string;                  // '7 days', '1 month', etc.
-  route?: string;                     // 'oral', 'IV', 'topical', etc.
-  indication?: string;                // Reason for prescription
-  
-  // Australian PBS integration
-  pbs_code?: string;                  // Pharmaceutical Benefits Scheme code
-  pbs_copayment?: number;             // Patient copayment amount
-  prescriber_id?: string;             // Prescribing doctor identifier
-  
-  // Procedure-specific fields
-  procedure_code?: string;            // Australian procedure codes (MBS)
-  procedure_site?: string;            // Anatomical location
-  complications?: string;             // Any complications noted
-  outcome?: string;                   // Procedure outcome
-  
-  // Processing metadata
-  confidence_score: number;
-  manual_verification_status?: 'required' | 'completed' | 'not_required';
-}
-```
+**Schema Creation Process**:
+1. Extract exact field structures from V3 database SQL files  
+2. Map V3 foreign key relationships and constraints
+3. Add Australian healthcare compliance fields
+4. Create three-tier versions (source/detailed/minimal)
+5. Validate against actual V3 database structure
 
 ---
 
@@ -747,162 +635,36 @@ export class V3BridgeSchemaLoader {
 ### **Task 1.0.6: Dynamic Schema Loading Implementation**
 **Purpose**: Create system that loads appropriate schemas based on Pass 1 entity detection
 
-**Schema Loading Architecture**:
-```typescript
-// File: src/schema-loader/v3-bridge-schema-loader.ts
-export class V3BridgeSchemaLoader {
-  private schemaCache: Map<string, BridgeSchemaDefinition> = new Map();
-  
-  async getSchemasForEntityCategories(
-    entityCategories: EntityCategoryCount[],
-    maxTokenBudget: number = 4000
-  ): Promise<BridgeSchemaLoadResult[]> {
-    
-    const results: BridgeSchemaLoadResult[] = [];
-    let totalTokens = 0;
-    
-    for (const category of entityCategories) {
-      // Skip document_structure - no Pass 2 processing needed
-      if (category.name === 'document_structure') continue;
-      
-      // Get target tables for this entity category
-      const targetTables = this.getTargetTablesForCategory(category.name);
-      
-      for (const tableName of targetTables) {
-        // Determine optimal schema version based on remaining token budget
-        const remainingBudget = maxTokenBudget - totalTokens;
-        const schemaVersion = this.selectOptimalVersion(remainingBudget);
-        
-        // Load schema
-        const schema = await this.getSchema(tableName, schemaVersion);
-        const tokenEstimate = this.estimateTokens(schema);
-        
-        // Check if we have budget for this schema
-        if (totalTokens + tokenEstimate <= maxTokenBudget) {
-          results.push({
-            tableName,
-            schema,
-            entityCategory: category.name,
-            tokenEstimate,
-            processingPriority: this.getProcessingPriority(category.name)
-          });
-          totalTokens += tokenEstimate;
-        } else {
-          // Try minimal version if detailed doesn't fit
-          if (schemaVersion !== 'minimal') {
-            const minimalSchema = await this.getSchema(tableName, 'minimal');
-            const minimalTokens = this.estimateTokens(minimalSchema);
-            
-            if (totalTokens + minimalTokens <= maxTokenBudget) {
-              results.push({
-                tableName,
-                schema: minimalSchema,
-                entityCategory: category.name,
-                tokenEstimate: minimalTokens,
-                processingPriority: this.getProcessingPriority(category.name)
-              });
-              totalTokens += minimalTokens;
-            }
-          }
-        }
-      }
-    }
-    
-    return results;
-  }
-  
-  private getTargetTablesForCategory(category: EntityCategory): string[] {
-    const mapping = {
-      clinical_event: [
-        'patient_clinical_events',  // Always
-        'patient_observations',     // If vital signs/lab data
-        'patient_interventions',    // If medications/procedures 
-        'patient_conditions'        // If diagnoses
-      ],
-      healthcare_context: [
-        'healthcare_encounters',    // Provider/visit info
-        'patient_demographics'      // Patient updates
-      ]
-    };
-    
-    return mapping[category] || [];
-  }
-  
-  private selectOptimalVersion(remainingTokens: number): SchemaVersion {
-    if (remainingTokens > 2000) return 'detailed';
-    if (remainingTokens > 1000) return 'minimal'; 
-    return 'minimal'; // Force minimal if very low budget
-  }
-}
-```
+**Core Schema Loading Requirements**:
+- **Entity-based loading**: Pass 1 entity categories determine which schemas to load
+- **Token budget management**: Automatic tier selection (detailed→minimal) based on budget
+- **Schema caching**: Performance optimization for repeated loads
+- **Priority-based loading**: Critical schemas loaded first within budget constraints
+
+**Key Implementation Points**:
+1. Map entity categories to target bridge schemas
+2. Implement token estimation and budget management  
+3. Create fallback logic (detailed→minimal when budget constrained)
+4. Integrate with existing schema_loader.ts architecture
+5. Add performance monitoring and caching
 
 ---
 
 ### **Task 1.0.7: Pass 1 → Pass 2 Integration**
 **Purpose**: Integrate bridge schema loading into Pass 1 → Pass 2 workflow
 
-**Integration Architecture**:
-```typescript
-// Enhanced Pass 1 that prepares for Pass 2 schema loading
-async executePass1EntityDetection(fileContent: string): Promise<Pass1Result> {
-  // ... existing entity detection logic
-  
-  const entityCategoryCounts = this.categorizeEntities(detectedEntities);
-  
-  // NEW: Prepare bridge schemas for Pass 2
-  const schemaLoader = new V3BridgeSchemaLoader();
-  const bridgeSchemas = await schemaLoader.getSchemasForEntityCategories(
-    entityCategoryCounts,
-    4000 // Token budget for Pass 2
-  );
-  
-  return {
-    entities: detectedEntities,
-    entityCategoryCounts,
-    bridgeSchemas,          // NEW: Ready for Pass 2
-    processingMetadata: {
-      // ... existing metadata
-      schemaLoadingTime: schemaLoadingDuration,
-      totalTokenBudget: 4000,
-      schemaTokenUsage: bridgeSchemas.reduce((sum, s) => sum + s.tokenEstimate, 0)
-    }
-  };
-}
+**Integration Requirements**:
+- **Pass 1 enhancement**: Add bridge schema preparation to entity detection results
+- **Pass 2 enhancement**: Use pre-loaded schemas for AI prompt construction
+- **Token coordination**: Ensure Pass 1 + Pass 2 stay within combined budget
+- **Error handling**: Graceful fallback when schema loading fails
 
-// Enhanced Pass 2 that uses bridge schemas
-async executePass2ClinicalEnrichment(
-  pass1Result: Pass1Result,
-  fileContent: string
-): Promise<Pass2Result> {
-  
-  const enrichmentResults = [];
-  
-  // Process each bridge schema
-  for (const schemaDefinition of pass1Result.bridgeSchemas) {
-    
-    // Create AI prompt using bridge schema
-    const prompt = this.createPass2Prompt(
-      schemaDefinition.schema,
-      pass1Result.entities,
-      fileContent
-    );
-    
-    // Call AI with schema-structured prompt
-    const aiResponse = await this.callOpenAI(prompt);
-    
-    // Parse response according to bridge schema
-    const structuredData = this.parseAIResponse(aiResponse, schemaDefinition.schema);
-    
-    enrichmentResults.push({
-      tableName: schemaDefinition.tableName,
-      data: structuredData,
-      confidence: this.calculateConfidence(structuredData)
-    });
-  }
-  
-  return { enrichmentResults };
-}
-```
+**Critical Integration Points**:
+1. Pass 1 loads appropriate bridge schemas based on detected entities
+2. Bridge schemas passed to Pass 2 with entity detection results
+3. Pass 2 constructs AI prompts using bridge schema structures
+4. AI responses parsed and validated against bridge schema requirements
+5. Database insertion uses bridge schema to V3 table mapping
 
 ---
 
@@ -1081,8 +843,6 @@ UX CAPABILITY: Click ANY clinical data point → see narrative story
 - Schema loading system handles all entity category combinations
 - Token optimization stays within budget constraints  
 - Performance targets met for schema loading operations
-
----
 
 ---
 
