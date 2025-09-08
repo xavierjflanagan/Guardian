@@ -8,6 +8,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import express from 'express';
 import dotenv from 'dotenv';
+import OpenAI from 'openai';
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,12 @@ const config = {
   supabase: {
     url: process.env.SUPABASE_URL!,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY!,
+  },
+  googleCloud: {
+    apiKey: process.env.GOOGLE_CLOUD_API_KEY!,
   },
   worker: {
     // FIXED: Use deployment guide configuration

@@ -84,9 +84,22 @@ private async processShellFile(job: Job): Promise<any> {
 
 ## IMPLEMENTATION PHASES
 
+### **Phase 1.0: V3 Bridge Schema Update (CRITICAL PREREQUISITE - 2-3 Days)**
+
+**Priority**: URGENT - Must complete before Phase 1.1  
+**Purpose**: Update all AI bridge schemas from V2 to V3 table structure  
+**Status**: Required for any AI processing to work correctly  
+
+Current bridge schemas target V2 tables and are completely incompatible with V3 architecture. This phase creates the foundation for all AI processing phases.
+
+**See**: `implementation-phases/phase1.0-v3-bridge-schema-update.md`
+
+---
+
 ### **Phase 1: AI Model Integration (URGENT - 1-2 Weeks)**
 
 #### **1.1 OpenAI GPT-4 Integration**
+**Dependencies**: Phase 1.0 must be complete first
 **File:** `current_workers/exora-v3-worker/src/worker.ts`  
 **Method:** `processShellFile()` lines 204-238
 
@@ -107,7 +120,7 @@ private async processShellFile(job: Job): Promise<any> {
   - Include spatial coordinates for click-to-zoom
 
 - [ ] **Implement Pass 2: Clinical Enrichment**  
-  - Use GPT-4 for high-accuracy medical analysis
+  - Use GPT for high-accuracy medical analysis
   - Apply V3 bridge schemas (see Section 2)
   - Extract to V3 clinical tables:
     - `patient_clinical_events` (master timeline records)
