@@ -1,15 +1,18 @@
 # Clinical Identity Policies
 
 **Status**: Complete Implementation Specification  
-**Purpose**: Define what makes clinical entities "the same" for safe deduplication across different entity types
+**Purpose**: Define what makes clinical entities "the same" for safe deduplication across different entity types  
+**Created**: 11 September 2025  
+**Last Reviewed**: 16 September 2025
 
 ## Overview
 
-Clinical identity policies ensure that only medically equivalent entities are merged during deduplication. These policies assume medical codes have been assigned by the **medical-code-resolution** system and focus purely on identity determination logic for safe deduplication.
+Clinical identity policies determine when two clinical entities should be considered "the same" for safe deduplication purposes. While medical codes identify WHAT a medication or condition IS in global healthcare terminology, identity keys determine WHETHER two Exora records should be merged as the same clinical entity for a specific patient. This separation enables safety-critical logic that prevents unsafe merging based on confidence levels, route/form differences, and clinical context - even when entities share the same medical code.
 
 **Critical Dependencies**:
 - Medical code assignment from [`../medical-code-resolution/code-hierarchy-selection.md`](../medical-code-resolution/code-hierarchy-selection.md)
 - Vague medication handling from [`../medical-code-resolution/vague-medication-handling.md`](../medical-code-resolution/vague-medication-handling.md)
+- Date normalization from [`../universal-date-format-management.md`](../universal-date-format-management.md)
 - Temporal precedence from [`./temporal-conflict-resolution.md`](./temporal-conflict-resolution.md)
 - Supersession logic from [`./deduplication-framework.md`](./deduplication-framework.md)
 
@@ -35,6 +38,9 @@ Clinical identity policies ensure that only medically equivalent entities are me
 
 ```typescript
 interface MedicationIdentityInput {
+  // Entity identification
+  id: string;                   // Unique entity identifier
+  
   // Assigned by medical-code-resolution system
   rxnorm_scd?: string;          // Preferred: Semantic Clinical Drug
   rxnorm_sbd?: string;          // Alternative: Semantic Branded Drug
@@ -121,12 +127,14 @@ function handleMissingInformation(
   }
   
   // Composite comparison when codes match but attributes differ
-  if (existingEntity.ingredient_name === newEntity.ingredient_name) {
+  if (existingEntity.ingredient_name === newEntity.ingredient_name &&
+      existingEntity.route === newEntity.route &&
+      existingEntity.dose_form === newEntity.dose_form) {
     return {
       identity_match: true,
       identity_key: `ingredient:${existingEntity.ingredient_name}`,
       deduplication_behavior: 'temporal_precedence_applies',
-      safety_note: 'Same ingredient identified - temporal precedence determines current state'
+      safety_note: 'Same ingredient, route, and form identified - safe to merge with temporal precedence'
     };
   }
   
@@ -314,9 +322,11 @@ function generateConditionIdentityKey(condition: ConditionIdentityInput): string
   
   // Priority 4: Normalized condition name (when codes unavailable)
   const normalizedName = normalizeConditionName(condition.condition_name);
-  return `normalized:${normalizedName}`;
+  if (normalizedName && normalizedName.length > 2) {
+    return `normalized:${normalizedName}`;
+  }
   
-  // Priority 5: Conservative fallback
+  // Priority 5: Conservative fallback (when normalization fails)
   return `fallback:${condition.id}:${condition.extracted_text_hash}`;
 }
 ```
@@ -347,6 +357,8 @@ function determineConditionHierarchy(
     );
     
     if (hierarchyRelation.is_parent_child) {
+      // Specificity determined by querying SNOMED CT's built-in hierarchical relationships
+      // This is completely deterministic - no AI interpretation required
       return {
         identity_relationship: 'hierarchical_supersession_applies',
         more_specific_wins: true,
@@ -565,7 +577,7 @@ ALTER TABLE patient_medications ADD COLUMN
       WHEN rxnorm_scd IS NOT NULL THEN 'rxnorm_scd:' || rxnorm_scd
       WHEN rxnorm_sbd IS NOT NULL THEN 'rxnorm_sbd:' || rxnorm_sbd
       WHEN ingredient_name IS NOT NULL AND strength IS NOT NULL 
-        THEN 'composite:' || LOWER(ingredient_name) || ':' || strength || ':' || COALESCE(LOWER(dose_form), 'unknown')
+        THEN 'composite:' || LOWER(ingredient_name) || ':' || strength || ':' || COALESCE(LOWER(dose_form), 'unknown') || ':' || COALESCE(LOWER(route), 'unknown')
       ELSE 'fallback:' || id::text
     END
   ) STORED;
@@ -617,13 +629,13 @@ CREATE INDEX idx_procedures_identity ON patient_interventions (clinical_identity
 ### Identity Validation Framework
 
 ```typescript
-function validateClinicalIdentity(
+async function validateClinicalIdentity(
   entity: ClinicalEntity,
   proposedIdentityKey: string
-): IdentityValidation {
+): Promise<IdentityValidation> {
   
   // Safety check 1: Ensure medical code confidence meets threshold
-  if (entity.medical_code_confidence < 0.7) {
+  if (entity.code_confidence < 0.7) {
     return {
       validation_result: 'CONSERVATIVE_FALLBACK',
       reason: 'Low medical code confidence - prevent unsafe merging',

@@ -2,15 +2,32 @@
 
 **Status**: Complete Implementation Specification  
 **Purpose**: Define the core logic for identifying and handling duplicate clinical entities across multiple document uploads
+**Created**: 11 September 2025  
+**Last Reviewed**: 16 September 2025
 
 ## Overview
 
-The deduplication framework ensures that Exora maintains a single "current" row per clinical entity (that is destined for the user facing side) while preserving complete historical context. This system operates deterministically using medical codes and temporal precedence, requiring no AI decision-making.
+The deduplication framework ensures that Exora maintains a single "current" (aka most relevant) row per clinical entity (that is destined for the user facing side) while preserving complete historical context. This system operates deterministically (no AI required) using medical codes and temporal precedence.
+
+**Architectural Decision: Silver Tables as Source of Truth**
+
+This deduplication framework serves as the **primary source of truth** for all user-facing clinical data (medication lists, allergies, conditions, procedures). The deterministic nature ensures:
+
+- **Predictable behavior**: Same inputs always produce same results
+- **Clinical safety**: No AI hallucination or drift in critical data
+- **Audit compliance**: Complete traceability of all decisions
+- **Performance**: Direct database queries without AI processing overhead
+
+**Narrative System Integration**: The AI-powered narrative system will **consume** the deduplicated Silver tables for context and display enhancement, but will not override the canonical clinical state. This separation maintains:
+- **Data integrity**: Clinical facts remain deterministic
+- **Rich presentation**: Narratives add semantic context and natural language summaries
+- **Clear responsibilities**: Deduplication = facts, Narratives = presentation
 
 **Key Dependencies**:
 - Medical codes from [`../medical-code-resolution/embedding-based-code-matching.md`](../medical-code-resolution/embedding-based-code-matching.md)
 - Clinical identity policies from [`./clinical-identity-policies.md`](./clinical-identity-policies.md)
 - Temporal conflict resolution from [`./temporal-conflict-resolution.md`](./temporal-conflict-resolution.md)
+- Date normalization from [`../universal-date-format-management.md`](../universal-date-format-management.md)
 
 ## Core Deduplication Architecture
 
@@ -48,6 +65,7 @@ WHERE old.rxnorm_scd = new.rxnorm_scd
   AND old.dose_amount = new.dose_amount
   AND old.frequency = new.frequency
   AND old.route = new.route
+  AND old.dose_form = new.dose_form
 ```
 **Action**: Mark older record as superseded
 **Reason**: `"exact_duplicate_consolidated"`
@@ -78,21 +96,33 @@ WHERE old.rxnorm_scd = new.rxnorm_scd
 ```sql
 -- When other supersession types don't apply but temporal precedence exists
 WHERE old.clinical_identity_key = new.clinical_identity_key
-  AND new.clinical_effective_date > old.clinical_effective_date
+  AND (
+    new.clinical_effective_date > old.clinical_effective_date
+    OR (
+      new.clinical_effective_date = old.clinical_effective_date 
+      AND new.date_confidence_numeric > old.date_confidence_numeric
+    )
+    OR (
+      new.clinical_effective_date = old.clinical_effective_date
+      AND new.date_confidence_numeric = old.date_confidence_numeric
+      AND new.shell_file_upload_date > old.shell_file_upload_date
+    )
+  )
 ```
 **Action**: Mark older record as superseded (temporal precedence failsafe)
-**Reason**: `"temporal_supersession"`
+**Reason**: `"temporal_supersession"` or `"temporal_tie_breaker"`
 
 ## Implementation Architecture
 
-### Post-Processing Engine
+### Deduplication Normalization Post-Processing Engine
 
-Runs immediately after Pass 2 completes, before Pass 3 narrative creation:
+This determinstic step runs immediately after the AI Pass 2 completes, but before the AI Pass 3 narrative creation:
 
 ```typescript
 // Post-Pass 2 Normalization Function
-export async function normalizeClinicaTakientities(
+export async function normalizeClinicaEntities(
   shellFileId: string,
+  patientId: string,
   clinicalEvents: Pass2Output[]
 ): Promise<NormalizationResult> {
   
@@ -123,8 +153,10 @@ export async function normalizeClinicaTakientities(
 -- Medication Identity Example
 CREATE OR REPLACE FUNCTION get_medication_identity_key(
   p_rxnorm_scd TEXT,
-  p_route TEXT,
-  p_dose_form TEXT
+  p_ingredient_name TEXT,
+  p_strength TEXT,
+  p_dose_form TEXT,
+  p_route TEXT
 ) RETURNS TEXT AS $$
 BEGIN
   -- Use SCD-level identity when available
@@ -132,9 +164,11 @@ BEGIN
     RETURN 'rxnorm_scd:' || p_rxnorm_scd;
   END IF;
   
-  -- Fallback to composite key
-  RETURN 'composite:' || COALESCE(p_route, 'unknown') || 
-         ':' || COALESCE(p_dose_form, 'unknown');
+  -- Fallback to composite key (SAFETY CRITICAL: Include all distinguishing factors)
+  RETURN 'composite:' || COALESCE(p_ingredient_name, 'unknown') || 
+         ':' || COALESCE(p_strength, 'unknown') ||
+         ':' || COALESCE(p_dose_form, 'unknown') ||
+         ':' || COALESCE(p_route, 'unknown');
 END;
 $$ LANGUAGE plpgsql;
 ```
@@ -146,13 +180,13 @@ $$ LANGUAGE plpgsql;
 ```sql
 -- Required fields for ALL clinical entity tables
 ALTER TABLE patient_medications ADD COLUMN
-  valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
-  valid_to TIMESTAMP NULL,
+  valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  valid_to TIMESTAMPTZ NULL,
   superseded_by_record_id UUID REFERENCES patient_medications(id),
   supersession_reason TEXT,
   is_current BOOLEAN GENERATED ALWAYS AS (valid_to IS NULL) STORED,
   clinical_identity_key TEXT,
-  clinical_effective_date DATE,
+  clinical_effective_date DATE, -- Clinical dates remain DATE (no time component needed)
   date_confidence TEXT CHECK (date_confidence IN ('high', 'medium', 'low', 'conflicted'));
 
 -- Performance index for current records
@@ -219,6 +253,65 @@ function determineSupersession(
   // 5. No supersession needed
   return { type: 'NO_SUPERSESSION' };
 }
+```
+
+## Concurrency and Data Integrity Safeguards
+
+### Race Condition Prevention
+
+```typescript
+// Idempotent processing with row-level locking
+async function normalizeClinicaEntitiesWithLocking(
+  shellFileId: string,
+  patientId: string,
+  clinicalEvents: Pass2Output[]
+): Promise<NormalizationResult> {
+  
+  return await db.transaction(async (trx) => {
+    // 1. Idempotency check - prevent duplicate processing
+    const existingProcessing = await trx.query(`
+      SELECT id FROM processing_log 
+      WHERE patient_id = $1 AND shell_file_id = $2
+    `, [patientId, shellFileId]);
+    
+    if (existingProcessing.rows.length > 0) {
+      return { status: 'already_processed', shellFileId };
+    }
+    
+    // 2. Patient-level serialization to prevent concurrent modifications
+    await trx.query(`
+      SELECT pg_advisory_xact_lock(hashtext($1::text))
+    `, [patientId]);
+    
+    // 3. Process deduplication
+    const result = await performDeduplication(trx, patientId, clinicalEvents);
+    
+    // 4. Mark as processed
+    await trx.query(`
+      INSERT INTO processing_log (patient_id, shell_file_id, processed_at)
+      VALUES ($1, $2, NOW())
+    `, [patientId, shellFileId]);
+    
+    return result;
+  });
+}
+```
+
+### Single Current Record Constraint
+
+```sql
+-- Ensure only one current record per clinical identity per patient
+CREATE UNIQUE INDEX idx_single_current_per_identity 
+  ON patient_medications (patient_id, clinical_identity_key) 
+  WHERE is_current = true;
+
+CREATE UNIQUE INDEX idx_single_current_conditions 
+  ON patient_conditions (patient_id, clinical_identity_key) 
+  WHERE is_current = true;
+
+CREATE UNIQUE INDEX idx_single_current_allergies 
+  ON patient_allergies (patient_id, clinical_identity_key) 
+  WHERE is_current = true;
 ```
 
 ## Safety Guarantees and Audit Trail
@@ -297,7 +390,7 @@ async function executeSupersessionChain(
 ```typescript
 // When medical codes unavailable, use conservative identity
 function createFallbackIdentityKey(entity: ClinicalEntity): string {
-  if (entity.medical_codes.confidence < 0.7) {
+  if (entity.code_confidence < 0.7) {
     // Conservative: create unique identity to prevent unsafe merging
     return `fallback:${entity.id}:${entity.extracted_text_hash}`;
   }
@@ -318,7 +411,7 @@ FROM patient_medications m
 LEFT JOIN medication_reference mr ON mr.rxnorm_scd = m.rxnorm_scd
 WHERE m.patient_id = $1 
   AND m.is_current = true  -- Uses generated column
-ORDER BY m.start_date DESC;
+ORDER BY m.clinical_effective_date DESC;
 ```
 
 ### Historical Analysis Queries
@@ -347,6 +440,51 @@ ORDER BY m.clinical_effective_date DESC;
 - **Identity grouping**: Index on `clinical_identity_key`
 - **Temporal queries**: Composite index on `(patient_id, clinical_effective_date)`
 - **Supersession chains**: Index on `superseded_by_record_id`
+- **Performance critical**: `(patient_id, clinical_identity_key, is_current)` for identity lookups
+
+```sql
+-- Performance-critical indexes for deduplication
+CREATE INDEX idx_medications_identity_lookup 
+  ON patient_medications (patient_id, clinical_identity_key, is_current);
+
+CREATE INDEX idx_conditions_identity_lookup 
+  ON patient_conditions (patient_id, clinical_identity_key, is_current);
+
+CREATE INDEX idx_allergies_identity_lookup 
+  ON patient_allergies (patient_id, clinical_identity_key, is_current);
+
+-- Materialized view for high-frequency dashboard queries
+CREATE MATERIALIZED VIEW patient_current_clinical_state AS
+SELECT 
+  patient_id,
+  'medication' as entity_type,
+  clinical_identity_key,
+  id as current_record_id,
+  clinical_effective_date,
+  date_confidence
+FROM patient_medications WHERE is_current = true
+UNION ALL
+SELECT 
+  patient_id,
+  'condition' as entity_type,
+  clinical_identity_key,
+  id as current_record_id,
+  clinical_effective_date,
+  date_confidence
+FROM patient_conditions WHERE is_current = true
+UNION ALL
+SELECT 
+  patient_id,
+  'allergy' as entity_type,
+  clinical_identity_key,
+  id as current_record_id,
+  clinical_effective_date,
+  date_confidence
+FROM patient_allergies WHERE is_current = true;
+
+CREATE UNIQUE INDEX idx_current_state_pk 
+  ON patient_current_clinical_state (patient_id, entity_type, clinical_identity_key);
+```
 
 ### Response Time Targets
 - **Current medication list**: < 100ms (clinical workflow)
@@ -375,7 +513,7 @@ async function handleUserEdit(
   };
   
   // 2. Process through same deduplication pipeline
-  await normalizeClinicaEntities(null, [userGeneratedEvent]);
+  await normalizeClinicaEntities(null, patientId, [userGeneratedEvent]);
   
   // 3. Update related narratives
   await updateAffectedNarratives(patientId, userGeneratedEvent);

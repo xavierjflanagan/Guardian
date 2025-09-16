@@ -10,6 +10,7 @@ Healthcare documents contain multiple types of dates that may conflict. This fra
 **Key Integration Points**:
 - Used by [`./deduplication-framework.md`](./deduplication-framework.md) for supersession decisions
 - Supports [`./clinical-identity-policies.md`](./clinical-identity-policies.md) temporal matching
+- Integrates with [`../universal-date-format-management.md`](../universal-date-format-management.md) for date normalization
 - Referenced by [`../implementation-planning/database-schema-migrations.md`](../implementation-planning/database-schema-migrations.md)
 
 ## Date Hierarchy Framework
@@ -78,14 +79,25 @@ ALTER TABLE patient_clinical_events ADD COLUMN
 
 ### Date Storage Format
 
+**Note**: All dates are normalized by [`../universal-date-format-management.md`](../universal-date-format-management.md) before temporal analysis.
+
 ```typescript
 interface DateExtraction {
   extracted_dates: {
     source: 'clinical_content' | 'document_date' | 'file_metadata' | 'upload_timestamp';
-    date_value: string; // ISO date
+    date_value: string; // Always ISO format after universal processing
     confidence: number; // 0.0 to 1.0
     extraction_method: string;
     context: string; // Surrounding text for clinical dates
+    
+    // Integration with Universal Date Format Management
+    universal_format_result: {
+      original_format: string;
+      detected_format: string;
+      format_confidence: number;
+      ambiguity_flags: string[];
+      document_origin: string;
+    };
   }[];
   
   date_conflicts?: {
@@ -93,6 +105,7 @@ interface DateExtraction {
     resolution_applied: string;
     resolution_reason: string;
     confidence_after_resolution: number;
+    format_normalization_notes?: string; // Notes on format conversion issues
   }[];
 }
 ```
@@ -111,7 +124,7 @@ function resolveClinicalDate(
   const validDates = extractedDates.filter(date => isValidDate(date.date_value));
   
   // 2. Apply hierarchy-based selection
-  const hierarchyResult = applyDateHierarchy(validDates);
+  const hierarchyResult = applyDateHierarchy(validDates, shellFileContext);
   
   // 3. Handle conflicts within same hierarchy level
   if (hierarchyResult.conflicts.length > 0) {
@@ -131,7 +144,10 @@ function resolveClinicalDate(
 ### Hierarchy-Based Selection Logic
 
 ```typescript
-function applyDateHierarchy(dates: DateExtraction[]): HierarchyResult {
+function applyDateHierarchy(
+  dates: DateExtraction[],
+  shellFileContext: ShellFileMetadata
+): HierarchyResult {
   
   // Priority 1: Explicit clinical dates from content
   const clinicalDates = dates.filter(d => d.source === 'clinical_content');
@@ -282,7 +298,7 @@ function compareTemporalPrecedence(
     return {
       hasTemporalPrecedence: date2 > date1,
       precedenceReason: 'clinical_effective_date',
-      confidence: Math.min(entity1.date_confidence_score, entity2.date_confidence_score)
+      confidence: Math.min(entity1.date_confidence_numeric, entity2.date_confidence_numeric)
     };
   }
   
@@ -385,37 +401,72 @@ function handleUserDateCorrection(
 }
 ```
 
-## Time Zone and Multi-Location Considerations
+## Integration with Universal Date Format Management
 
-### Australian Healthcare Context
+### Date Normalization Dependencies
+
+**Critical**: All date processing in temporal conflict resolution assumes dates have been **normalized to ISO format** by the [`../universal-date-format-management.md`](../universal-date-format-management.md) system.
 
 ```typescript
-interface AustralianDateContext {
-  timezone: 'AEDT' | 'AEST' | 'ACDT' | 'ACST' | 'AWDT' | 'AWST';
-  healthcare_region: 'NSW' | 'VIC' | 'QLD' | 'SA' | 'WA' | 'TAS' | 'NT' | 'ACT';
-  date_format_preference: 'DD/MM/YYYY' | 'DD-MM-YYYY' | 'YYYY-MM-DD';
+// Temporal resolution operates on pre-normalized dates
+interface NormalizedDateInput {
+  iso_date: string;              // Output from Universal Date Management
+  source: DateSource;
+  confidence: number;            // Combined extraction + format confidence
+  original_context: string;
+  
+  // Metadata from universal normalization
+  format_metadata: {
+    original_format: string;
+    detected_format: string;
+    document_origin: string;
+    ambiguity_flags: string[];
+    alternative_interpretations?: string[];
+  };
 }
 
-function normalizeAustralianDate(
-  dateString: string,
-  context: AustralianDateContext
-): NormalizedDate {
+function processTemporalConflicts(
+  normalizedDates: NormalizedDateInput[]
+): TemporalResolution {
   
-  // Handle Australian date formats
-  const australianFormats = [
-    /(\d{1,2})\/(\d{1,2})\/(\d{4})/, // DD/MM/YYYY
-    /(\d{1,2})-(\d{1,2})-(\d{4})/,  // DD-MM-YYYY
-    /(\d{4})-(\d{1,2})-(\d{1,2})/   // YYYY-MM-DD
-  ];
+  // Focus on WHICH date to use, not HOW to interpret raw dates
+  // Universal Date Management has already handled format interpretation
   
-  // Parse and normalize to ISO format
-  const parsed = parseAustralianDate(dateString, australianFormats);
+  return applyDateHierarchy(normalizedDates, shellFileContext);
+}
+```
+
+### Format Confidence Integration
+
+```typescript
+function incorporateFormatConfidence(
+  dateExtraction: NormalizedDateInput
+): AdjustedConfidence {
+  
+  // Combine extraction confidence with format detection confidence
+  const extractionConfidence = dateExtraction.confidence;
+  const formatConfidence = dateExtraction.format_metadata.format_confidence;
+  
+  // Conservative approach: use the lower confidence
+  const combinedConfidence = Math.min(extractionConfidence, formatConfidence);
+  
+  // Apply penalties for ambiguity flags
+  let adjustedConfidence = combinedConfidence;
+  if (dateExtraction.format_metadata.ambiguity_flags.includes('format_ambiguous')) {
+    adjustedConfidence *= 0.8;
+  }
+  if (dateExtraction.format_metadata.ambiguity_flags.includes('low_confidence_origin')) {
+    adjustedConfidence *= 0.9;
+  }
   
   return {
-    iso_date: parsed.toISOString().split('T')[0],
-    timezone: context.timezone,
-    original_format: dateString,
-    confidence: parsed.confidence
+    final_confidence: adjustedConfidence,
+    confidence_components: {
+      extraction: extractionConfidence,
+      format_detection: formatConfidence,
+      ambiguity_penalty: combinedConfidence - adjustedConfidence
+    },
+    requires_user_verification: adjustedConfidence < 0.7
   };
 }
 ```
