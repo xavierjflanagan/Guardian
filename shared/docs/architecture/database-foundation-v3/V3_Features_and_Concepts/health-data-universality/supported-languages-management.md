@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the dynamic language availability system that tracks AI model capabilities, manages language quality scoring, and provides a framework for expanding language support through both general-purpose and bespoke AI models. The system ensures users receive accurate information about available languages while providing mechanisms for graceful fallbacks and quality assurance.
+This document defines the dynamic language availability system that tracks AI model capabilities, manages language quality scoring, and provides a framework for expanding language support through both general-purpose and bespoke AI models. The system integrates with the three-layer architecture (backend tables + per-domain translation tables + per-domain display tables) to ensure users receive accurate information about available languages while providing mechanisms for graceful fallbacks and quality assurance.
 
 ## Problem Domain
 
@@ -67,16 +67,18 @@ INSERT INTO supported_languages (language_code, language_name, native_name, avai
 ('ar-SA', 'Arabic (Saudi Arabia)', 'العربية (السعودية)', 'coming_soon', 0.79, 'enterprise');
 ```
 
-### **Dynamic Language Availability Management**
+### **Dynamic Language Availability Management with Display Table Integration**
 
-**AI Model Performance Monitoring**:
+**AI Model Performance Monitoring with Translation Table Tracking**:
 ```sql
--- Function to update language availability based on AI model performance
+-- Function to update language availability based on AI model performance and translation table data
 CREATE OR REPLACE FUNCTION update_language_availability() RETURNS VOID AS $$
 DECLARE
     lang_record RECORD;
     best_model_quality NUMERIC;
     model_count INTEGER;
+    translation_coverage NUMERIC;
+    display_coverage NUMERIC;
 BEGIN
     -- Update each language's availability based on best available AI model
     FOR lang_record IN SELECT language_code FROM supported_languages LOOP
@@ -90,18 +92,79 @@ BEGIN
         AND capability_type = 'medical_translation'
         AND is_active = TRUE;
         
-        -- Update language availability based on model quality
+        -- Check translation coverage across per-domain tables
+        SELECT AVG(coverage_percentage) INTO translation_coverage
+        FROM (
+            SELECT 
+                (COUNT(mt.id)::NUMERIC / NULLIF(COUNT(pm.id), 0)) * 100 as coverage_percentage
+            FROM patient_medications pm
+            LEFT JOIN medication_translations mt ON (
+                mt.medication_id = pm.id 
+                AND mt.target_language = lang_record.language_code
+            )
+            WHERE pm.created_at > NOW() - INTERVAL '30 days'
+            
+            UNION ALL
+            
+            SELECT 
+                (COUNT(ct.id)::NUMERIC / NULLIF(COUNT(pc.id), 0)) * 100 as coverage_percentage
+            FROM patient_conditions pc
+            LEFT JOIN condition_translations ct ON (
+                ct.condition_id = pc.id 
+                AND ct.target_language = lang_record.language_code
+            )
+            WHERE pc.created_at > NOW() - INTERVAL '30 days'
+            
+            UNION ALL
+            
+            SELECT 
+                (COUNT(at.id)::NUMERIC / NULLIF(COUNT(pa.id), 0)) * 100 as coverage_percentage
+            FROM patient_allergies pa
+            LEFT JOIN allergy_translations at ON (
+                at.allergy_id = pa.id 
+                AND at.target_language = lang_record.language_code
+            )
+            WHERE pa.created_at > NOW() - INTERVAL '30 days'
+        ) coverage_stats;
+        
+        -- Check display table population coverage
+        SELECT AVG(display_coverage_percentage) INTO display_coverage
+        FROM (
+            SELECT 
+                (COUNT(md.id)::NUMERIC / NULLIF(COUNT(mt.id), 0)) * 100 as display_coverage_percentage
+            FROM medication_translations mt
+            LEFT JOIN medications_display md ON (
+                md.medication_id = mt.medication_id 
+                AND md.language_code = mt.target_language
+                AND md.complexity_level = mt.complexity_level
+            )
+            WHERE mt.target_language = lang_record.language_code
+            AND mt.created_at > NOW() - INTERVAL '7 days'
+        ) display_stats;
+        
+        -- Update language availability based on model quality and coverage
         UPDATE supported_languages SET
             medical_translation_quality = COALESCE(best_model_quality, 0.00),
             availability_status = CASE
-                WHEN best_model_quality >= 0.95 THEN 'available'
-                WHEN best_model_quality >= 0.85 THEN 'beta'
-                WHEN best_model_quality >= 0.70 THEN 'coming_soon'
+                WHEN best_model_quality >= 0.95 AND COALESCE(translation_coverage, 0) >= 80 THEN 'available'
+                WHEN best_model_quality >= 0.85 AND COALESCE(translation_coverage, 0) >= 60 THEN 'beta'
+                WHEN best_model_quality >= 0.70 AND COALESCE(translation_coverage, 0) >= 40 THEN 'coming_soon'
                 ELSE 'unavailable'
             END,
             last_quality_assessment = NOW(),
             updated_at = NOW()
         WHERE language_code = lang_record.language_code;
+        
+        -- Trigger display table population for languages with low display coverage
+        IF COALESCE(display_coverage, 0) < 70 AND best_model_quality >= 0.80 THEN
+            INSERT INTO translation_sync_queue (entity_type, operation, payload, priority)
+            VALUES (
+                'language_coverage',
+                'populate_display_tables',
+                jsonb_build_object('language', lang_record.language_code, 'min_coverage', 70),
+                3
+            );
+        END IF;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
@@ -280,7 +343,7 @@ $$ LANGUAGE plpgsql;
 
 **Language Selection with Quality Awareness**:
 ```sql
--- Enhanced user language selection with quality warnings
+-- Enhanced user language selection with display table population triggers
 CREATE OR REPLACE FUNCTION add_user_language_preference(
     p_profile_id UUID,
     p_language_code VARCHAR(10)
@@ -294,6 +357,7 @@ DECLARE
     lang_quality NUMERIC;
     subscription_required VARCHAR(20);
     user_subscription VARCHAR(20);
+    existing_entities_count INTEGER;
 BEGIN
     -- Check language availability and quality
     SELECT 
@@ -327,13 +391,71 @@ BEGIN
         updated_at = NOW()
     WHERE profile_id = p_profile_id;
     
-    -- Return success with quality information
+    -- Count existing clinical entities for this user
+    SELECT 
+        (
+            (SELECT COUNT(*) FROM patient_medications WHERE patient_id = p_profile_id) +
+            (SELECT COUNT(*) FROM patient_conditions WHERE patient_id = p_profile_id) +
+            (SELECT COUNT(*) FROM patient_allergies WHERE patient_id = p_profile_id)
+        )
+    INTO existing_entities_count;
+    
+    -- Trigger translation and display table population for existing entities
+    IF existing_entities_count > 0 THEN
+        -- Queue medication translations
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pm.id,
+            'medication',
+            'translate',
+            5, -- Normal priority
+            jsonb_build_object(
+                'target_language', p_language_code,
+                'complexity_levels', ARRAY['medical_jargon', 'simplified']
+            )
+        FROM patient_medications pm
+        WHERE pm.patient_id = p_profile_id;
+        
+        -- Queue condition translations
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pc.id,
+            'condition',
+            'translate',
+            5,
+            jsonb_build_object(
+                'target_language', p_language_code,
+                'complexity_levels', ARRAY['medical_jargon', 'simplified']
+            )
+        FROM patient_conditions pc
+        WHERE pc.patient_id = p_profile_id;
+        
+        -- Queue allergy translations
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pa.id,
+            'allergy',
+            'translate',
+            5,
+            jsonb_build_object(
+                'target_language', p_language_code,
+                'complexity_levels', ARRAY['medical_jargon', 'simplified']
+            )
+        FROM patient_allergies pa
+        WHERE pa.patient_id = p_profile_id;
+    END IF;
+    
+    -- Return success with quality information and processing status
     RETURN QUERY SELECT 
         TRUE,
-        format('Successfully added %s', (SELECT language_name FROM supported_languages WHERE language_code = p_language_code)),
+        format('Successfully added %s. %s clinical records queued for translation.', 
+            (SELECT language_name FROM supported_languages WHERE language_code = p_language_code),
+            existing_entities_count
+        ),
         CASE 
             WHEN lang_quality < 0.90 THEN format('Translation quality: %s. Medical translations may require verification.', 
                 (SELECT quality_level FROM get_language_quality_description(p_language_code)))
+            WHEN existing_entities_count > 0 THEN 'Translations will be processed in the background and available shortly.'
             ELSE NULL
         END;
 END;
@@ -431,26 +553,84 @@ INSERT INTO language_fallback_hierarchy (requested_language, fallback_language, 
 ('zh-TW', 'zh-CN', 1, 0.90), -- Traditional to Simplified Chinese
 ('zh-TW', 'en-US', 2, 0.40);
 
--- Function to get best available translation for user
-CREATE OR REPLACE FUNCTION get_best_available_translation(
-    p_translations JSONB,
+-- Function to get best available translation using three-layer architecture
+CREATE OR REPLACE FUNCTION get_best_available_translation_from_display(
+    p_entity_id UUID,
+    p_entity_type VARCHAR(50),
     p_requested_language VARCHAR(10),
     p_complexity VARCHAR(20) DEFAULT 'simplified'
 ) RETURNS TABLE (
     translated_text TEXT,
     language_used VARCHAR(10),
     is_fallback BOOLEAN,
-    quality_note TEXT
+    quality_note TEXT,
+    confidence_score NUMERIC
 ) AS $$
 DECLARE
     fallback_lang VARCHAR(10);
     result_text TEXT;
+    result_confidence NUMERIC;
 BEGIN
-    -- Try requested language first
-    result_text := get_translated_text_with_complexity(p_translations, p_requested_language, p_complexity);
+    -- Try requested language first from display tables
+    CASE p_entity_type
+        WHEN 'medication' THEN
+            SELECT md.display_name, md.confidence_score INTO result_text, result_confidence
+            FROM medications_display md
+            WHERE md.medication_id = p_entity_id 
+            AND md.language_code = p_requested_language 
+            AND md.complexity_level = p_complexity;
+            
+        WHEN 'condition' THEN
+            SELECT cd.display_name, cd.confidence_score INTO result_text, result_confidence
+            FROM conditions_display cd
+            WHERE cd.condition_id = p_entity_id 
+            AND cd.language_code = p_requested_language 
+            AND cd.complexity_level = p_complexity;
+            
+        WHEN 'allergy' THEN
+            SELECT ad.display_name, ad.confidence_score INTO result_text, result_confidence
+            FROM allergies_display ad
+            WHERE ad.allergy_id = p_entity_id 
+            AND ad.language_code = p_requested_language 
+            AND ad.complexity_level = p_complexity;
+    END CASE;
     
     IF result_text IS NOT NULL THEN
-        RETURN QUERY SELECT result_text, p_requested_language, FALSE, NULL::TEXT;
+        RETURN QUERY SELECT result_text, p_requested_language, FALSE, NULL::TEXT, result_confidence;
+        RETURN;
+    END IF;
+    
+    -- Try translation tables for requested language
+    CASE p_entity_type
+        WHEN 'medication' THEN
+            SELECT mt.translated_name, mt.confidence_score INTO result_text, result_confidence
+            FROM medication_translations mt
+            WHERE mt.medication_id = p_entity_id 
+            AND mt.target_language = p_requested_language 
+            AND mt.complexity_level = p_complexity;
+            
+        WHEN 'condition' THEN
+            SELECT ct.translated_name, ct.confidence_score INTO result_text, result_confidence
+            FROM condition_translations ct
+            WHERE ct.condition_id = p_entity_id 
+            AND ct.target_language = p_requested_language 
+            AND ct.complexity_level = p_complexity;
+            
+        WHEN 'allergy' THEN
+            SELECT at.translated_allergen_name, at.confidence_score INTO result_text, result_confidence
+            FROM allergy_translations at
+            WHERE at.allergy_id = p_entity_id 
+            AND at.target_language = p_requested_language 
+            AND at.complexity_level = p_complexity;
+    END CASE;
+    
+    IF result_text IS NOT NULL THEN
+        -- Trigger display table population for future requests
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, payload)
+        VALUES (p_entity_id, p_entity_type, 'populate_display', 
+                jsonb_build_object('language', p_requested_language, 'complexity', p_complexity));
+        
+        RETURN QUERY SELECT result_text, p_requested_language, FALSE, 'Loaded from translation layer'::TEXT, result_confidence;
         RETURN;
     END IF;
     
@@ -461,7 +641,22 @@ BEGIN
         WHERE lf.requested_language = p_requested_language
         ORDER BY lf.fallback_priority
     LOOP
-        result_text := get_translated_text_with_complexity(p_translations, fallback_lang, p_complexity);
+        -- Check display tables for fallback language
+        CASE p_entity_type
+            WHEN 'medication' THEN
+                SELECT md.display_name, md.confidence_score INTO result_text, result_confidence
+                FROM medications_display md
+                WHERE md.medication_id = p_entity_id 
+                AND md.language_code = fallback_lang 
+                AND md.complexity_level = p_complexity;
+                
+            WHEN 'condition' THEN
+                SELECT cd.display_name, cd.confidence_score INTO result_text, result_confidence
+                FROM conditions_display cd
+                WHERE cd.condition_id = p_entity_id 
+                AND cd.language_code = fallback_lang 
+                AND cd.complexity_level = p_complexity;
+        END CASE;
         
         IF result_text IS NOT NULL THEN
             RETURN QUERY SELECT 
@@ -471,14 +666,23 @@ BEGIN
                 format('Translated to %s (requested %s unavailable)', 
                     (SELECT language_name FROM supported_languages WHERE language_code = fallback_lang),
                     (SELECT COALESCE(language_name, p_requested_language) FROM supported_languages WHERE language_code = p_requested_language)
-                );
+                ),
+                result_confidence;
             RETURN;
         END IF;
     END LOOP;
     
-    -- Final fallback to English
-    result_text := get_translated_text_with_complexity(p_translations, 'en-AU', p_complexity);
-    RETURN QUERY SELECT result_text, 'en-AU'::VARCHAR(10), TRUE, 'Fallback to English'::TEXT;
+    -- Final fallback to backend table in English
+    CASE p_entity_type
+        WHEN 'medication' THEN
+            SELECT medication_name INTO result_text FROM patient_medications WHERE id = p_entity_id;
+        WHEN 'condition' THEN
+            SELECT condition_name INTO result_text FROM patient_conditions WHERE id = p_entity_id;
+        WHEN 'allergy' THEN
+            SELECT allergen_name INTO result_text FROM patient_allergies WHERE id = p_entity_id;
+    END CASE;
+    
+    RETURN QUERY SELECT result_text, 'en-AU'::VARCHAR(10), TRUE, 'Fallback to original language'::TEXT, 1.0::NUMERIC;
 END;
 $$ LANGUAGE plpgsql;
 ```
@@ -534,4 +738,4 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-This supported languages management system provides a comprehensive framework for dynamically managing language availability based on AI model capabilities while ensuring users receive appropriate quality information and graceful fallbacks when their preferred languages are unavailable.
+This supported languages management system provides a comprehensive framework for dynamically managing language availability based on AI model capabilities and translation table coverage while ensuring users receive appropriate quality information and graceful fallbacks when their preferred languages are unavailable. The system integrates with the three-layer architecture to trigger display table population and monitor translation coverage across per-domain tables.

@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the two-tier medical complexity system that makes healthcare information accessible to users regardless of their medical knowledge level. The system provides medical jargon for healthcare professionals and simplified patient-friendly language targeting a 14-year-old reading level, with seamless toggling between complexity levels and integration across all clinical data presentation.
+This document defines the two-tier medical complexity system that makes healthcare information accessible to users regardless of their medical knowledge level. The system uses the three-layer architecture (backend tables + per-domain translation tables + per-domain display tables) to provide medical jargon for healthcare professionals and simplified patient-friendly language targeting a 14-year-old reading level, with seamless toggling between complexity levels.
 
 ## Problem Domain
 
@@ -20,12 +20,13 @@ Healthcare language accessibility presents significant challenges:
 
 ## Core Architecture Philosophy
 
-### **Source of Truth: Medical Jargon**
-The backend database stores high-complexity medical terminology as the authoritative source, with simplified versions generated as a separate translated layer. This approach ensures:
-- **Clinical accuracy**: Medical professionals receive unaltered medical information
-- **Audit compliance**: Original medical terminology preserved for regulatory requirements
-- **Quality control**: Simplification process can be validated against medical source
-- **Regulatory safety**: Healthcare providers always have access to complete medical detail
+### **Source of Truth: Backend Tables with Medical Jargon**
+The existing backend tables (patient_medications, patient_conditions, etc.) store high-complexity medical terminology as the authoritative source, with simplified versions generated through the per-domain translation and display layers. This approach ensures:
+- **Clinical accuracy**: Medical professionals receive unaltered medical information from backend tables
+- **Audit compliance**: Original medical terminology preserved in backend tables for regulatory requirements
+- **Quality control**: Simplification process validated through per-domain translation tables
+- **Regulatory safety**: Healthcare providers always have access to complete medical detail from source tables
+- **Performance optimization**: Display tables provide fast access to complexity-specific versions
 
 ### **Two-Tier Complexity System**
 - **Medical Jargon (Level 1)**: Complete medical terminology for healthcare providers
@@ -54,53 +55,109 @@ END;
 
 ### **Clinical Data Complexity Storage**
 
-**Medications Table Complexity Extensions**:
+**Per-Domain Translation Tables with Complexity Levels**:
 ```sql
--- Add complexity-specific translations to existing translation structure
--- medication_name_translations structure:
--- {
---   "en-AU": {
---     "medical_jargon": "Lisinopril 10mg oral tablet",
---     "simplified": "Blood pressure medicine (10mg)"
---   },
---   "es-ES": {
---     "medical_jargon": "Lisinopril 10mg comprimido oral", 
---     "simplified": "Medicina para la presión arterial (10mg)"
---   }
--- }
+-- Per-domain translation tables support complexity levels
+-- Using the three-layer architecture from multi-language-architecture.md
 
--- Enhanced translation structure supports both language and complexity
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS complexity_source VARCHAR(20) DEFAULT 'medical_jargon';
+-- Backend table stores medical jargon (source of truth)
+-- patient_medications.medication_name = "Lisinopril 10mg oral tablet" (medical_jargon)
+
+-- Translation table provides complexity variants per language
+INSERT INTO medication_translations (
+    medication_id,
+    source_language,
+    target_language,
+    complexity_level,
+    translated_name,
+    confidence_score
+) VALUES 
+(
+    $medication_id,
+    'en-AU',
+    'en-AU', 
+    'simplified',
+    'Blood pressure medicine (10mg)',
+    0.95
+),
+(
+    $medication_id,
+    'en-AU',
+    'es-ES',
+    'medical_jargon', 
+    'Lisinopril 10mg comprimido oral',
+    0.92
+),
+(
+    $medication_id,
+    'en-AU',
+    'es-ES',
+    'simplified',
+    'Medicina para la presión arterial (10mg)',
+    0.89
+);
 ```
 
-**Conditions Table Complexity Extensions**:
+**Per-Domain Condition Translation Tables**:
 ```sql
--- Enhanced condition translations with complexity levels
--- condition_name_translations structure:
--- {
---   "en-AU": {
---     "medical_jargon": "Non-small cell lung carcinoma",
---     "simplified": "Lung cancer"
---   },
---   "es-ES": {
---     "medical_jargon": "Carcinoma pulmonar de células no pequeñas",
---     "simplified": "Cáncer de pulmón"
---   }
--- }
+-- Backend table: patient_conditions.condition_name = "Non-small cell lung carcinoma"
 
--- Medical complexity metadata
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS medical_terminology_complexity JSONB DEFAULT '{}';
+-- Translation table with complexity variants
+INSERT INTO condition_translations (
+    condition_id,
+    source_language,
+    target_language,
+    complexity_level,
+    translated_name,
+    confidence_score
+) VALUES 
+(
+    $condition_id,
+    'en-AU',
+    'en-AU',
+    'simplified',
+    'Lung cancer',
+    0.98
+),
+(
+    $condition_id,
+    'en-AU',
+    'es-ES',
+    'medical_jargon',
+    'Carcinoma pulmonar de células no pequeñas',
+    0.94
+),
+(
+    $condition_id,
+    'en-AU', 
+    'es-ES',
+    'simplified',
+    'Cáncer de pulmón',
+    0.96
+);
 ```
 
-**Procedures Table Complexity Extensions**:
+**Display Tables for Fast UI Access**:
 ```sql
--- procedure_name_translations structure:
--- {
---   "en-AU": {
---     "medical_jargon": "Percutaneous coronary intervention with drug-eluting stent",
---     "simplified": "Heart procedure to open blocked artery"
---   }
--- }
+-- Display tables populated from translation tables for fast dashboard queries
+INSERT INTO medications_display (
+    medication_id,
+    patient_id,
+    language_code,
+    complexity_level,
+    display_name,
+    confidence_score
+) VALUES 
+(
+    $medication_id,
+    $patient_id,
+    'en-AU',
+    'simplified',
+    'Blood pressure medicine (10mg)',
+    0.95
+);
+
+-- Similar pattern for conditions_display, allergies_display, etc.
 ```
 
 ### **Terminology Mapping and Simplification Rules**
@@ -137,45 +194,59 @@ CREATE INDEX idx_medical_terminology_lookup ON medical_terminology_simplificatio
 
 ### **Complexity-Aware Query Functions**
 
-**Translation Retrieval with Complexity Support**:
+**Display Table Query with Complexity Support**:
 ```sql
--- Enhanced function to get text with language and complexity preferences
-CREATE OR REPLACE FUNCTION get_translated_text_with_complexity(
-    translations JSONB,
-    target_language VARCHAR(10),
-    complexity_level VARCHAR(20),
-    source_language VARCHAR(10) DEFAULT 'en-AU'
+-- Function to get display text with complexity preference using three-layer architecture
+CREATE OR REPLACE FUNCTION get_medication_display_with_complexity(
+    p_medication_id UUID,
+    p_language VARCHAR(10),
+    p_complexity VARCHAR(20),
+    p_patient_id UUID
 ) RETURNS TEXT AS $$
 DECLARE
-    language_translations JSONB;
-    result_text TEXT;
+    display_text TEXT;
+    translation_text TEXT;
+    backend_text TEXT;
 BEGIN
-    -- Get translations for target language
-    language_translations := translations->target_language;
+    -- Layer 3: Try display table first (fastest)
+    SELECT display_name INTO display_text
+    FROM medications_display
+    WHERE medication_id = p_medication_id
+    AND language_code = p_language
+    AND complexity_level = p_complexity;
     
-    -- Try to get text at requested complexity level
-    IF language_translations ? complexity_level THEN
-        result_text := language_translations->>complexity_level;
+    IF display_text IS NOT NULL THEN
+        RETURN display_text;
     END IF;
     
-    -- Fallback to medical jargon if simplified not available
-    IF result_text IS NULL AND language_translations ? 'medical_jargon' THEN
-        result_text := language_translations->>'medical_jargon';
+    -- Layer 2: Try translation table
+    SELECT translated_name INTO translation_text
+    FROM medication_translations
+    WHERE medication_id = p_medication_id
+    AND target_language = p_language
+    AND complexity_level = p_complexity;
+    
+    IF translation_text IS NOT NULL THEN
+        -- Trigger display table population for future requests
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, payload)
+        VALUES (p_medication_id, 'medication', 'populate_display', 
+                jsonb_build_object('language', p_language, 'complexity', p_complexity));
+        RETURN translation_text;
     END IF;
     
-    -- Fallback to source language if target language not available
-    IF result_text IS NULL THEN
-        language_translations := translations->source_language;
-        IF language_translations ? complexity_level THEN
-            result_text := language_translations->>complexity_level;
-        ELSE
-            result_text := language_translations->>'medical_jargon';
-        END IF;
-    END IF;
+    -- Layer 1: Fallback to backend table (source of truth)
+    SELECT medication_name INTO backend_text
+    FROM patient_medications
+    WHERE id = p_medication_id;
     
-    RETURN result_text;
+    -- Trigger translation job for requested complexity
+    INSERT INTO translation_sync_queue (entity_id, entity_type, operation, payload)
+    VALUES (p_medication_id, 'medication', 'translate',
+            jsonb_build_object('language', p_language, 'complexity', p_complexity));
+    
+    RETURN backend_text;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql;
 ```
 
 ## User Type and Default Complexity Management
@@ -366,9 +437,9 @@ CREATE TRIGGER simplified_term_reading_level_trigger
 
 ### **Dashboard and Timeline Integration**
 
-**Complexity-Aware Dashboard Queries**:
+**Complexity-Aware Dashboard Queries using Display Tables**:
 ```sql
--- User dashboard with complexity preference
+-- Fast dashboard query using display tables first, with fallbacks
 CREATE OR REPLACE FUNCTION get_user_medications_display(
     p_patient_id UUID,
     p_language VARCHAR(10) DEFAULT 'en-AU',
@@ -378,7 +449,8 @@ CREATE OR REPLACE FUNCTION get_user_medications_display(
     display_name TEXT,
     instructions TEXT,
     complexity_used VARCHAR(20),
-    has_detailed_view BOOLEAN
+    has_detailed_view BOOLEAN,
+    confidence_score NUMERIC
 ) AS $$
 DECLARE
     user_complexity VARCHAR(20);
@@ -386,7 +458,7 @@ BEGIN
     -- Get user's complexity preference if not specified
     IF p_complexity IS NULL THEN
         SELECT get_default_complexity_for_user(
-            (SELECT profile_id FROM medications WHERE patient_id = p_patient_id LIMIT 1)
+            (SELECT id FROM user_profiles WHERE id = p_patient_id)
         ) INTO user_complexity;
     ELSE
         user_complexity := p_complexity;
@@ -394,34 +466,48 @@ BEGIN
     
     RETURN QUERY
     SELECT 
-        m.id as medication_id,
-        get_translated_text_with_complexity(
-            m.medication_name_translations, 
-            p_language, 
-            user_complexity, 
-            m.source_language
+        pm.id as medication_id,
+        COALESCE(
+            md.display_name,
+            mt.translated_name,
+            pm.medication_name
         ) as display_name,
-        get_translated_text_with_complexity(
-            m.instructions_translations, 
-            p_language, 
-            user_complexity, 
-            m.source_language
+        COALESCE(
+            md.display_instructions,
+            mt.translated_instructions,
+            pm.instructions
         ) as instructions,
         user_complexity as complexity_used,
-        (m.medication_name_translations->p_language ? 'medical_jargon') as has_detailed_view
-    FROM medications m
-    WHERE m.patient_id = p_patient_id
-    AND m.is_current = TRUE
-    ORDER BY m.clinical_effective_date DESC;
+        EXISTS(
+            SELECT 1 FROM medication_translations mt2 
+            WHERE mt2.medication_id = pm.id 
+            AND mt2.target_language = p_language 
+            AND mt2.complexity_level = 'medical_jargon'
+        ) as has_detailed_view,
+        COALESCE(md.confidence_score, mt.confidence_score, 1.0) as confidence_score
+    FROM patient_medications pm
+    LEFT JOIN medications_display md ON (
+        md.medication_id = pm.id 
+        AND md.language_code = p_language 
+        AND md.complexity_level = user_complexity
+    )
+    LEFT JOIN medication_translations mt ON (
+        mt.medication_id = pm.id 
+        AND mt.target_language = p_language 
+        AND mt.complexity_level = user_complexity
+        AND md.medication_id IS NULL
+    )
+    WHERE pm.patient_id = p_patient_id
+    ORDER BY pm.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
 ```
 
 ### **Click-Through to Medical Details**
 
-**Detailed View Access from Simplified**:
+**Detailed View Access using Three-Layer Architecture**:
 ```sql
--- Function to get medical jargon details for simplified view
+-- Function to get medical jargon details for simplified view using display tables
 CREATE OR REPLACE FUNCTION get_medical_details_for_entity(
     p_entity_id UUID,
     p_entity_type VARCHAR(50),
@@ -429,33 +515,42 @@ CREATE OR REPLACE FUNCTION get_medical_details_for_entity(
 ) RETURNS JSONB AS $$
 DECLARE
     medical_details JSONB;
-    entity_data RECORD;
 BEGIN
-    -- Get entity data based on type
     CASE p_entity_type
         WHEN 'medication' THEN
-            SELECT 
-                get_translated_text_with_complexity(medication_name_translations, p_language, 'medical_jargon') as name,
-                get_translated_text_with_complexity(instructions_translations, p_language, 'medical_jargon') as instructions,
-                rxnorm_code,
-                strength,
-                dose_form,
-                route
-            INTO entity_data
-            FROM medications WHERE id = p_entity_id;
+            SELECT jsonb_build_object(
+                'name', COALESCE(
+                    (SELECT display_name FROM medications_display 
+                     WHERE medication_id = p_entity_id AND language_code = p_language AND complexity_level = 'medical_jargon'),
+                    (SELECT translated_name FROM medication_translations 
+                     WHERE medication_id = p_entity_id AND target_language = p_language AND complexity_level = 'medical_jargon'),
+                    (SELECT medication_name FROM patient_medications WHERE id = p_entity_id)
+                ),
+                'instructions', COALESCE(
+                    (SELECT display_instructions FROM medications_display 
+                     WHERE medication_id = p_entity_id AND language_code = p_language AND complexity_level = 'medical_jargon'),
+                    (SELECT translated_instructions FROM medication_translations 
+                     WHERE medication_id = p_entity_id AND target_language = p_language AND complexity_level = 'medical_jargon'),
+                    (SELECT instructions FROM patient_medications WHERE id = p_entity_id)
+                ),
+                'rxnorm_code', (SELECT rxnorm_code FROM patient_medications WHERE id = p_entity_id),
+                'strength', (SELECT strength FROM patient_medications WHERE id = p_entity_id),
+                'dose_form', (SELECT dose_form FROM patient_medications WHERE id = p_entity_id)
+            ) INTO medical_details;
             
         WHEN 'condition' THEN
-            SELECT 
-                get_translated_text_with_complexity(condition_name_translations, p_language, 'medical_jargon') as name,
-                get_translated_text_with_complexity(description_translations, p_language, 'medical_jargon') as description,
-                snomed_code,
-                icd10_code
-            INTO entity_data
-            FROM conditions WHERE id = p_entity_id;
+            SELECT jsonb_build_object(
+                'name', COALESCE(
+                    (SELECT display_name FROM conditions_display 
+                     WHERE condition_id = p_entity_id AND language_code = p_language AND complexity_level = 'medical_jargon'),
+                    (SELECT translated_name FROM condition_translations 
+                     WHERE condition_id = p_entity_id AND target_language = p_language AND complexity_level = 'medical_jargon'),
+                    (SELECT condition_name FROM patient_conditions WHERE id = p_entity_id)
+                ),
+                'snomed_code', (SELECT snomed_code FROM patient_conditions WHERE id = p_entity_id),
+                'icd10_code', (SELECT icd10_code FROM patient_conditions WHERE id = p_entity_id)
+            ) INTO medical_details;
     END CASE;
-    
-    -- Build medical details JSON
-    medical_details := to_jsonb(entity_data);
     
     RETURN medical_details;
 END;
@@ -468,7 +563,7 @@ $$ LANGUAGE plpgsql;
 
 **Master and Sub-Narrative Complexity Support**:
 ```sql
--- Enhanced narrative generation with complexity awareness
+-- Enhanced narrative generation using three-layer architecture
 CREATE OR REPLACE FUNCTION generate_narrative_with_complexity(
     p_patient_id UUID,
     p_narrative_type VARCHAR(50),
@@ -480,19 +575,51 @@ DECLARE
     clinical_entities RECORD;
     entity_descriptions TEXT[];
 BEGIN
-    -- Collect clinical entities in appropriate complexity level
+    -- Collect medication entities using display tables with fallbacks
     FOR clinical_entities IN
         SELECT 
-            get_translated_text_with_complexity(medication_name_translations, p_language, p_complexity) as name,
+            COALESCE(
+                md.display_name,
+                mt.translated_name,
+                pm.medication_name
+            ) as name,
             'medication' as entity_type
-        FROM medications 
-        WHERE patient_id = p_patient_id AND is_current = TRUE
+        FROM patient_medications pm
+        LEFT JOIN medications_display md ON (
+            md.medication_id = pm.id 
+            AND md.language_code = p_language 
+            AND md.complexity_level = p_complexity
+        )
+        LEFT JOIN medication_translations mt ON (
+            mt.medication_id = pm.id 
+            AND mt.target_language = p_language 
+            AND mt.complexity_level = p_complexity
+            AND md.medication_id IS NULL
+        )
+        WHERE pm.patient_id = p_patient_id
+        
         UNION ALL
+        
         SELECT 
-            get_translated_text_with_complexity(condition_name_translations, p_language, p_complexity) as name,
+            COALESCE(
+                cd.display_name,
+                ct.translated_name,
+                pc.condition_name
+            ) as name,
             'condition' as entity_type
-        FROM conditions 
-        WHERE patient_id = p_patient_id AND is_current = TRUE
+        FROM patient_conditions pc
+        LEFT JOIN conditions_display cd ON (
+            cd.condition_id = pc.id 
+            AND cd.language_code = p_language 
+            AND cd.complexity_level = p_complexity
+        )
+        LEFT JOIN condition_translations ct ON (
+            ct.condition_id = pc.id 
+            AND ct.target_language = p_language 
+            AND ct.complexity_level = p_complexity
+            AND cd.condition_id IS NULL
+        )
+        WHERE pc.patient_id = p_patient_id
     LOOP
         entity_descriptions := array_append(entity_descriptions, clinical_entities.name);
     END LOOP;
@@ -515,4 +642,4 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-This medical literacy levels architecture ensures that all users can access and understand their healthcare information at an appropriate complexity level while maintaining clinical accuracy and enabling seamless transitions between complexity levels for different use cases.
+This medical literacy levels architecture uses the three-layer approach (backend tables + per-domain translation tables + per-domain display tables) to ensure that all users can access and understand their healthcare information at an appropriate complexity level while maintaining clinical accuracy and enabling seamless transitions between complexity levels for different use cases. The per-domain display tables provide fast access to complexity-specific content while preserving the medical jargon source of truth in backend tables.

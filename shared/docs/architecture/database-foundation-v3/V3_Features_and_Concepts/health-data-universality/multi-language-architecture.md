@@ -6,19 +6,140 @@
 
 ## Overview
 
-This document defines the database architecture and implementation strategy for supporting multiple languages across all clinical data in Exora. The system uses a hybrid approach combining backend permanent storage for planned languages with frontend emergency translation for unplanned scenarios, while maintaining integration with existing temporal data management and medical code resolution systems.
+This document defines the database architecture and implementation strategy for supporting multiple languages across all clinical data in Exora. The system uses a three-layer architecture: existing backend tables as source of truth, per-domain translation tables for normalized translations, and per-domain display tables for UI performance, while maintaining integration with existing temporal data management and medical code resolution systems.
 
 ## Database Schema Architecture
 
-### **Core Translation Storage Strategy**
+### **Three-Layer Architecture Strategy**
 
-**JSONB Column Approach**: Instead of separate tables or databases for each language, we extend existing clinical tables with JSONB columns containing all language translations. This approach provides optimal performance, simplicity, and PostgreSQL optimization benefits.
+**Per-Domain Table Approach**: We use the existing clinical tables (`patient_medications`, `patient_conditions`, etc.) as the backend source of truth, add per-domain translation tables for normalized translations, and per-domain display tables for UI performance. This approach provides optimal performance, clear separation of concerns, and leverages the existing V3 clinical architecture.
 
-### **Schema Changes Required**
+### **Schema Architecture Layers**
 
-#### **1. User Language Preferences**
+#### **Layer 1: Backend Tables (Existing - Minimal Changes)**
 ```sql
--- New table for user language management
+-- Use existing V3 clinical tables as source of truth
+-- Add minimal columns for translation support
+
+ALTER TABLE patient_medications 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+ALTER TABLE patient_conditions 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+ALTER TABLE patient_allergies 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+-- Similar for patient_vitals, patient_immunizations
+```
+
+#### **Layer 2: Translation Tables (New - Per Domain)**
+```sql
+-- Per-domain translation tables for optimal performance
+CREATE TABLE medication_translations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    medication_id UUID NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
+    source_language VARCHAR(10) NOT NULL,
+    target_language VARCHAR(10) NOT NULL,
+    complexity_level VARCHAR(20) NOT NULL, -- 'medical_jargon', 'simplified'
+    translated_name TEXT NOT NULL,
+    translated_instructions TEXT,
+    confidence_score NUMERIC(5,4) NOT NULL,
+    translation_method VARCHAR(30) NOT NULL, -- 'ai_translation', 'exact_match', 'human_review'
+    ai_model_used VARCHAR(100),
+    content_hash VARCHAR(64), -- For staleness detection
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ, -- For TTL cleanup
+    
+    UNIQUE(medication_id, target_language, complexity_level)
+);
+
+CREATE TABLE condition_translations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    condition_id UUID NOT NULL REFERENCES patient_conditions(id) ON DELETE CASCADE,
+    source_language VARCHAR(10) NOT NULL,
+    target_language VARCHAR(10) NOT NULL,
+    complexity_level VARCHAR(20) NOT NULL,
+    translated_name TEXT NOT NULL,
+    translated_description TEXT,
+    confidence_score NUMERIC(5,4) NOT NULL,
+    translation_method VARCHAR(30) NOT NULL,
+    ai_model_used VARCHAR(100),
+    content_hash VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    
+    UNIQUE(condition_id, target_language, complexity_level)
+);
+
+CREATE TABLE allergy_translations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    allergy_id UUID NOT NULL REFERENCES patient_allergies(id) ON DELETE CASCADE,
+    source_language VARCHAR(10) NOT NULL,
+    target_language VARCHAR(10) NOT NULL,
+    complexity_level VARCHAR(20) NOT NULL,
+    translated_allergen_name TEXT NOT NULL,
+    translated_reaction_description TEXT,
+    confidence_score NUMERIC(5,4) NOT NULL,
+    translation_method VARCHAR(30) NOT NULL,
+    ai_model_used VARCHAR(100),
+    content_hash VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    
+    UNIQUE(allergy_id, target_language, complexity_level)
+);
+```
+
+#### **Layer 3: Display Tables (New - UI Performance Cache)**
+```sql
+-- Per-domain display tables for sub-5ms dashboard queries
+CREATE TABLE medications_display (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    medication_id UUID NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL, -- Denormalized for fast queries
+    language_code VARCHAR(10) NOT NULL,
+    complexity_level VARCHAR(20) NOT NULL,
+    display_name TEXT NOT NULL,
+    display_instructions TEXT,
+    confidence_score NUMERIC(5,4),
+    last_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    content_hash VARCHAR(64), -- For staleness detection
+    access_count INTEGER DEFAULT 1, -- For LRU expiry
+    last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ, -- TTL expiry
+    
+    UNIQUE(medication_id, language_code, complexity_level)
+) PARTITION BY HASH (patient_id);
+
+CREATE TABLE conditions_display (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    condition_id UUID NOT NULL REFERENCES patient_conditions(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL,
+    language_code VARCHAR(10) NOT NULL,
+    complexity_level VARCHAR(20) NOT NULL,
+    display_name TEXT NOT NULL,
+    display_description TEXT,
+    confidence_score NUMERIC(5,4),
+    last_synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    content_hash VARCHAR(64),
+    access_count INTEGER DEFAULT 1,
+    last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    
+    UNIQUE(condition_id, language_code, complexity_level)
+) PARTITION BY HASH (patient_id);
+```
+
+#### **User Language Preferences**
+```sql
+-- User language and complexity preferences
 CREATE TABLE user_language_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID NOT NULL REFERENCES user_profiles(id),
@@ -34,154 +155,184 @@ CREATE POLICY user_language_preferences_policy ON user_language_preferences
     FOR ALL USING (profile_id = get_current_profile_id());
 ```
 
-#### **2. Clinical Data Translation Extensions**
-
-**Medications Table Extensions**:
-```sql
--- Add translation columns to existing medications table
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS medication_name_translations JSONB DEFAULT '{}';
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS instructions_translations JSONB DEFAULT '{}';
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS side_effects_translations JSONB DEFAULT '{}';
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU';
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS available_translations TEXT[] DEFAULT ARRAY['en-AU'];
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS translation_confidence JSONB DEFAULT '{}';
-
--- JSONB structure example:
--- medication_name_translations: {
---   "en-AU": "Panadol 500mg tablet",
---   "es-ES": "Panadol 500mg comprimido", 
---   "fr-FR": "Panadol 500mg comprimé",
---   "zh-CN": "必理痛500毫克片剂"
--- }
-```
-
-**Conditions Table Extensions**:
-```sql
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_name_translations JSONB DEFAULT '{}';
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS description_translations JSONB DEFAULT '{}';
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU';
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS available_translations TEXT[] DEFAULT ARRAY['en-AU'];
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS translation_confidence JSONB DEFAULT '{}';
-```
-
-**Allergies Table Extensions**:
-```sql
-ALTER TABLE allergies ADD COLUMN IF NOT EXISTS allergen_name_translations JSONB DEFAULT '{}';
-ALTER TABLE allergies ADD COLUMN IF NOT EXISTS reaction_description_translations JSONB DEFAULT '{}';
-ALTER TABLE allergies ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU';
-ALTER TABLE allergies ADD COLUMN IF NOT EXISTS available_translations TEXT[] DEFAULT ARRAY['en-AU'];
-ALTER TABLE allergies ADD COLUMN IF NOT EXISTS translation_confidence JSONB DEFAULT '{}';
-```
-
-**Procedures Table Extensions**:
-```sql
-ALTER TABLE procedures ADD COLUMN IF NOT EXISTS procedure_name_translations JSONB DEFAULT '{}';
-ALTER TABLE procedures ADD COLUMN IF NOT EXISTS description_translations JSONB DEFAULT '{}';
-ALTER TABLE procedures ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU';
-ALTER TABLE procedures ADD COLUMN IF NOT EXISTS available_translations TEXT[] DEFAULT ARRAY['en-AU'];
-ALTER TABLE procedures ADD COLUMN IF NOT EXISTS translation_confidence JSONB DEFAULT '{}';
-```
-
-#### **3. Narrative Translation Support**
-
-**Master and Sub-Narratives Extensions**:
-```sql
-ALTER TABLE master_narratives ADD COLUMN IF NOT EXISTS content_translations JSONB DEFAULT '{}';
-ALTER TABLE master_narratives ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU';
-ALTER TABLE master_narratives ADD COLUMN IF NOT EXISTS available_translations TEXT[] DEFAULT ARRAY['en-AU'];
-
-ALTER TABLE sub_narratives ADD COLUMN IF NOT EXISTS content_translations JSONB DEFAULT '{}';
-ALTER TABLE sub_narratives ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU';
-ALTER TABLE sub_narratives ADD COLUMN IF NOT EXISTS available_translations TEXT[] DEFAULT ARRAY['en-AU'];
-```
-
 ### **Performance Optimization Strategy**
 
-#### **JSONB Indexing for Translation Lookup**
+#### **Per-Domain Indexing for Translation Tables**
 ```sql
--- GIN indexes for fast JSONB key lookup
-CREATE INDEX idx_medications_name_translations ON medications USING GIN (medication_name_translations);
-CREATE INDEX idx_conditions_name_translations ON conditions USING GIN (condition_name_translations);
-CREATE INDEX idx_allergies_name_translations ON allergies USING GIN (allergen_name_translations);
-CREATE INDEX idx_procedures_name_translations ON procedures USING GIN (procedure_name_translations);
+-- Optimized indexes for translation lookup
+CREATE INDEX idx_medication_translations_lookup ON medication_translations(medication_id, target_language, complexity_level);
+CREATE INDEX idx_medication_translations_language ON medication_translations(target_language);
+CREATE INDEX idx_medication_translations_confidence ON medication_translations(confidence_score);
+CREATE INDEX idx_medication_translations_expiry ON medication_translations(expires_at) WHERE expires_at IS NOT NULL;
 
--- Btree indexes for language filtering
-CREATE INDEX idx_medications_available_translations ON medications USING GIN (available_translations);
-CREATE INDEX idx_conditions_available_translations ON conditions USING GIN (available_translations);
+CREATE INDEX idx_condition_translations_lookup ON condition_translations(condition_id, target_language, complexity_level);
+CREATE INDEX idx_condition_translations_language ON condition_translations(target_language);
+CREATE INDEX idx_condition_translations_confidence ON condition_translations(confidence_score);
+
+CREATE INDEX idx_allergy_translations_lookup ON allergy_translations(allergy_id, target_language, complexity_level);
+CREATE INDEX idx_allergy_translations_language ON allergy_translations(target_language);
+```
+
+#### **Display Table Indexes for Dashboard Performance**
+```sql
+-- Covering indexes for dashboard queries
+CREATE INDEX idx_medications_display_dashboard ON medications_display(patient_id, language_code, complexity_level) 
+    INCLUDE (display_name, display_instructions, confidence_score);
+    
+CREATE INDEX idx_conditions_display_dashboard ON conditions_display(patient_id, language_code, complexity_level) 
+    INCLUDE (display_name, display_description, confidence_score);
+    
+-- Indexes for cache management
+CREATE INDEX idx_medications_display_access ON medications_display(last_accessed_at, access_count);
+CREATE INDEX idx_medications_display_expiry ON medications_display(expires_at) WHERE expires_at IS NOT NULL;
 ```
 
 #### **Query Optimization Functions**
 ```sql
--- Function to get translated text with fallback
-CREATE OR REPLACE FUNCTION get_translated_text(
-    translations JSONB,
-    target_language VARCHAR(10),
-    source_language VARCHAR(10) DEFAULT 'en-AU'
+-- Function to get display text from display tables with fallback
+CREATE OR REPLACE FUNCTION get_medication_display_text(
+    p_medication_id UUID,
+    p_language VARCHAR(10),
+    p_complexity VARCHAR(20),
+    p_field VARCHAR(50) DEFAULT 'name'
 ) RETURNS TEXT AS $$
+DECLARE
+    display_text TEXT;
+    fallback_text TEXT;
 BEGIN
-    -- Try target language first
-    IF translations ? target_language THEN
-        RETURN translations ->> target_language;
+    -- Try to get from display table first
+    IF p_field = 'name' THEN
+        SELECT display_name INTO display_text
+        FROM medications_display 
+        WHERE medication_id = p_medication_id 
+        AND language_code = p_language 
+        AND complexity_level = p_complexity;
+    ELSIF p_field = 'instructions' THEN
+        SELECT display_instructions INTO display_text
+        FROM medications_display 
+        WHERE medication_id = p_medication_id 
+        AND language_code = p_language 
+        AND complexity_level = p_complexity;
     END IF;
     
-    -- Fallback to source language
-    IF translations ? source_language THEN
-        RETURN translations ->> source_language;
+    -- If not found in display table, get from source
+    IF display_text IS NULL THEN
+        IF p_field = 'name' THEN
+            SELECT medication_name INTO fallback_text
+            FROM patient_medications WHERE id = p_medication_id;
+        ELSIF p_field = 'instructions' THEN
+            SELECT instructions INTO fallback_text
+            FROM patient_medications WHERE id = p_medication_id;
+        END IF;
+        
+        -- Trigger background population of display table
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, payload)
+        VALUES (p_medication_id, 'medication', 'populate_display', 
+                jsonb_build_object('language', p_language, 'complexity', p_complexity));
+        
+        RETURN fallback_text;
     END IF;
     
-    -- Fallback to first available translation
-    RETURN translations ->> (SELECT jsonb_object_keys(translations) LIMIT 1);
+    RETURN display_text;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql;
 ```
 
 ## Migration Strategy and Implementation Mechanism
 
-### **Phase 1: Schema Extension (Backward Compatible)**
+### **Phase 1: Add New Tables (Zero Downtime)**
 
 **Migration Steps**:
-1. **Add new columns** to existing tables with default empty JSONB values
-2. **Create indexes** for performance optimization
-3. **Add user language preferences table** with RLS policies
-4. **Deploy translation utility functions**
-5. **No data migration required** - existing data continues working unchanged
+1. **Add per-domain translation tables** (medication_translations, condition_translations, etc.)
+2. **Add per-domain display tables** with partitioning (medications_display, conditions_display, etc.)
+3. **Add sync queue table** for background processing
+4. **Add minimal columns** to existing backend tables (source_language, content_hash)
+5. **Add user language preferences table** with RLS policies
 
 **Migration Script Template**:
 ```sql
 -- migrations/add_translation_support.sql
 BEGIN;
 
--- Step 1: Add translation columns (backward compatible)
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS medication_name_translations JSONB DEFAULT '{}';
--- ... repeat for all clinical tables
+-- Step 1: Add translation tables
+CREATE TABLE medication_translations (/* schema definition */);
+CREATE TABLE condition_translations (/* schema definition */);
+CREATE TABLE allergy_translations (/* schema definition */);
 
--- Step 2: Performance indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_medications_name_translations 
-    ON medications USING GIN (medication_name_translations);
+-- Step 2: Add display tables with partitioning
+CREATE TABLE medications_display (/* schema definition */) PARTITION BY HASH (patient_id);
+CREATE TABLE conditions_display (/* schema definition */) PARTITION BY HASH (patient_id);
 
--- Step 3: Utility functions
-CREATE OR REPLACE FUNCTION get_translated_text(/* function definition */);
+-- Step 3: Add minimal columns to existing tables
+ALTER TABLE patient_medications 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
 
--- Step 4: Populate existing data with source language
-UPDATE medications SET 
-    medication_name_translations = jsonb_build_object('en-AU', medication_name),
-    source_language = 'en-AU',
-    available_translations = ARRAY['en-AU']
-WHERE medication_name_translations = '{}';
+-- Step 4: Create indexes
+CREATE INDEX idx_medication_translations_lookup ON medication_translations(medication_id, target_language, complexity_level);
+CREATE INDEX idx_medications_display_dashboard ON medications_display(patient_id, language_code, complexity_level);
+
+-- Step 5: Add sync queue and preferences
+CREATE TABLE translation_sync_queue (/* schema definition */);
+CREATE TABLE user_language_preferences (/* schema definition */);
 
 COMMIT;
 ```
 
-### **Phase 2: Data Population (Background Processing)**
+### **Phase 2: Populate Display Tables for Active Users**
 
-**Existing Data Translation Process**:
-1. **Background job** identifies all clinical entities needing translation
-2. **Batch processing** translates entities to user's requested languages
-3. **Confidence scoring** applied to all AI translations
-4. **Progress tracking** updates user on translation completion status
-5. **Quality validation** flags low-confidence translations for review
+**Initial Population Process**:
+1. **Identify active users** and their primary languages
+2. **Generate content hashes** for existing clinical data
+3. **Create initial display records** for active users in their primary language
+4. **Set up background processors** for translation sync queue
 
-**Translation Workflow**:
+**Population Script**:
+```sql
+-- Populate content hashes for existing data
+UPDATE patient_medications SET 
+    content_hash = encode(sha256(concat(medication_name, COALESCE(instructions, ''))), 'hex'),
+    source_language = 'en-AU'
+WHERE content_hash IS NULL;
+
+-- Create initial display records for active users
+INSERT INTO medications_display (medication_id, patient_id, language_code, complexity_level, display_name, display_instructions)
+SELECT 
+    pm.id,
+    pm.patient_id,
+    'en-AU',
+    'simplified',
+    pm.medication_name,
+    pm.instructions
+FROM patient_medications pm
+JOIN user_profiles up ON up.id = pm.patient_id
+WHERE up.created_at > NOW() - INTERVAL '90 days'; -- Active users only
+```
+
+### **Phase 3: Update Application Queries**
+
+**Frontend Query Migration**:
+```sql
+-- OLD: Direct backend table query
+SELECT medication_name, instructions 
+FROM patient_medications 
+WHERE patient_id = $1;
+
+-- NEW: Display table query with fallback
+SELECT 
+    COALESCE(md.display_name, pm.medication_name) as medication_name,
+    COALESCE(md.display_instructions, pm.instructions) as instructions,
+    md.confidence_score
+FROM patient_medications pm
+LEFT JOIN medications_display md ON (
+    md.medication_id = pm.id 
+    AND md.language_code = $2 
+    AND md.complexity_level = $3
+)
+WHERE pm.patient_id = $1;
+```
+
+**Translation Job Processing**:
 ```sql
 -- Translation job status tracking
 CREATE TABLE translation_jobs (
@@ -195,22 +346,20 @@ CREATE TABLE translation_jobs (
     completed_at TIMESTAMPTZ,
     error_message TEXT
 );
-```
 
-### **Phase 3: Application Integration**
-
-**Frontend Query Pattern**:
-```sql
--- Example query for user dashboard in selected language
-SELECT 
-    id,
-    get_translated_text(medication_name_translations, 'fr-FR', source_language) as medication_name,
-    get_translated_text(instructions_translations, 'fr-FR', source_language) as instructions,
-    source_language,
-    'fr-FR' = ANY(available_translations) as has_french_translation
-FROM medications 
-WHERE patient_id = $1
-ORDER BY clinical_effective_date DESC;
+-- Sync queue for background processing
+CREATE TABLE translation_sync_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_id UUID NOT NULL,
+    entity_type VARCHAR(50) NOT NULL, -- 'medication', 'condition', 'allergy'
+    operation VARCHAR(20) NOT NULL, -- 'translate', 'update_display', 'expire'
+    priority INTEGER DEFAULT 5,
+    payload JSONB,
+    status VARCHAR(20) DEFAULT 'pending',
+    attempts INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMPTZ
+);
 ```
 
 ## Foreign Language File Upload Handling
@@ -221,29 +370,78 @@ ORDER BY clinical_effective_date DESC;
 1. **Document upload** → AI detects source language during Pass 1
 2. **Source language processing** → Full AI pipeline processes in detected language
 3. **Medical code assignment** → Universal codes (RxNorm) assigned regardless of language  
-4. **Database storage** → Clinical entities stored with source language metadata
-5. **User language translation** → Automatic translation to user's primary language
-6. **Deduplication integration** → Temporal deduplication works on universal medical codes
+4. **Backend storage** → Clinical entities stored in existing tables with source language
+5. **Translation layer** → Background job creates translations to user's primary language
+6. **Display layer** → Display records created for immediate UI access
+7. **Deduplication integration** → Temporal deduplication works on universal medical codes
 
 **Database Integration Example**:
 ```sql
 -- Spanish hospital discharge processed for English-primary user
-INSERT INTO medications (
+
+-- Step 1: Store in backend table (source of truth)
+INSERT INTO patient_medications (
     patient_id,
-    medication_name_translations,
-    instructions_translations,
+    medication_name,
+    instructions,
     source_language,
-    available_translations,
+    content_hash,
     rxnorm_code, -- Universal code enables deduplication
     clinical_effective_date
 ) VALUES (
     $1,
-    '{"es-ES": "Lisinopril 10mg comprimido", "en-AU": "Lisinopril 10mg tablet"}',
-    '{"es-ES": "Tomar una vez al día", "en-AU": "Take once daily"}',
+    'Lisinopril 10mg comprimido', -- Original Spanish
+    'Tomar una vez al día',       -- Original Spanish
     'es-ES',
-    ARRAY['es-ES', 'en-AU'],
+    encode(sha256('Lisinopril 10mg comprimido Tomar una vez al día'), 'hex'),
     '314076', -- RxNorm code for deduplication
     '2025-09-15'
+);
+
+-- Step 2: Create translation (background job)
+INSERT INTO medication_translations (
+    medication_id,
+    source_language,
+    target_language,
+    complexity_level,
+    translated_name,
+    translated_instructions,
+    confidence_score,
+    translation_method,
+    ai_model_used,
+    content_hash
+) VALUES (
+    $medication_id,
+    'es-ES',
+    'en-AU',
+    'simplified',
+    'Blood pressure medicine',
+    'Take once daily',
+    0.92,
+    'ai_translation',
+    'gpt-4o-mini',
+    encode(sha256('Lisinopril 10mg comprimido Tomar una vez al día'), 'hex')
+);
+
+-- Step 3: Create display record for immediate UI access
+INSERT INTO medications_display (
+    medication_id,
+    patient_id,
+    language_code,
+    complexity_level,
+    display_name,
+    display_instructions,
+    confidence_score,
+    content_hash
+) VALUES (
+    $medication_id,
+    $1,
+    'en-AU',
+    'simplified',
+    'Blood pressure medicine',
+    'Take once daily',
+    0.92,
+    encode(sha256('Lisinopril 10mg comprimido Tomar una vez al día'), 'hex')
 );
 ```
 
@@ -252,23 +450,56 @@ INSERT INTO medications (
 ### **Frontend Real-Time Translation**
 
 **Implementation Strategy**:
-- **Session-based translation** for immediate unplanned language needs
-- **Translation API integration** with OpenAI/Google Translate
-- **Cache management** to avoid repeated translation costs
-- **Background job trigger** to create permanent translations for future use
+- **Session-based translation** for immediate unplanned language needs using display table fallbacks
+- **Translation API integration** with OpenAI/Google Translate for emergency scenarios
+- **Frontend cache management** to avoid repeated translation costs within session
+- **Background sync queue trigger** to create permanent translations for future use
+- **Display table population** triggers when emergency translations are used repeatedly
 
 **Emergency Translation Flow**:
-1. **User requests emergency language** (e.g., Russian for travel)
-2. **Frontend translates current view** using real-time AI translation
-3. **Session caching** stores translations for immediate reuse
-4. **Background job created** to permanently translate user's full profile
-5. **Automatic upgrade prompt** to permanent language support
+1. **User requests emergency language** (e.g., Russian for travel to Moscow)
+2. **Display table lookup first** → Check for existing cached translations
+3. **Frontend real-time translation** → If no display cache, translate current view using AI
+4. **Session-level caching** → Store translations in browser session for immediate reuse
+5. **Background job creation** → Add to sync queue for permanent translation after 2+ uses
+6. **Display table population** → Background process creates permanent cache records
+7. **Subscription upgrade prompt** → Convert to permanent language support after session ends
+
+**Technical Implementation**:
+```sql
+-- Emergency translation session cache (frontend)
+interface SessionTranslationCache {
+  medicationId: string;
+  language: string;
+  complexity: string;
+  translatedName: string;
+  translatedInstructions: string;
+  confidence: number;
+  timestamp: number;
+  useCount: number;
+}
+
+-- Background sync queue trigger
+INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+VALUES (
+  $medication_id,
+  'medication',
+  'emergency_to_permanent',
+  1, -- High priority
+  jsonb_build_object(
+    'language', 'ru-RU',
+    'complexity', 'simplified',
+    'session_translation', $session_data,
+    'use_count', 3
+  )
+);
+```
 
 **Cost and Performance**:
-- **Emergency translation**: 10-30 seconds, $0.10-0.30 per session
-- **Permanent translation**: 2-5 minutes background processing, $0.50-2.00 per profile
-- **Cache duration**: 24 hours for emergency translations
-- **Automatic conversion**: Emergency translations become permanent after 3 uses
+- **Emergency translation**: 10-30 seconds, $0.10-0.30 per session (cached for 24h)
+- **Permanent translation**: 2-5 minutes background processing, $0.50-2.00 per profile  
+- **Display table lookup**: <5ms for subsequent requests
+- **Automatic conversion**: Emergency translations promoted to display tables after 2+ session uses
 
 ## Integration with Existing V3 Architecture
 
@@ -299,15 +530,19 @@ INSERT INTO medications (
 ### **Translation Data Protection**
 
 **Backup Strategy**:
-- **JSONB translations included** in all standard database backups
+- **Per-domain translation tables** included in all standard database backups
+- **Display table snapshots** for cache reconstruction and performance validation
 - **Translation job history preserved** for audit and recovery purposes
 - **Source language metadata protected** to enable re-translation if needed
 - **Confidence scores maintained** for quality assurance validation
+- **Sync queue backups** for background job recovery and replay
 
 **Recovery Procedures**:
 - **Translation reconstruction** possible from source language and job history
-- **Incremental re-translation** for corrupted translation data
-- **Source data always preserved** → Original language data never overwritten
-- **Quality validation** during recovery to ensure translation accuracy
+- **Display table rebuilding** from translation tables using background sync queue
+- **Incremental re-translation** for corrupted translation data with staleness detection
+- **Source data always preserved** → Backend tables never overwritten during translation
+- **Quality validation** during recovery to ensure translation accuracy matches confidence thresholds
+- **Sync queue replay** for failed background translation jobs
 
 This architecture provides a robust, scalable foundation for multi-language support while maintaining integration with existing V3 systems and ensuring clinical data safety across language barriers.

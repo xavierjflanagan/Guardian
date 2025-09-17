@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the commercial strategy for health data universality features, establishing a freemium model that drives international expansion while providing clear value propositions for different user segments. The strategy leverages translation capabilities as both a product differentiator and revenue driver while maintaining accessibility for core medical literacy features.
+This document defines the commercial strategy for health data universality features, establishing a freemium model that drives international expansion while providing clear value propositions for different user segments. The strategy leverages the three-layer architecture (backend tables + per-domain translation tables + per-domain display tables) translation capabilities as both a product differentiator and revenue driver while maintaining accessibility for core medical literacy features.
 
 ## Business Model Framework
 
@@ -408,4 +408,4 @@ FROM yearly_projections;
 - **Net Revenue Retention**: Target >110% (expansion through family plans)
 - **Churn Rate**: Target <5% monthly churn rate
 
-This business model integration creates a sustainable, scalable foundation for health data universality that drives both social impact through medical accessibility and commercial success through international expansion and premium language services.
+This business model integration creates a sustainable, scalable foundation for health data universality that drives both social impact through medical accessibility and commercial success through international expansion and premium language services. The three-layer architecture enables cost-effective scaling of translation services while providing fast user experiences that support the premium value proposition.

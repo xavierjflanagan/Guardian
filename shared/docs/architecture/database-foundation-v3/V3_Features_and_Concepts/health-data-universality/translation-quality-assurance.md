@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the quality assurance framework for AI-powered medical translations, focusing on automated confidence scoring, user safety through clear disclaimers, and error handling for translation failures. The system prioritizes user safety by providing transparent quality information and recommending consultation with original language content for critical medical decisions.
+This document defines the quality assurance framework for AI-powered medical translations using the three-layer architecture (backend tables + per-domain translation tables + per-domain display tables). The system focuses on automated confidence scoring, user safety through clear disclaimers, and error handling for translation failures while tracking quality metrics across per-domain translation tables.
 
 ## Problem Domain
 
@@ -20,30 +20,38 @@ Medical translation quality assurance presents unique challenges:
 
 ## AI Translation Accuracy Framework
 
-### **Automated Confidence Scoring System**
+### **Automated Confidence Scoring System Using Per-Domain Tables**
 
-**Translation Confidence Database Schema**:
+**Confidence Tracking Integration with Translation Tables**:
 ```sql
--- Translation confidence tracking for all medical content
-CREATE TABLE translation_confidence_scores (
+-- Confidence scoring is now integrated directly into per-domain translation tables
+-- medication_translations, condition_translations, allergy_translations already include:
+-- confidence_score NUMERIC(5,4) NOT NULL
+-- translation_method VARCHAR(30) NOT NULL
+-- ai_model_used VARCHAR(100)
+
+-- Additional quality tracking table for detailed analysis
+CREATE TABLE translation_quality_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    entity_id UUID NOT NULL, -- References clinical entity (medication, condition, etc.)
-    entity_type VARCHAR(50) NOT NULL, -- 'medication', 'condition', 'allergy', 'procedure', 'narrative'
-    source_language VARCHAR(10) NOT NULL,
-    target_language VARCHAR(10) NOT NULL,
-    field_name VARCHAR(50) NOT NULL, -- 'name', 'instructions', 'description'
-    ai_model_used VARCHAR(100) NOT NULL,
-    confidence_score NUMERIC(5,4) NOT NULL, -- 0.0000-1.0000
-    translation_method VARCHAR(30) NOT NULL, -- 'ai_translation', 'exact_match', 'fuzzy_match'
+    translation_table VARCHAR(50) NOT NULL, -- 'medication_translations', 'condition_translations', etc.
+    translation_id UUID NOT NULL, -- References specific translation record
+    entity_type VARCHAR(50) NOT NULL, -- 'medication', 'condition', 'allergy'
     quality_indicators JSONB, -- Detailed quality metrics
-    source_text TEXT NOT NULL,
-    translated_text TEXT NOT NULL,
     review_flags TEXT[], -- Array of quality concerns
+    user_feedback_count INTEGER DEFAULT 0,
+    avg_user_rating NUMERIC(3,2),
+    last_quality_check TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Function to calculate translation confidence based on multiple factors
-CREATE OR REPLACE FUNCTION calculate_translation_confidence(
+-- Indexes for quality metric queries
+CREATE INDEX idx_translation_quality_metrics_table_id ON translation_quality_metrics(translation_table, translation_id);
+CREATE INDEX idx_translation_quality_metrics_entity_type ON translation_quality_metrics(entity_type);
+
+-- Function to calculate and update confidence for per-domain translation records
+CREATE OR REPLACE FUNCTION update_translation_confidence(
+    p_translation_table VARCHAR(50),
+    p_translation_id UUID,
     p_source_text TEXT,
     p_translated_text TEXT,
     p_source_language VARCHAR(10),
@@ -55,7 +63,7 @@ CREATE OR REPLACE FUNCTION calculate_translation_confidence(
     review_flags TEXT[]
 ) AS $$
 DECLARE
-    base_confidence NUMERIC := 0.85; -- Base AI model confidence
+    base_confidence NUMERIC := 0.85;
     language_quality NUMERIC;
     terminology_complexity NUMERIC;
     length_ratio NUMERIC;
@@ -71,21 +79,21 @@ BEGIN
     -- Assess terminology complexity (medical terms reduce confidence)
     SELECT 
         CASE 
-            WHEN COUNT(*) = 0 THEN 0.95 -- No complex terms
-            WHEN COUNT(*) <= 2 THEN 0.90 -- Few complex terms
-            WHEN COUNT(*) <= 5 THEN 0.85 -- Some complex terms
-            ELSE 0.80 -- Many complex terms
+            WHEN COUNT(*) = 0 THEN 0.95
+            WHEN COUNT(*) <= 2 THEN 0.90
+            WHEN COUNT(*) <= 5 THEN 0.85
+            ELSE 0.80
         END INTO terminology_complexity
     FROM medical_terminology_simplification mts
     WHERE p_source_text ILIKE '%' || mts.medical_term || '%';
     
-    -- Check translation length ratio (extreme ratios suggest issues)
+    -- Check translation length ratio
     length_ratio := CASE 
         WHEN length(p_source_text) = 0 THEN 0.5
         ELSE length(p_translated_text)::NUMERIC / length(p_source_text)::NUMERIC
     END;
     
-    -- Flag concerning length ratios
+    -- Flag concerning patterns
     IF length_ratio < 0.3 OR length_ratio > 3.0 THEN
         flags := array_append(flags, 'UNUSUAL_LENGTH_RATIO');
     END IF;
@@ -109,7 +117,7 @@ BEGIN
         'target_length', length(p_translated_text)
     );
     
-    -- Add quality-based flags
+    -- Quality flags
     IF calculated_confidence < 0.70 THEN
         flags := array_append(flags, 'LOW_CONFIDENCE');
     END IF;
@@ -117,6 +125,49 @@ BEGIN
     IF terminology_complexity < 0.85 THEN
         flags := array_append(flags, 'COMPLEX_MEDICAL_TERMINOLOGY');
     END IF;
+    
+    -- Update confidence score in appropriate per-domain table
+    CASE p_translation_table
+        WHEN 'medication_translations' THEN
+            UPDATE medication_translations 
+            SET confidence_score = calculated_confidence,
+                updated_at = NOW()
+            WHERE id = p_translation_id;
+            
+        WHEN 'condition_translations' THEN
+            UPDATE condition_translations 
+            SET confidence_score = calculated_confidence,
+                updated_at = NOW()
+            WHERE id = p_translation_id;
+            
+        WHEN 'allergy_translations' THEN
+            UPDATE allergy_translations 
+            SET confidence_score = calculated_confidence,
+                updated_at = NOW()
+            WHERE id = p_translation_id;
+    END CASE;
+    
+    -- Update quality metrics table
+    INSERT INTO translation_quality_metrics (
+        translation_table,
+        translation_id,
+        entity_type,
+        quality_indicators,
+        review_flags
+    ) VALUES (
+        p_translation_table,
+        p_translation_id,
+        CASE 
+            WHEN p_translation_table = 'medication_translations' THEN 'medication'
+            WHEN p_translation_table = 'condition_translations' THEN 'condition'
+            WHEN p_translation_table = 'allergy_translations' THEN 'allergy'
+        END,
+        quality_data,
+        flags
+    ) ON CONFLICT (translation_table, translation_id) DO UPDATE SET
+        quality_indicators = EXCLUDED.quality_indicators,
+        review_flags = EXCLUDED.review_flags,
+        last_quality_check = NOW();
     
     RETURN QUERY SELECT calculated_confidence, quality_data, flags;
 END;
@@ -343,16 +394,47 @@ BEGIN
     ORDER BY fallback_priority
     LIMIT 1;
     
-    -- Attempt to get fallback translation
+    -- Attempt to get fallback translation from per-domain tables
     CASE p_entity_type
         WHEN 'medication' THEN
-            SELECT medication_name_translations->>fallback_lang INTO fallback_translation
-            FROM medications WHERE id = p_entity_id;
+            SELECT translated_name INTO fallback_translation
+            FROM medication_translations 
+            WHERE medication_id = p_entity_id 
+            AND target_language = fallback_lang
+            ORDER BY confidence_score DESC 
+            LIMIT 1;
+            
         WHEN 'condition' THEN
-            SELECT condition_name_translations->>fallback_lang INTO fallback_translation
-            FROM conditions WHERE id = p_entity_id;
-        -- Add other entity types as needed
+            SELECT translated_name INTO fallback_translation
+            FROM condition_translations 
+            WHERE condition_id = p_entity_id 
+            AND target_language = fallback_lang
+            ORDER BY confidence_score DESC 
+            LIMIT 1;
+            
+        WHEN 'allergy' THEN
+            SELECT translated_allergen_name INTO fallback_translation
+            FROM allergy_translations 
+            WHERE allergy_id = p_entity_id 
+            AND target_language = fallback_lang
+            ORDER BY confidence_score DESC 
+            LIMIT 1;
     END CASE;
+    
+    -- If no translation found, get original from backend table
+    IF fallback_translation IS NULL THEN
+        CASE p_entity_type
+            WHEN 'medication' THEN
+                SELECT medication_name INTO fallback_translation
+                FROM patient_medications WHERE id = p_entity_id;
+            WHEN 'condition' THEN
+                SELECT condition_name INTO fallback_translation
+                FROM patient_conditions WHERE id = p_entity_id;
+            WHEN 'allergy' THEN
+                SELECT allergen_name INTO fallback_translation
+                FROM patient_allergies WHERE id = p_entity_id;
+        END CASE;
+    END IF;
     
     -- Return fallback information
     RETURN QUERY SELECT
@@ -443,9 +525,18 @@ DECLARE
     target_lang VARCHAR(10);
     is_provider BOOLEAN;
 BEGIN
-    -- Get language information for this entity
-    SELECT source_language INTO source_lang
-    FROM medications WHERE id = p_entity_id; -- Simplified - would need entity type handling
+    -- Get language information for this entity from backend tables
+    CASE p_entity_type
+        WHEN 'medication' THEN
+            SELECT source_language INTO source_lang
+            FROM patient_medications WHERE id = p_entity_id;
+        WHEN 'condition' THEN
+            SELECT source_language INTO source_lang
+            FROM patient_conditions WHERE id = p_entity_id;
+        WHEN 'allergy' THEN
+            SELECT source_language INTO source_lang
+            FROM patient_allergies WHERE id = p_entity_id;
+    END CASE;
     
     -- Get user's current display language
     SELECT primary_language INTO target_lang
@@ -538,12 +629,13 @@ $$ LANGUAGE plpgsql;
 
 **Quality Indicator Integration**:
 ```sql
--- Function to get complete translation display data for UI
+-- Function to get complete translation display data using three-layer architecture
 CREATE OR REPLACE FUNCTION get_translation_display_data(
     p_entity_id UUID,
     p_entity_type VARCHAR(50),
     p_field_name VARCHAR(50),
     p_target_language VARCHAR(10),
+    p_complexity_level VARCHAR(20),
     p_user_context VARCHAR(50)
 ) RETURNS TABLE (
     translated_text TEXT,
@@ -563,19 +655,75 @@ DECLARE
     warning_info RECORD;
     disclaimer_info RECORD;
 BEGIN
-    -- Get confidence score and source language
-    SELECT 
-        tcs.confidence_score,
-        tcs.source_language,
-        tcs.translated_text
-    INTO confidence, source_lang, translation_text
-    FROM translation_confidence_scores tcs
-    WHERE tcs.entity_id = p_entity_id 
-    AND tcs.entity_type = p_entity_type
-    AND tcs.field_name = p_field_name
-    AND tcs.target_language = p_target_language
-    ORDER BY tcs.created_at DESC
-    LIMIT 1;
+    -- Get data from display tables first, then translation tables
+    CASE p_entity_type
+        WHEN 'medication' THEN
+            -- Try display table first
+            SELECT 
+                CASE 
+                    WHEN p_field_name = 'name' THEN md.display_name
+                    WHEN p_field_name = 'instructions' THEN md.display_instructions
+                END,
+                md.confidence_score
+            INTO translation_text, confidence
+            FROM medications_display md
+            WHERE md.medication_id = p_entity_id 
+            AND md.language_code = p_target_language
+            AND md.complexity_level = p_complexity_level;
+            
+            -- Fallback to translation table
+            IF translation_text IS NULL THEN
+                SELECT 
+                    CASE 
+                        WHEN p_field_name = 'name' THEN mt.translated_name
+                        WHEN p_field_name = 'instructions' THEN mt.translated_instructions
+                    END,
+                    mt.confidence_score
+                INTO translation_text, confidence
+                FROM medication_translations mt
+                WHERE mt.medication_id = p_entity_id 
+                AND mt.target_language = p_target_language
+                AND mt.complexity_level = p_complexity_level
+                ORDER BY mt.confidence_score DESC
+                LIMIT 1;
+            END IF;
+            
+            -- Get source language
+            SELECT source_language INTO source_lang
+            FROM patient_medications WHERE id = p_entity_id;
+            
+        WHEN 'condition' THEN
+            SELECT 
+                CASE 
+                    WHEN p_field_name = 'name' THEN cd.display_name
+                    WHEN p_field_name = 'description' THEN cd.display_description
+                END,
+                cd.confidence_score
+            INTO translation_text, confidence
+            FROM conditions_display cd
+            WHERE cd.condition_id = p_entity_id 
+            AND cd.language_code = p_target_language
+            AND cd.complexity_level = p_complexity_level;
+            
+            IF translation_text IS NULL THEN
+                SELECT 
+                    CASE 
+                        WHEN p_field_name = 'name' THEN ct.translated_name
+                        WHEN p_field_name = 'description' THEN ct.translated_description
+                    END,
+                    ct.confidence_score
+                INTO translation_text, confidence
+                FROM condition_translations ct
+                WHERE ct.condition_id = p_entity_id 
+                AND ct.target_language = p_target_language
+                AND ct.complexity_level = p_complexity_level
+                ORDER BY ct.confidence_score DESC
+                LIMIT 1;
+            END IF;
+            
+            SELECT source_language INTO source_lang
+            FROM patient_conditions WHERE id = p_entity_id;
+    END CASE;
     
     -- Get quality tier information
     SELECT * INTO quality_info
@@ -603,4 +751,4 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-This translation quality assurance system ensures user safety through transparent quality information, appropriate disclaimers, and robust error handling while maintaining the accessibility benefits of AI-powered medical translation.
+This translation quality assurance system ensures user safety through transparent quality information, appropriate disclaimers, and robust error handling while maintaining the accessibility benefits of AI-powered medical translation. The system integrates with the three-layer architecture to track confidence scores across per-domain translation tables and provide quality indicators for display table content.

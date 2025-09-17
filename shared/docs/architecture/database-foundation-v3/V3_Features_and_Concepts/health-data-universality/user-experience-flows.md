@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the complete user experience workflows for language and medical literacy features across all user types and scenarios. The flows ensure intuitive access to health data universality features while respecting subscription tiers, user preferences, and clinical safety requirements.
+This document defines the complete user experience workflows for language and medical literacy features across all user types and scenarios using the three-layer architecture (backend tables + per-domain translation tables + per-domain display tables). The flows ensure intuitive access to health data universality features while respecting subscription tiers, user preferences, and clinical safety requirements.
 
 ## User Journey Architecture
 
@@ -143,12 +143,37 @@ BEGIN
         RETURN;
     END IF;
     
-    -- Check if translations already exist
+    -- Check if translations already exist in display tables
     SELECT EXISTS(
-        SELECT 1 FROM medications m
-        WHERE m.patient_id IN (SELECT patient_id FROM user_profiles WHERE id = p_profile_id)
-        AND p_new_language = ANY(m.available_translations)
+        SELECT 1 FROM medications_display md
+        JOIN patient_medications pm ON pm.id = md.medication_id
+        WHERE pm.patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
+        AND md.language_code = p_new_language
+        
+        UNION
+        
+        SELECT 1 FROM conditions_display cd
+        JOIN patient_conditions pc ON pc.id = cd.condition_id
+        WHERE pc.patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
+        AND cd.language_code = p_new_language
     ) INTO translation_exists;
+    
+    -- If no display tables, check translation tables
+    IF NOT translation_exists THEN
+        SELECT EXISTS(
+            SELECT 1 FROM medication_translations mt
+            JOIN patient_medications pm ON pm.id = mt.medication_id
+            WHERE pm.patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
+            AND mt.target_language = p_new_language
+            
+            UNION
+            
+            SELECT 1 FROM condition_translations ct
+            JOIN patient_conditions pc ON pc.id = ct.condition_id
+            WHERE pc.patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
+            AND ct.target_language = p_new_language
+        ) INTO translation_exists;
+    END IF;
     
     -- Update user session preference
     INSERT INTO user_session_preferences (profile_id, session_token, temporary_language, expires_at)
@@ -160,9 +185,34 @@ BEGIN
     IF translation_exists THEN
         RETURN QUERY SELECT TRUE, 'Language switched successfully', 'ready'::VARCHAR(20), NULL::INTERVAL;
     ELSE
-        -- Trigger background translation
-        INSERT INTO translation_jobs (profile_id, target_language, status)
-        VALUES (p_profile_id, p_new_language, 'pending');
+        -- Trigger background translation via sync queue
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pm.id,
+            'medication',
+            'translate',
+            2, -- High priority for user-requested language
+            jsonb_build_object(
+                'target_language', p_new_language,
+                'complexity_levels', ARRAY['medical_jargon', 'simplified'],
+                'populate_display', true
+            )
+        FROM patient_medications pm
+        WHERE pm.patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id);
+        
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pc.id,
+            'condition',
+            'translate',
+            2,
+            jsonb_build_object(
+                'target_language', p_new_language,
+                'complexity_levels', ARRAY['medical_jargon', 'simplified'],
+                'populate_display', true
+            )
+        FROM patient_conditions pc
+        WHERE pc.patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id);
         
         RETURN QUERY SELECT TRUE, 'Preparing translations...', 'processing'::VARCHAR(20), INTERVAL '2-5 minutes';
     END IF;
@@ -213,14 +263,14 @@ BEGIN
     -- Generate emergency session token
     emergency_session_token := gen_random_uuid()::TEXT || '_emergency';
     
-    -- Estimate profile size for cost calculation
+    -- Estimate profile size for cost calculation using backend tables
     SELECT COUNT(*) INTO profile_size_estimate
     FROM (
-        SELECT id FROM medications WHERE patient_id IN (SELECT patient_id FROM user_profiles WHERE id = p_profile_id)
+        SELECT id FROM patient_medications WHERE patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
         UNION ALL
-        SELECT id FROM conditions WHERE patient_id IN (SELECT patient_id FROM user_profiles WHERE id = p_profile_id)
+        SELECT id FROM patient_conditions WHERE patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
         UNION ALL
-        SELECT id FROM allergies WHERE patient_id IN (SELECT patient_id FROM user_profiles WHERE id = p_profile_id)
+        SELECT id FROM patient_allergies WHERE patient_id IN (SELECT id FROM user_profiles WHERE id = p_profile_id)
     ) entities;
     
     -- Calculate emergency translation cost (higher than batch)
@@ -367,12 +417,39 @@ BEGIN
     new_share_token := gen_random_uuid();
     expiry_time := NOW() + p_sharing_duration;
     
-    -- Check if translations exist for target language
+    -- Check if translations exist for target language in display tables
     SELECT EXISTS(
-        SELECT 1 FROM medications m
-        WHERE m.patient_id = p_patient_id
-        AND p_target_language = ANY(m.available_translations)
+        SELECT 1 FROM medications_display md
+        WHERE md.patient_id = p_patient_id
+        AND md.language_code = p_target_language
+        AND md.complexity_level = p_complexity_level
+        
+        UNION
+        
+        SELECT 1 FROM conditions_display cd
+        WHERE cd.patient_id = p_patient_id
+        AND cd.language_code = p_target_language
+        AND cd.complexity_level = p_complexity_level
     ) INTO translations_exist;
+    
+    -- If no display tables, check translation tables
+    IF NOT translations_exist THEN
+        SELECT EXISTS(
+            SELECT 1 FROM medication_translations mt
+            JOIN patient_medications pm ON pm.id = mt.medication_id
+            WHERE pm.patient_id = p_patient_id
+            AND mt.target_language = p_target_language
+            AND mt.complexity_level = p_complexity_level
+            
+            UNION
+            
+            SELECT 1 FROM condition_translations ct
+            JOIN patient_conditions pc ON pc.id = ct.condition_id
+            WHERE pc.patient_id = p_patient_id
+            AND ct.target_language = p_target_language
+            AND ct.complexity_level = p_complexity_level
+        ) INTO translations_exist;
+    END IF;
     
     -- Create shared profile record
     INSERT INTO shared_health_profiles (
@@ -398,10 +475,37 @@ BEGIN
     -- Generate share URL
     share_url_path := format('https://exorahealth.com.au/shared/%s', new_share_token);
     
-    -- If translations don't exist, trigger creation
+    -- If translations don't exist, trigger creation via sync queue
     IF NOT translations_exist THEN
-        INSERT INTO translation_jobs (profile_id, target_language, priority, status)
-        VALUES (p_patient_id, p_target_language, 'high', 'pending');
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pm.id,
+            'medication',
+            'translate',
+            1, -- Highest priority for shared profiles
+            jsonb_build_object(
+                'target_language', p_target_language,
+                'complexity_level', p_complexity_level,
+                'populate_display', true,
+                'shared_profile', true
+            )
+        FROM patient_medications pm
+        WHERE pm.patient_id = p_patient_id;
+        
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority, payload)
+        SELECT 
+            pc.id,
+            'condition',
+            'translate',
+            1,
+            jsonb_build_object(
+                'target_language', p_target_language,
+                'complexity_level', p_complexity_level,
+                'populate_display', true,
+                'shared_profile', true
+            )
+        FROM patient_conditions pc
+        WHERE pc.patient_id = p_patient_id;
     END IF;
     
     RETURN QUERY SELECT
@@ -581,4 +685,4 @@ $$ LANGUAGE plpgsql;
 4. **Conversion Incentives**: Special pricing for trial users, annual discount options
 5. **Graceful Degradation**: Clear explanation of features that become unavailable after trial
 
-This comprehensive user experience framework ensures that health data universality features are accessible, intuitive, and properly integrated with business model requirements while maintaining clinical safety and user trust.
+This comprehensive user experience framework ensures that health data universality features are accessible, intuitive, and properly integrated with business model requirements while maintaining clinical safety and user trust. The flows utilize the three-layer architecture to provide fast display table lookups, efficient translation table queries, and seamless backend table fallbacks for optimal user experience.

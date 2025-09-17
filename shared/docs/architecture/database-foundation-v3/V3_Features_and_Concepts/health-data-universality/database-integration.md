@@ -6,22 +6,23 @@
 
 ## Overview
 
-This document defines how the multi-language and medical literacy systems integrate with the existing V3 database architecture, including temporal data management, medical code resolution, and narrative systems. The integration maintains backward compatibility while enabling new translation capabilities through careful schema evolution and performance optimization.
+This document defines how the multi-language and medical literacy systems integrate with the existing V3 database architecture using the three-layer approach: existing backend tables (unchanged), per-domain translation tables, and per-domain display tables. The integration maintains backward compatibility while enabling new translation capabilities through minimal schema changes and strategic per-domain table additions.
 
 ## Integration with Temporal Data Management
 
 ### **Deduplication Framework Integration**
 
-**Enhanced Supersession Logic with Language Awareness**:
-The deduplication framework operates on medical codes (language-agnostic) but now preserves translation data through supersession chains.
+**Enhanced Supersession Logic with Translation Awareness**:
+The deduplication framework operates on medical codes (language-agnostic) but now preserves translation data through supersession chains using the three-layer architecture.
 
 **Database Schema Modifications for Supersession**:
 ```sql
 -- Extend supersession_history to track translation preservation
-ALTER TABLE supersession_history ADD COLUMN IF NOT EXISTS translation_data_preserved JSONB DEFAULT '{}';
+ALTER TABLE supersession_history ADD COLUMN IF NOT EXISTS translation_preserved_count INTEGER DEFAULT 0;
 ALTER TABLE supersession_history ADD COLUMN IF NOT EXISTS source_languages TEXT[] DEFAULT ARRAY[];
+ALTER TABLE supersession_history ADD COLUMN IF NOT EXISTS display_cache_updated BOOLEAN DEFAULT FALSE;
 
--- Enhanced supersession function to preserve translations
+-- Enhanced supersession function to preserve per-domain translations
 CREATE OR REPLACE FUNCTION apply_supersession_with_translations(
     superseding_entity_id UUID,
     superseded_entity_id UUID,
@@ -30,27 +31,54 @@ CREATE OR REPLACE FUNCTION apply_supersession_with_translations(
 ) RETURNS supersession_result AS $$
 DECLARE
     result supersession_result;
-    translation_data JSONB;
+    entity_type TEXT;
+    translation_count INTEGER;
 BEGIN
-    -- Preserve translation data from superseded entity
-    IF preserve_translation_data THEN
-        SELECT jsonb_build_object(
-            'medication_name_translations', medication_name_translations,
-            'instructions_translations', instructions_translations,
-            'available_translations', available_translations,
-            'source_language', source_language
-        ) INTO translation_data
-        FROM medications WHERE id = superseded_entity_id;
+    -- Determine entity type for per-domain handling
+    SELECT CASE 
+        WHEN EXISTS (SELECT 1 FROM patient_medications WHERE id = superseded_entity_id) THEN 'medication'
+        WHEN EXISTS (SELECT 1 FROM patient_conditions WHERE id = superseded_entity_id) THEN 'condition'
+        WHEN EXISTS (SELECT 1 FROM patient_allergies WHERE id = superseded_entity_id) THEN 'allergy'
+    END INTO entity_type;
+    
+    -- Preserve per-domain translation data
+    IF preserve_translation_data AND entity_type IS NOT NULL THEN
+        -- Update translation table references
+        IF entity_type = 'medication' THEN
+            UPDATE medication_translations 
+            SET medication_id = superseding_entity_id 
+            WHERE medication_id = superseded_entity_id;
+            
+            UPDATE medications_display 
+            SET medication_id = superseding_entity_id 
+            WHERE medication_id = superseded_entity_id;
+            
+        ELSIF entity_type = 'condition' THEN
+            UPDATE condition_translations 
+            SET condition_id = superseding_entity_id 
+            WHERE condition_id = superseded_entity_id;
+            
+            UPDATE conditions_display 
+            SET condition_id = superseding_entity_id 
+            WHERE condition_id = superseded_entity_id;
+            
+        ELSIF entity_type = 'allergy' THEN
+            UPDATE allergy_translations 
+            SET allergy_id = superseding_entity_id 
+            WHERE allergy_id = superseded_entity_id;
+        END IF;
         
-        -- Merge translations into superseding entity
-        UPDATE medications SET
-            medication_name_translations = medication_name_translations || (translation_data->>'medication_name_translations')::jsonb,
-            available_translations = array_cat(available_translations, (translation_data->>'available_translations')::text[])
-        WHERE id = superseding_entity_id;
+        GET DIAGNOSTICS translation_count = ROW_COUNT;
     END IF;
     
     -- Continue with standard supersession logic
     -- ... existing supersession implementation
+    
+    -- Record translation preservation in history
+    UPDATE supersession_history 
+    SET translation_preserved_count = translation_count,
+        display_cache_updated = TRUE
+    WHERE superseding_entity_id = superseding_entity_id;
     
     RETURN result;
 END;
@@ -58,28 +86,50 @@ $$ LANGUAGE plpgsql;
 ```
 
 **Clinical Identity Policies Integration**:
-Language metadata enhances identity validation without changing core identity logic:
+Language metadata enhances identity validation without changing core identity logic using per-domain translation confidence:
 
 ```sql
--- Enhanced identity validation with translation confidence
+-- Enhanced identity validation with per-domain translation confidence
 CREATE OR REPLACE FUNCTION validate_clinical_identity_with_translations(
-    entity clinical_entity,
+    entity_id UUID,
+    entity_type TEXT,
     proposed_identity_key VARCHAR(255)
 ) RETURNS identity_validation_result AS $$
 DECLARE
     validation_result identity_validation_result;
     translation_confidence NUMERIC;
+    source_language TEXT;
 BEGIN
     -- Perform standard identity validation
-    validation_result := validate_clinical_identity(entity, proposed_identity_key);
+    validation_result := validate_clinical_identity(entity_id, proposed_identity_key);
     
-    -- Enhance with translation confidence scoring
-    IF entity.source_language != 'en-AU' THEN
-        SELECT AVG(confidence_score) INTO translation_confidence
-        FROM jsonb_each_text(entity.translation_confidence);
+    -- Get source language from backend table
+    CASE entity_type
+        WHEN 'medication' THEN
+            SELECT source_language INTO source_language FROM patient_medications WHERE id = entity_id;
+        WHEN 'condition' THEN
+            SELECT source_language INTO source_language FROM patient_conditions WHERE id = entity_id;
+        WHEN 'allergy' THEN
+            SELECT source_language INTO source_language FROM patient_allergies WHERE id = entity_id;
+    END CASE;
+    
+    -- Enhance with per-domain translation confidence scoring
+    IF source_language IS NOT NULL AND source_language != 'en-AU' THEN
+        -- Get average confidence from per-domain translation table
+        CASE entity_type
+            WHEN 'medication' THEN
+                SELECT AVG(confidence_score) INTO translation_confidence
+                FROM medication_translations WHERE medication_id = entity_id;
+            WHEN 'condition' THEN
+                SELECT AVG(confidence_score) INTO translation_confidence
+                FROM condition_translations WHERE condition_id = entity_id;
+            WHEN 'allergy' THEN
+                SELECT AVG(confidence_score) INTO translation_confidence
+                FROM allergy_translations WHERE allergy_id = entity_id;
+        END CASE;
         
         -- Lower confidence for translated source data
-        validation_result.confidence_score := validation_result.confidence_score * translation_confidence;
+        validation_result.confidence_score := validation_result.confidence_score * COALESCE(translation_confidence, 0.5);
         validation_result.confidence_flags := array_append(
             validation_result.confidence_flags, 
             'TRANSLATED_SOURCE_DATA'
@@ -93,50 +143,50 @@ $$ LANGUAGE plpgsql;
 
 ### **Silver Tables Enhancement**
 
-**Translation-Aware Silver Table Schema**:
-Silver tables (source of truth) now include translation metadata for comprehensive clinical data representation:
+**Backend Tables as Silver Source of Truth**:
+Existing backend tables (patient_medications, patient_conditions, etc.) serve as the silver tables with minimal enhancements. Translation data lives in separate per-domain tables:
 
 ```sql
--- Enhanced medications_silver with translation support
-CREATE TABLE medications_silver (
-    -- Existing silver table columns
-    id UUID PRIMARY KEY,
-    patient_id UUID NOT NULL,
-    clinical_effective_date DATE NOT NULL,
-    rxnorm_code VARCHAR(20),
-    medication_name TEXT NOT NULL,
-    -- New translation columns
-    medication_name_translations JSONB DEFAULT '{}',
-    instructions_translations JSONB DEFAULT '{}',
-    source_language VARCHAR(10) DEFAULT 'en-AU',
-    available_translations TEXT[] DEFAULT ARRAY['en-AU'],
-    translation_confidence JSONB DEFAULT '{}',
-    translation_last_updated TIMESTAMPTZ DEFAULT NOW(),
-    -- Existing temporal columns
-    supersedes_entity_id UUID,
-    is_current BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- Backend tables enhanced with minimal translation metadata
+-- These remain the source of truth (silver tables)
+ALTER TABLE patient_medications 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
 
--- Function to populate silver table with translation awareness
-CREATE OR REPLACE FUNCTION populate_medications_silver() RETURNS VOID AS $$
+ALTER TABLE patient_conditions 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+ALTER TABLE patient_allergies 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+-- Function to validate silver table data integrity with translation layers
+CREATE OR REPLACE FUNCTION validate_silver_translation_integrity() RETURNS TABLE (
+    table_name TEXT,
+    entity_id UUID,
+    issue_description TEXT
+) AS $$
 BEGIN
-    -- Clear and repopulate silver table with current medications
-    DELETE FROM medications_silver;
+    -- Check for medications with translations but no content hash
+    RETURN QUERY
+    SELECT 'patient_medications'::TEXT, pm.id, 'Missing content hash with translations'::TEXT
+    FROM patient_medications pm
+    WHERE pm.content_hash IS NULL
+    AND EXISTS (SELECT 1 FROM medication_translations mt WHERE mt.medication_id = pm.id);
     
-    INSERT INTO medications_silver (
-        id, patient_id, clinical_effective_date, rxnorm_code, medication_name,
-        medication_name_translations, instructions_translations, source_language,
-        available_translations, translation_confidence, supersedes_entity_id, is_current
-    )
-    SELECT 
-        m.id, m.patient_id, m.clinical_effective_date, m.rxnorm_code, 
-        COALESCE(m.medication_name_translations->>'en-AU', m.medication_name) as medication_name,
-        m.medication_name_translations, m.instructions_translations, m.source_language,
-        m.available_translations, m.translation_confidence, m.supersedes_entity_id, m.is_current
-    FROM medications m
-    WHERE m.is_current = TRUE
-    ORDER BY m.patient_id, m.clinical_effective_date DESC;
+    -- Check for orphaned translation records
+    RETURN QUERY
+    SELECT 'medication_translations'::TEXT, mt.medication_id, 'Translation without source record'::TEXT
+    FROM medication_translations mt
+    WHERE NOT EXISTS (SELECT 1 FROM patient_medications pm WHERE pm.id = mt.medication_id);
+    
+    -- Check for stale display cache
+    RETURN QUERY
+    SELECT 'medications_display'::TEXT, md.medication_id, 'Stale display cache detected'::TEXT
+    FROM medications_display md
+    JOIN patient_medications pm ON pm.id = md.medication_id
+    WHERE md.content_hash != pm.content_hash;
 END;
 $$ LANGUAGE plpgsql;
 ```
@@ -294,58 +344,85 @@ $$ LANGUAGE plpgsql;
 
 ## Performance Impact Analysis and Optimization
 
-### **Query Performance with JSONB Translations**
+### **Query Performance with Per-Domain Tables**
 
 **Baseline Performance Comparison**:
-| Operation | Before (TEXT) | After (JSONB) | Impact |
-|-----------|---------------|---------------|---------|
-| Single medication lookup | 2ms | 3ms | +50% (acceptable) |
-| Dashboard load (20 medications) | 15ms | 22ms | +47% (acceptable) |
-| Full profile translation | N/A | 2-5 minutes | New capability |
-| Emergency translation | N/A | 10-30 seconds | New capability |
+| Operation | Before (Backend Only) | After (Three-Layer) | Impact |
+|-----------|----------------------|--------------------|---------| 
+| Single medication lookup | 2ms | <5ms (display table) | <3x (excellent) |
+| Dashboard load (20 medications) | 15ms | <25ms (display cache) | <2x (acceptable) |
+| Full profile translation | N/A | 2-5 minutes background | New capability |
+| Emergency translation | N/A | 10-30 seconds frontend | New capability |
+| Translation lookup | N/A | <5ms (per-domain index) | Fast per-domain access |
 
 **Optimization Strategies**:
 
-**1. Selective Language Loading**:
+**1. Display Table First Strategy**:
 ```sql
--- Only load requested language to minimize data transfer
+-- Primary query: Fast display table lookup
 SELECT 
-    id,
-    medication_name_translations->>$1 as medication_name, -- User's language only
-    source_language,
-    $1 = ANY(available_translations) as has_translation
-FROM medications_silver 
-WHERE patient_id = $2;
+    md.display_name as medication_name,
+    md.display_instructions,
+    md.confidence_score,
+    md.last_synced_at
+FROM medications_display md
+WHERE md.patient_id = $1 
+AND md.language_code = $2 
+AND md.complexity_level = $3;
+
+-- Fallback: Backend table with translation layer
+SELECT 
+    pm.medication_name,
+    pm.instructions,
+    mt.translated_name,
+    mt.confidence_score
+FROM patient_medications pm
+LEFT JOIN medication_translations mt ON (
+    mt.medication_id = pm.id 
+    AND mt.target_language = $2 
+    AND mt.complexity_level = $3
+)
+WHERE pm.patient_id = $1;
 ```
 
-**2. Cached Translation Lookup**:
+**2. Per-Domain Partitioned Display Tables**:
 ```sql
--- Materialized view for common language pairs
-CREATE MATERIALIZED VIEW medication_translations_en_es AS
-SELECT 
-    id,
-    medication_name_translations->>'en-AU' as name_en,
-    medication_name_translations->>'es-ES' as name_es,
-    instructions_translations->>'en-AU' as instructions_en,
-    instructions_translations->>'es-ES' as instructions_es
-FROM medications_silver
-WHERE 'es-ES' = ANY(available_translations);
+-- Partitioned display tables for scale
+CREATE TABLE medications_display_p0 PARTITION OF medications_display
+    FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+CREATE TABLE medications_display_p1 PARTITION OF medications_display
+    FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+CREATE TABLE medications_display_p2 PARTITION OF medications_display
+    FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+CREATE TABLE medications_display_p3 PARTITION OF medications_display
+    FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 
--- Refresh strategy for cached translations
-CREATE INDEX idx_medication_translations_en_es_id ON medication_translations_en_es(id);
+-- Covering indexes per partition for dashboard queries
+CREATE INDEX idx_medications_display_p0_covering 
+    ON medications_display_p0(patient_id, language_code, complexity_level) 
+    INCLUDE (display_name, display_instructions, confidence_score);
 ```
 
-**3. Intelligent Indexing Strategy**:
+**3. Per-Domain Translation Indexing Strategy**:
 ```sql
--- Partial indexes for active translations only
-CREATE INDEX idx_medications_active_translations 
-    ON medications USING GIN (medication_name_translations)
-    WHERE cardinality(available_translations) > 1;
+-- Per-domain translation lookup indexes
+CREATE INDEX idx_medication_translations_fast_lookup 
+    ON medication_translations(medication_id, target_language, complexity_level) 
+    INCLUDE (translated_name, translated_instructions, confidence_score);
 
--- Language-specific partial indexes
-CREATE INDEX idx_medications_spanish_translations 
-    ON medications USING GIN (medication_name_translations)
-    WHERE 'es-ES' = ANY(available_translations);
+CREATE INDEX idx_condition_translations_fast_lookup 
+    ON condition_translations(condition_id, target_language, complexity_level) 
+    INCLUDE (translated_name, translated_description, confidence_score);
+
+-- Language-specific indexes for batch operations
+CREATE INDEX idx_medication_translations_spanish 
+    ON medication_translations(target_language, confidence_score DESC) 
+    WHERE target_language = 'es-ES';
+
+-- TTL cleanup indexes
+CREATE INDEX idx_medication_translations_expiry 
+    ON medication_translations(expires_at) 
+    WHERE expires_at IS NOT NULL;
 ```
 
 ## Migration Coordination Strategy
@@ -354,72 +431,126 @@ CREATE INDEX idx_medications_spanish_translations
 
 **Phase 1: Schema Preparation (Zero Downtime)**
 ```sql
--- Migration script: 001_add_translation_columns.sql
+-- Migration script: 001_add_per_domain_tables.sql
 BEGIN;
 
--- Add all translation columns with defaults (backward compatible)
-ALTER TABLE medications ADD COLUMN IF NOT EXISTS medication_name_translations JSONB DEFAULT '{}';
-ALTER TABLE conditions ADD COLUMN IF NOT EXISTS condition_name_translations JSONB DEFAULT '{}';
--- ... all other tables
+-- Add minimal translation support to existing backend tables
+ALTER TABLE patient_medications 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+ALTER TABLE patient_conditions 
+ADD COLUMN IF NOT EXISTS source_language VARCHAR(10) DEFAULT 'en-AU',
+ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+
+-- Create per-domain translation tables
+CREATE TABLE medication_translations (/* full schema from TWO-FAMILY-TABLE-UPDATE-PLAN.md */);
+CREATE TABLE condition_translations (/* full schema from TWO-FAMILY-TABLE-UPDATE-PLAN.md */);
+CREATE TABLE allergy_translations (/* full schema from TWO-FAMILY-TABLE-UPDATE-PLAN.md */);
+
+-- Create per-domain display tables with partitioning
+CREATE TABLE medications_display (/* full schema */) PARTITION BY HASH (patient_id);
+CREATE TABLE conditions_display (/* full schema */) PARTITION BY HASH (patient_id);
+
+-- Create sync queue for background processing
+CREATE TABLE translation_sync_queue (/* full schema from multi-language-architecture.md */);
 
 -- Create indexes concurrently to avoid locks
-CREATE INDEX CONCURRENTLY idx_medications_name_translations ON medications USING GIN (medication_name_translations);
+CREATE INDEX CONCURRENTLY idx_medication_translations_lookup 
+    ON medication_translations(medication_id, target_language, complexity_level);
+CREATE INDEX CONCURRENTLY idx_medications_display_dashboard 
+    ON medications_display(patient_id, language_code, complexity_level);
 
 COMMIT;
 ```
 
 **Phase 2: Data Population (Background Processing)**
 ```sql
--- Migration script: 002_populate_translation_data.sql
+-- Migration script: 002_populate_backend_metadata.sql
 -- Run during low-traffic periods
 
--- Populate existing data with source language
-UPDATE medications SET 
-    medication_name_translations = jsonb_build_object('en-AU', medication_name),
-    source_language = 'en-AU',
-    available_translations = ARRAY['en-AU']
-WHERE medication_name_translations = '{}';
+-- Populate content hashes for existing backend data
+UPDATE patient_medications SET 
+    content_hash = encode(sha256(concat(medication_name, COALESCE(instructions, ''))), 'hex'),
+    source_language = 'en-AU'
+WHERE content_hash IS NULL;
 
--- Create job tracking for user-requested translations
-INSERT INTO translation_jobs (profile_id, target_language, status)
-SELECT DISTINCT patient_id, 'es-ES', 'pending'
-FROM medications m
-JOIN user_language_preferences ulp ON ulp.profile_id = m.patient_id
-WHERE 'es-ES' = ANY(ulp.active_languages);
+UPDATE patient_conditions SET 
+    content_hash = encode(sha256(concat(condition_name, COALESCE(description, ''))), 'hex'),
+    source_language = 'en-AU'
+WHERE content_hash IS NULL;
+
+-- Create initial display records for active users in primary language
+INSERT INTO medications_display (medication_id, patient_id, language_code, complexity_level, display_name, display_instructions, content_hash)
+SELECT 
+    pm.id,
+    pm.patient_id,
+    'en-AU',
+    'simplified',
+    pm.medication_name,
+    pm.instructions,
+    pm.content_hash
+FROM patient_medications pm
+JOIN user_profiles up ON up.id = pm.patient_id
+WHERE up.created_at > NOW() - INTERVAL '90 days' -- Active users only
+AND NOT EXISTS (SELECT 1 FROM medications_display md WHERE md.medication_id = pm.id);
+
+-- Create translation jobs for users with additional languages
+INSERT INTO translation_sync_queue (entity_id, entity_type, operation, payload)
+SELECT 
+    pm.id,
+    'medication',
+    'translate',
+    jsonb_build_object('target_language', lang, 'complexity_level', 'simplified')
+FROM patient_medications pm
+JOIN user_language_preferences ulp ON ulp.profile_id = pm.patient_id,
+UNNEST(ulp.active_languages) AS lang
+WHERE lang != 'en-AU';
 ```
 
 **Phase 3: Application Deployment**
 ```sql
--- Migration script: 003_enable_translation_features.sql
--- Update application configuration to use new translation columns
+-- Migration script: 003_enable_three_layer_architecture.sql
+-- Update application to use three-layer architecture
 
--- Enable translation functions
-CREATE OR REPLACE FUNCTION get_translated_text(/* implementation */);
+-- Enable per-domain translation functions
+CREATE OR REPLACE FUNCTION get_medication_display_text(/* implementation from multi-language-architecture.md */);
+CREATE OR REPLACE FUNCTION get_condition_display_text(/* similar implementation */);
 
--- Update silver table population to include translations
-SELECT populate_medications_silver();
+-- Enable background sync queue processing
+CREATE OR REPLACE FUNCTION process_translation_sync_queue() RETURNS VOID AS $$
+BEGIN
+    -- Process pending translation jobs
+    -- Update display tables from translation tables
+    -- Handle staleness detection
+END;
+$$ LANGUAGE plpgsql;
 
 -- Enable translation job processing
-UPDATE system_configuration SET value = 'enabled' WHERE key = 'translation_processing';
+UPDATE system_configuration SET value = 'enabled' WHERE key = 'per_domain_translation_processing';
 ```
 
 ### **Rollback Strategy**
 
 **Safe Rollback Procedures**:
 ```sql
--- Rollback script: rollback_translation_support.sql
+-- Rollback script: rollback_per_domain_translation_support.sql
 BEGIN;
 
--- Disable translation processing
-UPDATE system_configuration SET value = 'disabled' WHERE key = 'translation_processing';
+-- Disable per-domain translation processing
+UPDATE system_configuration SET value = 'disabled' WHERE key = 'per_domain_translation_processing';
 
--- Revert silver table population (optional - data preserved)
--- Application can fall back to medication_name column
+-- Application falls back to backend tables only
+-- Display and translation tables remain but unused (data preserved)
 
--- Drop indexes if needed for performance (optional)
--- DROP INDEX CONCURRENTLY idx_medications_name_translations;
+-- Stop background sync queue processing
+UPDATE translation_sync_queue SET status = 'paused' WHERE status = 'pending';
 
--- Translation columns remain but unused (data preserved)
+-- Drop performance indexes if needed (optional)
+-- DROP INDEX CONCURRENTLY idx_medication_translations_lookup;
+-- DROP INDEX CONCURRENTLY idx_medications_display_dashboard;
+
+-- Per-domain tables remain but unused - zero data loss
 COMMIT;
 ```
 
@@ -429,28 +560,35 @@ COMMIT;
 
 **Consistency Checks**:
 ```sql
--- Validation function for translation data integrity
-CREATE OR REPLACE FUNCTION validate_translation_consistency() RETURNS TABLE (
+-- Validation function for per-domain translation data integrity
+CREATE OR REPLACE FUNCTION validate_per_domain_translation_consistency() RETURNS TABLE (
     table_name TEXT,
     entity_id UUID,
     issue_description TEXT
 ) AS $$
 BEGIN
-    -- Check for missing source language in translations
+    -- Check for orphaned translation records
     RETURN QUERY
-    SELECT 'medications'::TEXT, m.id, 'Missing source language in translations'::TEXT
-    FROM medications m
-    WHERE NOT (medication_name_translations ? source_language)
-    AND medication_name_translations != '{}';
+    SELECT 'medication_translations'::TEXT, mt.medication_id, 'Translation without backend record'::TEXT
+    FROM medication_translations mt
+    WHERE NOT EXISTS (SELECT 1 FROM patient_medications pm WHERE pm.id = mt.medication_id);
     
-    -- Check for translation confidence without corresponding translation
+    -- Check for stale display cache (content_hash mismatch)
     RETURN QUERY
-    SELECT 'medications'::TEXT, m.id, 'Confidence data without translation'::TEXT
-    FROM medications m
-    WHERE translation_confidence != '{}'
-    AND NOT EXISTS (
-        SELECT 1 FROM jsonb_each_text(translation_confidence) tc
-        WHERE medication_name_translations ? tc.key
+    SELECT 'medications_display'::TEXT, md.medication_id, 'Stale display cache detected'::TEXT
+    FROM medications_display md
+    JOIN patient_medications pm ON pm.id = md.medication_id
+    WHERE md.content_hash != pm.content_hash;
+    
+    -- Check for translation records without display cache
+    RETURN QUERY
+    SELECT 'medication_translations'::TEXT, mt.medication_id, 'Translation missing display cache'::TEXT
+    FROM medication_translations mt
+    WHERE NOT EXISTS (
+        SELECT 1 FROM medications_display md 
+        WHERE md.medication_id = mt.medication_id 
+        AND md.language_code = mt.target_language 
+        AND md.complexity_level = mt.complexity_level
     );
 END;
 $$ LANGUAGE plpgsql;
@@ -458,22 +596,32 @@ $$ LANGUAGE plpgsql;
 
 **Automated Synchronization**:
 ```sql
--- Trigger to maintain translation metadata consistency
-CREATE OR REPLACE FUNCTION maintain_translation_metadata() RETURNS TRIGGER AS $$
+-- Trigger to maintain three-layer consistency on backend changes
+CREATE OR REPLACE FUNCTION sync_translation_layers() RETURNS TRIGGER AS $$
 BEGIN
-    -- Update available_translations array when translations are added/removed
-    NEW.available_translations := ARRAY(SELECT jsonb_object_keys(NEW.medication_name_translations));
-    
-    -- Update translation_last_updated timestamp
-    NEW.translation_last_updated := NOW();
+    -- Update content hash when backend data changes
+    IF OLD.medication_name != NEW.medication_name OR OLD.instructions != NEW.instructions THEN
+        NEW.content_hash := encode(sha256(concat(NEW.medication_name, COALESCE(NEW.instructions, ''))), 'hex');
+        
+        -- Mark display cache as stale
+        UPDATE medications_display 
+        SET content_hash = NEW.content_hash || '_stale'
+        WHERE medication_id = NEW.id;
+        
+        -- Queue re-translation job
+        INSERT INTO translation_sync_queue (entity_id, entity_type, operation, priority)
+        VALUES (NEW.id, 'medication', 'retranslate', 1);
+    END IF;
     
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER medications_translation_metadata_trigger
-    BEFORE UPDATE OF medication_name_translations ON medications
-    FOR EACH ROW EXECUTE FUNCTION maintain_translation_metadata();
+CREATE TRIGGER patient_medications_sync_trigger
+    BEFORE UPDATE ON patient_medications
+    FOR EACH ROW EXECUTE FUNCTION sync_translation_layers();
+
+-- Similar triggers for patient_conditions, patient_allergies
 ```
 
-This integration strategy ensures that multi-language support enhances the existing V3 architecture without disrupting core clinical data management, while providing clear migration paths and maintaining data integrity throughout the transformation process.
+This integration strategy ensures that multi-language support enhances the existing V3 architecture through the three-layer approach (backend + translation + display) without disrupting core clinical data management, while providing clear migration paths and maintaining data integrity throughout the transformation process. The per-domain table architecture optimizes performance and preserves the existing backend tables as the authoritative source of truth.
