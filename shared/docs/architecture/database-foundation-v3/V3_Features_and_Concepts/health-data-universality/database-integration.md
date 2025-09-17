@@ -1,12 +1,28 @@
 # Database Integration with Existing V3 Architecture
 
-**Status**: Planning Phase  
-**Created**: 16 September 2025  
-**Last Updated**: 16 September 2025
+**Status**: DEFERRED - Implementation postponed pending foundation modules
+**Created**: 16 September 2025
+**Last Updated**: 17 September 2025
+**Implementation Priority**: Phase 4 (after temporal-data-management, medical-code-resolution, narrative-architecture)
+
+## IMPLEMENTATION DEFERRED NOTICE
+
+**⚠️ Implementation Postponed**: This module's implementation has been deferred to Phase 4 of the V3 rollout to enable optimal architectural sequencing.
+
+**Prerequisite Modules** (must be implemented first):
+1. **temporal-data-management**: Supersession framework and silver tables (foundation for all modules)
+2. **medical-code-resolution**: Standardized medical codes and semantic matching (improves translation accuracy)
+3. **narrative-architecture**: Master/sub-narrative hierarchies (provides rich content for translation)
+
+**Rationale**: Health data universality will be more robust and efficient when built on mature, stable foundation modules with clean data and rich narrative content.
+
+**Integration Hooks**: This document contains complete integration specifications that will be activated once prerequisite modules are implemented. All architectural decisions remain valid for future implementation.
 
 ## Overview
 
 This document defines how the multi-language and medical literacy systems integrate with the existing V3 database architecture using the three-layer approach: existing backend tables (unchanged), per-domain translation tables, and per-domain display tables. The integration maintains backward compatibility while enabling new translation capabilities through minimal schema changes and strategic per-domain table additions.
+
+**NOTE**: All integration code below represents future implementation hooks designed to work with completed foundation modules.
 
 ## Integration with Temporal Data Management
 

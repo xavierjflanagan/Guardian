@@ -1,8 +1,22 @@
 # Health Data Universality
 
-**Status**: Planning Phase  
-**Created**: 16 September 2025  
-**Last Updated**: 16 September 2025
+**Status**: DEFERRED - Phase 4 Implementation
+**Created**: 16 September 2025
+**Last Updated**: 17 September 2025
+**Implementation Priority**: Phase 4 (after foundation modules)
+
+## ⚠️ IMPLEMENTATION DEFERRED
+
+**Decision Date**: 17 September 2025
+
+**Implementation postponed to Phase 4** to enable optimal architectural sequencing. This module will be implemented after:
+1. **temporal-data-management** (supersession framework, silver tables)
+2. **medical-code-resolution** (standardized codes, semantic matching)
+3. **narrative-architecture** (master/sub-narratives, clinical coherence)
+
+**Rationale**: Translation features will be more robust and efficient when built on mature foundation modules with clean data and rich narrative content.
+
+**Status of Documentation**: All specifications are complete and production-ready for Phase 4 implementation.
 
 ## Overview
 
@@ -167,4 +181,157 @@ Medical jargon         confidence scores and             partitioning and
 Unchanged schema       complexity levels                 TTL/LRU expiry
 ```
 
-This architecture creates a comprehensive health data accessibility system that serves both immediate user needs (language preference, medical literacy) and long-term business objectives (international expansion, premium feature differentiation) while maintaining medical accuracy and safety standards through the robust three-layer approach.
+## Operational SLOs and Cost Guardrails
+
+### **Service Level Objectives (SLOs)**
+
+**Performance SLOs**:
+- **Dashboard Query Response**: <100ms p95 for display table queries
+- **Cache Hit Rate**: >95% for active users (7-day login window)
+- **Cold Start Latency**: <150ms p95 when display cache miss occurs
+- **Translation Queue Processing**: <2 minutes p95 for user profile translation
+- **Display Table Staleness**: <30 seconds to detect backend table changes
+
+**Availability SLOs**:
+- **Translation System Availability**: 99.9% uptime (excluding planned maintenance)
+- **Display Cache Availability**: 99.95% (higher than translation processing)
+- **Emergency Fallback Success**: 99.99% (backend table fallback always available)
+- **Human Review Queue Processing**: <24 hours for non-urgent reviews
+
+**Accuracy SLOs**:
+- **Translation Confidence**: >90% automated approval rate for medications/allergies
+- **Protected Term Preservation**: 100% accuracy for dosages, medical codes, critical instructions
+- **Human Review Queue**: <5% of translations require manual intervention
+- **Display Cache Consistency**: <0.1% stale record rate during normal operations
+
+### **Cost Guardrails and Budget Controls**
+
+#### **Translation Cost Management**
+```
+Per-User Monthly Cost Targets:
+- Free Tier Users: $0.00 (no AI translation)
+- Premium Users: <$2.50 per month per additional language
+- Healthcare Provider Users: <$5.00 per month (unlimited languages)
+- Enterprise Users: Custom pricing based on volume
+
+Per-Entity Translation Costs:
+- Tier 1 Priority Users: $0.20 per entity (immediate processing)
+- Tier 2-3 Batch Users: $0.10 per entity (batch processing)
+- Long-tail Users: $0.05 per entity (background processing)
+- Emergency Translations: $0.30 per entity (real-time API calls)
+```
+
+#### **Infrastructure Cost Controls**
+```
+Monthly Infrastructure Budget Limits:
+- OpenAI API Costs: <$5,000/month (with auto-scaling limits)
+- Google Cloud Vision OCR: <$1,500/month (document processing)
+- Database Storage (display tables): <$2,000/month (with TTL cleanup)
+- Compute (background workers): <$3,000/month (Render.com scaling)
+
+Rate Limiting Configuration:
+- Free Users: 10 AI translations per month
+- Premium Users: 1,000 AI translations per month
+- Healthcare Providers: 5,000 AI translations per month
+- Emergency Override: 50 translations per day (all tiers)
+```
+
+#### **Resource Scaling Thresholds**
+```
+Auto-scaling Triggers:
+- Queue Depth: Scale workers when >100 pending jobs
+- API Rate Limits: Implement exponential backoff at 80% quota
+- Database Connections: Alert at >70% connection pool usage
+- Storage Growth: Alert when display tables >5GB total
+- Cost Velocity: Alert when daily costs exceed monthly budget/20
+
+Emergency Circuit Breakers:
+- Daily Cost Limit: $500/day automatic shutdown trigger
+- API Error Rate: >10% error rate triggers read-only mode
+- Queue Backlog: >1,000 pending jobs triggers priority-only processing
+- Database Load: >80% CPU triggers display table degradation
+```
+
+### **Infrastructure Mapping and Responsibilities**
+
+#### **Service Architecture**
+```
+Component Mapping:
+┌─────────────────────────────────────────────────────────────┐
+│ Frontend (Vercel)                                           │
+│ - Dashboard queries (display tables)                       │
+│ - Language/complexity toggles                              │
+│ - Emergency translation fallbacks                          │
+│ - Feature flag evaluation                                  │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Backend API (Vercel Edge Functions)                        │
+│ - Display table population triggers                        │
+│ - Translation sync queue management                        │
+│ - User language preference updates                         │
+│ - Emergency rollback procedures                            │
+│ - NO SIDE EFFECTS IN READ OPERATIONS                       │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Database (Supabase PostgreSQL)                             │
+│ - Backend tables (source of truth)                         │
+│ - Translation tables (per-domain)                          │
+│ - Display tables (partitioned cache)                       │
+│ - RLS policies (tenant isolation)                          │
+│ - Queue tables (job coordination)                          │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Background Workers (Render.com)                            │
+│ - Translation job processing                               │
+│ - Display table population                                 │
+│ - Queue cleanup and maintenance                            │
+│ - Migration tier processing                                │
+│ - Cost monitoring and alerting                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### **Monitoring and Alerting**
+```
+Critical Alerts (PagerDuty):
+- Translation system downtime >5 minutes
+- Daily cost exceeds $500 threshold
+- Display cache hit rate <90% for >1 hour
+- Human review queue >100 pending items
+- Emergency rollback activation
+
+Warning Alerts (Slack):
+- Queue processing lag >10 minutes
+- Translation confidence <80% for >50 consecutive jobs
+- Display table storage growth >20% week-over-week
+- API rate limiting approaching 80% quota
+- Cost trending >110% of monthly budget
+
+Health Check Endpoints:
+- GET /health/translation-system (overall system health)
+- GET /health/cost-budget (current spend vs limits)
+- GET /health/cache-performance (hit rates and latency)
+- GET /health/queue-status (processing lag and depth)
+```
+
+### **Operational Principles**
+
+#### **Core Principles**
+1. **No Side Effects in DB Read Functions**: All queue management and write operations handled at API layer
+2. **Backend Tables Sacred**: Existing clinical tables never modified during normal translation operations
+3. **Graceful Degradation**: System always falls back to backend tables if translation layers fail
+4. **Cost-Conscious Scaling**: Intelligent tier-based processing prioritizes active users
+5. **Healthcare Safety First**: Protected terms, confidence thresholds, and human review for critical translations
+
+#### **Deployment Strategy**
+1. **Feature Flag Rollout**: 10% → 25% → 50% → 100% rollout with segment targeting
+2. **Cost Monitoring**: Real-time cost tracking with automatic circuit breakers
+3. **Performance Validation**: SLO monitoring during each rollout phase
+4. **Emergency Procedures**: One-click rollback to backend-only mode available 24/7
+
+This comprehensive operational framework ensures the health data universality system operates within defined performance, cost, and reliability parameters while maintaining healthcare safety standards.
