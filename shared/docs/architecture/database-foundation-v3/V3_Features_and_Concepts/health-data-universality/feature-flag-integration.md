@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the feature flag architecture for controlling access to language translation and medical literacy features based on subscription tiers, user types, and experimental rollouts. The system provides granular control over feature availability while supporting A/B testing, gradual rollouts, and subscription-based access control.
+This document defines the feature flag architecture for controlling access to language translation and medical literacy features based on subscription tiers, user types, and experimental rollouts. The system integrates with the three-layer architecture (backend tables + per-domain translation tables + per-domain display tables) to provide granular control over feature availability while supporting A/B testing, gradual rollouts, and subscription-based access control.
 
 ## Problem Domain
 
@@ -704,4 +704,4 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-This feature flag integration system provides comprehensive control over health data universality features while maintaining medical safety standards and supporting flexible business model requirements.
+This feature flag integration system provides comprehensive control over health data universality features while maintaining medical safety standards and supporting flexible business model requirements. The system works seamlessly with the three-layer architecture to control access to translation tables, display table population, and backend table enhancements based on subscription tiers and feature rollout phases.

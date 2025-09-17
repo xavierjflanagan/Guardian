@@ -6,7 +6,7 @@
 
 ## Overview
 
-This folder addresses the critical need for making healthcare information accessible across language barriers and medical literacy levels. The system provides two orthogonal capabilities that can be combined: multi-language translation and medical complexity adjustment, ensuring every user can understand their health information regardless of their linguistic background or medical knowledge level.
+This folder addresses the critical need for making healthcare information accessible across language barriers and medical literacy levels using a three-layer database architecture. The system provides two orthogonal capabilities that can be combined: multi-language translation and medical complexity adjustment, ensuring every user can understand their health information regardless of their linguistic background or medical knowledge level.
 
 ## Problem Domain
 
@@ -21,62 +21,69 @@ Healthcare information accessibility presents unique challenges:
 ## Core Capabilities
 
 ### **1. Multi-Language Translation**
-Complete healthcare profile translation supporting international users, travelers, and native language preferences. Hybrid approach: backend permanent storage for planned languages (2-5 minutes processing, offline access) with frontend emergency translation fallback for unplanned scenarios (10-30 seconds, immediate access). Supports foreign language file uploads with source language preservation.
+Complete healthcare profile translation supporting international users, travelers, and native language preferences using a three-layer architecture:
+- **Backend Tables**: Existing clinical tables (patient_medications, patient_conditions, etc.) store source language data
+- **Translation Tables**: Per-domain tables (medication_translations, condition_translations, etc.) store AI translations with confidence scores
+- **Display Tables**: Per-domain UI cache (medications_display, conditions_display, etc.) for sub-5ms dashboard performance
+
+Hybrid approach supports both planned languages (2-5 minutes background processing) and emergency translation scenarios (10-30 seconds frontend fallback).
 
 ### **2. Medical Literacy Levels**
-Two-tier complexity system allowing users to toggle between medical jargon and patient-friendly language, with healthcare providers defaulting to medical terminology and patients defaulting to simplified explanations. Healthcare providers can view "Patient View" to understand how patients interpret their medical information.
+Two-tier complexity system integrated into the translation layer, allowing users to toggle between medical jargon and patient-friendly language. Each translation table includes complexity_level columns ('medical_jargon', 'simplified') targeting 14-year-old reading comprehension for simplified versions. Healthcare providers default to medical terminology with "Patient View" toggle capability.
 
 ## Key Files Planning
 
 ### **Core Architecture Files**
 
 #### **`multi-language-architecture.md`**
-**Focus**: Hybrid translation system with permanent storage and emergency fallback
-- Database schema for storing permanent translations across all supported languages
-- Hybrid approach: backend permanent storage (primary) + frontend emergency translation (fallback)
-- Translation workflow: AI translation → permanent storage (with AI accuracy disclaimers)
-- Foreign language file upload handling: process in original language → translate to user's home language
-- Exact translation mirrors: medical jargon translates to medical jargon, simplified translates to simplified
-- Source language metadata preservation and translation confidence scoring
-- Feature flag integration for premium language support tiers
-- Performance optimization for multi-language data retrieval
+**Focus**: Three-layer database architecture for optimal translation performance
+- Per-domain table architecture: backend tables (unchanged) + translation tables + display tables
+- Backend tables (patient_medications, patient_conditions, etc.) remain source of truth with minimal additions
+- Translation tables (medication_translations, condition_translations, etc.) store normalized translations per clinical domain
+- Display tables (medications_display, conditions_display, etc.) provide lazily-populated UI cache with partitioning
+- Content fingerprinting and staleness detection for efficient sync between layers
+- Translation workflow: AI translation → translation tables → display table population
+- Foreign language file upload: three-step process through all layers with proper deduplication
+- TTL/LRU expiry mechanisms for unused translations and automatic cleanup
 
 #### **`medical-literacy-levels.md`**
-**Focus**: Two-tier medical complexity system
-- Medical jargon (source of truth) vs patient-friendly (14-year-old reading level) simplified versions
-- Default complexity based on user type: healthcare providers get medical jargon, patients get simplified
-- Healthcare provider "Patient View" toggle to see how patients understand their medical information
-- Terminology mapping rules and simplification guidelines
-- Click-through access to full medical details from simplified view
-- Source of truth architecture: backend stores high-complexity medical jargon, simplified versions generated as separate translated layer
-- Integration with clinical entity display, timelines, and narrative systems
+**Focus**: Complexity-aware three-layer architecture implementation
+- Backend tables store medical jargon as source of truth, simplified versions in translation layer
+- Per-domain translation tables include complexity_level column ('medical_jargon', 'simplified')
+- Display tables support fast complexity toggling with pre-populated variants
+- Query functions use display tables first with fallbacks to translation tables then backend tables
+- Medical terminology simplification database with automated reading level validation
+- Healthcare provider "Patient View" functionality integrated with display table lookups
+- Complexity-aware dashboard queries optimized for sub-5ms performance
+- Session-based complexity overrides for healthcare providers viewing patient perspectives
 
 #### **`supported-languages-management.md`**
-**Focus**: Dynamic language availability and AI model dependency management
-- System for tracking and updating available languages based on AI model capabilities
-- Language quality scoring and availability flags
-- Framework for incorporating bespoke AI models for niche language translations
-- User notification system for language availability changes
-- Fallback strategies for unsupported languages
+**Focus**: Language availability with translation table coverage monitoring
+- Dynamic language availability based on AI model capabilities and translation table coverage
+- Quality assessment includes translation coverage across per-domain tables (medication_translations, condition_translations, etc.)
+- Display table population triggers for languages with low coverage
+- Language selection triggers background translation sync queue jobs for user's clinical entities
+- Three-layer fallback strategies: display tables → translation tables → backend tables → language hierarchy
+- User language addition automatically queues translation jobs for existing clinical data
 
 #### **`translation-quality-assurance.md`**
-**Focus**: AI translation accuracy and user safety
-- AI accuracy disclaimer system for all translated content
-- Warning messages recommending reference to original language for critical decisions
-- Quality confidence scoring for translations
-- Error handling for failed or low-confidence translations
-- User feedback mechanisms for translation quality improvement
+**Focus**: Per-domain confidence tracking and quality assurance
+- Confidence scores integrated directly into per-domain translation tables
+- Quality metrics table linking to specific translation records across domains
+- Display table quality indicators for fast UI confidence display
+- Error handling with per-domain table fallback chains
+- Translation quality monitoring across medication_translations, condition_translations, etc.
+- User feedback collection linked to specific translation table records
 
 #### **`user-experience-flows.md`**
-**Focus**: Complete user journey across language and complexity preferences
-- Language selection during onboarding with feature flag integration
-- Medical literacy preference selection based on user type (patient vs healthcare provider)
-- Toggle functionality between languages and complexity levels
-- Emergency translation scenarios for unplanned travel (Russia example)
-- Healthcare provider "Patient View" access for empathy and communication improvement
-- Shared profile links preserving language and complexity preferences
-- Foreign language file upload workflows with source language preservation
-- Premium subscription integration for advanced language features
+**Focus**: Three-layer architecture user experience optimization
+- Language switching with display table existence checks and translation sync queue triggers
+- Fast dashboard queries using display tables with automatic translation table fallbacks
+- Emergency translation sessions with cost estimation based on backend table entity counts
+- Shared profile creation with display table population for target language/complexity
+- Foreign language document processing through three-layer integration workflow
+- Premium subscription flows with translation coverage monitoring
+- Healthcare provider patient view using display table complexity variants
 
 ### **Supporting Architecture Files**
 
@@ -89,12 +96,13 @@ Two-tier complexity system allowing users to toggle between medical jargon and p
 - A/B testing framework for language features
 
 #### **`database-integration.md`**
-**Focus**: Integration with existing V3 database architecture
-- Relationship to temporal-data-management deduplicated clinical data
-- Integration with medical-code-resolution for localized medical codes
-- Performance impact analysis on existing dashboard and query systems
-- Data synchronization strategies for translated content updates
-- Backup and recovery procedures for translated data
+**Focus**: Three-layer integration with existing V3 architecture
+- Backend tables (patient_medications, patient_conditions, etc.) remain unchanged as source of truth
+- Per-domain translation tables integrated with supersession logic and temporal data management
+- Display tables enhance silver table concept with UI-optimized caching layer
+- Migration strategy: add translation/display tables → populate → update application queries
+- Sync queue architecture for propagating changes between layers
+- Content hash-based staleness detection and automatic display table updates
 
 #### **`business-model-integration.md`**
 **Focus**: Commercial strategy and international expansion
@@ -141,4 +149,22 @@ Two-tier complexity system allowing users to toggle between medical jargon and p
 - Feature flag architecture supporting freemium model
 - Scalable approach to adding new languages based on AI model evolution
 
-This architecture creates a comprehensive health data accessibility system that serves both immediate user needs (language preference, medical literacy) and long-term business objectives (international expansion, premium feature differentiation) while maintaining medical accuracy and safety standards.
+## Three-Layer Architecture Summary
+
+### **Architecture Benefits**
+✅ **Zero Backend Disruption**: Existing clinical tables (patient_medications, patient_conditions, etc.) unchanged  
+✅ **Per-Domain Performance**: Translation tables optimized per clinical domain for better indexing  
+✅ **UI Performance**: Display tables provide sub-5ms dashboard queries with lazy population  
+✅ **Scalable Translation**: Content hashing and sync queues enable efficient background processing  
+✅ **Clinical Safety**: Source of truth preserved in backend tables with confidence tracking throughout layers  
+
+### **Data Flow**
+```
+Backend Tables (Source) → Translation Tables (AI Processing) → Display Tables (UI Cache)
+     ↓                           ↓                              ↓
+Source language data    Per-domain translations with      Fast lookups with
+Medical jargon         confidence scores and             partitioning and
+Unchanged schema       complexity levels                 TTL/LRU expiry
+```
+
+This architecture creates a comprehensive health data accessibility system that serves both immediate user needs (language preference, medical literacy) and long-term business objectives (international expansion, premium feature differentiation) while maintaining medical accuracy and safety standards through the robust three-layer approach.
