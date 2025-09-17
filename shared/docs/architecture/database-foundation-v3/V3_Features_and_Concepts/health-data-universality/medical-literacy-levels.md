@@ -557,6 +557,366 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
+## Confidence Thresholds and Human Review Queues
+
+### **Per-Domain Confidence Thresholds**
+
+**Healthcare Safety Requirements**: All simplified translations must meet domain-specific confidence thresholds before being presented to users. Low-confidence translations require human review to ensure medical accuracy and patient safety.
+
+#### **Domain-Specific Confidence Requirements**
+```sql
+-- Confidence threshold configuration by medical domain
+CREATE TABLE medical_domain_confidence_thresholds (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    domain_type VARCHAR(50) NOT NULL, -- 'medication', 'condition', 'allergy', 'procedure'
+    complexity_level VARCHAR(20) NOT NULL, -- 'medical_jargon', 'simplified'
+    minimum_confidence NUMERIC(5,4) NOT NULL, -- Threshold for auto-approval
+    review_required_below NUMERIC(5,4) NOT NULL, -- Threshold for human review
+    auto_reject_below NUMERIC(5,4) NOT NULL, -- Threshold for automatic rejection
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(domain_type, complexity_level)
+);
+
+-- Insert standard healthcare confidence thresholds
+INSERT INTO medical_domain_confidence_thresholds (domain_type, complexity_level, minimum_confidence, review_required_below, auto_reject_below) VALUES
+-- Medications - highest safety requirements
+('medication', 'simplified', 0.90, 0.75, 0.50),
+('medication', 'medical_jargon', 0.85, 0.70, 0.45),
+
+-- Conditions - high accuracy needed
+('condition', 'simplified', 0.85, 0.70, 0.45),
+('condition', 'medical_jargon', 0.80, 0.65, 0.40),
+
+-- Allergies - critical for safety
+('allergy', 'simplified', 0.92, 0.80, 0.55),
+('allergy', 'medical_jargon', 0.88, 0.75, 0.50),
+
+-- Procedures - moderate requirements
+('procedure', 'simplified', 0.80, 0.65, 0.40),
+('procedure', 'medical_jargon', 0.75, 0.60, 0.35);
+```
+
+#### **Human Review Queue System**
+```sql
+-- Queue for translations requiring human review
+CREATE TABLE translation_human_review_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    translation_id UUID NOT NULL, -- Reference to translation table
+    entity_id UUID NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    target_language VARCHAR(10) NOT NULL,
+    complexity_level VARCHAR(20) NOT NULL,
+    original_text TEXT NOT NULL,
+    ai_translated_text TEXT NOT NULL,
+    ai_confidence_score NUMERIC(5,4) NOT NULL,
+    review_reason VARCHAR(100) NOT NULL, -- 'low_confidence', 'protected_term', 'manual_flag'
+    review_priority INTEGER DEFAULT 5, -- 1=urgent, 5=normal, 9=low
+
+    -- Review assignment
+    assigned_reviewer_id UUID REFERENCES user_profiles(id),
+    assigned_at TIMESTAMPTZ,
+
+    -- Review results
+    review_status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'in_review', 'approved', 'rejected', 'escalated'
+    reviewed_text TEXT,
+    reviewer_confidence_score NUMERIC(5,4),
+    reviewer_notes TEXT,
+    reviewed_at TIMESTAMPTZ,
+
+    -- Audit trail
+    profile_id UUID NOT NULL REFERENCES user_profiles(id), -- Patient this affects
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Performance tracking
+    review_time_minutes INTEGER, -- Time spent on review
+
+    CONSTRAINT fk_profile_id FOREIGN KEY (profile_id) REFERENCES user_profiles(id) ON DELETE CASCADE
+);
+
+-- Indexes for queue management
+CREATE INDEX idx_review_queue_pending ON translation_human_review_queue(review_status, review_priority, created_at)
+    WHERE review_status = 'pending';
+CREATE INDEX idx_review_queue_assigned ON translation_human_review_queue(assigned_reviewer_id, review_status)
+    WHERE review_status = 'in_review';
+CREATE INDEX idx_review_queue_entity ON translation_human_review_queue(entity_type, entity_id);
+
+-- RLS for review queue
+ALTER TABLE translation_human_review_queue ENABLE ROW LEVEL SECURITY;
+
+-- Medical reviewers can see assigned reviews
+CREATE POLICY review_queue_reviewer_access ON translation_human_review_queue
+FOR ALL USING (
+    assigned_reviewer_id = get_current_profile_id()
+    OR EXISTS(
+        SELECT 1 FROM medical_reviewer_permissions mrp
+        WHERE mrp.reviewer_id = get_current_profile_id()
+        AND mrp.can_review_domain = entity_type
+        AND mrp.is_active = TRUE
+    )
+);
+```
+
+#### **Protected Terms and Glossary Enforcement**
+```sql
+-- Medical terms that should never be simplified or require special handling
+CREATE TABLE protected_medical_terms (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    medical_term TEXT NOT NULL,
+    term_category VARCHAR(50) NOT NULL, -- 'medication_name', 'dosage', 'medical_code', 'critical_instruction'
+    protection_level VARCHAR(20) NOT NULL, -- 'never_translate', 'review_required', 'preserve_original'
+    reasoning TEXT NOT NULL, -- Why this term is protected
+    alternative_explanation TEXT, -- Safe explanation to provide alongside
+    created_by VARCHAR(100) NOT NULL,
+    approved_by VARCHAR(100),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(medical_term, term_category)
+);
+
+-- Standard protected terms
+INSERT INTO protected_medical_terms (medical_term, term_category, protection_level, reasoning, alternative_explanation, created_by, approved_by) VALUES
+-- Dosages and measurements
+('mg', 'dosage', 'never_translate', 'Dosage units must remain exact for safety', 'milligrams (mg)', 'system', 'medical_team'),
+('mL', 'dosage', 'never_translate', 'Volume units must remain exact for safety', 'milliliters (mL)', 'system', 'medical_team'),
+('twice daily', 'critical_instruction', 'preserve_original', 'Dosing frequency critical for safety', 'take 2 times per day', 'system', 'medical_team'),
+
+-- Medical codes
+('RxNorm:%', 'medical_code', 'never_translate', 'Medical codes must remain unchanged', NULL, 'system', 'medical_team'),
+('SNOMED:%', 'medical_code', 'never_translate', 'Medical codes must remain unchanged', NULL, 'system', 'medical_team'),
+
+-- Critical medication names
+('Warfarin', 'medication_name', 'review_required', 'Blood thinner requires careful explanation', 'blood-thinning medicine (Warfarin)', 'system', 'medical_team'),
+('Insulin', 'medication_name', 'review_required', 'Diabetes medication requires careful explanation', 'diabetes medicine (Insulin)', 'system', 'medical_team');
+
+-- Function to check if translation violates protected terms
+CREATE OR REPLACE FUNCTION check_protected_terms_violation(
+    p_original_text TEXT,
+    p_translated_text TEXT,
+    p_entity_type VARCHAR(50)
+) RETURNS TABLE(
+    has_violation BOOLEAN,
+    violated_terms TEXT[],
+    requires_review BOOLEAN
+) AS $$
+DECLARE
+    protected_term RECORD;
+    violations TEXT[] := '{}';
+    needs_review BOOLEAN := FALSE;
+BEGIN
+    -- Check for protected terms in original that may have been inappropriately translated
+    FOR protected_term IN
+        SELECT * FROM protected_medical_terms pmt
+        WHERE pmt.term_category = p_entity_type OR pmt.term_category = 'critical_instruction'
+    LOOP
+        IF p_original_text ILIKE '%' || protected_term.medical_term || '%' THEN
+            -- Check if protected term is preserved or properly handled
+            IF protected_term.protection_level = 'never_translate' AND
+               p_translated_text NOT ILIKE '%' || protected_term.medical_term || '%' THEN
+                violations := array_append(violations, protected_term.medical_term);
+            ELSIF protected_term.protection_level = 'review_required' THEN
+                needs_review := TRUE;
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN QUERY SELECT
+        array_length(violations, 1) > 0 OR needs_review,
+        violations,
+        needs_review;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### **Automated Review Triggering**
+```sql
+-- Function to automatically queue translations for human review based on confidence and protected terms
+CREATE OR REPLACE FUNCTION evaluate_translation_for_review(
+    p_translation_id UUID,
+    p_entity_type VARCHAR(50),
+    p_complexity_level VARCHAR(20),
+    p_confidence_score NUMERIC(5,4),
+    p_original_text TEXT,
+    p_translated_text TEXT
+) RETURNS VOID AS $$
+DECLARE
+    threshold_config RECORD;
+    protection_check RECORD;
+    review_reason VARCHAR(100);
+    review_priority INTEGER := 5;
+BEGIN
+    -- Get confidence thresholds for this domain
+    SELECT * INTO threshold_config
+    FROM medical_domain_confidence_thresholds
+    WHERE domain_type = p_entity_type
+    AND complexity_level = p_complexity_level
+    AND is_active = TRUE;
+
+    -- Check protected terms
+    SELECT * INTO protection_check
+    FROM check_protected_terms_violation(p_original_text, p_translated_text, p_entity_type);
+
+    -- Determine if review is needed
+    IF p_confidence_score < threshold_config.auto_reject_below THEN
+        -- Auto-reject, don't queue for review
+        RETURN;
+    ELSIF p_confidence_score < threshold_config.review_required_below THEN
+        review_reason := 'low_confidence';
+        review_priority := 3; -- Higher priority for low confidence
+    ELSIF protection_check.has_violation THEN
+        review_reason := 'protected_term';
+        review_priority := 1; -- Highest priority for protected term violations
+    ELSIF protection_check.requires_review THEN
+        review_reason := 'protected_term_review';
+        review_priority := 2; -- High priority for protected terms requiring review
+    ELSE
+        -- No review needed
+        RETURN;
+    END IF;
+
+    -- Queue for human review
+    INSERT INTO translation_human_review_queue (
+        translation_id,
+        entity_id,
+        entity_type,
+        target_language,
+        complexity_level,
+        original_text,
+        ai_translated_text,
+        ai_confidence_score,
+        review_reason,
+        review_priority,
+        profile_id
+    ) VALUES (
+        p_translation_id,
+        (SELECT entity_id FROM get_translation_entity_info(p_translation_id)),
+        p_entity_type,
+        (SELECT target_language FROM get_translation_info(p_translation_id)),
+        p_complexity_level,
+        p_original_text,
+        p_translated_text,
+        p_confidence_score,
+        review_reason,
+        review_priority,
+        (SELECT profile_id FROM get_translation_profile_info(p_translation_id))
+    );
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### **Display Table Override Handling**
+```sql
+-- Function to handle reviewed translations in display tables
+CREATE OR REPLACE FUNCTION apply_reviewed_translation_to_display(
+    p_review_queue_id UUID
+) RETURNS VOID AS $$
+DECLARE
+    review_record RECORD;
+BEGIN
+    -- Get review record
+    SELECT * INTO review_record
+    FROM translation_human_review_queue
+    WHERE id = p_review_queue_id
+    AND review_status = 'approved';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Review record not found or not approved';
+    END IF;
+
+    -- Update display table with reviewed translation
+    CASE review_record.entity_type
+        WHEN 'medication' THEN
+            INSERT INTO medications_display (
+                medication_id,
+                patient_id,
+                language_code,
+                complexity_level,
+                display_name,
+                confidence_score,
+                last_synced_at,
+                human_reviewed
+            ) VALUES (
+                review_record.entity_id,
+                review_record.profile_id,
+                review_record.target_language,
+                review_record.complexity_level,
+                review_record.reviewed_text,
+                review_record.reviewer_confidence_score,
+                NOW(),
+                TRUE
+            )
+            ON CONFLICT (medication_id, language_code, complexity_level)
+            DO UPDATE SET
+                display_name = review_record.reviewed_text,
+                confidence_score = review_record.reviewer_confidence_score,
+                last_synced_at = NOW(),
+                human_reviewed = TRUE;
+
+        WHEN 'condition' THEN
+            INSERT INTO conditions_display (
+                condition_id,
+                patient_id,
+                language_code,
+                complexity_level,
+                display_name,
+                confidence_score,
+                last_synced_at,
+                human_reviewed
+            ) VALUES (
+                review_record.entity_id,
+                review_record.profile_id,
+                review_record.target_language,
+                review_record.complexity_level,
+                review_record.reviewed_text,
+                review_record.reviewer_confidence_score,
+                NOW(),
+                TRUE
+            )
+            ON CONFLICT (condition_id, language_code, complexity_level)
+            DO UPDATE SET
+                display_name = review_record.reviewed_text,
+                confidence_score = review_record.reviewer_confidence_score,
+                last_synced_at = NOW(),
+                human_reviewed = TRUE;
+    END CASE;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### **Review Workflow and Escalation**
+
+#### **Medical Reviewer Permissions**
+```sql
+-- Medical professional reviewer authorization
+CREATE TABLE medical_reviewer_permissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reviewer_id UUID NOT NULL REFERENCES user_profiles(id),
+    can_review_domain VARCHAR(50) NOT NULL, -- 'medication', 'condition', 'allergy', 'procedure', 'all'
+    max_complexity_level VARCHAR(20) NOT NULL, -- 'simplified', 'medical_jargon'
+    medical_license_number VARCHAR(100),
+    verification_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'verified', 'suspended'
+    verified_by UUID REFERENCES user_profiles(id),
+    verified_at TIMESTAMPTZ,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(reviewer_id, can_review_domain)
+);
+
+-- RLS for reviewer permissions
+ALTER TABLE medical_reviewer_permissions ENABLE ROW LEVEL SECURITY;
+
+-- Only admins and the reviewer themselves can see permissions
+CREATE POLICY reviewer_permissions_access ON medical_reviewer_permissions
+FOR ALL USING (
+    reviewer_id = get_current_profile_id()
+    OR EXISTS(SELECT 1 FROM admin_users WHERE user_id = get_current_profile_id())
+);
+```
+
+This comprehensive confidence threshold and human review system ensures that simplified medical translations meet healthcare safety standards while providing a structured workflow for medical professionals to review and approve translations that fall below confidence thresholds.
+
 ## Integration with Narrative Systems
 
 ### **Complexity-Aware Narrative Generation**

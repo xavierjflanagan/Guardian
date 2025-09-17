@@ -34,7 +34,7 @@ We use semantic embeddings to bridge the gap between extracted clinical text and
 3. **Step 1.5**: Apply deterministic selection rules to choose final code from candidates
 4. **Pass 2**: AI receives verified medical codes for enhanced clinical processing
 
-**Critical**: Final code selection is **deterministic and rule-based** to eliminate AI hallucination risk. AI assists with attribute extraction and clinical context, but never selects medical codes directly.
+**Critical**: Final code selection is **AI-powered from curated candidates** to eliminate AI hallucination risk. AI selects from a short list of verified medical codes (10-20 candidates) provided by embedding search, never from the full 300K+ database directly.
 
 ## Key Files in This Folder
 
