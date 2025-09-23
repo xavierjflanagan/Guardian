@@ -2,21 +2,21 @@
 
 ## Document Status
 - **Created**: 25 August 2025
-- **Updated**: 27 August 2025 - Updated to Three-Pass Architecture with Semantic Document Processing
-- **Purpose**: Define the AI processing strategy for clinical document extraction using semantic clinical narrative architecture
-- **Status**: Implementation-ready specification aligned with semantic document architecture
+- **Updated**: 27 August 2025 - Updated to Three-Pass Architecture with Semantic Processing
+- **Purpose**: Define the AI processing strategy for clinical file extraction using semantic clinical narrative architecture
+- **Status**: Implementation-ready specification aligned with semantic architecture
 - **Related**: Implements semantic architecture from `07-semantic-document-architecture.md`. Follows `03-ocr-processing-architecture.md`. Uses `05-entity-classification-taxonomy.md`
 
 ## Executive Summary
 
-This document outlines a **three-pass AI architecture** for extracting structured clinical data from unstructured medical documents and creating semantically coherent clinical narratives. The approach solves the critical multi-document problem by creating clinically meaningful storylines while maintaining reliable shell file organization, ensuring both clinical safety and complete data capture.
+This document outlines a **three-pass AI architecture** for extracting structured clinical data from unstructured medical documents and creating semantically coherent clinical narratives. The approach solves the critical multi-file problem by creating clinically meaningful storylines while maintaining reliable shell file organization, ensuring both clinical safety and complete data capture.
 
-**Key Innovation**: Semantic document processing that creates **clinical narratives** based on medical meaning rather than physical document structure, preventing dangerous clinical context mixing while enabling coherent clinical storylines.
+**Key Innovation**: Semantic processing that creates **clinical narratives** based on medical meaning rather than physical file structure, preventing dangerous clinical context mixing while enabling coherent clinical storylines.
 
 ## Core Architecture: Three-Pass Semantic Processing
 
 ### Revolutionary Approach: Meaning Over Structure
-**Traditional Approach (WRONG):** Process by document boundaries and physical structure  
+**Traditional Approach (WRONG):** Process by file boundaries and physical structure  
 **Our Approach (RIGHT):** Create semantic clinical narratives based on medical coherence and clinical storylines
 
 ### Architecture Overview
@@ -50,11 +50,11 @@ Beyond basic entity identification, Pass 1 now includes **semantic preparation**
 #### Input Prompt Structure
 ```python
 prompt = """
-Identify EVERY piece of information in this document as an entity, with special attention to clinical narrative potential.
+Identify EVERY piece of information in this uploaded file as an entity, with special attention to clinical narrative potential.
 
 For each entity found, provide:
 1. entity_id: Unique identifier (e.g., "ent_001")
-2. text: Exact text as it appears in the document
+2. text: Exact text as it appears in the file
 3. entity_category: One of:
    - clinical_event (medical observations, interventions, diagnoses requiring full analysis)
    - healthcare_context (patient/provider info, appointments requiring profile matching)
@@ -127,7 +127,7 @@ interface Pass2ProcessingStrategy {
   clinical_event: {
     processing: 'Full enrichment + comprehensive database storage',
     schemas: ['patient_clinical_events', 'patient_observations', 'patient_interventions'],
-    shell_file_reference: 'Required - maintains source document traceability',
+    shell_file_reference: 'Required - maintains source file traceability',
     timeline_integration: 'High priority for healthcare timeline'
   },
   healthcare_context: {
@@ -240,7 +240,7 @@ prompt = """
 Analyze these structured clinical events to create semantically coherent clinical narratives.
 
 Input: Structured clinical events JSON (not raw text)
-Task: Create clinical storylines based on medical meaning, not document location
+Task: Create clinical storylines based on medical meaning, not file location/source
 
 For each clinical narrative identified:
 1. narrative_id: Unique identifier

@@ -6,7 +6,7 @@
 
 ## Overview
 
-This folder addresses the critical challenge of accurately mapping clinical entities extracted from documents to standardized medical codes without overwhelming AI models with massive terminology databases. 
+This folder addresses the critical challenge of accurately mapping clinical entities extracted from uplaoded files to standardized medical codes without overwhelming AI models with massive terminology databases. 
 
 Although applying a standardized medical code system is important for external interoperability and regulatory compliance, the main role and necessity of having a standardized medical coding process within Exora is to enable the accurate comparison of clinical entities, therefore facilitating A; deduplication, and B; efficient hierarchical narrative building.
 
@@ -25,48 +25,91 @@ Healthcare requires standardized medical coding for:
 - Australian-specific codes (PBS, MBS) are not in standard AI training data
 - Code granularity affects deduplication safety (ingredient vs specific drug formulation)
 
-## Our Solution: Embedding-Based Code Matching
+## Our Solution: Vector-Based Code Matching
 
-We use semantic embeddings to bridge the gap between extracted clinical text and verified medical codes through a **deterministic, safety-first approach**:
+We use semantic embeddings for fast, accurate medical code resolution through a **simple 4-step process**:
 
-1. **Pass 1**: Extract clinical attributes (not codes) via AI
-2. **Step 1.5**: Use embeddings to find semantically similar codes from curated database  
-3. **Step 1.5**: Apply deterministic selection rules to choose final code from candidates
-4. **Pass 2**: AI receives verified medical codes for enhanced clinical processing
+1. **Pass 1**: Extract clinical entities (not codes) via AI
+2. **Vector Search**: Embed entity text and find 10-20 most similar medical codes using pgvector
+3. **AI Selection**: AI chooses best code from candidates (eliminates hallucination risk)
+4. **Parallel Assignment**: Both universal AND regional codes assigned when found (not hierarchical)
+5. **Pass 2**: AI receives verified medical codes for enhanced clinical processing
 
-**Critical**: Final code selection is **AI-powered from curated candidates** to eliminate AI hallucination risk. AI selects from a short list of verified medical codes (10-20 candidates) provided by embedding search, never from the full 300K+ database directly.
+⚠️ **Architectural Note**: Pass 1 output structure and embedding field selection are pending decisions that will affect vector search implementation.
 
-## Key Files in This Folder
+**Key Advantage**: Vector embeddings handle synonyms, typos, and semantic relationships automatically ("heart attack" → "myocardial infarction") while preventing AI hallucination by limiting selection to verified codes only.
 
-- **`embedding-based-code-matching.md`** - ✅ **Production Ready**
-  - Semantic embedding approach with vector similarity search
-  - Global format detection and Australian healthcare specialization
-  - Comprehensive caching and performance optimization strategies
+## Core Implementation Files
 
-- **`code-hierarchy-selection.md`** - ✅ **Production Ready**  
-  - Deterministic code selection rules for medications, conditions, procedures
-  - RxNorm SCD/SBD vs ingredient-level granularity decisions
-  - Australian PBS/MBS code integration with international standards
+### **Primary Architecture**
+- **`embedding-based-code-matching.md`** - ✅ **Core Implementation**
+  - Vector similarity search with pgvector
+  - Database schema with embedding columns
+  - Performance optimization and caching
 
-- **`vague-medication-handling.md`** - ✅ **Production Ready**
-  - ATC code assignment for drug class mentions ("steroids", "antibiotics")
-  - Pattern recognition for non-specific medication references
-  - Integration with clinical identity policies for safe deduplication
+- **`simple-database-schema.md`** - ✅ **Database Design**
+  - 3 essential tables: codes + embeddings, mappings, resolution log
+  - Vector indexes and search functions
+  - Minimal, focused design
+
+- **`pass-integration.md`** - ✅ **AI Pipeline Integration**
+  - Simple Pass 1 → Vector Search → AI Selection → Pass 2 flow
+  - Error handling and fallback strategies
+  - Performance targets
+
+### **Clinical Logic**
+- **`code-hierarchy-selection.md`** - ✅ **Code Granularity Logic**
+  - RxNorm SCD vs ingredient-level decisions
+  - Clinical safety rules for code selection
+  - Australian PBS/MBS integration
+
+- **`vague-medication-handling.md`** - ✅ **Edge Cases**
+  - Drug class mentions ("steroids", "antibiotics")
+  - Incomplete medication references
+  - ATC code assignment
+
+### **Multi-Regional Healthcare System**
+- **`simple-database-schema.md`** - ✅ **Split Code Libraries Architecture**
+  - Parallel assignment: Universal (SNOMED/RxNorm/LOINC) + Regional (PBS/MBS/NHS/etc.)
+  - Split table design for universal vs regional codes
+  - Australian launch ready with expansion framework for 6+ countries
+
+- **`australian-healthcare-codes.md`** - ✅ **Multi-Regional Launch Ready**
+  - Australia: PBS/MBS/TGA integration
+  - UK: NHS dm+d/BNF support
+  - US: NDC/CPT/CMS integration
+  - Germany: PZN/ICD_10_GM support
+  - Canada: DIN/Health Canada support
+  - France: CIP/ANSM support
+
+- **`data-type-coding/`** - ✅ **Entity-Specific Coding**
+  - Detailed frameworks for medications, conditions, procedures, allergies, observations
+  - Australian healthcare context for each type
 
 ## Integration with Deduplication System
 
 **Critical Dependency**: Medical code assignment **directly enables** clinical entity deduplication through identity policies:
 
+### **Code Assignment Architecture** (see [`./simple-database-schema.md`](./simple-database-schema.md))
+- **Storage**: Medical codes stored in separate `medical_code_assignments` table (not embedded in clinical tables)
+- **Assignment Strategy**: Parallel assignment of both universal AND regional codes (never hierarchical)
+- **Success Scenarios**:
+  - Both universal + regional assigned ✅ (ideal)
+  - Only universal assigned ✅ (acceptable)
+  - Only regional assigned ✅ (acceptable)
+  - Neither assigned - fallback used ✅ (safe)
+
 ### **Code Granularity Requirements** (see [`../temporal-data-management/clinical-identity-policies.md`](../temporal-data-management/clinical-identity-policies.md))
 - **Medications**: RxNorm SCD/SBD level (not ingredient-only) for safe route/form/strength distinctions
-- **Conditions**: SNOMED-CT primary with hierarchical specificity; ICD-10-AM for Australian reporting  
+- **Conditions**: SNOMED-CT primary with hierarchical specificity; ICD_10_AM for Australian reporting
 - **Allergies**: SNOMED substance/agent codes for precise allergen identification
 - **Procedures**: SNOMED procedure codes; MBS codes for Australian Medicare integration
 
-### **Identity Safety Integration** 
+### **Identity Safety Integration**
 ```
-Medical Code Assignment → Clinical Identity Key → Deduplication Safety
-RxNorm SCD: 314076 → rxnorm_scd:314076 → Safe medication deduplication
+Parallel Code Assignment → Clinical Identity Key → Deduplication Safety
+Universal: RxNorm SCD 314076 → rxnorm_scd:314076 → Safe medication deduplication
+Regional: PBS 2345 → pbs:2345 → Australian healthcare context
 Missing/Low Confidence → fallback:unique_id → Conservative no-merge approach
 ```
 
@@ -85,9 +128,9 @@ Missing/Low Confidence → fallback:unique_id → Conservative no-merge approach
 
 ### **Pass 1 → Code Resolution Interface**
 
-The medical code resolution system receives normalized clinical attributes from Pass 1 AI extraction and returns verified medical codes with confidence scores. Pass 1 provides entity type (medication, condition, allergy, procedure), extracted attributes like medication name and strength, clinical context for disambiguation, and file origin for format-specific processing. The code resolution service responds with the selected primary medical code, confidence score, alternative candidates considered, and the selection method used (embedding similarity, exact match, or fallback).
+The medical code resolution system receives normalized clinical attributes from Pass 1 AI extraction and returns verified medical codes with confidence scores. Pass 1 provides entity type (medication, condition, allergy, procedure, observation), extracted attributes like medication name and strength, clinical context for disambiguation, and file origin for format-specific processing. The code resolution service responds with the selected primary medical code, confidence score, alternative candidates considered, and the selection method used (embedding similarity, exact match, or fallback).
 
-**Detailed schemas**: See [`./embedding-based-code-matching.md`](./embedding-based-code-matching.md) for complete API specifications.
+**Detailed schemas**: See [`./embedding-based-code-matching.md`](./embedding-based-code-matching.md) and [`./simple-database-schema.md`](./simple-database-schema.md) for complete specifications.
 
 ## Relationships to Other Folders
 
@@ -124,9 +167,9 @@ The medical code resolution system receives normalized clinical attributes from 
 
 ## Implementation Benefits
 
-- **Clinical Safety**: Deterministic code selection eliminates AI hallucination risk
-- **Accuracy**: Only real, verified medical codes from authoritative sources
-- **Efficiency**: Controlled context size (10-20 relevant codes vs 300K+ database)
-- **Australian Compliance**: Native PBS, MBS, SNOMED-AU integration
-- **Global Scalability**: Extensible to international healthcare coding standards
-- **Performance**: Vector similarity search with intelligent caching for sub-second response times
+- **Clinical Safety**: AI selects from verified candidates only - eliminates hallucination risk
+- **Semantic Accuracy**: Vector embeddings handle synonyms, typos, and medical relationships automatically
+- **Efficiency**: Vector search + AI selection instead of complex deterministic rules
+- **Australian Ready**: Complete PBS/MBS integration for immediate launch
+- **Global Scalable**: Universal code framework supports international expansion
+- **High Performance**: <100ms vector search with pgvector indexes

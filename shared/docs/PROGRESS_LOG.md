@@ -2,6 +2,24 @@
 
 > This file is updated at the end of every coding session. It tracks daily/weekly progress, major changes, and next steps.
 
+## [2025-09-18] Work Session Summary - RETROACTIVE ENTRY
+- **Start Time:** [Full day session - architecture planning]
+- **R&D Hours:** 7.5 hours
+- **Claude's Structured Summary:**
+  - **Key Accomplishments:**
+    - **Medical Code Resolution Architecture Overhaul**: Moved from deterministic to vector-based embedding approach, simplifying from 15+ tables to essential 4-5 table design
+    - **Parallel Code Assignment Strategy**: Implemented fork-style parallel search for both universal (SNOMED/RxNorm) and regional (PBS/MBS) codes simultaneously
+    - **Entity-Specific Coding Frameworks**: Created comprehensive coding strategies for medications, conditions, procedures, allergies, and observations with Australian healthcare integration
+    - **Narrative Architecture Evolution**: Developed relationship-based narrative hierarchy incorporating Xavier's multi-level concept, moving from rigid 2-level to flexible entity-type categorization
+    - **Database Schema Alignment**: Analyzed actual 03_clinical_core.sql structure and aligned proposed narrative updates with existing clinical_narratives table and entity linking tables
+    - **Major Cleanup**: Archived entire V2 database foundation and removed overengineered medical code resolution files
+  - **Impact & Decisions:** **Architecture Decision**: Adopted vector embeddings + pgvector for medical code resolution eliminating AI hallucination risk through candidate-only selection. **Schema Decision**: Separate medical_code_assignments table using Option B approach for clean separation from clinical tables. **Narrative Decision**: Combined embeddings + entity relationships for comprehensive narrative discovery rather than either/or approach. **Performance Decision**: Always-embed architecture for consistent 100ms narrative search performance.
+- **Blockers:** None - clear implementation path established with database schema aligned to actual structure
+- **Next Session Focus:** Begin implementing database schema updates for narrative embeddings, start medical code resolution vector search implementation, update remaining narrative architecture files
+- **User's Verbatim Log:**
+  > RETROACTIVE ENTRY - Based on conversation history from September 18, 2025: Comprehensive architecture session focusing on medical code resolution overhaul and narrative architecture planning. Major simplification from complex deterministic approach to vector-based embedding system. Significant progress on Xavier's multi-level narrative hierarchy concept with relationship-based flexible architecture. Database schema work aligning proposed updates with actual implementation found in 03_clinical_core.sql. Productive day with clear path forward established.
+---
+
 ## [2025-09-04] Work Session Summary
 - **Start Time:** [From corresponding 'Work Session Started' block]
 - **R&D Hours:** 4.0 hours
