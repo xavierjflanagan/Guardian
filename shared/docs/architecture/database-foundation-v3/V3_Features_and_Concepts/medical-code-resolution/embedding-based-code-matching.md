@@ -161,18 +161,31 @@ async function generateEmbedding(text: string): Promise<number[]> {
   return response.data[0].embedding;
 }
 
+// ⚠️ ARCHITECTURAL UNCERTAINTY: Pass 1 Output Structure
+// The ClinicalEntity structure below is assumed - actual Pass 1 output format is TBD.
+// Critical decisions pending:
+// - Which field(s) should be embedded for vector search?
+// - How to handle multi-field entities (name + strength + form)?
+// - Should we embed combined text or construct from individual attributes?
+
 // Clinical entity text preparation for embedding
 function prepareEntityForEmbedding(entity: ClinicalEntity): string {
+  // TODO: Verify this approach once Pass 1 output structure is finalized
   const components = [
-    entity.extracted_name,
-    entity.strength,
-    entity.dose_form,
-    entity.route,
-    entity.frequency,
-    entity.clinical_context
+    entity.extracted_name,      // Primary entity name
+    entity.strength,           // Dosage strength (if medication)
+    entity.dose_form,          // Form (tablet, injection, etc.)
+    entity.route,              // Administration route
+    entity.frequency,          // Dosing frequency
+    entity.clinical_context    // Additional context from document
   ].filter(Boolean);
-  
+
   return components.join(' ').toLowerCase().trim();
+
+  // Alternative approaches to consider:
+  // 1. Use only entity.extracted_text if available
+  // 2. Construct standardized format: "name strength form route"
+  // 3. Use AI to optimize embedding text from entity attributes
 }
 ```
 

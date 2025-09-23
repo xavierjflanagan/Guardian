@@ -1,7 +1,7 @@
 # AI Context
 
 **Purpose:** Canonical project context for Guardian AI. Updated at the end of every session to reflect the latest state, decisions, and next steps.
-**Last updated:** September 4, 2025
+**Last updated:** September 19, 2025
 **Audience:** Developers, AI contributors, project managers
 **Prerequisites:** None
 
@@ -26,6 +26,46 @@ For complete details, please refer to the following documents:
 ## 3. Session Updates
 
 This section serves as a running log of progress, decisions, and next steps at the end of each development session. Newest at the top.
+
+---
+
+### Session Update (2025-09-18) - RETROACTIVE ENTRY
+
+**Progress:**
+- **Medical Code Resolution Architecture REVOLUTION**: Complete overhaul from deterministic to vector-based embedding approach establishing production-ready medical code resolution pipeline
+  - **Vector Embedding Strategy**: Implemented OpenAI text-embedding-3-small with pgvector for semantic medical code matching eliminating AI hallucination through candidate-only selection
+  - **Parallel Code Assignment**: Developed fork-style parallel search architecture assigning both universal (SNOMED/RxNorm/LOINC) and regional (PBS/MBS) codes simultaneously rather than hierarchical approach
+  - **Schema Simplification**: Reduced complex 15+ table medical code database design to essential 4-5 table architecture with separate medical_code_assignments table using Option B approach
+  - **Entity-Specific Frameworks**: Created comprehensive coding strategies for medications, conditions, procedures, allergies, and observations with detailed Australian healthcare integration
+- **Narrative Architecture EVOLUTION**: Advanced from Xavier's 2-level hierarchy to sophisticated relationship-based flexible architecture incorporating multi-level narrative concepts
+  - **Database Schema Alignment**: Analyzed actual 03_clinical_core.sql structure discovering existing clinical_narratives table and entity linking infrastructure requiring architectural alignment
+  - **Combined Discovery Strategy**: Established hybrid approach using both semantic embeddings AND existing entity relationships for comprehensive narrative discovery rather than either/or methodology
+  - **Always-Embed Architecture**: Decided on consistent embedding strategy for all narratives ensuring 100ms performance rather than fallback approach
+  - **Entity-Type Categorization**: Moved from rigid Grand→Minor→Sub hierarchy to flexible entity-type system (condition, medication, event, procedure, allergy, monitoring)
+- **Major Architectural CLEANUP**: Systematic removal of overengineered components and archival of outdated V2 database foundation
+  - **V2 Foundation Archival**: Complete migration of database-foundation-v2/ to archive preserving historical context while focusing development on V3 architecture
+  - **Overengineered File Removal**: Deleted complex medical-code-database-design.md (700+ lines) and other overly complex files based on user feedback about density and comprehension
+  - **Documentation Alignment**: Created PROPOSED-UPDATES-2025-09-18.md capturing architectural evolution with implementation-ready specifications
+
+**Impact & Decisions:**
+- **Architecture Decision**: Vector embeddings + pgvector represents fundamental shift enabling semantic medical code resolution with clinical safety through controlled candidate selection
+- **Schema Strategy**: Separate assignment tables (Option B) provides clean separation between clinical data and medical codes enabling flexible multi-regional healthcare support
+- **Performance Decision**: Always-embed architecture for narratives ensures consistent 100ms search performance rather than hybrid fallback complexity
+- **Implementation Decision**: Combined embeddings + entity relationships leverages existing database infrastructure while adding semantic capabilities
+
+**Context Evolution:**
+- Guardian V3 medical code resolution transitions from theoretical concept to implementation-ready architecture with production-grade vector search and parallel assignment strategy
+- Narrative architecture evolves from conceptual hierarchy planning to database-aligned implementation specifications incorporating actual schema structure
+- Project demonstrates mature architectural decision-making with user feedback integration, complexity reduction, and practical implementation focus
+- Medical code resolution establishes foundation for clinical entity deduplication, narrative clustering, and semantic healthcare data processing
+
+**Next Steps:**
+- **Database Schema Implementation**: Begin adding narrative embedding columns and narrative_relationships table to existing clinical_narratives infrastructure
+- **Vector Search Implementation**: Implement pgvector indexes and medical code embedding search functions for production deployment
+- **Narrative File Updates**: Update remaining narrative architecture files (semantic-coherence-framework.md, master-sub-narrative-hierarchy.md) to match finalized specifications
+
+**Blockers:**
+- None - comprehensive architectural foundation established with clear implementation pathway aligned to actual database structure
 
 ---
 
