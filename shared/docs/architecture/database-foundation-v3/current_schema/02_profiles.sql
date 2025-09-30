@@ -102,7 +102,17 @@ CREATE TABLE user_profiles (
     erasure_performed_at TIMESTAMPTZ, -- When PII was purged
     erasure_scope TEXT, -- 'pii_only', 'analytics_only', 'full_restriction'
     region_of_record TEXT, -- 'AU', 'US', 'EU' for jurisdiction-specific handling
-    
+
+    -- Universal Date Format Management (From Migration 01)
+    date_preferences JSONB DEFAULT '{
+        "preferred_format": "DD/MM/YYYY",
+        "home_country": "AU",
+        "timezone": "Australia/Sydney",
+        "show_confidence_badges": true,
+        "format_switching_enabled": true,
+        "confidence_threshold_for_badges": 0.7
+    }'::jsonb,
+
     -- Pregnancy Feature Support
     is_pregnancy_profile BOOLEAN DEFAULT FALSE,
     expected_due_date DATE,
@@ -505,12 +515,138 @@ GRANT EXECUTE ON FUNCTION has_profile_access_level(UUID, UUID, TEXT) TO authenti
 GRANT EXECUTE ON FUNCTION get_accessible_profiles(UUID) TO authenticated;
 
 -- =============================================================================
+-- 7B. DATE FORMAT UTILITY FUNCTIONS (From Migration 01)
+-- =============================================================================
+
+-- Function to get user's preferred date format
+CREATE OR REPLACE FUNCTION get_user_date_format(p_user_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+    user_format TEXT;
+BEGIN
+    SELECT date_preferences->>'preferred_format'
+    INTO user_format
+    FROM user_profiles
+    WHERE id = p_user_id;
+
+    -- Return default if user not found or preference not set
+    RETURN COALESCE(user_format, 'DD/MM/YYYY');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- Function to format date according to user preferences
+CREATE OR REPLACE FUNCTION format_date_for_user(
+    p_date DATE,
+    p_user_id UUID
+) RETURNS TEXT AS $$
+DECLARE
+    user_format TEXT;
+    formatted_date TEXT;
+BEGIN
+    -- Get user's preferred format
+    user_format := get_user_date_format(p_user_id);
+
+    -- Format date according to preference
+    CASE user_format
+        WHEN 'DD/MM/YYYY' THEN
+            formatted_date := to_char(p_date, 'DD/MM/YYYY');
+        WHEN 'MM/DD/YYYY' THEN
+            formatted_date := to_char(p_date, 'MM/DD/YYYY');
+        WHEN 'YYYY-MM-DD' THEN
+            formatted_date := to_char(p_date, 'YYYY-MM-DD');
+        WHEN 'DD.MM.YYYY' THEN
+            formatted_date := to_char(p_date, 'DD.MM.YYYY');
+        ELSE
+            formatted_date := to_char(p_date, 'DD/MM/YYYY'); -- Default fallback
+    END CASE;
+
+    RETURN formatted_date;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- Function to get user's cultural context for date processing
+CREATE OR REPLACE FUNCTION get_user_cultural_context(p_user_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+    cultural_context JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'country', date_preferences->>'home_country',
+        'format', date_preferences->>'preferred_format',
+        'timezone', date_preferences->>'timezone',
+        'confidence_badges', (date_preferences->>'show_confidence_badges')::boolean
+    )
+    INTO cultural_context
+    FROM user_profiles
+    WHERE id = p_user_id;
+
+    -- Return default Australian context if user not found
+    RETURN COALESCE(cultural_context, '{
+        "country": "AU",
+        "format": "DD/MM/YYYY",
+        "timezone": "Australia/Sydney",
+        "confidence_badges": true
+    }'::jsonb);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- Grant execute permissions for date format functions
+GRANT EXECUTE ON FUNCTION get_user_date_format(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION format_date_for_user(DATE, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_user_cultural_context(UUID) TO authenticated;
+
+-- =============================================================================
+-- 7C. DATE FORMAT OPTIMIZATION INFRASTRUCTURE (From Migration 01)
+-- =============================================================================
+
+-- Materialized view for common date format conversions (2000-2050 range)
+CREATE MATERIALIZED VIEW common_date_formats AS
+SELECT
+  iso_date,
+  -- Australian/European formats (DD/MM)
+  to_char(iso_date, 'DD/MM/YYYY') as dd_mm_yyyy,
+  to_char(iso_date, 'DD/MM/YY') as dd_mm_yy,
+  -- US formats (MM/DD)
+  to_char(iso_date, 'MM/DD/YYYY') as mm_dd_yyyy,
+  to_char(iso_date, 'MM/DD/YY') as mm_dd_yy,
+  -- ISO and international formats
+  to_char(iso_date, 'YYYY-MM-DD') as iso_format,
+  to_char(iso_date, 'DD.MM.YYYY') as dd_dot_mm_yyyy,
+  to_char(iso_date, 'DD-MM-YYYY') as dd_dash_mm_yyyy,
+  -- Additional common formats (using FM to avoid padding)
+  to_char(iso_date, 'FMMonth DD, YYYY') as month_dd_yyyy,
+  to_char(iso_date, 'DD FMMonth YYYY') as dd_month_yyyy,
+  -- Weekday information for UI (using FM to avoid padding)
+  to_char(iso_date, 'FMDAY') as day_name,
+  to_char(iso_date, 'FMDy') as day_abbrev
+FROM generate_series('2000-01-01'::date, '2050-12-31'::date, '1 day') as iso_date;
+
+-- Indexes for materialized view performance
+CREATE UNIQUE INDEX idx_common_formats_iso ON common_date_formats (iso_date);
+CREATE INDEX idx_common_formats_dd_mm ON common_date_formats (dd_mm_yyyy);
+CREATE INDEX idx_common_formats_mm_dd ON common_date_formats (mm_dd_yyyy);
+
+-- Add comment for materialized view
+COMMENT ON MATERIALIZED VIEW common_date_formats IS
+'Pre-computed date format conversions for UI display. Covers 2000-2050 date range with 10+ international formats. Refresh periodically or when format requirements change.';
+
+-- Add comment for date_preferences column
+COMMENT ON COLUMN user_profiles.date_preferences IS
+'User preferences for date formatting and display. Supports 25+ international formats including DD/MM (AU/EU), MM/DD (US), ISO formats, confidence badges, and cultural defaults.';
+
+-- =============================================================================
 -- 8. PERFORMANCE INDEXES
 -- =============================================================================
 
 -- Profile management indexes (optimized for soft deletes)
 CREATE INDEX idx_user_profiles_owner ON user_profiles(account_owner_id) WHERE archived IS NOT TRUE AND archived_at IS NULL;
 CREATE INDEX idx_user_profiles_type ON user_profiles(profile_type) WHERE archived IS NOT TRUE AND archived_at IS NULL;
+
+-- Date preferences indexes (From Migration 01)
+CREATE INDEX idx_user_date_preferences ON user_profiles USING GIN (date_preferences);
+CREATE INDEX idx_user_date_preferences_format ON user_profiles ((date_preferences->>'preferred_format'));
+CREATE INDEX idx_user_date_preferences_country ON user_profiles ((date_preferences->>'home_country'));
+CREATE INDEX idx_user_date_preferences_timezone ON user_profiles ((date_preferences->>'timezone'));
 CREATE INDEX idx_profile_access_user ON profile_access_permissions(user_id) WHERE revoked_at IS NULL;
 CREATE INDEX idx_profile_access_profile ON profile_access_permissions(profile_id) WHERE revoked_at IS NULL;
 

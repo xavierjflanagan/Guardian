@@ -742,4 +742,30 @@ REFERENCE DATA
 
 **This Database V3 Architecture Overview provides complete reference for the operational V3 architecture with three-pass AI processing, semantic document intelligence, and clinical narrative creation - the foundation for revolutionary healthcare data management.**
 
-**Status**: **OPERATIONAL V3 ARCHITECTURE** - 50+ tables deployed, three-pass AI processing active, semantic narratives operational, all performance targets achieved.
+**Status**: **OPERATIONAL V3 ARCHITECTURE** - 73 tables deployed, database foundation complete, AI processing logic implementation required.
+
+---
+
+## ⚠️ **CRITICAL ARCHITECTURE NOTES (Updated 2025-09-26)**
+
+### **Database Reality vs Documentation**
+
+**Actual Deployed Tables:** 73 tables (not 50+ as previously estimated)
+- **Source**: Direct analysis of `current_schema/*.sql` files
+- **Discovery**: Significant undercount in previous documentation
+
+### **Narrative Linking Architecture Discrepancy**
+
+**Issue Identified:** Dual narrative linking system exists due to incomplete migration
+- **Old System (Still Present):** 5 specific linking tables (`narrative_condition_links`, `narrative_medication_links`, etc.)
+- **New System (Migration 03):** Generic `narrative_event_links` table
+- **Problem:** Migration 03 created new system but didn't remove old tables as planned
+- **Planned Resolution:** Phase 1.5 database cleanup to complete migration
+
+### **AI Processing Status**
+
+**Infrastructure:** ✅ OPERATIONAL (worker claiming jobs, database responding)
+**AI Logic:** ❌ MISSING (worker contains simulation code only)
+- **Current Worker State:** `processShellFile()` method has `sleep(2000)` placeholder
+- **Required Implementation:** Complete three-pass AI processing system
+- **Bridge Schemas:** None exist - complete ground-up creation needed

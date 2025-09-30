@@ -1,0 +1,467 @@
+{
+  "schema_version": "1.0.0",
+  "table": "patient_interventions",
+  "pass": "pass-2",
+  "description": "Detailed intervention data for action-based clinical events. This table stores medications, vaccinations, procedures, surgeries, and therapies extracted from medical documents.",
+  "clinical_context": "Use this schema for extracting interventions from medical documents - any action taken to treat, prevent, or manage a health condition. Interventions represent action activities (O3 'intervention' activity type) with details about substances, techniques, outcomes, and follow-up.",
+
+  "required_fields": [
+    "event_id",
+    "intervention_type"
+  ],
+
+  "fields": {
+    "event_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "References parent patient_clinical_events record (the clinical event this intervention details)",
+      "required": true,
+      "cascade": "ON DELETE CASCADE",
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "This links the intervention details to the parent clinical event. The parent event should have activity_type='intervention'."
+    },
+
+    "intervention_type": {
+      "type": "enum",
+      "values": ["medication_admin", "vaccination", "minor_procedure", "surgery", "therapy"],
+      "description": "Category of intervention performed",
+      "required": true,
+      "type_definitions": {
+        "medication_admin": "Any medication administration or prescription (oral, injectable, topical, etc.)",
+        "vaccination": "Immunization administration (flu shot, COVID vaccine, childhood vaccinations, etc.)",
+        "minor_procedure": "Minor medical procedures typically done in office/clinic setting",
+        "surgery": "Surgical interventions requiring operating room or surgical suite",
+        "therapy": "Therapeutic interventions (physical therapy, counseling, radiation therapy, etc.)"
+      },
+      "selection_guide": {
+        "medication_admin": ["Pills/tablets", "Injectable medications", "Topical medications", "Inhalers", "Patches", "Suppositories"],
+        "vaccination": ["Flu shot", "COVID-19 vaccine", "Childhood vaccinations", "Travel vaccines", "Boosters"],
+        "minor_procedure": ["Wart removal", "Skin biopsy", "Wound suturing", "Joint injection", "IV placement", "Cryotherapy"],
+        "surgery": ["Outpatient surgery", "Inpatient surgery", "Dental surgery", "Endoscopic procedures", "Arthroscopy"],
+        "therapy": ["Physical therapy", "Occupational therapy", "Speech therapy", "Counseling/psychotherapy", "Radiation therapy"]
+      }
+    },
+
+    "substance_name": {
+      "type": "string",
+      "description": "Name of medication, drug, vaccine, or substance used",
+      "required": false,
+      "examples": [
+        "Lisinopril",
+        "Influenza A Vaccine",
+        "Atorvastatin",
+        "Lidocaine",
+        "Amoxicillin"
+      ],
+      "guidance": "Use for medication_admin and vaccination intervention types. Include generic or brand name as stated in document.",
+      "contextual_use": "Required for medication_admin and vaccination types"
+    },
+
+    "manufacturer": {
+      "type": "string",
+      "description": "Manufacturer of substance or vaccine",
+      "required": false,
+      "examples": [
+        "Pfizer",
+        "Moderna",
+        "Sanofi Pasteur",
+        "Merck"
+      ],
+      "guidance": "Particularly important for vaccinations for traceability. Include if stated in document."
+    },
+
+    "lot_number": {
+      "type": "string",
+      "description": "Lot or batch number for traceability",
+      "required": false,
+      "examples": [
+        "U3476AA",
+        "LOT-2025-09-001",
+        "BN-12345"
+      ],
+      "guidance": "Critical for vaccinations and medications for recall purposes. Extract if present in document."
+    },
+
+    "dose_amount": {
+      "type": "numeric",
+      "description": "Dosage amount (numeric value)",
+      "required": false,
+      "examples": [10, 0.5, 500, 2.5],
+      "guidance": "Extract the numeric dose value. For medications and vaccinations."
+    },
+
+    "dose_unit": {
+      "type": "string",
+      "description": "Unit of dosage measurement",
+      "required": false,
+      "examples": [
+        "mg",
+        "mL",
+        "units",
+        "mcg",
+        "g",
+        "tablets"
+      ],
+      "guidance": "Always provide with dose_amount. Use standard medical abbreviations."
+    },
+
+    "route": {
+      "type": "string",
+      "description": "Route of administration",
+      "required": false,
+      "examples": [
+        "oral",
+        "intramuscular",
+        "intravenous",
+        "subcutaneous",
+        "topical",
+        "transdermal",
+        "inhalation",
+        "rectal"
+      ],
+      "guidance": "For medication_admin and vaccination types. Use standard medical terminology.",
+      "contextual_use": "Important for medication_admin and vaccination types"
+    },
+
+    "frequency": {
+      "type": "string",
+      "description": "Frequency of administration",
+      "required": false,
+      "examples": [
+        "daily",
+        "twice_daily",
+        "three_times_daily",
+        "as_needed",
+        "every_4_hours",
+        "every_6_hours",
+        "weekly",
+        "monthly"
+      ],
+      "guidance": "For medication_admin type. Extract as stated in document or standardize common patterns.",
+      "contextual_use": "Primarily for medication_admin type"
+    },
+
+    "technique": {
+      "type": "string",
+      "description": "Technique or method used for procedure/intervention",
+      "required": false,
+      "examples": [
+        "cryotherapy",
+        "excision",
+        "injection",
+        "suture",
+        "arthroscopy",
+        "endoscopy",
+        "laparoscopy",
+        "cognitive_behavioral_therapy"
+      ],
+      "guidance": "For minor_procedure, surgery, and therapy types. Describe the specific technique used.",
+      "contextual_use": "Important for minor_procedure, surgery, and therapy types"
+    },
+
+    "equipment_used": {
+      "type": "string",
+      "description": "Equipment, tools, or instruments used",
+      "required": false,
+      "examples": [
+        "Liquid nitrogen",
+        "10-blade scalpel",
+        "Arthroscopic camera and instruments",
+        "Ultrasound guidance"
+      ],
+      "guidance": "For procedures and surgeries. Include specific equipment mentioned in document.",
+      "contextual_use": "Relevant for minor_procedure and surgery types"
+    },
+
+    "immediate_outcome": {
+      "type": "string",
+      "description": "Immediate outcome or result of the intervention",
+      "required": false,
+      "examples": [
+        "successful",
+        "partial",
+        "complications",
+        "no complications",
+        "well tolerated"
+      ],
+      "guidance": "Extract if explicitly stated. Use descriptive terms from document or standardize to common patterns."
+    },
+
+    "complications": {
+      "type": "string",
+      "description": "Any complications that occurred during or after intervention",
+      "required": false,
+      "examples": [
+        "None",
+        "Minor post-operative swelling",
+        "Mild nausea",
+        "Localized redness at injection site"
+      ],
+      "guidance": "Extract if mentioned. Use 'None' if document explicitly states no complications. Leave null if not mentioned."
+    },
+
+    "followup_required": {
+      "type": "boolean",
+      "description": "Whether follow-up care or visit is required",
+      "required": false,
+      "default": false,
+      "guidance": "Set to true if document mentions follow-up appointments, monitoring, or additional care needed."
+    },
+
+    "followup_instructions": {
+      "type": "string",
+      "description": "Specific follow-up care instructions",
+      "required": false,
+      "examples": [
+        "Return in 2 weeks to assess healing",
+        "Physical therapy starting week 2, follow-up appointment in 6 weeks",
+        "Weekly sessions for 8 weeks",
+        "Monitor blood pressure and return in 1 month"
+      ],
+      "guidance": "Extract detailed follow-up instructions if provided in document."
+    },
+
+    "ai_extracted": {
+      "type": "boolean",
+      "description": "Always true for AI-extracted interventions",
+      "required": true,
+      "default": true
+    },
+
+    "ai_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in the extraction (0.000-1.000)",
+      "required": true,
+      "examples": [0.950, 0.920, 0.850],
+      "confidence_guidance": {
+        "high": ">= 0.900 - Clear extraction, especially critical for medications/vaccines",
+        "medium": "0.700 - 0.899 - Reasonable confidence, may need review",
+        "low": "< 0.700 - Ambiguous or uncertain, requires review"
+      },
+      "safety_critical": "For medication_admin and vaccination types, set requires_review=true if confidence < 0.900"
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag if this intervention needs human review",
+      "required": true,
+      "default": false,
+      "guidance": "Set to true if: (1) ai_confidence < 0.700, (2) for medication_admin/vaccination with confidence < 0.900, (3) ambiguities or incomplete information exist."
+    },
+
+    "clinical_event_id": {
+      "type": "uuid",
+      "description": "Links to patient_clinical_events (temporal management)",
+      "required": false,
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "Typically same as event_id. Part of temporal management system for tracking intervention versions."
+    },
+
+    "primary_narrative_id": {
+      "type": "uuid",
+      "description": "Links to clinical_narratives (Pass 3 semantic processing)",
+      "required": false,
+      "default": null,
+      "guidance": "Leave null in Pass 2. Will be populated by Pass 3 when semantic narratives are created."
+    },
+
+    "clinical_effective_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Clinical relevance date (when intervention was performed)",
+      "required": false,
+      "examples": ["2025-09-30", "2024-12-15"],
+      "guidance": "Extract the date when the intervention was performed. May differ from document date."
+    },
+
+    "date_confidence": {
+      "type": "enum",
+      "values": ["high", "medium", "low", "conflicted"],
+      "description": "Confidence in the extracted date",
+      "required": false,
+      "confidence_levels": {
+        "high": "Date explicitly stated and unambiguous",
+        "medium": "Date inferred with reasonable confidence",
+        "low": "Date uncertain or partially missing",
+        "conflicted": "Multiple conflicting dates found"
+      }
+    },
+
+    "extracted_dates": {
+      "type": "jsonb",
+      "description": "Array of all date extraction attempts for audit trail",
+      "required": false,
+      "default": [],
+      "example": [
+        {"date": "2025-09-30", "source": "clinical_content", "confidence": 0.95},
+        {"date": "2025-09-28", "source": "document_date", "confidence": 0.70}
+      ]
+    },
+
+    "date_source": {
+      "type": "enum",
+      "values": ["clinical_content", "document_date", "file_metadata", "upload_timestamp", "user_provided"],
+      "description": "Where the date was extracted from",
+      "required": false,
+      "source_priority": {
+        "clinical_content": "Highest priority - date stated in clinical text",
+        "document_date": "Document creation/modification date",
+        "file_metadata": "File system metadata",
+        "upload_timestamp": "When file was uploaded",
+        "user_provided": "User manually specified date"
+      }
+    },
+
+    "date_conflicts": {
+      "type": "jsonb",
+      "description": "Array of conflicting dates found during extraction",
+      "required": false,
+      "default": [],
+      "example": [
+        {"date": "2025-09-30", "source": "clinical_content"},
+        {"date": "2025-09-28", "source": "document_date"}
+      ]
+    },
+
+    "date_resolution_reason": {
+      "type": "string",
+      "description": "Explanation of why this date was chosen when conflicts exist",
+      "required": false,
+      "example": "Selected clinical content date as it explicitly states procedure date"
+    },
+
+    "clinical_identity_key": {
+      "type": "string",
+      "description": "Deduplication fingerprint for identifying duplicate interventions",
+      "required": false,
+      "example": "int_lisinopril_10mg_2025-09-30",
+      "guidance": "Create a stable key combining intervention_type, substance_name/technique, date to detect duplicates."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Medication administration with standard dosing",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "intervention_type": "medication_admin",
+        "substance_name": "Lisinopril",
+        "dose_amount": 10,
+        "dose_unit": "mg",
+        "route": "oral",
+        "frequency": "daily",
+        "immediate_outcome": "successful",
+        "followup_required": false,
+        "ai_extracted": true,
+        "ai_confidence": 0.920,
+        "requires_review": false,
+        "clinical_event_id": "uuid-of-parent-clinical-event",
+        "clinical_effective_date": "2025-09-30",
+        "date_confidence": "high",
+        "date_source": "clinical_content"
+      }
+    },
+    {
+      "description": "Vaccination with full traceability information",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "intervention_type": "vaccination",
+        "substance_name": "Influenza A Vaccine",
+        "manufacturer": "Sanofi Pasteur",
+        "lot_number": "U3476AA",
+        "dose_amount": 0.5,
+        "dose_unit": "mL",
+        "route": "intramuscular",
+        "immediate_outcome": "successful",
+        "complications": "None",
+        "followup_required": false,
+        "ai_extracted": true,
+        "ai_confidence": 0.950,
+        "requires_review": false,
+        "clinical_event_id": "uuid-of-parent-clinical-event",
+        "clinical_effective_date": "2025-09-30",
+        "date_confidence": "high"
+      }
+    },
+    {
+      "description": "Minor procedure with follow-up required",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "intervention_type": "minor_procedure",
+        "technique": "cryotherapy",
+        "equipment_used": "Liquid nitrogen",
+        "immediate_outcome": "successful",
+        "followup_required": true,
+        "followup_instructions": "Return in 2 weeks to assess healing",
+        "ai_extracted": true,
+        "ai_confidence": 0.880,
+        "requires_review": false,
+        "clinical_event_id": "uuid-of-parent-clinical-event"
+      }
+    },
+    {
+      "description": "Surgery with complications noted",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "intervention_type": "surgery",
+        "technique": "arthroscopy",
+        "equipment_used": "Arthroscopic camera and instruments",
+        "immediate_outcome": "successful",
+        "complications": "Minor post-operative swelling",
+        "followup_required": true,
+        "followup_instructions": "Physical therapy starting week 2, follow-up appointment in 6 weeks",
+        "ai_extracted": true,
+        "ai_confidence": 0.850,
+        "requires_review": true,
+        "clinical_event_id": "uuid-of-parent-clinical-event"
+      }
+    },
+    {
+      "description": "Therapy intervention with ongoing sessions",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "intervention_type": "therapy",
+        "technique": "cognitive_behavioral_therapy",
+        "immediate_outcome": "successful",
+        "followup_required": true,
+        "followup_instructions": "Weekly sessions for 8 weeks",
+        "ai_extracted": true,
+        "ai_confidence": 0.800,
+        "requires_review": false,
+        "clinical_event_id": "uuid-of-parent-clinical-event"
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "field_selection_by_type": {
+      "medication_admin": "Focus on: substance_name, dose_amount, dose_unit, route, frequency",
+      "vaccination": "Focus on: substance_name, manufacturer, lot_number, dose_amount, dose_unit, route",
+      "minor_procedure": "Focus on: technique, equipment_used, immediate_outcome, followup",
+      "surgery": "Focus on: technique, equipment_used, immediate_outcome, complications, followup",
+      "therapy": "Focus on: technique (therapy type), immediate_outcome, followup_instructions"
+    },
+    "safety_critical_handling": "Medications and vaccinations are safety-critical. Set requires_review=true if ai_confidence < 0.900. Double-check dose amounts and routes.",
+    "confidence_thresholds": {
+      "medications_vaccines": ">= 0.900 required for auto-acceptance",
+      "procedures_surgery": ">= 0.700 acceptable with review flag",
+      "therapy": ">= 0.700 acceptable"
+    },
+    "follow_up_extraction": "If document mentions return visits, monitoring, or additional care, set followup_required=true and extract specific instructions.",
+    "complications_handling": "Only populate complications field if explicitly mentioned. Use 'None' if document states no complications. Leave null if not mentioned."
+  },
+
+  "validation_rules": {
+    "intervention_type": "Must be exactly one of: 'medication_admin', 'vaccination', 'minor_procedure', 'surgery', 'therapy'",
+    "medication_fields": "If intervention_type is medication_admin or vaccination, substance_name should be provided",
+    "procedure_fields": "If intervention_type is minor_procedure or surgery, technique should be provided",
+    "dose_consistency": "If dose_amount is provided, dose_unit should typically be provided as well",
+    "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
+    "followup_required": "Must be boolean (true/false)",
+    "date_confidence": "If provided, must be one of: 'high', 'medium', 'low', 'conflicted'",
+    "date_source": "If provided, must be one of: 'clinical_content', 'document_date', 'file_metadata', 'upload_timestamp', 'user_provided'"
+  }
+}

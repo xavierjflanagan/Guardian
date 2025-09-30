@@ -60,10 +60,10 @@ See [NARRATIVE-ARCHITECTURE-DRAFT-VISION.md](./NARRATIVE-ARCHITECTURE-DRAFT-VISI
 - Heart Failure (condition) → encompasses medications + monitoring + events
 
 ### Narrative Evolution Model
-**Immutable Accumulation**: AI continuously enriches narratives with each document upload, preserving complete historical context without overwriting previous versions.
+**Immutable Accumulation**: AI continuously enriches narratives with each file upload, preserving complete historical context without overwriting previous versions.
 
 **Progressive Enhancement Process**:
-1. **Document Upload** → Pass 1/2 extract clinical events
+1. **Document Upload** → Pass 1 & 2 extract clinical events
 2. **Narrative Discovery** → Find existing narratives to update
 3. **AI Enhancement** → Add new clinical context while preserving history
 4. **Version Creation** → New narrative version with audit trail
@@ -102,6 +102,17 @@ ALTER TABLE patient_medications ADD COLUMN clinical_event_id UUID REFERENCES pat
 ALTER TABLE patient_allergies ADD COLUMN clinical_event_id UUID REFERENCES patient_clinical_events(id);
 ALTER TABLE patient_vitals ADD COLUMN clinical_event_id UUID REFERENCES patient_clinical_events(id);
 ALTER TABLE patient_immunizations ADD COLUMN clinical_event_id UUID REFERENCES patient_clinical_events(id);
+
+-- PASS 3 CONTEXT: Add clinical_event_id to context shells for full narrative context
+ALTER TABLE healthcare_encounters ADD COLUMN clinical_event_id UUID REFERENCES patient_clinical_events(id);
+ALTER TABLE healthcare_timeline_events ADD COLUMN clinical_event_id UUID REFERENCES patient_clinical_events(id);
+
+-- UX DASHBOARD LINKING: Add primary_narrative_id for direct narrative access
+ALTER TABLE patient_medications ADD COLUMN primary_narrative_id UUID REFERENCES clinical_narratives(id);
+ALTER TABLE patient_allergies ADD COLUMN primary_narrative_id UUID REFERENCES clinical_narratives(id);
+ALTER TABLE patient_vitals ADD COLUMN primary_narrative_id UUID REFERENCES clinical_narratives(id);
+ALTER TABLE patient_immunizations ADD COLUMN primary_narrative_id UUID REFERENCES clinical_narratives(id);
+-- NOTE: patient_conditions already has primary_narrative_id column
 ```
 
 **Impact**: Without these links, the event-based narrative discovery strategy cannot work, and we cannot eliminate the redundant `narrative_*_links` tables.
@@ -109,10 +120,56 @@ ALTER TABLE patient_immunizations ADD COLUMN clinical_event_id UUID REFERENCES p
 **Benefits After Fix**:
 - Complete provenance tracking (entity → clinical event → medical codes)
 - Enable narrative discovery via clinical events (eliminates redundant linking tables)
+- **Pass 3 Context Assembly**: Simple queries to get all contextual data for narrative creation
 - Support future dashboard generation from narratives rather than core tables
 - Simplified architecture with single source of truth through clinical events
 
-### Schema Updates Required
+## UX Dashboard Narrative Linking Strategy
+
+### **Narrative as Source of Truth Architecture**
+
+**Core Principle**: Each clinical entity (medication, condition, allergy, etc.) has a primary narrative that serves as the comprehensive source of truth for all rich clinical context, relationships, and user experience data.
+
+**User Experience Flow**:
+```
+User clicks "Atorvastatin 40mg" →
+├── Immediate Display: Basic clinical data (dose, frequency, start_date, status)
+│   Source: Core patient_medications table
+├── Rich Context Access: Comprehensive clinical story
+│   Source: Primary medication narrative
+│   ├── Clinical reasoning ("Started for cardiovascular risk reduction...")
+│   ├── Treatment journey (dose changes, side effects, effectiveness)
+│   ├── Condition relationships (links to Heart Failure Management narrative)
+│   ├── Event context (links to Hospital Discharge, Cardiology Visit narratives)
+│   └── Related medications (other heart failure medications)
+```
+
+### **Implementation Strategy: Option A - Pass 3 Backfill**
+
+**Architecture Decision**: Use `primary_narrative_id` columns in entity tables, populated by Pass 3 after narrative creation using existing deduplication framework.
+
+**Flow**:
+1. **Pass 2**: Creates entity rows (medications, conditions) with `primary_narrative_id = NULL`
+2. **Pass 3**: Creates/updates narratives, then backfills entity tables with primary narrative IDs
+3. **UX**: Direct navigation from entity → primary narrative → complete context
+
+**Pass 3 Backfill Logic**:
+```sql
+-- After creating/updating medication narrative, update core entity
+UPDATE patient_medications
+SET primary_narrative_id = ?
+WHERE clinical_identity_key = ?
+  AND is_current = true  -- Leverages existing deduplication framework
+  AND patient_id = ?;
+```
+
+**Benefits**:
+- Leverages proven deduplication system (`clinical_identity_key`, `is_current`)
+- Direct UX navigation (no complex queries needed)
+- Maintains data integrity through atomic Pass 3 updates
+- Future-proof for narrative-driven dashboard vision
+
+### Database Schema Updates Required
 
 **Core Table Enhancements**:
 ```sql
@@ -162,10 +219,15 @@ CREATE INDEX idx_narrative_relationships_parent ON narrative_relationships(paren
 CREATE INDEX idx_narrative_relationships_child ON narrative_relationships(child_narrative_id);
 ```
 
-**Existing Tables (ELIMINATION PLAN)**:
-- narrative_condition_links, narrative_medication_links, etc. - **TARGET FOR REMOVAL** after clinical event linking is complete
-- Replace with single `narrative_event_links` table using clinical events as intermediary
-- Simpler architecture: narrative → clinical event → clinical entity (via clinical_event_id)
+**Existing Tables (TRANSITION PLAN)**:
+- narrative_condition_links, narrative_medication_links, etc. - **TARGET FOR REMOVAL** after Option A implementation
+- **Immediate solution**: `primary_narrative_id` provides direct UX access to narratives
+- **Long-term vision**: Replace specific link tables with `narrative_event_links` using clinical events as intermediary
+- **Architecture evolution**:
+  - Phase 1: Add primary_narrative_id for UX (immediate benefit)
+  - Phase 2: Implement event-based discovery and relationships
+  - Phase 3: Remove redundant specific linking tables
+- **UX priority**: Narrative-as-source-of-truth pattern established through primary_narrative_id
 
 ## Integration with Medical Code Resolution
 
@@ -228,7 +290,13 @@ tbc
 - Phase 2: Relationship hints (parent-child suggestions)
 - Phase 3: Indirect narratives (narrative → narrative relationships)
 
-### ✅ 6. Performance Architecture
+### ✅ 6. Pass 3 Context Strategy
+**Decision**: Russian Babushka Doll context assembly via clinical_event_id references
+- All sub-shells reference master `patient_clinical_events.id`
+- Pass 3 receives complete context through simple queries
+- AI processes full contextual tree: observations + conditions + encounters + medications + timeline display
+
+### ✅ 7. Performance Architecture
 **Decision**: Always-embed strategy
 - Every narrative gets embedded for consistent performance
 - pgvector indexes for <50ms vector search
@@ -516,7 +584,8 @@ interface Pass3Output {
 
 ### Phase 1: Foundation (Database Schema) - 2 weeks
 **Deliverables**:
-- [ ] **CRITICAL FIRST**: Execute clinical event linking fix (add clinical_event_id to all entity tables)
+- [ ] **CRITICAL FIRST**: Execute clinical event linking fix (add clinical_event_id to all entity + context tables)
+- [ ] **CRITICAL SECOND**: Add primary_narrative_id columns to all entity tables for UX linking
 - [ ] Execute narrative schema migration scripts (see Database Schema Implementation above)
 - [ ] Add pgvector extension if not already enabled
 - [ ] Create performance indexes
@@ -536,6 +605,7 @@ interface Pass3Output {
 - [ ] Create narrative embedding generation functions
 - [ ] Implement content fingerprint change detection
 - [ ] Add timestamp-based versioning logic
+- [ ] **PRIMARY UX FEATURE**: Implement Pass 3 backfill of primary_narrative_id in entity tables
 
 **Success Criteria**:
 - Pass 3 processes clinical events into narratives

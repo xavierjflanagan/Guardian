@@ -1,9 +1,10 @@
 -- =============================================================================
 -- 04_AI_PROCESSING.SQL - V3 Three-Pass AI Processing Pipeline & Dual-Lens Experience
 -- =============================================================================
--- VERSION: 1.1 (HOTFIX 2025-09-02: GPT-5 dependency validation)
---   - Added is_admin() dependency check (policies use it)
---   - Enhanced preflight validation for core dependencies
+-- VERSION: 1.2 (MIGRATION 2025-09-30: Pass 1 Entity Audit and Metrics Restructuring)
+--   - Replaced entity_processing_audit_v2 with enhanced entity_processing_audit (dual-input processing)
+--   - Updated ai_confidence_scoring FK reference to new audit table
+--   - Enhanced audit table supports complete Pass 1→Pass 2 entity lifecycle tracking
 -- Purpose: Complete V3 AI processing infrastructure with three-pass pipeline and dual-lens user experience
 -- Architecture: Pass 1 (entity detection) → Pass 2 (clinical extraction) → Pass 3 (semantic narrative creation) with human-in-the-loop validation
 -- Dependencies: 01_foundations.sql (audit, security), 02_profiles.sql (user_profiles), 03_clinical_core.sql (shell_files, clinical_narratives)
@@ -20,7 +21,7 @@
 -- 
 -- TABLES CREATED (10 tables):
 -- AI Processing Core:
---   - ai_processing_sessions, entity_processing_audit_v2, profile_classification_audit
+--   - ai_processing_sessions, entity_processing_audit, profile_classification_audit
 -- Quality & Validation:
 --   - manual_review_queue, ai_confidence_scoring
 -- Pass 3 Semantic Infrastructure:
@@ -30,7 +31,7 @@
 -- 
 -- KEY FEATURES:
 -- - ai_processing_sessions.workflow_step: Tracks progression through three-pass pipeline
--- - entity_processing_audit_v2: V3-enhanced audit with correct shell_files references
+-- - entity_processing_audit: V3-enhanced audit with dual-input processing and complete Pass 1→Pass 2 lifecycle tracking
 -- - semantic_processing_sessions: Pass 3 narrative creation session management
 -- - dual_lens_user_preferences: User choice between document-minded and clinical-minded experiences
 -- - narrative_view_cache: Performance optimization for complex narrative queries
@@ -148,74 +149,117 @@ CREATE TABLE IF NOT EXISTS ai_processing_sessions (
 -- =============================================================================
 -- CRITICAL FIX: References to clinical tables now use correct relationships
 
--- Entity processing audit with V3 enhancements and corrected references
-CREATE TABLE IF NOT EXISTS entity_processing_audit_v2 (
+-- Entity processing audit with V3 enhancements and dual-input processing
+CREATE TABLE IF NOT EXISTS entity_processing_audit (
+    -- Primary Key and References
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
     shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
-    entity_id TEXT NOT NULL,
-    
-    -- V3 Core Fields (Enhanced)
-    entity_category TEXT NOT NULL CHECK (entity_category IN (
-        'clinical_event', 'healthcare_context', 'file_structure'
-    )),
-    entity_subtype TEXT NOT NULL,
-    pass1_confidence NUMERIC(4,3) CHECK (pass1_confidence BETWEEN 0 AND 1),
-    pass2_status TEXT DEFAULT 'pending' CHECK (pass2_status IN (
-        'pending', 'processing', 'completed', 'failed', 'skipped'
-    )),
-    
-    -- V3 CORRECTED: Reference to V3 core clinical tables
-    linked_clinical_event_id UUID REFERENCES patient_clinical_events(id),
-    linked_observation_id UUID REFERENCES patient_observations(id),
-    linked_intervention_id UUID REFERENCES patient_interventions(id),
-    linked_encounter_id UUID REFERENCES healthcare_encounters(id),
-    
-    -- Supplementary table references (optional detail linking)
-    linked_condition_id UUID REFERENCES patient_conditions(id),
-    linked_medication_id UUID REFERENCES patient_medications(id),
-    linked_immunization_id UUID REFERENCES patient_immunizations(id),
-    linked_vital_id UUID REFERENCES patient_vitals(id),
-    linked_allergy_id UUID REFERENCES patient_allergies(id),
-    
-    -- V3 Processing Results
-    extraction_results JSONB DEFAULT '{}',
-    clinical_coding_results JSONB DEFAULT '{}',
-    spatial_coordinates JSONB,
-    
-    -- V2 Profile Classification Results (Essential)
-    profile_classification_results JSONB DEFAULT '{}',
-    contamination_prevention_checks JSONB DEFAULT '{}',
-    identity_verification_results JSONB DEFAULT '{}',
-    
-    -- V2 Healthcare Standards Results (Schema-Driven)
-    medical_coding_results JSONB DEFAULT '{}',
-    healthcare_context_extraction JSONB DEFAULT '{}',
-    
-    -- V2 Spatial Processing Results
-    spatial_alignment_results JSONB DEFAULT '{}',
-    
-    -- Processing Metadata
-    processing_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processing_completed_at TIMESTAMPTZ,
-    processing_duration INTERVAL,
-    
-    -- Entity Content and Provenance
-    original_text TEXT,
-    processed_text TEXT,
-    confidence_breakdown JSONB DEFAULT '{}',
-    
-    -- Quality assurance
-    validation_status TEXT DEFAULT 'pending' CHECK (validation_status IN (
-        'pending', 'validated', 'requires_review', 'rejected', 'manual_override'
-    )),
-    validation_notes TEXT,
-    validated_by TEXT, -- User or system identifier
-    validated_at TIMESTAMPTZ,
-    
-    -- Audit Metadata
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    patient_id UUID NOT NULL REFERENCES user_profiles(id),
+
+    -- Entity Identity (Pass 1 Output)
+    entity_id TEXT NOT NULL,           -- Unique entity identifier from Pass 1
+    original_text TEXT NOT NULL,       -- Exact text as detected in document
+    entity_category TEXT NOT NULL CHECK (
+        entity_category IN ('clinical_event', 'healthcare_context', 'document_structure')
+    ),
+    entity_subtype TEXT NOT NULL,      -- Specific classification (vital_sign, medication, etc.)
+
+    -- Spatial and Context Information (OCR Integration)
+    unique_marker TEXT,                -- Searchable text pattern for entity relocation
+    location_context TEXT,             -- Where in document entity appears (e.g., "page 2, vitals section")
+    spatial_bbox JSONB,                -- Page coordinates for click-to-zoom functionality
+    page_number INTEGER,               -- Document page where entity appears
+
+    -- Pass 1 Processing Results
+    pass1_confidence NUMERIC(4,3) NOT NULL CHECK (pass1_confidence >= 0.0 AND pass1_confidence <= 1.0),
+    requires_schemas TEXT[] NOT NULL DEFAULT '{}',  -- Database schemas identified for Pass 2
+    processing_priority TEXT NOT NULL CHECK (
+        processing_priority IN ('highest', 'high', 'medium', 'low', 'logging_only')
+    ),
+
+    -- Pass 2 Processing Coordination
+    pass2_status TEXT NOT NULL DEFAULT 'pending' CHECK (
+        pass2_status IN ('pending', 'skipped', 'in_progress', 'completed', 'failed')
+    ),
+    pass2_confidence NUMERIC(4,3) CHECK (pass2_confidence >= 0.0 AND pass2_confidence <= 1.0),
+    pass2_started_at TIMESTAMPTZ,
+    pass2_completed_at TIMESTAMPTZ,
+    enrichment_errors TEXT,             -- Any errors during Pass 2 processing
+
+    -- Links to Final Clinical Data (The Complete Audit Trail)
+    final_event_id UUID REFERENCES patient_clinical_events(id),      -- Link to enriched clinical record
+    final_encounter_id UUID REFERENCES healthcare_encounters(id),    -- Link to encounter context
+    final_observation_id UUID REFERENCES patient_observations(id),   -- Link to observations
+    final_intervention_id UUID REFERENCES patient_interventions(id), -- Link to interventions
+    final_condition_id UUID REFERENCES patient_conditions(id),       -- Link to conditions
+    final_allergy_id UUID REFERENCES patient_allergies(id),         -- Link to allergies
+    final_vital_id UUID REFERENCES patient_vitals(id),              -- Link to vital signs
+
+    -- Processing Session Management
+    processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
+
+    -- AI Model and Performance Metadata
+    pass1_model_used TEXT NOT NULL,        -- AI model used for entity detection (GPT-4o, Claude Vision)
+    pass1_vision_processing BOOLEAN DEFAULT FALSE, -- Whether vision model was used
+    pass2_model_used TEXT,                 -- AI model used for enrichment (if applicable)
+    pass1_token_usage INTEGER,             -- Token consumption for Pass 1
+    pass1_image_tokens INTEGER,            -- Image tokens for vision models
+    pass2_token_usage INTEGER,             -- Token consumption for Pass 2
+    pass1_cost_estimate NUMERIC(8,4),      -- Cost estimate for Pass 1 processing
+    pass2_cost_estimate NUMERIC(8,4),      -- Cost estimate for Pass 2 processing
+
+    -- DUAL-INPUT PROCESSING METADATA
+    ai_visual_interpretation TEXT,          -- What AI vision model detected
+    visual_formatting_context TEXT,        -- Visual formatting description
+    ai_visual_confidence NUMERIC(4,3),     -- AI's confidence in visual interpretation
+
+    -- OCR CROSS-REFERENCE DATA
+    ocr_reference_text TEXT,               -- What OCR extracted for this entity
+    ocr_confidence NUMERIC(4,3),           -- OCR's confidence in the text
+    ocr_provider TEXT,                     -- OCR service used (google_vision, aws_textract)
+    ai_ocr_agreement_score NUMERIC(4,3),   -- 0.0-1.0 agreement between AI and OCR
+    spatial_mapping_source TEXT CHECK (
+        spatial_mapping_source IN ('ocr_exact', 'ocr_approximate', 'ai_estimated', 'none')
+    ),
+
+    -- DISCREPANCY TRACKING
+    discrepancy_type TEXT,                 -- Type of AI-OCR disagreement
+    discrepancy_notes TEXT,                -- Human-readable explanation of differences
+    visual_quality_assessment TEXT,        -- AI assessment of source image quality
+
+    -- Quality and Validation Metadata
+    validation_flags TEXT[] DEFAULT '{}',   -- Quality flags (low_confidence, high_discrepancy, etc.)
+    cross_validation_score NUMERIC(4,3),   -- Overall AI-OCR agreement quality
+    manual_review_required BOOLEAN DEFAULT FALSE,
+    manual_review_completed BOOLEAN DEFAULT FALSE,
+    manual_review_notes TEXT,
+    manual_reviewer_id UUID REFERENCES auth.users(id),
+
+    -- Profile Safety and Compliance
+    profile_verification_confidence NUMERIC(4,3),  -- Confidence in patient identity match
+    pii_sensitivity_level TEXT CHECK (pii_sensitivity_level IN ('none', 'low', 'medium', 'high')),
+    compliance_flags TEXT[] DEFAULT '{}',          -- HIPAA, Privacy Act compliance flags
+
+    -- Audit Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT valid_pass2_timing CHECK (
+        (pass2_started_at IS NULL AND pass2_completed_at IS NULL) OR
+        (pass2_started_at IS NOT NULL AND pass2_completed_at IS NULL) OR
+        (pass2_started_at IS NOT NULL AND pass2_completed_at IS NOT NULL AND pass2_completed_at >= pass2_started_at)
+    ),
+
+    CONSTRAINT valid_final_links CHECK (
+        -- Document structure entities should have no final links
+        (entity_category = 'document_structure' AND
+         final_event_id IS NULL AND final_encounter_id IS NULL AND
+         final_observation_id IS NULL AND final_intervention_id IS NULL AND
+         final_condition_id IS NULL AND final_allergy_id IS NULL AND final_vital_id IS NULL) OR
+        -- Other categories should have at least one final link after Pass 2 completion
+        (entity_category != 'document_structure')
+    )
 );
 
 -- =============================================================================
@@ -341,7 +385,7 @@ CREATE TABLE IF NOT EXISTS manual_review_queue (
 CREATE TABLE IF NOT EXISTS ai_confidence_scoring (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
-    entity_processing_audit_id UUID REFERENCES entity_processing_audit_v2(id) ON DELETE CASCADE,
+    entity_processing_audit_id UUID REFERENCES entity_processing_audit(id) ON DELETE CASCADE,
     
     -- Confidence breakdown
     entity_detection_confidence NUMERIC(4,3) CHECK (entity_detection_confidence BETWEEN 0 AND 1),
@@ -396,13 +440,27 @@ CREATE INDEX IF NOT EXISTS idx_ai_sessions_status ON ai_processing_sessions(sess
 CREATE INDEX IF NOT EXISTS idx_ai_sessions_review ON ai_processing_sessions(requires_human_review) WHERE requires_human_review = true;
 
 -- Entity processing audit indexes
-CREATE INDEX IF NOT EXISTS idx_entity_audit_session ON entity_processing_audit_v2(processing_session_id);
-CREATE INDEX IF NOT EXISTS idx_entity_audit_shell_file ON entity_processing_audit_v2(shell_file_id);
-CREATE INDEX IF NOT EXISTS idx_entity_audit_category ON entity_processing_audit_v2(entity_category, entity_subtype);
-CREATE INDEX IF NOT EXISTS idx_entity_audit_validation ON entity_processing_audit_v2(validation_status) WHERE validation_status != 'validated';
-CREATE INDEX IF NOT EXISTS idx_entity_audit_confidence ON entity_processing_audit_v2(pass1_confidence) WHERE pass1_confidence < 0.8;
-CREATE INDEX IF NOT EXISTS idx_entity_audit_clinical_event ON entity_processing_audit_v2(linked_clinical_event_id) WHERE linked_clinical_event_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_entity_audit_encounter ON entity_processing_audit_v2(linked_encounter_id) WHERE linked_encounter_id IS NOT NULL;
+-- Performance Indexes for entity_processing_audit
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_shell_file ON entity_processing_audit(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_patient ON entity_processing_audit(patient_id);
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_session ON entity_processing_audit(processing_session_id);
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_category ON entity_processing_audit(entity_category, entity_subtype);
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_pass2_status ON entity_processing_audit(pass2_status) WHERE pass2_status IN ('pending', 'in_progress');
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_manual_review ON entity_processing_audit(manual_review_required) WHERE manual_review_required = true;
+
+-- DUAL-INPUT SPECIFIC INDEXES
+CREATE INDEX IF NOT EXISTS idx_entity_audit_ai_ocr_agreement ON entity_processing_audit(ai_ocr_agreement_score);
+CREATE INDEX IF NOT EXISTS idx_entity_audit_visual_confidence ON entity_processing_audit(ai_visual_confidence);
+CREATE INDEX IF NOT EXISTS idx_entity_audit_cross_validation ON entity_processing_audit(cross_validation_score);
+CREATE INDEX IF NOT EXISTS idx_entity_audit_discrepancy ON entity_processing_audit(discrepancy_type) WHERE discrepancy_type IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_entity_audit_spatial_source ON entity_processing_audit(spatial_mapping_source);
+CREATE INDEX IF NOT EXISTS idx_entity_audit_vision_processing ON entity_processing_audit(pass1_vision_processing) WHERE pass1_vision_processing = true;
+
+-- Composite indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_processing ON entity_processing_audit(shell_file_id, processing_session_id, entity_category);
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_final_event ON entity_processing_audit(final_event_id) WHERE final_event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_spatial ON entity_processing_audit(shell_file_id, page_number) WHERE spatial_bbox IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_entity_audit_quality_review ON entity_processing_audit(ai_ocr_agreement_score, cross_validation_score) WHERE manual_review_required = false;
 
 -- Profile classification indexes
 CREATE INDEX IF NOT EXISTS idx_profile_class_session ON profile_classification_audit(processing_session_id);
@@ -430,7 +488,7 @@ CREATE INDEX IF NOT EXISTS idx_confidence_outlier ON ai_confidence_scoring(outli
 
 -- Enable RLS on all AI processing tables
 ALTER TABLE ai_processing_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE entity_processing_audit_v2 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE entity_processing_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profile_classification_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE manual_review_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_confidence_scoring ENABLE ROW LEVEL SECURITY;
@@ -450,20 +508,20 @@ CREATE POLICY ai_sessions_access ON ai_processing_sessions
     );
 
 -- Entity processing audit - profile-based access via session (idempotent)
-DROP POLICY IF EXISTS entity_audit_access ON entity_processing_audit_v2;
-CREATE POLICY entity_audit_access ON entity_processing_audit_v2
+DROP POLICY IF EXISTS entity_audit_access ON entity_processing_audit;
+CREATE POLICY entity_audit_access ON entity_processing_audit
     FOR ALL TO authenticated
     USING (
         EXISTS (
             SELECT 1 FROM ai_processing_sessions s
-            WHERE s.id = entity_processing_audit_v2.processing_session_id
+            WHERE s.id = entity_processing_audit.processing_session_id
             AND (has_profile_access(auth.uid(), s.patient_id) OR is_admin())
         )
     )
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM ai_processing_sessions s
-            WHERE s.id = entity_processing_audit_v2.processing_session_id
+            WHERE s.id = entity_processing_audit.processing_session_id
             AND (has_profile_access(auth.uid(), s.patient_id) OR is_admin())
         )
     );
@@ -675,7 +733,7 @@ BEGIN
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
     AND table_name IN (
-        'ai_processing_sessions', 'entity_processing_audit_v2', 'profile_classification_audit',
+        'ai_processing_sessions', 'entity_processing_audit', 'profile_classification_audit',
         'manual_review_queue', 'ai_confidence_scoring'
     );
     
@@ -696,7 +754,7 @@ BEGIN
     FROM pg_policies 
     WHERE schemaname = 'public' 
     AND tablename IN (
-        'ai_processing_sessions', 'entity_processing_audit_v2', 'profile_classification_audit',
+        'ai_processing_sessions', 'entity_processing_audit', 'profile_classification_audit',
         'manual_review_queue', 'ai_confidence_scoring'
     );
     

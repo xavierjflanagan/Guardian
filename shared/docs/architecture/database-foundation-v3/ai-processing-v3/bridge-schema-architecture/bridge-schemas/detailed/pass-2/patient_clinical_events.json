@@ -1,0 +1,450 @@
+{
+  "schema_version": "1.0.0",
+  "table": "patient_clinical_events",
+  "pass": "pass-2",
+  "description": "Central hub for all clinical activity using O3 two-axis classification system. This table serves as the primary repository for clinical events extracted from medical documents.",
+  "clinical_context": "Use this schema for extracting any clinical activity from medical documents, including observations (measurements, tests, assessments) and interventions (treatments, medications, procedures). The O3 two-axis system requires both WHAT was done (activity_type) and WHY it was done (clinical_purposes).",
+
+  "required_fields": [
+    "patient_id",
+    "shell_file_id",
+    "activity_type",
+    "clinical_purposes",
+    "event_name",
+    "event_date"
+  ],
+
+  "fields": {
+    "patient_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Patient identifier from processing context (not extracted from document)",
+      "required": true,
+      "example": "uuid-from-context"
+    },
+
+    "shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Source document identifier from processing context (not extracted from document)",
+      "required": true,
+      "example": "uuid-from-context"
+    },
+
+    "activity_type": {
+      "type": "enum",
+      "values": ["observation", "intervention"],
+      "description": "O3 Axis 1: What type of clinical activity occurred",
+      "required": true,
+      "examples": {
+        "observation": [
+          "Blood pressure measurement",
+          "Lab test result (glucose, cholesterol)",
+          "Physical examination finding",
+          "Vital signs recording",
+          "Diagnostic test result",
+          "Assessment score (PHQ-9, MMSE)"
+        ],
+        "intervention": [
+          "Medication administration",
+          "Surgical procedure",
+          "Vaccination",
+          "Physical therapy",
+          "Counseling session",
+          "Treatment application"
+        ]
+      },
+      "guidance": "Use 'observation' when information is gathered or measured. Use 'intervention' when an action is taken to treat or prevent."
+    },
+
+    "clinical_purposes": {
+      "type": "array",
+      "items": "enum",
+      "values": ["screening", "diagnostic", "therapeutic", "monitoring", "preventive"],
+      "minItems": 1,
+      "description": "O3 Axis 2: Why this clinical activity was performed (multiple purposes allowed)",
+      "required": true,
+      "purpose_definitions": {
+        "screening": "Routine health checks, preventive testing in asymptomatic patients",
+        "diagnostic": "Tests or exams to identify or confirm a specific condition",
+        "therapeutic": "Treatments aimed at curing or managing an existing disease",
+        "monitoring": "Tracking existing conditions or treatment effectiveness over time",
+        "preventive": "Actions to prevent future health problems or disease progression"
+      },
+      "examples": [
+        ["screening"],
+        ["diagnostic", "monitoring"],
+        ["therapeutic", "monitoring"],
+        ["preventive"]
+      ],
+      "guidance": "Select all applicable purposes. A blood pressure check during an annual physical would be ['screening', 'preventive']. A blood pressure check for a hypertensive patient would be ['monitoring']."
+    },
+
+    "event_name": {
+      "type": "string",
+      "description": "Clear, descriptive name of the clinical event",
+      "required": true,
+      "examples": [
+        "Blood Pressure Measurement",
+        "Annual Physical Examination",
+        "Influenza Vaccination",
+        "Glucose Blood Test",
+        "Lisinopril 10mg Administration",
+        "Dermatology Consultation"
+      ],
+      "guidance": "Be specific but concise. Include key details like medication names with dosages, or specific test types."
+    },
+
+    "event_date": {
+      "type": "timestamptz",
+      "format": "ISO 8601",
+      "description": "When the clinical event occurred",
+      "required": true,
+      "examples": [
+        "2025-09-30T14:30:00Z",
+        "2025-09-30T09:00:00-05:00",
+        "2025-09-30T00:00:00Z"
+      ],
+      "guidance": "Use full timestamp with timezone if available. If only date is known, use midnight UTC (00:00:00Z)."
+    },
+
+    "encounter_id": {
+      "type": "uuid",
+      "description": "Link to healthcare_encounters table if this event is part of a documented visit",
+      "required": false,
+      "example": "uuid-of-encounter",
+      "guidance": "Only populate if you've created or identified a corresponding healthcare_encounters record for the same visit."
+    },
+
+    "narrative_id": {
+      "type": "uuid",
+      "description": "Link to clinical_narratives (Pass 3 only, leave null in Pass 2)",
+      "required": false,
+      "default": null,
+      "guidance": "This field is populated by Pass 3 semantic processing. Always leave null in Pass 2."
+    },
+
+    "method": {
+      "type": "string",
+      "description": "How the clinical event was performed",
+      "required": false,
+      "examples": [
+        "physical_exam",
+        "laboratory",
+        "imaging",
+        "injection",
+        "surgery",
+        "oral_administration",
+        "assessment_tool"
+      ]
+    },
+
+    "body_site": {
+      "type": "string",
+      "description": "Anatomical location where event occurred or was observed",
+      "required": false,
+      "examples": [
+        "left_arm",
+        "chest",
+        "abdomen",
+        "left_ear",
+        "right_hand",
+        "lower_back"
+      ],
+      "guidance": "Use standard anatomical terms. Be as specific as the document allows."
+    },
+
+    "performed_by": {
+      "type": "string",
+      "description": "Healthcare provider or facility who performed the event",
+      "required": false,
+      "examples": [
+        "Dr. Sarah Johnson",
+        "Nurse Williams",
+        "City Medical Center Lab",
+        "Dr. John Smith, Cardiologist"
+      ]
+    },
+
+    "facility_name": {
+      "type": "string",
+      "description": "Healthcare facility where event occurred",
+      "required": false,
+      "examples": [
+        "City Medical Center",
+        "Community Health Clinic",
+        "Memorial Hospital"
+      ]
+    },
+
+    "service_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Service date if different from event_date",
+      "required": false,
+      "example": "2025-09-30"
+    },
+
+    "snomed_code": {
+      "type": "string",
+      "description": "SNOMED CT code for clinical concepts",
+      "required": false,
+      "example": "75367002",
+      "guidance": "Only include if you can confidently identify the correct code. Leave blank if uncertain."
+    },
+
+    "loinc_code": {
+      "type": "string",
+      "description": "LOINC code for observations and lab tests",
+      "required": false,
+      "example": "8480-6",
+      "guidance": "Primarily for lab tests and observations. Only include if confident."
+    },
+
+    "cpt_code": {
+      "type": "string",
+      "description": "CPT code for procedures and services",
+      "required": false,
+      "example": "99213",
+      "guidance": "Only include if explicitly stated or clearly identifiable."
+    },
+
+    "icd10_code": {
+      "type": "string",
+      "description": "ICD-10 diagnosis code",
+      "required": false,
+      "example": "I10",
+      "guidance": "Only include if diagnosis code is explicitly stated in document."
+    },
+
+    "ai_extracted": {
+      "type": "boolean",
+      "description": "Always true for AI-extracted events",
+      "required": true,
+      "default": true
+    },
+
+    "ai_confidence": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in the extraction (0.000-1.000)",
+      "required": true,
+      "examples": [0.950, 0.875, 0.600],
+      "guidance": "Be honest about confidence. Use <0.700 if information is unclear or ambiguous."
+    },
+
+    "ai_model_version": {
+      "type": "string",
+      "description": "AI model version used for extraction",
+      "required": true,
+      "default": "v3"
+    },
+
+    "entity_id": {
+      "type": "string",
+      "description": "Links back to Pass 1 entity detection",
+      "required": false,
+      "example": "ent_clinical_001",
+      "guidance": "Use the entity_id from Pass 1 if this event corresponds to a detected entity."
+    },
+
+    "confidence_score": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "Overall confidence score for this record",
+      "required": false,
+      "guidance": "Can be same as ai_confidence or a composite score."
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag if this record needs human review",
+      "required": true,
+      "default": false,
+      "guidance": "Set to true if ai_confidence < 0.700 or if there's ambiguity."
+    },
+
+    "ai_processing_version": {
+      "type": "string",
+      "description": "AI processing pipeline version",
+      "required": true,
+      "default": "v3"
+    },
+
+    "entity_extraction_completed": {
+      "type": "boolean",
+      "description": "Pass 1 entity detection completion status",
+      "required": true,
+      "guidance": "Set to true if Pass 1 successfully detected this entity."
+    },
+
+    "clinical_data_extracted": {
+      "type": "boolean",
+      "description": "Pass 2 clinical enrichment completion status",
+      "required": true,
+      "guidance": "Set to true when successfully populating this record in Pass 2."
+    },
+
+    "requires_manual_review": {
+      "type": "boolean",
+      "description": "Escalation flag for manual review queue",
+      "required": true,
+      "default": false,
+      "guidance": "Set to true for safety-critical items with low confidence (e.g., medications, allergies)."
+    },
+
+    "ai_confidence_scores": {
+      "type": "jsonb",
+      "description": "Detailed confidence scores by field or aspect",
+      "required": false,
+      "default": {},
+      "example": {
+        "activity_type": 0.980,
+        "event_name": 0.920,
+        "event_date": 0.850,
+        "clinical_purposes": 0.900
+      }
+    },
+
+    "ai_document_summary": {
+      "type": "string",
+      "description": "Overall document summary (if this is a primary event)",
+      "required": false,
+      "example": "7-day hospital stay for cardiac evaluation with stent placement"
+    },
+
+    "ai_file_purpose": {
+      "type": "string",
+      "description": "Document purpose assessment",
+      "required": false,
+      "example": "Post-surgical discharge planning with follow-up care instructions"
+    },
+
+    "ai_key_findings": {
+      "type": "array",
+      "items": "string",
+      "description": "Key findings from the document",
+      "required": false,
+      "example": ["Successful stent placement", "Blood pressure stable", "Home care approved"]
+    },
+
+    "ai_file_confidence": {
+      "type": "numeric",
+      "precision": 2,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Overall file analysis confidence (0.00-1.00)",
+      "required": false,
+      "example": 0.95
+    },
+
+    "coding_confidence": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "Confidence in medical coding assignments",
+      "required": false,
+      "example": 0.850
+    },
+
+    "coding_method": {
+      "type": "enum",
+      "values": ["automated_ai", "manual_verification", "hybrid_validation"],
+      "description": "How medical codes were assigned",
+      "required": false,
+      "default": "automated_ai"
+    },
+
+    "contains_phi": {
+      "type": "boolean",
+      "description": "Contains Protected Health Information",
+      "required": false,
+      "default": true,
+      "guidance": "Assume true unless you're certain the event contains no PHI."
+    },
+
+    "retention_period": {
+      "type": "interval",
+      "description": "Data retention period (PostgreSQL INTERVAL)",
+      "required": false,
+      "default": "7 years",
+      "example": "7 years"
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Blood pressure measurement during routine check-up",
+      "extraction": {
+        "activity_type": "observation",
+        "clinical_purposes": ["screening", "monitoring"],
+        "event_name": "Blood Pressure Measurement",
+        "method": "physical_exam",
+        "body_site": "left_arm",
+        "event_date": "2025-09-30T14:30:00Z",
+        "performed_by": "Dr. Sarah Johnson",
+        "facility_name": "City Medical Center",
+        "snomed_code": "75367002",
+        "ai_extracted": true,
+        "ai_confidence": 0.960,
+        "ai_model_version": "v3",
+        "entity_extraction_completed": true,
+        "clinical_data_extracted": true,
+        "requires_review": false,
+        "requires_manual_review": false,
+        "ai_processing_version": "v3",
+        "contains_phi": true
+      }
+    },
+    {
+      "description": "Medication administration for hypertension",
+      "extraction": {
+        "activity_type": "intervention",
+        "clinical_purposes": ["therapeutic", "monitoring"],
+        "event_name": "Lisinopril 10mg Administration",
+        "method": "oral_administration",
+        "event_date": "2025-09-30T09:00:00Z",
+        "performed_by": "Nurse Williams",
+        "facility_name": "Community Health Clinic",
+        "snomed_code": "386873009",
+        "ai_extracted": true,
+        "ai_confidence": 0.875,
+        "ai_model_version": "v3",
+        "requires_review": true,
+        "requires_manual_review": false,
+        "entity_extraction_completed": true,
+        "clinical_data_extracted": true,
+        "ai_processing_version": "v3",
+        "coding_method": "automated_ai",
+        "coding_confidence": 0.850,
+        "contains_phi": true
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "required_field_strategy": "Always extract the 6 required fields. If you cannot confidently extract these, flag the record for manual review rather than guessing.",
+    "confidence_thresholds": {
+      "high_confidence": ">= 0.900",
+      "medium_confidence": "0.700 - 0.899",
+      "low_confidence": "< 0.700 (requires_review = true)"
+    },
+    "safety_critical_items": "For medications, allergies, and critical diagnoses, set requires_manual_review = true if confidence < 0.900",
+    "multiple_purposes": "Many clinical events serve multiple purposes. A medication administration is often both 'therapeutic' and 'monitoring'. Don't hesitate to select multiple clinical_purposes.",
+    "context_vs_extraction": "patient_id and shell_file_id come from the processing context, not the document. Never attempt to extract UUIDs from document text."
+  },
+
+  "validation_rules": {
+    "activity_type": "Must be exactly 'observation' or 'intervention'",
+    "clinical_purposes": "Must be a non-empty array with at least one valid purpose",
+    "event_date": "Must be valid ISO 8601 timestamptz format",
+    "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
+    "ai_file_confidence": "Must be between 0.00 and 1.00 with 2 decimal places",
+    "uuid_fields": "All UUID fields must be valid UUID v4 format"
+  }
+}

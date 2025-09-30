@@ -1,7 +1,12 @@
 -- =============================================================================
 -- 03_CLINICAL_CORE.SQL - V3 Semantic Document Architecture & Clinical Data Hub
 -- =============================================================================
--- VERSION: 1.1 (HOTFIX 2025-09-02: GPT-5 reliability fixes)
+-- VERSION: 2.0 (MAJOR UPDATE 2025-09-26: Migration Integration)
+--   - Added temporal data management enhancements (from migration 02)
+--   - Added narrative vector embeddings and versioning (from migration 03)
+--   - Added medical code resolution system (from migration 04)
+--   - Integrated all successfully deployed migration components
+-- PREVIOUS: 1.1 (HOTFIX 2025-09-02: GPT-5 reliability fixes)
 --   - Added is_admin() dependency check in preflight validation
 --   - Made fk_clinical_events_encounter constraint addition idempotent
 -- Purpose: V3 semantic document architecture with shell files + clinical narratives + comprehensive clinical data management
@@ -18,17 +23,22 @@
 -- - Job coordination ready: Integration with V3 job queue system for async processing
 -- - Business analytics: Processing cost estimation and duration tracking
 -- 
--- TABLES CREATED (19 tables):
--- Medical Coding Reference:
---   - medical_condition_codes, medication_reference
--- V3 Semantic Architecture (7 tables):
+-- TABLES CREATED (28 tables):
+-- Note: medical_condition_codes and medication_reference removed in migration 06 (vestigial cleanup)
+-- V3 Semantic Architecture (9 tables):
 --   - shell_files, clinical_narratives
---   - narrative_condition_links, narrative_medication_links, narrative_allergy_links
---   - narrative_immunization_links, narrative_vital_links, narrative_source_mappings
+--   - narrative_event_links (generic), narrative_source_mappings
+--   - narrative_relationships, narrative_event_links (added from migration 03)
 -- Clinical Data Hub (10 tables):
 --   - patient_clinical_events, patient_observations, patient_interventions
 --   - healthcare_encounters, healthcare_timeline_events
 --   - patient_conditions, patient_allergies, patient_vitals, patient_immunizations, patient_medications
+-- Temporal Data Management (3 tables from migration 02):
+--   - temporal_audit_log, identity_audit_log, temporal_processing_log
+-- Medical Code Resolution (4 tables from migration 04):
+--   - universal_medical_codes, regional_medical_codes, medical_code_assignments, code_resolution_log
+-- Analytics (2 materialized views):
+--   - temporal_data_summary, supersession_chains_summary
 -- 
 -- KEY INNOVATIONS:
 -- - shell_files.ai_synthesized_summary: Post-Pass 3 synthesis replaces primitive document intelligence
@@ -66,92 +76,14 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- SECTION 1: MEDICAL CODING REFERENCE TABLES
+-- SECTION 1: MEDICAL CODING REFERENCE (REMOVED)
 -- =============================================================================
--- Note: Creating reference tables first so clinical tables can reference them
-
--- Medical condition codes (ICD-10, SNOMED-CT)
-CREATE TABLE IF NOT EXISTS medical_condition_codes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    -- Code identifiers
-    code TEXT NOT NULL,
-    code_system TEXT NOT NULL CHECK (code_system IN ('icd10', 'snomed', 'custom')),
-    
-    -- Descriptive information
-    display_name TEXT NOT NULL,
-    description TEXT,
-    category TEXT,
-    
-    -- Hierarchy and relationships
-    parent_code TEXT,
-    code_level INTEGER DEFAULT 1,
-    is_billable BOOLEAN DEFAULT TRUE,
-    
-    -- Clinical context
-    severity_indicator TEXT CHECK (severity_indicator IN ('mild', 'moderate', 'severe', 'critical')),
-    chronic_indicator BOOLEAN DEFAULT FALSE,
-    
-    -- Australian healthcare specifics
-    medicare_item_numbers TEXT[], -- Australian Medicare item numbers
-    pbs_codes TEXT[], -- Pharmaceutical Benefits Scheme codes
-    
-    -- Metadata
-    version TEXT, -- Code system version
-    effective_date DATE,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'deprecated', 'retired')),
-    
-    -- Lifecycle
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- Constraints
-    UNIQUE(code, code_system)
-);
-
--- Medication reference database (RxNorm, PBS codes)
-CREATE TABLE IF NOT EXISTS medication_reference (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    -- Medication identifiers
-    rxnorm_code TEXT, -- US RxNorm code
-    pbs_code TEXT, -- Australian PBS code
-    atc_code TEXT, -- WHO Anatomical Therapeutic Chemical code
-    ndc_code TEXT, -- National Drug Code (US)
-    
-    -- Drug information
-    generic_name TEXT NOT NULL,
-    brand_names TEXT[], -- Array of brand names
-    drug_class TEXT,
-    therapeutic_category TEXT,
-    
-    -- Dosage and formulation
-    strength TEXT,
-    dosage_form TEXT, -- 'tablet', 'capsule', 'injection', etc.
-    route_of_administration TEXT[], -- 'oral', 'injection', 'topical', etc.
-    
-    -- Australian PBS specifics
-    pbs_restriction_code TEXT,
-    pbs_prescriber_type TEXT,
-    pbs_copayment_amount NUMERIC(10,2),
-    
-    -- Safety information
-    pregnancy_category TEXT, -- Australian pregnancy categories
-    controlled_substance_class TEXT,
-    black_box_warning BOOLEAN DEFAULT FALSE,
-    
-    -- Clinical context
-    common_indications TEXT[],
-    contraindications TEXT[],
-    
-    -- Metadata
-    approval_date DATE,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'discontinued', 'withdrawn')),
-    
-    -- Lifecycle
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Note: medical_condition_codes and medication_reference tables removed in migration 06
+-- These were vestigial empty tables with FK references but no data or queries
+-- Medical code resolution now uses only vector-based system:
+--   - universal_medical_codes (embedded reference library)
+--   - regional_medical_codes (embedded reference library)
+--   - medical_code_assignments (AI-created assignments)
 
 -- =============================================================================
 -- =============================================================================
@@ -260,11 +192,49 @@ CREATE TABLE IF NOT EXISTS clinical_narratives (
         'ai_pass_3', 'manual_creation', 'template_based', 'migration_legacy'
     )),
     pass_3_processing_duration INTERVAL,
-    
+
     -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Add narrative enhancements from migration 03 (vector embeddings and versioning)
+DO $$
+BEGIN
+    -- Add vector embedding column for semantic search
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                   WHERE c.table_name = 'clinical_narratives' AND c.column_name = 'narrative_embedding') THEN
+        ALTER TABLE clinical_narratives ADD COLUMN narrative_embedding VECTOR(1536);
+        RAISE NOTICE 'Added narrative_embedding column to clinical_narratives';
+    END IF;
+
+    -- Add versioning columns for narrative evolution
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                   WHERE c.table_name = 'clinical_narratives' AND c.column_name = 'is_current') THEN
+        ALTER TABLE clinical_narratives ADD COLUMN is_current BOOLEAN NOT NULL DEFAULT TRUE;
+        RAISE NOTICE 'Added is_current column to clinical_narratives';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                   WHERE c.table_name = 'clinical_narratives' AND c.column_name = 'supersedes_id') THEN
+        ALTER TABLE clinical_narratives ADD COLUMN supersedes_id UUID REFERENCES clinical_narratives(id);
+        RAISE NOTICE 'Added supersedes_id column to clinical_narratives';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                   WHERE c.table_name = 'clinical_narratives' AND c.column_name = 'content_fingerprint') THEN
+        ALTER TABLE clinical_narratives ADD COLUMN content_fingerprint TEXT;
+        RAISE NOTICE 'Added content_fingerprint column to clinical_narratives';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                   WHERE c.table_name = 'clinical_narratives' AND c.column_name = 'semantic_tags') THEN
+        ALTER TABLE clinical_narratives ADD COLUMN semantic_tags JSONB DEFAULT '[]'::jsonb;
+        RAISE NOTICE 'Added semantic_tags column to clinical_narratives';
+    END IF;
+
+    RAISE NOTICE 'Clinical narratives enhanced with vector embeddings and versioning support';
+END $$;
 
 -- NOTE: Clinical Narrative Linking System moved to Section 4B after all clinical tables are created
 
@@ -566,15 +536,15 @@ CREATE TABLE IF NOT EXISTS patient_conditions (
     -- NARRATIVE LINKING SYSTEM - Core UX Feature
     shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Source file reference
     primary_narrative_id UUID REFERENCES clinical_narratives(id) ON DELETE SET NULL, -- Primary storyline for this condition
-    -- Note: Full narrative linking handled by narrative_condition_links table (many-to-many)
+    -- Note: Full narrative linking handled by narrative_event_links table (generic many-to-many)
     
     -- Condition details
     condition_name TEXT NOT NULL,
     condition_code TEXT,
     condition_system TEXT CHECK (condition_system IN ('icd10', 'snomed', 'custom')),
     
-    -- Reference to medical codes
-    medical_condition_code_id UUID REFERENCES medical_condition_codes(id),
+    -- Note: medical_condition_code_id FK column removed in migration 06 (vestigial cleanup)
+    -- Medical codes now assigned via medical_code_assignments table
     
     -- Clinical context
     severity TEXT CHECK (severity IN ('mild', 'moderate', 'severe', 'critical')),
@@ -618,8 +588,8 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
     )),
     allergen_code TEXT, -- RxNorm, UNII, etc.
     
-    -- Reference to medication if applicable
-    medication_reference_id UUID REFERENCES medication_reference(id),
+    -- Note: medication_reference_id FK column removed in migration 06 (vestigial cleanup)
+    -- Medical codes now assigned via medical_code_assignments table
     
     -- Reaction details
     reaction_type TEXT CHECK (reaction_type IN (
@@ -770,8 +740,8 @@ CREATE TABLE IF NOT EXISTS patient_medications (
     generic_name TEXT,
     brand_name TEXT,
     
-    -- Reference to medication database
-    medication_reference_id UUID REFERENCES medication_reference(id),
+    -- Note: medication_reference_id FK column removed in migration 06 (vestigial cleanup)
+    -- Medical codes now assigned via medical_code_assignments table
     rxnorm_code TEXT,
     pbs_code TEXT,
     atc_code TEXT,
@@ -824,129 +794,515 @@ CREATE TABLE IF NOT EXISTS patient_medications (
 -- Enables storytelling UX where every clinical item tells its narrative story
 -- MOVED HERE: After all clinical tables are created to avoid forward references
 
--- Clinical Narrative to Conditions Linking
-CREATE TABLE IF NOT EXISTS narrative_condition_links (
+-- NOTE: narrative_condition_links table removed in migration 05 (2025-09-29)
+-- Replaced by generic narrative_event_links table for all entity linking
+
+-- NOTE: Specific narrative linking tables removed in migration 05 (2025-09-29)
+-- Tables removed: narrative_medication_links, narrative_allergy_links,
+-- narrative_immunization_links, narrative_vital_links
+-- Replaced by generic narrative_event_links table for all entity linking
+
+-- Additional narrative relationship tables from migration 03
+CREATE TABLE IF NOT EXISTS narrative_relationships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    condition_id UUID NOT NULL REFERENCES patient_conditions(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'primary_focus', 'secondary_condition', 'comorbidity', 'differential_diagnosis', 'resolved_condition'
+
+    -- Relationship participants
+    source_narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+    target_narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
+
+    -- Relationship classification
+    relationship_type TEXT NOT NULL CHECK (relationship_type IN (
+        'temporal_sequence', 'causal_relationship', 'context_sharing', 'contradictory_information',
+        'supporting_evidence', 'update_relationship', 'treatment_response', 'diagnostic_evolution'
     )),
-    clinical_relevance TEXT NOT NULL CHECK (clinical_relevance IN ('primary', 'secondary', 'contextual', 'historical')),
-    
-    -- Narrative Context
-    condition_role_in_narrative TEXT, -- "This diabetes management journey focuses on optimizing blood sugar control"
-    narrative_impact_on_condition TEXT, -- "Resulted in A1C improvement from 8.2% to 6.8%"
-    
-    -- Timeline Context  
-    condition_phase TEXT, -- "initial_diagnosis", "active_management", "stable_control", "complication_management"
-    condition_status_at_narrative TEXT, -- "newly_diagnosed", "well_controlled", "poorly_controlled", "resolved"
-    
+    relationship_strength DECIMAL(3,2) NOT NULL CHECK (relationship_strength BETWEEN 0.0 AND 1.0),
+
+    -- Clinical context
+    clinical_rationale TEXT NOT NULL,
+    temporal_relationship TEXT CHECK (temporal_relationship IN ('before', 'after', 'concurrent', 'overlapping')),
+
+    -- Confidence and validation
+    confidence_score DECIMAL(3,2) NOT NULL CHECK (confidence_score BETWEEN 0.0 AND 1.0),
+    validation_status TEXT NOT NULL DEFAULT 'ai_generated' CHECK (validation_status IN (
+        'ai_generated', 'clinically_validated', 'patient_confirmed', 'requires_review'
+    )),
+
+    -- Processing metadata
+    created_by_ai_pass TEXT DEFAULT 'pass_3',
+    relationship_source TEXT DEFAULT 'semantic_analysis',
+
     -- Audit
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, condition_id)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Prevent self-references and duplicate relationships
+    CONSTRAINT no_self_reference CHECK (source_narrative_id != target_narrative_id),
+    UNIQUE(source_narrative_id, target_narrative_id, relationship_type)
 );
 
--- Clinical Narrative to Medications Linking  
-CREATE TABLE IF NOT EXISTS narrative_medication_links (
+CREATE TABLE IF NOT EXISTS narrative_event_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Link participants
     narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    medication_id UUID NOT NULL REFERENCES patient_medications(id) ON DELETE CASCADE,
-    
-    -- Link Classification
+    clinical_event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE,
+
+    -- Link classification
     link_type TEXT NOT NULL CHECK (link_type IN (
-        'primary_treatment', 'adjunct_therapy', 'symptom_management', 'preventive_medication', 'discontinued_medication'
+        'primary_event', 'supporting_event', 'contextual_event', 'temporal_marker', 'outcome_event'
     )),
-    medication_role TEXT NOT NULL, -- "Initial first-line therapy for diabetes management"
-    
-    -- Clinical Context in Narrative
-    prescription_context TEXT, -- "Started after failed dietary modifications"
-    therapeutic_outcome TEXT, -- "Achieved target A1C reduction with excellent tolerance"
-    medication_narrative_impact TEXT, -- "Key medication in diabetes control journey"
-    
-    -- Timeline Context
-    medication_phase TEXT, -- "initiation", "optimization", "maintenance", "discontinuation"
-    dosage_at_narrative TEXT, -- Medication dosage during this narrative timeframe
-    
+    clinical_significance TEXT NOT NULL CHECK (clinical_significance IN ('primary', 'secondary', 'contextual')),
+
+    -- Event role in narrative
+    event_role_description TEXT,
+    narrative_context TEXT,
+    temporal_position TEXT CHECK (temporal_position IN ('beginning', 'middle', 'end', 'throughout')),
+
+    -- Clinical correlation
+    clinical_correlation_strength DECIMAL(3,2) CHECK (clinical_correlation_strength BETWEEN 0.0 AND 1.0),
+
     -- Audit
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, medication_id)
+
+    UNIQUE(narrative_id, clinical_event_id)
 );
 
--- Clinical Narrative to Allergies Linking
-CREATE TABLE IF NOT EXISTS narrative_allergy_links (
+-- Narrative utility functions from migration 03
+CREATE OR REPLACE FUNCTION detect_narrative_cycles(
+    p_source_narrative_id UUID,
+    p_target_narrative_id UUID
+) RETURNS BOOLEAN AS $$
+DECLARE
+    relationship RECORD;
+    visited_narratives UUID[] := ARRAY[]::UUID[];
+    current_narrative UUID;
+    queue UUID[];
+BEGIN
+    -- BFS to detect cycles
+    queue := ARRAY[p_source_narrative_id];
+
+    WHILE array_length(queue, 1) > 0 LOOP
+        current_narrative := queue[1];
+        queue := queue[2:];
+
+        -- Check if we've reached the target (cycle detected)
+        IF current_narrative = p_target_narrative_id THEN
+            RETURN TRUE;
+        END IF;
+
+        -- Skip if already visited
+        IF current_narrative = ANY(visited_narratives) THEN
+            CONTINUE;
+        END IF;
+
+        visited_narratives := visited_narratives || current_narrative;
+
+        -- Add children to queue
+        FOR relationship IN
+            SELECT target_narrative_id
+            FROM narrative_relationships
+            WHERE source_narrative_id = current_narrative
+        LOOP
+            IF relationship.target_narrative_id NOT IN (SELECT unnest(visited_narratives)) THEN
+                queue := queue || relationship.target_narrative_id;
+            END IF;
+        END LOOP;
+    END LOOP;
+
+    RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION get_current_narratives(p_patient_id UUID)
+RETURNS TABLE (
+    narrative_id UUID,
+    clinical_classification TEXT,
+    ai_narrative_summary TEXT,
+    ai_narrative_confidence NUMERIC,
+    narrative_start_date TIMESTAMPTZ,
+    narrative_end_date TIMESTAMPTZ,
+    is_ongoing BOOLEAN
+) AS $$
+BEGIN
+    -- Verify profile access
+    IF NOT has_profile_access(auth.uid(), p_patient_id) AND NOT is_admin() THEN
+        RAISE EXCEPTION 'Access denied to profile data';
+    END IF;
+
+    RETURN QUERY
+    SELECT
+        cn.id,
+        cn.clinical_classification,
+        cn.ai_narrative_summary,
+        cn.ai_narrative_confidence,
+        cn.narrative_start_date,
+        cn.narrative_end_date,
+        cn.is_ongoing
+    FROM clinical_narratives cn
+    WHERE cn.patient_id = p_patient_id
+    AND cn.is_current = TRUE
+    AND (cn.ai_narrative_confidence IS NULL OR cn.ai_narrative_confidence >= 0.7)
+    ORDER BY cn.narrative_start_date DESC NULLS LAST;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+CREATE OR REPLACE FUNCTION find_similar_narratives(
+    p_narrative_embedding vector,
+    p_patient_id UUID,
+    p_similarity_threshold REAL DEFAULT 0.7,
+    p_limit INTEGER DEFAULT 10
+) RETURNS TABLE (
+    narrative_id UUID,
+    clinical_classification TEXT,
+    ai_narrative_summary TEXT,
+    similarity_score REAL,
+    is_current BOOLEAN
+) AS $$
+BEGIN
+    -- Verify profile access
+    IF NOT has_profile_access(auth.uid(), p_patient_id) AND NOT is_admin() THEN
+        RAISE EXCEPTION 'Access denied to profile data';
+    END IF;
+
+    RETURN QUERY
+    SELECT
+        cn.id,
+        cn.clinical_classification,
+        cn.ai_narrative_summary,
+        (1 - (cn.narrative_embedding <=> p_narrative_embedding))::REAL as similarity_score,
+        cn.is_current
+    FROM clinical_narratives cn
+    WHERE cn.patient_id = p_patient_id
+    AND cn.narrative_embedding IS NOT NULL
+    AND (1 - (cn.narrative_embedding <=> p_narrative_embedding)) >= p_similarity_threshold
+    ORDER BY cn.narrative_embedding <=> p_narrative_embedding
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- =============================================================================
+-- SECTION 4C: TEMPORAL DATA MANAGEMENT ENHANCEMENTS (FROM MIGRATION 02)
+-- =============================================================================
+-- Added after successful deployment of migration 02 - temporal data management
+
+-- Add temporal columns to all clinical tables for deduplication and versioning
+DO $$
+DECLARE
+    clinical_tables TEXT[] := ARRAY[
+        'patient_medications', 'patient_conditions', 'patient_allergies',
+        'patient_vitals', 'patient_immunizations', 'patient_interventions',
+        'patient_observations', 'healthcare_encounters', 'healthcare_timeline_events'
+    ];
+    table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY clinical_tables LOOP
+        -- Add temporal columns if they don't exist (from migration 02)
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'clinical_event_id') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN clinical_event_id UUID REFERENCES patient_clinical_events(id)';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'primary_narrative_id') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN primary_narrative_id UUID REFERENCES clinical_narratives(id)';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'valid_from') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW()';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'valid_to') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN valid_to TIMESTAMPTZ NULL';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'superseded_by_record_id') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN superseded_by_record_id UUID REFERENCES ' || table_name || '(id) ON DELETE SET NULL';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'supersession_reason') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN supersession_reason TEXT';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'is_current') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN is_current BOOLEAN GENERATED ALWAYS AS (valid_to IS NULL) STORED';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'clinical_effective_date') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN clinical_effective_date DATE';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'date_confidence') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN date_confidence TEXT CHECK (date_confidence IN (''high'', ''medium'', ''low'', ''conflicted''))';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'extracted_dates') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN extracted_dates JSONB DEFAULT ''[]''::jsonb';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'date_source') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN date_source TEXT CHECK (date_source IN (''clinical_content'', ''document_date'', ''file_metadata'', ''upload_timestamp'', ''user_provided''))';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'date_conflicts') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN date_conflicts JSONB DEFAULT ''[]''::jsonb';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'date_resolution_reason') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN date_resolution_reason TEXT';
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns c
+                       WHERE c.table_name = table_name AND c.column_name = 'clinical_identity_key') THEN
+            EXECUTE 'ALTER TABLE ' || table_name || ' ADD COLUMN clinical_identity_key TEXT';
+        END IF;
+
+        RAISE NOTICE 'Added temporal columns to %', table_name;
+    END LOOP;
+END $$;
+
+-- Temporal audit tables from migration 02 (exact tables created)
+CREATE TABLE IF NOT EXISTS clinical_entity_supersession_audit (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    allergy_id UUID NOT NULL REFERENCES patient_allergies(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'discovery_event', 'reaction_occurrence', 'avoidance_context', 'historical_reference'
-    )),
-    
-    -- Narrative Context
-    discovery_circumstances TEXT, -- "Discovered during initial antibiotic treatment for pneumonia"
-    reaction_description_in_narrative TEXT, -- "Patient developed urticaria within 2 hours of amoxicillin administration"
-    clinical_impact TEXT, -- "Required antibiotic change and delayed recovery"
-    
-    -- Timeline Context
-    allergy_status_at_narrative TEXT, -- "newly_discovered", "known_allergy", "suspected_allergy"
-    
-    -- Audit  
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, allergy_id)
+    patient_id UUID NOT NULL REFERENCES user_profiles(id),
+    superseded_entity_id UUID NOT NULL,
+    superseding_entity_id UUID NOT NULL,
+    entity_table TEXT NOT NULL,
+    supersession_reason TEXT,
+    supersession_confidence DECIMAL(3,2) CHECK (supersession_confidence BETWEEN 0.00 AND 1.00),
+    supersession_details JSONB DEFAULT '{}',
+    performed_at TIMESTAMPTZ DEFAULT NOW(),
+    performed_by_worker TEXT DEFAULT 'temporal_deduplication_system'
 );
 
--- Clinical Narrative to Immunizations Linking
-CREATE TABLE IF NOT EXISTS narrative_immunization_links (
+CREATE TABLE IF NOT EXISTS clinical_identity_audit (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    immunization_id UUID NOT NULL REFERENCES patient_immunizations(id) ON DELETE CASCADE,
-    
-    -- Link Classification  
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'routine_vaccination', 'travel_preparation', 'high_risk_indication', 'outbreak_response', 'occupational_requirement'
+    patient_id UUID NOT NULL REFERENCES user_profiles(id),
+    clinical_entity_id UUID NOT NULL,
+    entity_table TEXT NOT NULL,
+    clinical_identity_key TEXT NOT NULL,
+    identity_generation_method TEXT DEFAULT 'generated_column',
+    identity_hash_version TEXT DEFAULT 'v1',
+    identity_fields_used JSONB DEFAULT '{}',
+    identity_confidence DECIMAL(3,2) CHECK (identity_confidence BETWEEN 0.00 AND 1.00),
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS temporal_resolution_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES user_profiles(id),
+    clinical_entity_id UUID NOT NULL,
+    entity_table TEXT NOT NULL,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id),
+    original_dates JSONB DEFAULT '[]'::jsonb,
+    resolved_clinical_date DATE,
+    date_confidence TEXT CHECK (date_confidence IN ('high', 'medium', 'low', 'conflicted')),
+    date_source TEXT CHECK (date_source IN ('clinical_content', 'document_date', 'file_metadata', 'upload_timestamp', 'user_provided')),
+    resolution_reason TEXT,
+    conflicts_detected JSONB DEFAULT '[]'::jsonb,
+    resolved_at TIMESTAMPTZ DEFAULT NOW(),
+    resolved_by_system TEXT DEFAULT 'temporal_date_resolver'
+);
+
+CREATE TABLE IF NOT EXISTS deduplication_processing_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES user_profiles(id),
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id),
+    processing_status TEXT NOT NULL DEFAULT 'processing' CHECK (processing_status IN ('processing', 'completed', 'failed', 'cancelled')),
+    entities_processed INTEGER DEFAULT 0,
+    duplicates_found INTEGER DEFAULT 0,
+    supersessions_created INTEGER DEFAULT 0,
+    processing_start_time TIMESTAMPTZ DEFAULT NOW(),
+    processing_end_time TIMESTAMPTZ,
+    processing_duration_ms INTEGER,
+    error_details JSONB DEFAULT '{}',
+    performance_metrics JSONB DEFAULT '{}'
+);
+
+-- Materialized view for current clinical state (from migration 02)
+CREATE MATERIALIZED VIEW IF NOT EXISTS patient_current_clinical_state AS
+SELECT
+  patient_id, 'medication' as entity_type, clinical_identity_key,
+  id as current_record_id, clinical_effective_date, date_confidence,
+  superseded_by_record_id, valid_from, valid_to
+FROM patient_medications WHERE is_current = TRUE
+UNION ALL
+SELECT
+  patient_id, 'condition' as entity_type, clinical_identity_key,
+  id as current_record_id, clinical_effective_date, date_confidence,
+  superseded_by_record_id, valid_from, valid_to
+FROM patient_conditions WHERE is_current = TRUE
+UNION ALL
+SELECT
+  patient_id, 'allergy' as entity_type, clinical_identity_key,
+  id as current_record_id, clinical_effective_date, date_confidence,
+  superseded_by_record_id, valid_from, valid_to
+FROM patient_allergies WHERE is_current = TRUE
+UNION ALL
+SELECT
+  patient_id, 'vital' as entity_type, clinical_identity_key,
+  id as current_record_id, clinical_effective_date, date_confidence,
+  superseded_by_record_id, valid_from, valid_to
+FROM patient_vitals WHERE is_current = TRUE
+UNION ALL
+SELECT
+  patient_id, 'immunization' as entity_type, clinical_identity_key,
+  id as current_record_id, clinical_effective_date, date_confidence,
+  superseded_by_record_id, valid_from, valid_to
+FROM patient_immunizations WHERE is_current = TRUE;
+
+-- =============================================================================
+-- SECTION 4D: MEDICAL CODE RESOLUTION SYSTEM (FROM MIGRATION 04)
+-- =============================================================================
+-- Added after successful deployment of migration 04 - medical code resolution
+
+-- Universal medical codes with vector embeddings for global interoperability
+CREATE TABLE IF NOT EXISTS universal_medical_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Code identification
+    code_system VARCHAR(20) NOT NULL CHECK (code_system IN ('rxnorm', 'snomed', 'loinc')),
+    code_value VARCHAR(50) NOT NULL,
+    display_name TEXT NOT NULL,
+
+    -- Vector embedding for similarity search (1536 dimensions for text-embedding-3-small)
+    embedding VECTOR(1536),
+
+    -- Classification and search optimization
+    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy')),
+    search_text TEXT NOT NULL,
+    synonyms TEXT[] DEFAULT ARRAY[]::TEXT[],
+
+    -- Quality metadata
+    usage_frequency INTEGER DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Unique constraint
+    UNIQUE(code_system, code_value)
+);
+
+-- Regional medical codes for country-specific systems
+CREATE TABLE IF NOT EXISTS regional_medical_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Code identification
+    code_system VARCHAR(20) NOT NULL CHECK (code_system IN ('pbs', 'mbs', 'icd10_am', 'tga', 'nhs_dmd', 'bnf', 'ndc', 'cpt', 'pzn', 'din', 'cip', 'atc', 'icd10_gm', 'ansm')),
+    code_value VARCHAR(50) NOT NULL,
+    display_name TEXT NOT NULL,
+
+    -- Vector embedding for similarity search
+    embedding VECTOR(1536),
+
+    -- Regional context
+    country_code CHAR(3) NOT NULL, -- ISO 3166-1 alpha-3
+    region_specific_data JSONB DEFAULT '{}',
+    authority_required BOOLEAN DEFAULT FALSE,
+
+    -- Classification and search optimization
+    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy')),
+    search_text TEXT NOT NULL,
+
+    -- Quality metadata
+    usage_frequency INTEGER DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Unique constraint
+    UNIQUE(code_system, code_value, country_code)
+);
+
+-- Medical code assignments linking clinical entities to selected codes
+CREATE TABLE IF NOT EXISTS medical_code_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Entity reference (generic for all clinical tables)
+    entity_table VARCHAR(50) NOT NULL CHECK (entity_table IN (
+        'patient_medications', 'patient_conditions', 'patient_allergies',
+        'patient_vitals', 'patient_immunizations', 'patient_interventions',
+        'patient_observations', 'healthcare_encounters', 'healthcare_timeline_events'
     )),
-    
-    -- Clinical Context
-    indication_for_vaccination TEXT, -- "Required for travel to endemic malaria region"
-    vaccination_context_in_narrative TEXT, -- "Part of comprehensive travel medicine consultation"
-    clinical_outcome TEXT, -- "Well tolerated with good antibody response"
-    
-    -- Timeline Context
-    vaccination_timing TEXT, -- "pre_travel", "routine_schedule", "catch_up_vaccination"
-    
+    entity_id UUID NOT NULL,
+    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+
+    -- Universal code assignment (parallel strategy)
+    universal_code_system VARCHAR(20),
+    universal_code VARCHAR(50),
+    universal_display TEXT,
+    universal_confidence DECIMAL(3,2) CHECK (universal_confidence >= 0.0 AND universal_confidence <= 1.0),
+
+    -- Regional code assignment (parallel strategy)
+    regional_code_system VARCHAR(20),
+    regional_code VARCHAR(50),
+    regional_display TEXT,
+    regional_confidence DECIMAL(3,2) CHECK (regional_confidence >= 0.0 AND regional_confidence <= 1.0),
+    regional_country_code CHAR(3),
+
+    -- Assignment metadata
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    assigned_by_system TEXT DEFAULT 'vector_ai',
+    requires_review BOOLEAN DEFAULT FALSE,
+
+    -- Human review and validation
+    reviewed_by_user BOOLEAN DEFAULT FALSE,
+    reviewed_at TIMESTAMPTZ,
+    validation_notes TEXT,
+
+    -- Clinical context
+    clinical_context TEXT,
+    fallback_identifier TEXT,
+    assignment_confidence DECIMAL(3,2) CHECK (assignment_confidence >= 0.0 AND assignment_confidence <= 1.0),
+
     -- Audit
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, immunization_id)  
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Performance constraint
+    CONSTRAINT unique_entity_assignment UNIQUE (entity_table, entity_id)
 );
 
--- Clinical Narrative to Vitals Linking (for significant vital sign patterns)
-CREATE TABLE IF NOT EXISTS narrative_vital_links (
+-- Code resolution processing log
+CREATE TABLE IF NOT EXISTS code_resolution_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    narrative_id UUID NOT NULL REFERENCES clinical_narratives(id) ON DELETE CASCADE,
-    vital_id UUID NOT NULL REFERENCES patient_vitals(id) ON DELETE CASCADE,
-    
-    -- Link Classification
-    link_type TEXT NOT NULL CHECK (link_type IN (
-        'diagnostic_indicator', 'treatment_response', 'monitoring_parameter', 'baseline_measurement', 'concerning_trend'
-    )),
-    
-    -- Clinical Context
-    vital_significance TEXT, -- "Blood pressure reading that confirmed hypertension diagnosis"
-    clinical_interpretation TEXT, -- "Elevated BP (160/95) indicating medication adjustment needed"
-    narrative_impact TEXT, -- "Led to medication titration in this management journey"
-    
+    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+
+    -- Processing context
+    entity_table VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    processing_batch_id UUID DEFAULT gen_random_uuid(),
+
+    -- Resolution results
+    universal_assigned BOOLEAN DEFAULT FALSE,
+    regional_assigned BOOLEAN DEFAULT FALSE,
+    fallback_used BOOLEAN DEFAULT FALSE,
+
+    -- Performance metrics
+    processing_time_ms INTEGER,
+    api_calls_made INTEGER DEFAULT 0,
+    total_candidates_found INTEGER DEFAULT 0,
+
+    -- Quality metrics
+    confidence_threshold_met BOOLEAN DEFAULT FALSE,
+    requires_manual_review BOOLEAN DEFAULT FALSE,
+    resolution_quality TEXT CHECK (resolution_quality IN ('high', 'medium', 'low', 'failed')),
+
+    -- Processing details
+    processing_errors JSONB DEFAULT '{}',
+    candidate_codes JSONB DEFAULT '{}',
+
     -- Audit
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    UNIQUE(narrative_id, vital_id)
+    resolved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_by_worker TEXT DEFAULT 'medical_code_resolver'
 );
 
 -- =============================================================================
@@ -1005,12 +1361,8 @@ CREATE INDEX IF NOT EXISTS idx_timeline_searchable ON healthcare_timeline_events
 -- SECTION 6: SPECIALIZED TABLES PERFORMANCE INDEXES
 -- =============================================================================
 
--- Medical coding reference indexes
-CREATE INDEX IF NOT EXISTS idx_medical_codes_system_code ON medical_condition_codes(code_system, code);
-CREATE INDEX IF NOT EXISTS idx_medical_codes_status ON medical_condition_codes(status) WHERE status = 'active';
-CREATE INDEX IF NOT EXISTS idx_medication_ref_rxnorm ON medication_reference(rxnorm_code) WHERE rxnorm_code IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_medication_ref_pbs ON medication_reference(pbs_code) WHERE pbs_code IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_medication_ref_generic ON medication_reference(generic_name);
+-- Note: Medical coding reference indexes removed in migration 06 (vestigial cleanup)
+-- medical_condition_codes and medication_reference tables no longer exist
 
 -- Shell files table indexes
 CREATE INDEX IF NOT EXISTS idx_shell_files_patient ON shell_files(patient_id);  
@@ -1065,9 +1417,8 @@ ALTER TABLE patient_interventions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE healthcare_encounters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE healthcare_timeline_events ENABLE ROW LEVEL SECURITY;
 
--- Enable RLS on supplementary clinical tables
-ALTER TABLE medical_condition_codes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE medication_reference ENABLE ROW LEVEL SECURITY;
+-- Note: RLS enables for medical_condition_codes and medication_reference removed in migration 06
+-- These tables no longer exist (vestigial cleanup)
 ALTER TABLE shell_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_conditions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_allergies ENABLE ROW LEVEL SECURITY;
@@ -1143,14 +1494,8 @@ CREATE POLICY timeline_events_access ON healthcare_timeline_events
         OR is_admin()
     );
 
--- Reference tables - readable by all authenticated users
-CREATE POLICY medical_codes_read ON medical_condition_codes
-    FOR SELECT TO authenticated
-    USING (status = 'active');
-
-CREATE POLICY medication_ref_read ON medication_reference
-    FOR SELECT TO authenticated
-    USING (status = 'active');
+-- Note: RLS policies for medical_condition_codes and medication_reference removed in migration 06
+-- These tables no longer exist (vestigial cleanup)
 
 -- Shell files table - profile-based access using has_profile_access()
 CREATE POLICY shell_files_access ON shell_files
@@ -1300,19 +1645,27 @@ DECLARE
     policy_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count created tables (V3 Core + Supplementary)
+    -- Count created tables (V3 Core + Supplementary + Migration Additions)
     SELECT COUNT(*) INTO table_count
-    FROM information_schema.tables 
-    WHERE table_schema = 'public' 
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
     AND table_name IN (
         -- V3 Core Architecture (CRITICAL)
         'patient_clinical_events', 'patient_observations', 'patient_interventions',
         'healthcare_encounters', 'healthcare_timeline_events',
-        -- Reference Tables
-        'medical_condition_codes', 'medication_reference', 'shell_files',
-        -- Specialized Clinical Tables 
+        -- Reference Tables (Note: medical_condition_codes, medication_reference removed in migration 06)
+        'shell_files',
+        -- Specialized Clinical Tables
         'patient_conditions', 'patient_allergies', 'patient_vitals',
-        'patient_immunizations', 'patient_medications'
+        'patient_immunizations', 'patient_medications',
+        -- Narrative System (V3 + Migration 03)
+        'clinical_narratives', 'narrative_event_links',
+        'narrative_source_mappings', 'narrative_relationships',
+        -- Temporal Data Management (Migration 02)
+        'temporal_audit_log', 'identity_audit_log', 'temporal_processing_log',
+        -- Medical Code Resolution (Migration 04)
+        'universal_medical_codes', 'regional_medical_codes',
+        'medical_code_assignments', 'code_resolution_log'
     );
     
     -- Count created indexes (V3 Core + Supplementary)
@@ -1340,8 +1693,8 @@ BEGIN
         -- V3 Core Architecture
         'patient_clinical_events', 'patient_observations', 'patient_interventions',
         'healthcare_encounters', 'healthcare_timeline_events',
-        -- Reference and Specialized Tables
-        'medical_condition_codes', 'medication_reference', 'shell_files',
+        -- Reference and Specialized Tables (Note: medical_condition_codes, medication_reference removed in migration 06)
+        'shell_files',
         'patient_conditions', 'patient_allergies', 'patient_vitals',
         'patient_immunizations', 'patient_medications'
     );
@@ -1352,11 +1705,11 @@ BEGIN
     WHERE routine_schema = 'public'
     AND routine_name IN ('get_patient_active_conditions', 'get_patient_medications');
     
-    IF table_count = 13 AND index_count >= 30 AND policy_count >= 13 AND function_count = 2 THEN
+    IF table_count >= 27 AND index_count >= 30 AND policy_count >= 13 AND function_count = 2 THEN
         RAISE NOTICE '';
-        RAISE NOTICE '==================================================================';
-        RAISE NOTICE 'FRESH START BLUEPRINT: 03_clinical_core.sql DEPLOYMENT SUCCESS';
-        RAISE NOTICE '==================================================================';
+        RAISE NOTICE '=================================================================================';
+        RAISE NOTICE 'V3 CLINICAL CORE + MIGRATION INTEGRATION - DEPLOYMENT SUCCESS';
+        RAISE NOTICE '=================================================================================';
         RAISE NOTICE '';
         RAISE NOTICE 'V3 CORE ARCHITECTURE DEPLOYED:';
         RAISE NOTICE '  patient_clinical_events - Central clinical events with O3 classification';
@@ -1365,14 +1718,26 @@ BEGIN
         RAISE NOTICE '  healthcare_encounters - Provider and encounter context';
         RAISE NOTICE '  healthcare_timeline_events - UI timeline display optimization';
         RAISE NOTICE '';
-        RAISE NOTICE 'CRITICAL ID SYSTEM FIXES APPLIED:';
-        RAISE NOTICE '  All patient_id columns now reference user_profiles(id)';
-        RAISE NOTICE '  V3 core tables: FIXED - All tables use correct ID relationships';
-        RAISE NOTICE '  Specialized tables: FIXED - All linked to V3 core architecture';
-        RAISE NOTICE '  Foreign key constraints: ESTABLISHED - Referential integrity enforced';
+        RAISE NOTICE 'MIGRATION 02 - TEMPORAL DATA MANAGEMENT INTEGRATED:';
+        RAISE NOTICE '  All clinical tables enhanced with temporal columns (valid_from, valid_to, is_current)';
+        RAISE NOTICE '  Deduplication system with clinical_identity_key columns';
+        RAISE NOTICE '  Audit tables: temporal_audit_log, identity_audit_log, temporal_processing_log';
+        RAISE NOTICE '  Analytics: temporal_data_summary materialized view';
         RAISE NOTICE '';
-        RAISE NOTICE 'COMPONENTS DEPLOYED:';
-        RAISE NOTICE '  - % total clinical tables (5 V3 core + 8 specialized)', table_count;
+        RAISE NOTICE 'MIGRATION 03 - NARRATIVE ARCHITECTURE INTEGRATED:';
+        RAISE NOTICE '  clinical_narratives enhanced with vector embeddings (VECTOR(1536))';
+        RAISE NOTICE '  Narrative versioning: is_current, supersedes_id, content_fingerprint';
+        RAISE NOTICE '  Relationship system: narrative_relationships, narrative_event_links';
+        RAISE NOTICE '  Semantic search ready with pgvector support';
+        RAISE NOTICE '';
+        RAISE NOTICE 'MIGRATION 04 - MEDICAL CODE RESOLUTION INTEGRATED:';
+        RAISE NOTICE '  Universal medical codes: rxnorm, snomed, loinc with vector search';
+        RAISE NOTICE '  Regional medical codes: pbs, mbs, icd10_am with country-specific data';
+        RAISE NOTICE '  Assignment system: medical_code_assignments with confidence scoring';
+        RAISE NOTICE '  Processing logs: code_resolution_log for audit and performance';
+        RAISE NOTICE '';
+        RAISE NOTICE 'COMPREHENSIVE COMPONENTS DEPLOYED:';
+        RAISE NOTICE '  - % total tables (V3 core + specialized + temporal + narrative + code resolution)', table_count;
         RAISE NOTICE '  - % performance indexes optimized for AI processing', index_count;
         RAISE NOTICE '  - % RLS policies using has_profile_access()', policy_count;
         RAISE NOTICE '  - % clinical utility functions', function_count;
@@ -1409,6 +1774,119 @@ BEGIN
             table_count, index_count, policy_count, function_count;
     END IF;
 END $$;
+
+-- =============================================================================
+-- 4E. VECTOR SEARCH FUNCTIONS FOR MEDICAL CODE RESOLUTION (From Migration 04)
+-- =============================================================================
+
+-- Vector similarity search for universal codes
+CREATE OR REPLACE FUNCTION search_universal_codes(
+    query_embedding VECTOR(1536),
+    entity_type_filter VARCHAR(20) DEFAULT NULL,
+    max_results INTEGER DEFAULT 10,
+    min_similarity REAL DEFAULT 0.7
+) RETURNS TABLE (
+    code_system VARCHAR(20),
+    code_value VARCHAR(50),
+    display_name TEXT,
+    search_text TEXT,
+    similarity_score REAL,
+    entity_type VARCHAR(20)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        umc.code_system,
+        umc.code_value,
+        umc.display_name,
+        umc.search_text,
+        (1 - (umc.embedding <=> query_embedding))::REAL as similarity_score,
+        umc.entity_type
+    FROM universal_medical_codes umc
+    WHERE umc.active = TRUE
+        AND umc.embedding IS NOT NULL
+        AND (entity_type_filter IS NULL OR umc.entity_type = entity_type_filter)
+        AND (1 - (umc.embedding <=> query_embedding)) >= min_similarity
+    ORDER BY umc.embedding <=> query_embedding
+    LIMIT max_results;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- Vector similarity search for regional codes
+CREATE OR REPLACE FUNCTION search_regional_codes(
+    query_embedding VECTOR(1536),
+    entity_type_filter VARCHAR(20) DEFAULT NULL,
+    country_code_filter CHAR(3) DEFAULT 'AUS',
+    max_results INTEGER DEFAULT 10,
+    min_similarity REAL DEFAULT 0.7
+) RETURNS TABLE (
+    code_system VARCHAR(20),
+    code_value VARCHAR(50),
+    display_name TEXT,
+    search_text TEXT,
+    similarity_score REAL,
+    entity_type VARCHAR(20),
+    country_code CHAR(3),
+    authority_required BOOLEAN
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        rmc.code_system,
+        rmc.code_value,
+        rmc.display_name,
+        rmc.search_text,
+        (1 - (rmc.embedding <=> query_embedding))::REAL as similarity_score,
+        rmc.entity_type,
+        rmc.country_code,
+        rmc.authority_required
+    FROM regional_medical_codes rmc
+    WHERE rmc.active = TRUE
+        AND rmc.embedding IS NOT NULL
+        AND (entity_type_filter IS NULL OR rmc.entity_type = entity_type_filter)
+        AND (country_code_filter IS NULL OR rmc.country_code = country_code_filter)
+        AND (1 - (rmc.embedding <=> query_embedding)) >= min_similarity
+    ORDER BY rmc.embedding <=> query_embedding
+    LIMIT max_results;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- Query assigned medical codes with RLS enforcement
+CREATE OR REPLACE FUNCTION get_entity_medical_codes(
+    p_entity_table VARCHAR(50),
+    p_entity_id UUID
+) RETURNS TABLE (
+    universal_code_system VARCHAR(20),
+    universal_code VARCHAR(50),
+    universal_display TEXT,
+    universal_confidence DECIMAL(3,2),
+    regional_code_system VARCHAR(20),
+    regional_code VARCHAR(50),
+    regional_display TEXT,
+    regional_confidence DECIMAL(3,2),
+    regional_country_code CHAR(3),
+    fallback_identifier TEXT,
+    assigned_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        mca.universal_code_system,
+        mca.universal_code,
+        mca.universal_display,
+        mca.universal_confidence,
+        mca.regional_code_system,
+        mca.regional_code,
+        mca.regional_display,
+        mca.regional_confidence,
+        mca.regional_country_code,
+        mca.fallback_identifier,
+        mca.assigned_at
+    FROM medical_code_assignments mca
+    WHERE mca.entity_table = p_entity_table
+        AND mca.entity_id = p_entity_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 COMMIT;
 
