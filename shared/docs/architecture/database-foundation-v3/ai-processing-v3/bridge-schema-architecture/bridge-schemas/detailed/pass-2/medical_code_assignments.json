@@ -1,0 +1,441 @@
+{
+  "schema_version": "1.0.0",
+  "table": "medical_code_assignments",
+  "pass": "pass-2",
+  "processing_stage": "step-1.5",
+  "description": "Generic entity-to-medical-code assignment table populated by vector embedding-based code resolution system. This table operates BETWEEN Pass 1 and Pass 2, providing verified medical codes to AI for enhanced clinical processing.",
+  "clinical_context": "CRITICAL: AI does NOT generate medical codes directly. Instead, vector similarity search retrieves 10-20 verified candidate codes, and AI selects the most appropriate code from this limited list. This architecture eliminates hallucination risk while maintaining semantic matching power. Codes are assigned using a parallel dual-code strategy (universal + regional).",
+
+  "required_fields": [
+    "entity_table",
+    "entity_id",
+    "patient_id"
+  ],
+
+  "code_assignment_strategy": {
+    "description": "Parallel dual-code assignment (not hierarchical)",
+    "success_scenarios": [
+      "Both universal + regional assigned (ideal)",
+      "Only universal assigned (acceptable)",
+      "Only regional assigned (acceptable)",
+      "Neither assigned - fallback_identifier used (safe)"
+    ],
+    "confidence_thresholds": {
+      "auto_accept": "≥0.80 - Auto-accept code assignment",
+      "needs_review": "0.60-0.79 - Accept with requires_review=true flag",
+      "use_fallback": "<0.60 - Use fallback_identifier (no code assigned)",
+      "no_candidates": "Conservative fallback approach for safety"
+    }
+  },
+
+  "fields": {
+    "entity_table": {
+      "type": "enum",
+      "values": ["patient_medications", "patient_conditions", "patient_allergies", "patient_vitals", "patient_immunizations", "patient_interventions", "patient_observations", "healthcare_encounters", "healthcare_timeline_events"],
+      "description": "The clinical table this code assignment references (DB CHECK constraint enforced)",
+      "required": true,
+      "db_enforced": true,
+      "guidance": "Must be exactly one of the 9 allowed entity table names. This enables generic code assignment across all clinical entity types.",
+      "examples": [
+        "patient_medications",
+        "patient_conditions",
+        "patient_allergies",
+        "patient_observations"
+      ]
+    },
+
+    "entity_id": {
+      "type": "uuid",
+      "description": "UUID of the specific entity record being coded",
+      "required": true,
+      "example": "uuid-of-medication-record",
+      "guidance": "Must reference an existing record in the specified entity_table. Part of UNIQUE constraint with entity_table."
+    },
+
+    "patient_id": {
+      "type": "uuid",
+      "description": "Patient identifier from processing context",
+      "required": true,
+      "example": "uuid-from-context",
+      "guidance": "References user_profiles(id). Required for RLS policies and data isolation."
+    },
+
+    "universal_code_system": {
+      "type": "string",
+      "max_length": 20,
+      "description": "International/universal medical code system identifier",
+      "required": false,
+      "code_systems": {
+        "SNOMED": "SNOMED-CT for clinical terms (conditions, procedures, findings)",
+        "ICD-10": "International Classification of Diseases, 10th Revision",
+        "LOINC": "Logical Observation Identifiers Names and Codes (lab tests, observations)",
+        "RxNorm": "Normalized medication naming system (US NLM)",
+        "CVX": "CDC Vaccine Administered CVX codes",
+        "CPT": "Current Procedural Terminology",
+        "ATC": "Anatomical Therapeutic Chemical classification (drug classes)"
+      },
+      "examples": ["SNOMED", "ICD-10", "LOINC", "RxNorm", "CVX"],
+      "guidance": "Select appropriate universal code system based on entity type. Can coexist with regional_code_system."
+    },
+
+    "universal_code": {
+      "type": "string",
+      "max_length": 50,
+      "description": "The actual universal medical code value",
+      "required": false,
+      "examples": [
+        "314076",
+        "I10",
+        "2339-0",
+        "208"
+      ],
+      "guidance": "Extract from vector search candidate selection. Must be from verified code database."
+    },
+
+    "universal_display": {
+      "type": "text",
+      "description": "Human-readable description of the universal code",
+      "required": false,
+      "examples": [
+        "Lisinopril 10 MG Oral Tablet",
+        "Essential (primary) hypertension",
+        "Glucose [Mass/volume] in Blood",
+        "COVID-19, mRNA, LNP-S, PF, 100 mcg/0.5mL dose"
+      ],
+      "guidance": "Use the display name from the selected code candidate. Provides context for human review."
+    },
+
+    "universal_confidence": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Confidence score for universal code assignment (0.00-1.00)",
+      "required": false,
+      "examples": [0.95, 0.88, 0.72],
+      "confidence_guidance": {
+        "high": "≥0.80 - Strong match from vector search",
+        "medium": "0.60-0.79 - Reasonable match, may need review",
+        "low": "<0.60 - Weak match, should not assign code"
+      },
+      "note": "2 decimal precision (DECIMAL(3,2))"
+    },
+
+    "regional_code_system": {
+      "type": "string",
+      "max_length": 20,
+      "description": "Country-specific/regional medical code system identifier",
+      "required": false,
+      "code_systems": {
+        "PBS": "Pharmaceutical Benefits Scheme (Australia - medications)",
+        "MBS": "Medicare Benefits Schedule (Australia - procedures/services)",
+        "ACIR": "Australian Childhood Immunisation Register (Australia - vaccines)",
+        "ICD-10-CM": "ICD-10 Clinical Modification (United States)",
+        "NDC": "National Drug Code (United States - medications)",
+        "HCPCS": "Healthcare Common Procedure Coding System (United States)"
+      },
+      "examples": ["PBS", "MBS", "ACIR", "ICD-10-CM", "NDC"],
+      "guidance": "Use appropriate regional code system for the user's country. Currently focused on Australian codes (PBS/MBS/ACIR)."
+    },
+
+    "regional_code": {
+      "type": "string",
+      "max_length": 50,
+      "description": "The actual regional medical code value",
+      "required": false,
+      "examples": [
+        "8254K",
+        "23",
+        "COVID-19-PFIZER"
+      ],
+      "guidance": "Extract from vector search candidate selection. Regional codes provide local healthcare system context."
+    },
+
+    "regional_display": {
+      "type": "text",
+      "description": "Human-readable description of the regional code",
+      "required": false,
+      "examples": [
+        "Lisinopril tablets 10 mg",
+        "Professional attendance - Level B",
+        "Pfizer COVID-19 vaccine"
+      ],
+      "guidance": "Use the display name from the selected regional code candidate."
+    },
+
+    "regional_confidence": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Confidence score for regional code assignment (0.00-1.00)",
+      "required": false,
+      "examples": [0.90, 0.82, 0.68],
+      "note": "2 decimal precision (DECIMAL(3,2))"
+    },
+
+    "regional_country_code": {
+      "type": "string",
+      "length": 3,
+      "description": "ISO 3166-1 alpha-3 country code for regional code context",
+      "required": false,
+      "examples": [
+        "AUS",
+        "USA",
+        "GBR",
+        "DEU",
+        "CAN",
+        "FRA"
+      ],
+      "guidance": "Use ISO 3166-1 alpha-3 format (exactly 3 characters). Required when regional code is assigned."
+    },
+
+    "assigned_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601",
+      "description": "When the code assignment was made",
+      "required": false,
+      "default": "NOW()",
+      "examples": [
+        "2025-09-30T14:30:00Z",
+        "2025-09-30T09:15:00-05:00"
+      ],
+      "guidance": "Auto-generated by database if not provided. Tracks when vector search completed."
+    },
+
+    "assigned_by_system": {
+      "type": "text",
+      "description": "System component that performed the code assignment",
+      "required": false,
+      "default": "vector_ai",
+      "examples": [
+        "vector_ai",
+        "embedding_search_v1",
+        "manual_coder"
+      ],
+      "guidance": "Defaults to 'vector_ai' for embedding-based assignments. Useful for tracking assignment source."
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag indicating if this assignment needs human review",
+      "required": false,
+      "default": false,
+      "guidance": "Set to true if confidence scores are in medium range (0.60-0.79) or if ambiguity detected during selection."
+    },
+
+    "reviewed_by_user": {
+      "type": "boolean",
+      "description": "Whether a human has reviewed this code assignment",
+      "required": false,
+      "default": false,
+      "guidance": "Set to true after human review completed. Used for quality assurance tracking."
+    },
+
+    "reviewed_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601",
+      "description": "When human review was completed",
+      "required": false,
+      "examples": ["2025-10-01T10:00:00Z"],
+      "guidance": "Populate when reviewed_by_user is set to true."
+    },
+
+    "validation_notes": {
+      "type": "text",
+      "description": "Notes from human review or validation process",
+      "required": false,
+      "examples": [
+        "Confirmed correct code selection",
+        "Adjusted regional code to better match local terminology",
+        "Low confidence but clinically appropriate"
+      ],
+      "guidance": "Capture any human reviewer comments or adjustments made during review."
+    },
+
+    "clinical_context": {
+      "type": "text",
+      "description": "Additional clinical context that informed code selection",
+      "required": false,
+      "examples": [
+        "Chronic condition documented in multiple visit notes",
+        "First-line hypertension treatment as per Australian guidelines",
+        "Post-operative prophylactic antibiotic"
+      ],
+      "guidance": "Capture relevant clinical context from the source document or extraction process."
+    },
+
+    "fallback_identifier": {
+      "type": "text",
+      "description": "Fallback description when no standard code could be assigned with confidence",
+      "required": false,
+      "examples": [
+        "Minor wart removal procedure - left forearm",
+        "Unspecified antibiotic mentioned",
+        "Blood pressure medication - specific drug not documented"
+      ],
+      "guidance": "Use when confidence < 0.60 or no suitable candidates found. Enables conservative no-merge deduplication strategy."
+    },
+
+    "assignment_confidence": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Overall confidence in the complete code assignment (0.00-1.00)",
+      "required": false,
+      "examples": [0.93, 0.85, 0.60],
+      "guidance": "Composite confidence considering both universal and regional code matches. Used for quality metrics.",
+      "note": "2 decimal precision (DECIMAL(3,2))"
+    },
+
+    "created_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601",
+      "description": "Record creation timestamp",
+      "required": false,
+      "default": "NOW()",
+      "guidance": "Auto-generated by database. Tracks when record was first created."
+    },
+
+    "updated_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601",
+      "description": "Record last update timestamp",
+      "required": false,
+      "default": "NOW()",
+      "guidance": "Defaults to NOW() on insert. Update this timestamp via application logic (or a future trigger) when modifying records."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Medication with dual codes (universal RxNorm + regional PBS)",
+      "extraction": {
+        "entity_table": "patient_medications",
+        "entity_id": "uuid-of-medication-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "RxNorm",
+        "universal_code": "314076",
+        "universal_display": "Lisinopril 10 MG Oral Tablet",
+        "universal_confidence": 0.95,
+        "regional_code_system": "PBS",
+        "regional_code": "8254K",
+        "regional_display": "Lisinopril tablets 10 mg",
+        "regional_confidence": 0.90,
+        "regional_country_code": "AUS",
+        "assigned_by_system": "vector_ai",
+        "requires_review": false,
+        "assignment_confidence": 0.93
+      }
+    },
+    {
+      "description": "Condition with universal ICD-10 code only",
+      "extraction": {
+        "entity_table": "patient_conditions",
+        "entity_id": "uuid-of-condition-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "ICD-10",
+        "universal_code": "I10",
+        "universal_display": "Essential (primary) hypertension",
+        "universal_confidence": 0.92,
+        "assigned_by_system": "vector_ai",
+        "requires_review": false,
+        "clinical_context": "Chronic condition documented in visit notes"
+      }
+    },
+    {
+      "description": "Observation with LOINC code",
+      "extraction": {
+        "entity_table": "patient_observations",
+        "entity_id": "uuid-of-observation-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "LOINC",
+        "universal_code": "2339-0",
+        "universal_display": "Glucose [Mass/volume] in Blood",
+        "universal_confidence": 0.88,
+        "assigned_by_system": "vector_ai",
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Immunization with CVX and regional ACIR code",
+      "extraction": {
+        "entity_table": "patient_immunizations",
+        "entity_id": "uuid-of-immunization-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "CVX",
+        "universal_code": "208",
+        "universal_display": "COVID-19, mRNA, LNP-S, PF, 100 mcg/0.5mL dose",
+        "universal_confidence": 0.96,
+        "regional_code_system": "ACIR",
+        "regional_code": "COVID-19-PFIZER",
+        "regional_display": "Pfizer COVID-19 vaccine",
+        "regional_confidence": 0.94,
+        "regional_country_code": "AUS",
+        "assigned_by_system": "vector_ai",
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Intervention with fallback identifier (no standard code)",
+      "extraction": {
+        "entity_table": "patient_interventions",
+        "entity_id": "uuid-of-intervention-record",
+        "patient_id": "uuid-from-context",
+        "fallback_identifier": "Minor wart removal procedure - left forearm",
+        "clinical_context": "No specific CPT code documented in source",
+        "assigned_by_system": "vector_ai",
+        "requires_review": true,
+        "assignment_confidence": 0.60
+      }
+    },
+    {
+      "description": "Medium confidence requiring review",
+      "extraction": {
+        "entity_table": "patient_medications",
+        "entity_id": "uuid-of-medication-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "RxNorm",
+        "universal_code": "197361",
+        "universal_display": "Metformin hydrochloride 500 MG Oral Tablet",
+        "universal_confidence": 0.78,
+        "regional_code_system": "PBS",
+        "regional_code": "1463T",
+        "regional_display": "Metformin hydrochloride tablets 500 mg",
+        "regional_confidence": 0.72,
+        "regional_country_code": "AUS",
+        "assigned_by_system": "vector_ai",
+        "requires_review": true,
+        "assignment_confidence": 0.75,
+        "clinical_context": "Multiple formulation options available, selected based on document context"
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "vector_search_process": "AI receives 10-20 pre-verified candidate codes from pgvector similarity search. AI selects most appropriate code FROM THIS LIMITED LIST ONLY - never generates codes freely.",
+    "parallel_assignment": "Universal and regional codes are assigned in parallel (not hierarchical). Both can exist, or only one, or neither (fallback).",
+    "confidence_thresholds": "≥0.80 auto-accept, 0.60-0.79 needs review, <0.60 use fallback. This ensures safe code assignments.",
+    "fallback_strategy": "When confidence < 0.60 or no suitable candidates, use fallback_identifier. This enables conservative deduplication.",
+    "entity_generic_design": "One table supports 9 entity types. UNIQUE constraint ensures one code assignment per entity.",
+    "code_system_selection": {
+      "medications": "RxNorm (universal), PBS/NDC (regional)",
+      "conditions": "SNOMED/ICD-10 (universal), ICD-10-CM (regional)",
+      "allergies": "SNOMED (universal), regional allergy codes",
+      "observations": "LOINC/SNOMED (universal), regional lab codes",
+      "procedures": "CPT/SNOMED (universal), MBS (regional)"
+    }
+  },
+
+  "validation_rules": {
+    "entity_table": "Must be exactly one of 9 DB-enforced values",
+    "entity_id": "Must be valid UUID referencing existing record in entity_table",
+    "patient_id": "Must be valid UUID referencing user_profiles(id)",
+    "unique_constraint": "Only one code assignment per (entity_table, entity_id) pair",
+    "at_least_one_code": "At least ONE of: universal_code, regional_code, or fallback_identifier must be provided",
+    "confidence_precision": "All confidence scores must be DECIMAL(3,2) format (0.00-1.00)",
+    "regional_country_code": "If provided, must be exactly 3 characters (ISO 3166-1 alpha-3)",
+    "code_system_match": "universal_code must match universal_code_system, regional_code must match regional_code_system"
+  }
+}

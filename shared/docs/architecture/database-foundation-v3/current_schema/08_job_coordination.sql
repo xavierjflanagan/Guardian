@@ -1,6 +1,10 @@
 -- =============================================================================
 -- 08_JOB_COORDINATION.SQL - V3 Production Scalability & Render.com Worker Coordination
 -- =============================================================================
+-- VERSION: 1.1 (MIGRATION 2025-09-30: Pass-Specific Metrics Restructuring)
+--   - Removed usage_events table (replaced with pass-specific metrics)
+--   - Added 4 new pass-specific metrics tables (pass1_entity_metrics, pass2_clinical_metrics, pass3_narrative_metrics, ai_processing_summary)
+--   - Updated tracking functions to use new metrics architecture
 -- Purpose: Complete V3 job coordination system with API rate limiting, worker coordination, and business analytics foundation
 -- Architecture: Render.com worker integration + vendor-agnostic API rate limiting + usage analytics + subscription billing foundation
 -- Dependencies: 01_foundations.sql through 07_optimization.sql (complete V3 schema stack required)
@@ -209,34 +213,156 @@ CREATE TABLE IF NOT EXISTS user_usage_tracking (
 CREATE INDEX IF NOT EXISTS idx_user_usage_profile_cycle ON user_usage_tracking(profile_id, billing_cycle_start);
 CREATE INDEX IF NOT EXISTS idx_user_usage_over_limit ON user_usage_tracking(profile_id) WHERE is_over_limit = TRUE;
 
--- Detailed usage events for analytics (early adopter insights)
-CREATE TABLE IF NOT EXISTS usage_events (
+-- Pass-specific metrics tables for structured analytics and performance tracking
+
+-- Pass 1 Entity Detection Metrics
+CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    
-    -- Event Details
-    event_type TEXT NOT NULL CHECK (event_type IN (
-        'shell_file_uploaded', 'shell_file_processed', 'ai_processing_started', 'ai_processing_completed',
-        'page_extracted', 'storage_used', 'plan_upgraded', 'plan_downgraded', 'limit_hit'
-    )),
-    
-    -- Metrics (flexible JSONB for different event types)
-    metrics JSONB DEFAULT '{}', -- { "file_size_mb": 2.5, "pages": 10, "tokens_used": 1500 }
-    
-    -- References
-    shell_file_id UUID REFERENCES shell_files(id),
-    job_id UUID,  -- References job_queue
-    
-    -- Metadata for analytics
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
+
+    -- Pass 1 Specific Metrics
+    entities_detected INTEGER NOT NULL,
+    processing_time_ms INTEGER NOT NULL,
+    vision_model_used TEXT NOT NULL,
+    ocr_model_used TEXT,
+
+    -- Quality Metrics
+    ocr_agreement_average NUMERIC(4,3),
+    confidence_distribution JSONB, -- { "high": 15, "medium": 8, "low": 2 }
+    entity_types_found TEXT[], -- ['medication', 'condition', 'vital_sign']
+
+    -- Cost and Performance
+    vision_tokens_used INTEGER,
+    ocr_pages_processed INTEGER,
+    cost_usd NUMERIC(8,4),
+
+    -- Metadata
     user_agent TEXT,
     ip_address INET,
-    
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Performance indexes for usage events
-CREATE INDEX IF NOT EXISTS idx_usage_events_profile_type ON usage_events(profile_id, event_type, created_at);
-CREATE INDEX IF NOT EXISTS idx_usage_events_created_at ON usage_events(created_at);
+-- Pass 2 Clinical Enrichment Metrics
+CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
+
+    -- Pass 2 Specific Metrics
+    clinical_entities_enriched INTEGER NOT NULL,
+    schemas_populated TEXT[] NOT NULL, -- ['patient_conditions', 'patient_medications']
+    clinical_model_used TEXT NOT NULL,
+
+    -- Quality Metrics
+    average_clinical_confidence NUMERIC(4,3),
+    manual_review_triggered_count INTEGER DEFAULT 0,
+    validation_failures INTEGER DEFAULT 0,
+
+    -- Bridge Schema Performance
+    bridge_schemas_used TEXT[],
+    schema_loading_time_ms INTEGER,
+
+    -- Cost and Performance
+    clinical_tokens_used INTEGER NOT NULL,
+    processing_time_ms INTEGER NOT NULL,
+    cost_usd NUMERIC(8,4),
+
+    -- Metadata
+    user_agent TEXT,
+    ip_address INET,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Pass 3 Narrative Creation Metrics
+CREATE TABLE IF NOT EXISTS pass3_narrative_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    semantic_processing_session_id UUID NOT NULL REFERENCES semantic_processing_sessions(id) ON DELETE CASCADE,
+
+    -- Pass 3 Specific Metrics
+    narratives_created INTEGER NOT NULL,
+    narrative_quality_score NUMERIC(4,3),
+    semantic_model_used TEXT NOT NULL,
+    synthesis_complexity TEXT CHECK (synthesis_complexity IN ('simple', 'moderate', 'complex')),
+
+    -- Content Metrics
+    narrative_length_avg INTEGER, -- Average narrative length in characters
+    clinical_relationships_found INTEGER,
+    timeline_events_created INTEGER,
+
+    -- Cost and Performance
+    semantic_tokens_used INTEGER NOT NULL,
+    processing_time_ms INTEGER NOT NULL,
+    cost_usd NUMERIC(8,4),
+
+    -- Metadata
+    user_agent TEXT,
+    ip_address INET,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Master AI Processing Summary
+CREATE TABLE IF NOT EXISTS ai_processing_summary (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+
+    -- Processing Overview
+    processing_status TEXT NOT NULL CHECK (processing_status IN (
+        'initialized', 'pass1_only', 'pass1_pass2', 'complete_pipeline', 'failed'
+    )),
+    overall_success BOOLEAN NOT NULL,
+    failure_stage TEXT, -- 'pass1', 'pass2', 'pass3' if failed
+
+    -- Aggregated Metrics
+    total_processing_time_ms INTEGER NOT NULL,
+    total_tokens_used INTEGER NOT NULL,
+    total_cost_usd NUMERIC(8,4) NOT NULL,
+
+    -- Quality Summary
+    overall_confidence_score NUMERIC(4,3),
+    entities_extracted_total INTEGER,
+    manual_review_required BOOLEAN DEFAULT FALSE,
+
+    -- Pass References
+    pass1_metrics_id UUID REFERENCES pass1_entity_metrics(id),
+    pass2_metrics_id UUID REFERENCES pass2_clinical_metrics(id),
+    pass3_metrics_id UUID REFERENCES pass3_narrative_metrics(id),
+
+    -- Business Events (preserved from original usage_events)
+    business_events JSONB DEFAULT '[]', -- [{"event": "plan_upgraded", "timestamp": "..."}]
+
+    -- Metadata
+    user_agent TEXT,
+    ip_address INET,
+    processing_started_at TIMESTAMPTZ,
+    processing_completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Ensure one summary per shell file
+    CONSTRAINT unique_shell_file_summary UNIQUE (shell_file_id)
+);
+
+-- Indexes for new metrics tables
+CREATE INDEX IF NOT EXISTS idx_pass1_entity_metrics_profile ON pass1_entity_metrics(profile_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_pass1_entity_metrics_shell_file ON pass1_entity_metrics(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_pass1_entity_metrics_session ON pass1_entity_metrics(processing_session_id);
+
+CREATE INDEX IF NOT EXISTS idx_pass2_clinical_metrics_profile ON pass2_clinical_metrics(profile_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_pass2_clinical_metrics_shell_file ON pass2_clinical_metrics(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_pass2_clinical_metrics_session ON pass2_clinical_metrics(processing_session_id);
+
+CREATE INDEX IF NOT EXISTS idx_pass3_narrative_metrics_profile ON pass3_narrative_metrics(profile_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_pass3_narrative_metrics_shell_file ON pass3_narrative_metrics(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_pass3_narrative_metrics_session ON pass3_narrative_metrics(semantic_processing_session_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_profile ON ai_processing_summary(profile_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_shell_file ON ai_processing_summary(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_status ON ai_processing_summary(processing_status);
 
 -- Subscription plans configuration (future billing - feature flagged)
 CREATE TABLE IF NOT EXISTS subscription_plans (
@@ -802,17 +928,38 @@ BEGIN
         upgrade_required = limits_exceeded
     WHERE id = usage_record.id;
     
-    -- Log usage event for analytics
-    INSERT INTO usage_events (profile_id, event_type, metrics, shell_file_id)
-    VALUES (p_profile_id, 'shell_file_uploaded', 
-        jsonb_build_object(
-            'file_size_mb', file_size_mb,
-            'estimated_pages', p_estimated_pages,
-            'shell_files_used', usage_record.shell_files_uploaded,
-            'shell_files_limit', usage_record.shell_files_limit
-        ),
-        p_shell_file_id
-    );
+    -- Initialize AI processing summary record
+    INSERT INTO ai_processing_summary (
+        profile_id,
+        shell_file_id,
+        processing_status,
+        overall_success,
+        total_processing_time_ms,
+        total_tokens_used,
+        total_cost_usd,
+        processing_started_at,
+        user_agent,
+        business_events
+    ) VALUES (
+        p_profile_id,
+        p_shell_file_id,
+        'initialized',
+        FALSE,
+        0,
+        0,
+        0.0,
+        NOW(),
+        'file_upload_system',
+        jsonb_build_array(
+            jsonb_build_object(
+                'event', 'shell_file_uploaded',
+                'timestamp', NOW(),
+                'file_size_mb', file_size_mb,
+                'pages', p_estimated_pages
+            )
+        )
+    )
+    ON CONFLICT (shell_file_id) DO NOTHING;
     
     -- Return usage status for UI
     RETURN jsonb_build_object(
@@ -886,16 +1033,19 @@ BEGIN
         upgrade_required = CASE WHEN limits_exceeded THEN TRUE ELSE upgrade_required END
     WHERE id = usage_record.id;
     
-    -- Log AI processing event for analytics
-    INSERT INTO usage_events (profile_id, event_type, metrics, job_id)
-    VALUES (p_profile_id, 'ai_processing_completed',
-        jsonb_build_object(
+    -- Update AI processing summary with completion data
+    UPDATE ai_processing_summary SET
+        total_tokens_used = total_tokens_used + p_tokens_used,
+        total_processing_time_ms = total_processing_time_ms + (p_processing_seconds * 1000),
+        processing_status = 'pass1_only', -- Default assumption for legacy calls
+        business_events = business_events || jsonb_build_object(
+            'event', 'ai_processing_completed',
+            'timestamp', NOW(),
             'tokens_used', p_tokens_used,
-            'processing_seconds', p_processing_seconds,
-            'total_tokens_used', usage_record.ai_tokens_used,
-            'tokens_limit', usage_record.ai_tokens_limit
-        ),
-        p_job_id
+            'processing_seconds', p_processing_seconds
+        )
+    WHERE shell_file_id = (
+        SELECT shell_file_id FROM job_queue WHERE id = p_job_id LIMIT 1
     );
     
     RETURN jsonb_build_object(

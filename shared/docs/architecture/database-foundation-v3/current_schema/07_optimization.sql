@@ -421,9 +421,8 @@ CREATE INDEX IF NOT EXISTS idx_clinical_narratives_confidence_date ON clinical_n
 CREATE INDEX IF NOT EXISTS idx_clinical_narratives_ongoing ON clinical_narratives(patient_id, is_ongoing) WHERE is_ongoing = TRUE;
 
 -- Junction Table Performance Indexes
-CREATE INDEX IF NOT EXISTS idx_narrative_condition_links_condition ON narrative_condition_links(condition_id, clinical_relevance);
-CREATE INDEX IF NOT EXISTS idx_narrative_medication_links_medication ON narrative_medication_links(medication_id, link_type);
-CREATE INDEX IF NOT EXISTS idx_narrative_allergy_links_allergy ON narrative_allergy_links(allergy_id, link_type);
+-- Note: Specific narrative linking tables removed via migration 05 (narrative linking cleanup)
+-- All narrative linking now handled through narrative_event_links table (created in migration 03)
 
 -- AI Processing Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_semantic_processing_sessions_shell_file_status ON semantic_processing_sessions(shell_file_id, session_status);
@@ -705,8 +704,8 @@ ANALYZE clinical_narratives;
 ANALYZE patient_clinical_events;
 ANALYZE patient_conditions;
 ANALYZE patient_medications;
-ANALYZE narrative_condition_links;
-ANALYZE narrative_medication_links;
+-- Note: Specific narrative linking tables removed via migration 05 (narrative linking cleanup)
+ANALYZE narrative_event_links;
 
 -- Adjust autovacuum settings for high-traffic tables
 ALTER TABLE user_events SET (autovacuum_vacuum_scale_factor = 0.1);

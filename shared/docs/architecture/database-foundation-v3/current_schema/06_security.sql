@@ -4,7 +4,8 @@
 -- Purpose: GDPR Article 7 compliant consent management and comprehensive Row Level Security policies for entire V3 system
 -- Architecture: Granular consent tracking with audit trails + complete RLS security framework protecting all V3 clinical data
 -- Dependencies: 01_foundations.sql (security functions), 02_profiles.sql (has_profile_access), 03_clinical_core.sql (shell_files, clinical_narratives), 04_ai_processing.sql (AI tables), 05_healthcare_journey.sql (provider tables)
--- Version: 1.1 - GPT-5 Security Hardening Applied
+-- Version: 1.2 - MIGRATION 2025-09-30: Entity Processing Audit Table Update
+--   - Updated entity_processing_audit_v2 references to entity_processing_audit
 -- 
 -- DESIGN DECISIONS:
 -- - GDPR Article 7 compliance: Demonstrable consent with evidence, withdrawal rights, and granular purpose specification
@@ -26,7 +27,7 @@
 -- Clinical Data Protection:
 --   - patient_clinical_events, patient_*, healthcare_encounters tables
 -- AI Processing Protection:
---   - ai_processing_sessions, entity_processing_audit_v2, semantic_processing_sessions
+--   - ai_processing_sessions, entity_processing_audit, semantic_processing_sessions
 -- Provider System Protection:
 --   - provider_registry, patient_provider_access, provider_clinical_notes
 -- 
@@ -351,12 +352,8 @@ ALTER TABLE shell_file_synthesis_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dual_lens_user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE narrative_view_cache ENABLE ROW LEVEL SECURITY;
 
--- Enable RLS on narrative link tables
-ALTER TABLE narrative_condition_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE narrative_medication_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE narrative_allergy_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE narrative_immunization_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE narrative_vital_links ENABLE ROW LEVEL SECURITY;
+-- NOTE: Specific narrative linking tables removed in migration 05 (2025-09-29)
+-- RLS now handled by narrative_event_links table
 ALTER TABLE narrative_source_mappings ENABLE ROW LEVEL SECURITY;
 
 -- Enable RLS on provider system tables
@@ -381,86 +378,10 @@ CREATE POLICY clinical_narratives_profile_access ON clinical_narratives
     FOR ALL USING (has_semantic_data_access(auth.uid(), patient_id, 'narrative_data'))
     WITH CHECK (has_semantic_data_access(auth.uid(), patient_id, 'narrative_data'));
 
--- Clinical Narrative Linking Tables RLS Policies
-CREATE POLICY narrative_condition_links_access ON narrative_condition_links
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_condition_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_condition_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    );
-
-CREATE POLICY narrative_medication_links_access ON narrative_medication_links
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_medication_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_medication_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    );
-
-CREATE POLICY narrative_allergy_links_access ON narrative_allergy_links
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_allergy_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_allergy_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    );
-
-CREATE POLICY narrative_immunization_links_access ON narrative_immunization_links
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_immunization_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_immunization_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    );
-
-CREATE POLICY narrative_vital_links_access ON narrative_vital_links
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_vital_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    )
-    WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM clinical_narratives cn
-            WHERE cn.id = narrative_vital_links.narrative_id
-            AND has_semantic_data_access(auth.uid(), cn.patient_id, 'narrative_data')
-        )
-    );
+-- NOTE: RLS policies for specific narrative linking tables removed in migration 05 (2025-09-29)
+-- Tables removed: narrative_condition_links, narrative_medication_links,
+-- narrative_allergy_links, narrative_immunization_links, narrative_vital_links
+-- RLS now handled by narrative_event_links table (see migration 03 RLS policies)
 
 -- Narrative Source Mappings RLS Policy
 CREATE POLICY narrative_source_mappings_access ON narrative_source_mappings

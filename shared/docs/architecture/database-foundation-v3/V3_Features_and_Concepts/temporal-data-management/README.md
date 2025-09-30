@@ -51,7 +51,7 @@ Healthcare data presents unique temporal challenges:
 
 ## System Architecture Flow
 
-Raw File Upload → File Format Optimization Engine → OCR engine → Pass 1 AI entity classification → Step 1.5 (speific schema and medical code libary prepartion) → Pass 2 AIclinical entity enrichment (with Universal Date Format and Medical Code Assignment) → Clinical Identity Number Assigned → Deduplication/Supersession Engine Applied Determinsitically (Silver Tables) → Pass 3 AI Master + Sub-Narratives Update/Generation (AI Generated Tables) → Dashboard Presentation
+Raw File Upload → File Format Optimization Engine → OCR engine → Pass 1 AI entity classification → Step 1.5 (speific schema and medical code shortlist prepartion) → Pass 2 AI clinical entity enrichment (with Universal Date Format and Medical Code Assignment) → Clinical Identity Number Assigned → Deduplication/Supersession Engine Applied Determinsitically (Silver Tables) → Pass 3 AI Narratives Update/Generation → Dashboard Presentation
 
 
 ## Relationships to Other Folders
