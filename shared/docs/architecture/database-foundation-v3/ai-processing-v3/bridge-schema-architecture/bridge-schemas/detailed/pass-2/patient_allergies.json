@@ -1,0 +1,323 @@
+{
+  "schema_version": "1.0.0",
+  "table": "patient_allergies",
+  "pass": "pass-2",
+  "description": "Patient allergies and adverse reactions with allergen classification, reaction details, and severity tracking. This is safety-critical medical data requiring high confidence and careful validation.",
+  "clinical_context": "Use this schema for extracting allergy and adverse reaction information from medical documents. Allergies are SAFETY-CRITICAL - severe or life-threatening allergies must always be flagged for review regardless of confidence level.",
+
+  "required_fields": [
+    "patient_id",
+    "event_id",
+    "allergen_name"
+  ],
+
+  "fields": {
+    "patient_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Patient identifier from processing context (not extracted from document)",
+      "required": true,
+      "example": "uuid-from-context",
+      "guidance": "This table HAS patient_id column (denormalized for RLS performance). The composite FK ensures patient_id consistency with parent event."
+    },
+
+    "event_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "References parent patient_clinical_events record (the clinical event this allergy is part of)",
+      "required": true,
+      "cascade": "ON DELETE CASCADE",
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "Migration 08 requires event_id NOT NULL. Links to parent clinical event with composite FK enforcement."
+    },
+
+    "allergen_name": {
+      "type": "string",
+      "description": "Name of allergen or substance causing allergic reaction",
+      "required": true,
+      "examples": [
+        "Penicillin",
+        "Peanuts",
+        "Seasonal Pollen",
+        "Latex",
+        "Shellfish",
+        "Bee venom"
+      ],
+      "guidance": "Extract exact allergen name as stated in document. Can be medication, food, environmental, or contact allergen."
+    },
+
+    "allergen_type": {
+      "type": "enum",
+      "values": ["medication", "food", "environmental", "contact", "other"],
+      "description": "Category of allergen",
+      "required": false,
+      "allergen_type_definitions": {
+        "medication": "Drug or medication allergy (antibiotics, NSAIDs, etc.)",
+        "food": "Food allergy (peanuts, shellfish, dairy, etc.)",
+        "environmental": "Environmental allergens (pollen, dust, mold, pet dander)",
+        "contact": "Contact allergens (latex, chemicals, metals)",
+        "other": "Other allergens not categorized above"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 5 values. Extract if allergen category is clear from context."
+    },
+
+    "allergen_code": {
+      "type": "string",
+      "description": "Standardized code for allergen (RxNorm, UNII, or other coding system)",
+      "required": false,
+      "examples": [
+        "7984",
+        "Q42OMW3ND9",
+        "1191"
+      ],
+      "guidance": "Extract if medical code is explicitly stated. Typically assigned via medical_code_assignments table."
+    },
+
+    "reaction_type": {
+      "type": "enum",
+      "values": ["allergic", "intolerance", "adverse_effect", "unknown"],
+      "description": "Type of allergic reaction or adverse event",
+      "required": false,
+      "reaction_type_definitions": {
+        "allergic": "True allergic reaction (IgE-mediated immune response)",
+        "intolerance": "Food or drug intolerance (non-allergic, non-immune)",
+        "adverse_effect": "Adverse drug effect or side effect",
+        "unknown": "Unknown mechanism or unspecified reaction type"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 4 values. Use 'allergic' for true allergies, 'intolerance' for non-allergic reactions."
+    },
+
+    "severity": {
+      "type": "enum",
+      "values": ["mild", "moderate", "severe", "life_threatening"],
+      "description": "Severity level of allergic reaction",
+      "required": false,
+      "severity_definitions": {
+        "mild": "Minor symptoms, no intervention needed (minor rash, mild itching)",
+        "moderate": "Noticeable symptoms, may require treatment (significant hives, nausea)",
+        "severe": "Significant symptoms, requires treatment (difficulty breathing, widespread reaction)",
+        "life_threatening": "Anaphylaxis or severe reaction requiring emergency intervention"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 4 values. ALWAYS set requires_review=true for 'severe' or 'life_threatening'."
+    },
+
+    "reaction_description": {
+      "type": "string",
+      "description": "Free-text description of the allergic reaction",
+      "required": false,
+      "examples": [
+        "Anaphylactic reaction with difficulty breathing and hives",
+        "Hives and gastrointestinal upset",
+        "Seasonal rhinitis and watery eyes",
+        "Contact dermatitis with rash and itching"
+      ],
+      "guidance": "Extract detailed description of reaction as stated in document."
+    },
+
+    "symptoms": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of specific symptoms experienced during allergic reaction",
+      "required": false,
+      "examples": [
+        ["hives", "difficulty breathing", "swelling", "rapid heart rate"],
+        ["sneezing", "runny nose", "itchy eyes"],
+        ["rash", "itching", "redness"]
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Extract all mentioned symptoms as separate array elements."
+    },
+
+    "onset_description": {
+      "type": "string",
+      "description": "Description of reaction onset timing",
+      "required": false,
+      "examples": [
+        "immediate",
+        "delayed (1-2 hours)",
+        "delayed (24 hours)",
+        "seasonal",
+        "upon contact"
+      ],
+      "guidance": "Extract timing information about when reaction occurs after allergen exposure."
+    },
+
+    "source_shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Source document reference",
+      "required": false,
+      "example": "uuid-from-context",
+      "guidance": "UUID of the shell file this allergy was extracted from. Optional FK."
+    },
+
+    "verified_by": {
+      "type": "string",
+      "description": "Name of healthcare provider who verified the allergy",
+      "required": false,
+      "examples": [
+        "Dr. Sarah Johnson",
+        "Dr. Michael Chen, MD",
+        "Nurse Practitioner Williams"
+      ],
+      "guidance": "Extract provider name if allergy verification is documented."
+    },
+
+    "verified_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Date when allergy was verified by healthcare provider",
+      "required": false,
+      "examples": ["2025-09-30", "2024-12-15"],
+      "guidance": "PostgreSQL DATE type. Extract verification date if stated."
+    },
+
+    "confidence_score": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Overall confidence in the extraction (0.00-1.00)",
+      "required": false,
+      "default": 1.0,
+      "examples": [1.0, 0.95, 0.80],
+      "note": "Different precision than ai_confidence (2 decimals vs 3)"
+    },
+
+    "ai_extracted": {
+      "type": "boolean",
+      "description": "Always true for AI-extracted allergies",
+      "required": true,
+      "default": true
+    },
+
+    "ai_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in the extraction (0.000-1.000)",
+      "required": true,
+      "examples": [0.950, 0.880, 0.720],
+      "confidence_guidance": {
+        "high": ">= 0.900 - Clear, unambiguous allergy information",
+        "medium": "0.700 - 0.899 - Reasonable confidence, review for safety-critical allergies",
+        "low": "< 0.700 - Ambiguous or uncertain, requires review"
+      },
+      "guidance": "Allergies are SAFETY-CRITICAL. Be conservative with confidence scores."
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag if this allergy needs human review",
+      "required": true,
+      "default": false,
+      "guidance": "ALWAYS set to true if: (1) severity is 'severe' or 'life_threatening' (regardless of ai_confidence), (2) ai_confidence < 0.700, (3) any safety concerns."
+    },
+
+    "status": {
+      "type": "enum",
+      "values": ["active", "inactive", "resolved", "entered_in_error"],
+      "description": "Current status of allergy",
+      "required": false,
+      "default": "active",
+      "status_definitions": {
+        "active": "Current known allergy requiring ongoing precautions",
+        "inactive": "Previously had allergy, no longer reactive",
+        "resolved": "Allergy resolved over time (rare but possible)",
+        "entered_in_error": "Incorrectly entered allergy, not a true allergy"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 4 values with default 'active'. Most allergies should be 'active'."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Severe medication allergy requiring review",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "allergen_name": "Penicillin",
+        "allergen_type": "medication",
+        "reaction_type": "allergic",
+        "severity": "severe",
+        "reaction_description": "Anaphylactic reaction with difficulty breathing and hives",
+        "symptoms": ["hives", "difficulty breathing", "swelling", "rapid heart rate"],
+        "onset_description": "immediate",
+        "verified_by": "Dr. Sarah Johnson",
+        "verified_date": "2025-09-30",
+        "status": "active",
+        "source_shell_file_id": "uuid-from-context",
+        "ai_extracted": true,
+        "ai_confidence": 0.950,
+        "requires_review": true
+      }
+    },
+    {
+      "description": "Food allergy with moderate severity",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "allergen_name": "Peanuts",
+        "allergen_type": "food",
+        "reaction_type": "allergic",
+        "severity": "moderate",
+        "reaction_description": "Hives and gastrointestinal upset",
+        "symptoms": ["hives", "nausea", "vomiting", "abdominal pain"],
+        "onset_description": "delayed (1-2 hours)",
+        "status": "active",
+        "ai_extracted": true,
+        "ai_confidence": 0.920,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Environmental allergy with mild severity",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "allergen_name": "Seasonal Pollen",
+        "allergen_type": "environmental",
+        "reaction_type": "allergic",
+        "severity": "mild",
+        "reaction_description": "Seasonal rhinitis and watery eyes",
+        "symptoms": ["sneezing", "runny nose", "itchy eyes"],
+        "onset_description": "seasonal",
+        "status": "active",
+        "ai_extracted": true,
+        "ai_confidence": 0.880,
+        "requires_review": false
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "safety_critical": "Allergies are SAFETY-CRITICAL medical data. ALWAYS set requires_review=true for severe or life-threatening allergies, regardless of ai_confidence level.",
+    "severity_threshold": "For severity='severe' or severity='life_threatening', ALWAYS set requires_review=true.",
+    "confidence_conservative": "Be conservative with confidence scores. If uncertain about allergy details, lower the ai_confidence and set requires_review=true.",
+    "allergen_type_extraction": "Only populate allergen_type if category is clearly stated or obvious from context (e.g., Penicillin = medication, Peanuts = food).",
+    "reaction_type_distinction": "Distinguish between true allergic reactions (allergic) and non-allergic intolerances (intolerance) when information is available.",
+    "symptoms_array": "Extract ALL mentioned symptoms as separate array elements in the symptoms TEXT[] array.",
+    "status_default": "If status is not explicitly stated, default to 'active' for current allergies.",
+    "verification_optional": "verified_by and verified_date are optional - only extract if explicitly documented.",
+    "confidence_thresholds": {
+      "auto_accept": ">= 0.900 AND severity NOT IN ('severe', 'life_threatening')",
+      "review_recommended": "0.700 - 0.899 OR severity='moderate' with unclear details",
+      "manual_review_required": "< 0.700 OR severity IN ('severe', 'life_threatening')"
+    }
+  },
+
+  "validation_rules": {
+    "patient_id": "Must be valid UUID (NOT NULL)",
+    "event_id": "Must reference valid patient_clinical_events record (NOT NULL)",
+    "allergen_name": "Must be provided (NOT NULL)",
+    "allergen_type": "If provided, must be one of: 'medication', 'food', 'environmental', 'contact', 'other'",
+    "reaction_type": "If provided, must be one of: 'allergic', 'intolerance', 'adverse_effect', 'unknown'",
+    "severity": "If provided, must be one of: 'mild', 'moderate', 'severe', 'life_threatening'",
+    "status": "Must be one of: 'active', 'inactive', 'resolved', 'entered_in_error' (default: 'active')",
+    "symptoms": "If provided, must be valid PostgreSQL TEXT[] array",
+    "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
+    "confidence_score": "If provided, must be between 0.00 and 1.00 with 2 decimal places",
+    "verified_date": "If provided, must be valid ISO 8601 DATE format",
+    "safety_rule": "For severe/life_threatening allergies: requires_review MUST be true"
+  }
+}

@@ -1,17 +1,18 @@
 # patient_vitals Bridge Schema (Source) - Pass 2
 
-**Status:** ✅ Recreated from database source of truth
-**Database Source:** /current_schema/03_clinical_core.sql (lines 628-670)
-**Temporal Columns:** Added via migration 02 (lines 989-1072)
-**Last Updated:** 30 September 2025
+**Status:** ✅ Updated for Migration 08
+**Database Source:** /current_schema/03_clinical_core.sql (lines 658-708)
+**Last Updated:** 30 September 2025 (Migration 08 alignment)
 **Priority:** CRITICAL - Vital signs measurements with JSONB flexible value storage
 
 ## Database Table Structure
 
 ```sql
+-- Migration 08: This table HAS patient_id column (denormalized for performance)
 CREATE TABLE IF NOT EXISTS patient_vitals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
 
     -- Measurement details
     vital_type TEXT NOT NULL CHECK (vital_type IN (
@@ -52,22 +53,13 @@ CREATE TABLE IF NOT EXISTS patient_vitals (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     archived_at TIMESTAMPTZ,
 
-    -- Temporal Management (from migration 02, lines 989-1072)
-    clinical_event_id UUID REFERENCES patient_clinical_events(id),
-    primary_narrative_id UUID REFERENCES clinical_narratives(id),
-    valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    valid_to TIMESTAMPTZ NULL,
-    superseded_by_record_id UUID REFERENCES patient_vitals(id) ON DELETE SET NULL,
-    supersession_reason TEXT,
-    is_current BOOLEAN GENERATED ALWAYS AS (valid_to IS NULL) STORED,
-    clinical_effective_date DATE,
-    date_confidence TEXT CHECK (date_confidence IN ('high', 'medium', 'low', 'conflicted')),
-    extracted_dates JSONB DEFAULT '[]'::jsonb,
-    date_source TEXT CHECK (date_source IN ('clinical_content', 'document_date', 'file_metadata', 'upload_timestamp', 'user_provided')),
-    date_conflicts JSONB DEFAULT '[]'::jsonb,
-    date_resolution_reason TEXT,
-    clinical_identity_key TEXT
+    -- Migration 08: Composite FK ensures patient_id consistency with parent event
+    CONSTRAINT patient_vitals_event_patient_fk FOREIGN KEY (event_id, patient_id)
+        REFERENCES patient_clinical_events(id, patient_id) ON DELETE CASCADE
 );
+
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_vitals_event_id ON patient_vitals(event_id);
 ```
 
 ## AI Extraction Requirements for Pass 2
@@ -80,6 +72,7 @@ Extract vital signs measurements from medical documents with flexible JSONB valu
 interface PatientVitalsExtraction {
   // REQUIRED FIELDS
   patient_id: string;                      // UUID - from shell file processing context
+  event_id: string;                        // UUID - references parent patient_clinical_events record (Migration 08)
   vital_type: 'blood_pressure' | 'heart_rate' | 'temperature' | 'respiratory_rate' |
               'oxygen_saturation' | 'weight' | 'height' | 'bmi' | 'blood_glucose' | 'other';
   measurement_value: object;               // JSONB - flexible structure based on vital_type
@@ -104,17 +97,6 @@ interface PatientVitalsExtraction {
   ai_extracted: boolean;                   // Always true for AI-extracted vitals
   ai_confidence: number;                   // 0.000-1.000 (3 decimal places)
   requires_review: boolean;                // True if confidence below threshold
-
-  // TEMPORAL DATA MANAGEMENT (OPTIONAL for Pass 2)
-  clinical_event_id?: string;              // UUID - links to patient_clinical_events
-  primary_narrative_id?: string;           // UUID - links to clinical_narratives (Pass 3)
-  clinical_effective_date?: string;        // ISO 8601 DATE
-  date_confidence?: 'high' | 'medium' | 'low' | 'conflicted';
-  extracted_dates?: object[];              // JSONB array of date extraction attempts
-  date_source?: 'clinical_content' | 'document_date' | 'file_metadata' | 'upload_timestamp' | 'user_provided';
-  date_conflicts?: object[];               // JSONB array of conflicting dates
-  date_resolution_reason?: string;         // Why this date was chosen
-  clinical_identity_key?: string;          // Deduplication fingerprint
 }
 ```
 
@@ -207,6 +189,7 @@ interface PatientVitalsExtraction {
 ```json
 {
   "patient_id": "uuid-from-context",
+  "event_id": "uuid-of-parent-clinical-event",
   "vital_type": "blood_pressure",
   "measurement_value": {"systolic": 120, "diastolic": 80},
   "unit": "mmHg",
@@ -221,10 +204,6 @@ interface PatientVitalsExtraction {
   "ai_extracted": true,
   "ai_confidence": 0.950,
   "requires_review": false,
-  "clinical_event_id": "uuid-of-parent-clinical-event",
-  "clinical_effective_date": "2025-09-30",
-  "date_confidence": "high",
-  "date_source": "clinical_content"
 }
 ```
 
@@ -232,6 +211,7 @@ interface PatientVitalsExtraction {
 ```json
 {
   "patient_id": "uuid-from-context",
+  "event_id": "uuid-of-parent-clinical-event",
   "vital_type": "temperature",
   "measurement_value": {"degrees": 98.6},
   "unit": "F",
@@ -250,6 +230,7 @@ interface PatientVitalsExtraction {
 ```json
 {
   "patient_id": "uuid-from-context",
+  "event_id": "uuid-of-parent-clinical-event",
   "vital_type": "weight",
   "measurement_value": {"value": 70.5},
   "unit": "kg",
@@ -267,6 +248,7 @@ interface PatientVitalsExtraction {
 ```json
 {
   "patient_id": "uuid-from-context",
+  "event_id": "uuid-of-parent-clinical-event",
   "vital_type": "oxygen_saturation",
   "measurement_value": {"percentage": 98},
   "unit": "%",
@@ -283,15 +265,25 @@ interface PatientVitalsExtraction {
 
 ## Critical Notes
 
-1. **JSONB Flexibility**: `measurement_value` is JSONB to accommodate different vital sign structures
-2. **Blood Pressure Structure**: Use `{"systolic": X, "diastolic": Y}` format consistently
-3. **Patient ID Required**: Unlike patient_observations/patient_interventions, this table references patient_id directly (not via event_id)
-4. **Source File Reference**: `source_shell_file_id` is optional but recommended for provenance tracking
-5. **Numeric Precision**: `ai_confidence` uses 3 decimals (0.000-1.000), `confidence_score` uses 2 decimals (0.00-1.00)
-6. **Vital Type Enum**: Must be one of 10 values (blood_pressure, heart_rate, temperature, respiratory_rate, oxygen_saturation, weight, height, bmi, blood_glucose, other)
-7. **Temporal Columns**: This table HAS temporal management columns (added via migration 02, lines 989-1072)
-8. **JSONB Fields**: `measurement_value`, `device_info`, `reference_range`, `extracted_dates`, and `date_conflicts` are all JSONB
-9. **Unit Requirement**: Unit is NOT NULL - must always be provided
+1. **Migration 08 - HAS patient_id Column**: Unlike patient_observations/patient_interventions, this table DOES have a `patient_id` column (denormalized for RLS performance). The composite FK ensures patient_id consistency with the parent event.
+
+2. **Parent Relationship**: `event_id` MUST reference a valid `patient_clinical_events` record. This is a NOT NULL requirement enforced by Migration 08.
+
+3. **Composite FK Integrity**: The composite foreign key `(event_id, patient_id) → patient_clinical_events(id, patient_id)` ensures that the denormalized patient_id matches the patient_id of the parent event.
+
+4. **JSONB Flexibility**: `measurement_value` is JSONB to accommodate different vital sign structures (see patterns below).
+
+5. **Blood Pressure Structure**: Use `{"systolic": X, "diastolic": Y}` format consistently.
+
+6. **Numeric Precision**: `ai_confidence` uses 3 decimals (0.000-1.000), `confidence_score` uses 2 decimals (0.00-1.00).
+
+7. **Vital Type Enum**: Database enforces 10 values: 'blood_pressure', 'heart_rate', 'temperature', 'respiratory_rate', 'oxygen_saturation', 'weight', 'height', 'bmi', 'blood_glucose', 'other'.
+
+8. **JSONB Fields**: `measurement_value`, `device_info`, and `reference_range` are all JSONB objects.
+
+9. **Required Fields**: Five NOT NULL fields: patient_id, event_id, vital_type, measurement_value, unit, measurement_date.
+
+10. **Index for Performance**: `idx_patient_vitals_event_id` index added in Migration 08 for efficient JOINs through the hub-and-spoke architecture.
 
 ## Measurement Value JSONB Patterns
 
@@ -319,9 +311,11 @@ interface PatientVitalsExtraction {
 
 ## Database Constraint Notes
 
-- **CHECK constraint on vital_type**: Database enforces one of 10 specific values
-- **NOT NULL constraints**: patient_id, vital_type, measurement_value, unit, measurement_date are all required
-- **Temporal self-reference**: `superseded_by_record_id` references patient_vitals(id) for version tracking
-- **Generated column**: `is_current` is automatically computed as `(valid_to IS NULL)`, cannot be manually set
+- **HAS patient_id column**: This table has patient_id (denormalized for RLS performance) unlike patient_observations/patient_interventions
+- **Composite FK constraint**: `(event_id, patient_id) → patient_clinical_events(id, patient_id)` enforces patient_id consistency with parent event (Migration 08)
+- **FK to parent event**: `event_id` has ON DELETE CASCADE - if parent clinical event is deleted, this vital is automatically deleted
+- **CHECK constraint on vital_type**: Database enforces 10 specific enum values
+- **NOT NULL constraints**: patient_id, event_id, vital_type, measurement_value, unit, measurement_date are all required
 - **JSONB flexibility**: measurement_value, device_info, and reference_range are schema-less JSONB for flexibility
 - **Optional shell_file reference**: source_shell_file_id is optional FK (can be NULL)
+- **Index optimization**: `idx_patient_vitals_event_id` ensures efficient JOINs to parent events

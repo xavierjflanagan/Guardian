@@ -1,0 +1,447 @@
+{
+  "schema_version": "1.0.0",
+  "table": "patient_medications",
+  "pass": "pass-2",
+  "description": "Medication records with prescription details, dosing, and status management. This table stores ongoing and historical medication information extracted from medical documents.",
+  "clinical_context": "Use this schema for extracting medication prescriptions and records from medical documents. Medications are safety-critical data requiring high confidence and careful extraction of dosing information.",
+
+  "required_fields": [
+    "patient_id",
+    "event_id",
+    "medication_name"
+  ],
+
+  "fields": {
+    "patient_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Patient identifier from processing context (not extracted from document)",
+      "required": true,
+      "example": "uuid-from-context",
+      "guidance": "This table HAS patient_id column (denormalized for RLS performance). The composite FK ensures patient_id consistency with parent event."
+    },
+
+    "event_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "References parent patient_clinical_events record (the clinical event this medication is part of)",
+      "required": true,
+      "cascade": "ON DELETE CASCADE",
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "This links the medication to the parent clinical event. Migration 08 requires event_id NOT NULL and enforces consistency via composite FK."
+    },
+
+    "medication_name": {
+      "type": "string",
+      "description": "Name of medication (generic or brand name)",
+      "required": true,
+      "examples": [
+        "Lisinopril",
+        "Metformin",
+        "Acetaminophen",
+        "Atorvastatin",
+        "Omeprazole"
+      ],
+      "guidance": "Use the name as stated in document. Can be generic name, brand name, or both if mentioned."
+    },
+
+    "generic_name": {
+      "type": "string",
+      "description": "Generic/non-proprietary name of medication",
+      "required": false,
+      "examples": [
+        "Lisinopril",
+        "Metformin hydrochloride",
+        "Paracetamol",
+        "Atorvastatin calcium"
+      ],
+      "guidance": "Extract if explicitly mentioned. Used for standardization and drug interaction checking."
+    },
+
+    "brand_name": {
+      "type": "string",
+      "description": "Brand/trade name of medication",
+      "required": false,
+      "examples": [
+        "Prinivil",
+        "Glucophage",
+        "Tylenol",
+        "Lipitor"
+      ],
+      "guidance": "Extract if explicitly mentioned. Helps with patient recognition and adherence."
+    },
+
+    "rxnorm_code": {
+      "type": "string",
+      "description": "RxNorm code for medication",
+      "required": false,
+      "examples": ["197884", "860975", "161"],
+      "guidance": "Typically assigned via medical_code_assignments table, but can be extracted if stated in document."
+    },
+
+    "pbs_code": {
+      "type": "string",
+      "description": "PBS (Pharmaceutical Benefits Scheme) code - Australian",
+      "required": false,
+      "examples": ["8254K", "2179B"],
+      "guidance": "Australian-specific PBS item codes. Extract if present in Australian medical documents."
+    },
+
+    "atc_code": {
+      "type": "string",
+      "description": "Anatomical Therapeutic Chemical (ATC) classification code",
+      "required": false,
+      "examples": ["C09AA05", "A10BA02", "N02BE01"],
+      "guidance": "WHO ATC codes for medication classification. Extract if stated."
+    },
+
+    "strength": {
+      "type": "string",
+      "description": "Medication strength/concentration",
+      "required": false,
+      "examples": [
+        "10 mg",
+        "500 mg",
+        "20 mg/mL",
+        "325 mg",
+        "5 mcg"
+      ],
+      "guidance": "Critical for safety - extract exact strength as stated. Include unit."
+    },
+
+    "dosage_form": {
+      "type": "string",
+      "description": "Pharmaceutical form of medication",
+      "required": false,
+      "examples": [
+        "tablet",
+        "capsule",
+        "liquid",
+        "injection",
+        "cream",
+        "patch",
+        "inhaler"
+      ],
+      "guidance": "Helps with administration and patient understanding."
+    },
+
+    "prescribed_dose": {
+      "type": "string",
+      "description": "Amount to take per dose",
+      "required": false,
+      "examples": [
+        "1 tablet",
+        "2 tablets",
+        "5 mL",
+        "1-2 tablets",
+        "1 capsule"
+      ],
+      "guidance": "Critical for safety - extract exact dose as prescribed."
+    },
+
+    "frequency": {
+      "type": "string",
+      "description": "How often medication should be taken",
+      "required": false,
+      "examples": [
+        "daily",
+        "twice daily",
+        "three times daily",
+        "as needed",
+        "every 4 hours",
+        "at bedtime",
+        "with meals"
+      ],
+      "guidance": "Extract verbatim from document. Include any timing instructions."
+    },
+
+    "route": {
+      "type": "string",
+      "description": "Route of administration",
+      "required": false,
+      "examples": [
+        "oral",
+        "topical",
+        "intravenous",
+        "intramuscular",
+        "subcutaneous",
+        "transdermal",
+        "inhalation"
+      ],
+      "guidance": "Important for proper administration."
+    },
+
+    "duration_prescribed": {
+      "type": "interval",
+      "description": "Duration for which medication is prescribed",
+      "required": false,
+      "examples": [
+        "30 days",
+        "3 months",
+        "1 week",
+        "90 days",
+        "6 months"
+      ],
+      "guidance": "PostgreSQL INTERVAL format. Extract if treatment duration is specified."
+    },
+
+    "indication": {
+      "type": "string",
+      "description": "Reason for medication prescription",
+      "required": false,
+      "examples": [
+        "Hypertension",
+        "Type 2 diabetes",
+        "Pain relief",
+        "Infection prophylaxis",
+        "Cholesterol management"
+      ],
+      "guidance": "Medical reason for prescription. Helps with medication reconciliation."
+    },
+
+    "prescribing_provider": {
+      "type": "string",
+      "description": "Name of healthcare provider who prescribed medication",
+      "required": false,
+      "examples": [
+        "Dr. Sarah Johnson",
+        "Dr. Michael Chen, MD",
+        "Nurse Practitioner Williams"
+      ],
+      "guidance": "Extract provider name if stated."
+    },
+
+    "prescription_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Date when medication was prescribed",
+      "required": false,
+      "examples": ["2025-09-30", "2024-12-15"],
+      "guidance": "PostgreSQL DATE type. Extract if prescription date is stated."
+    },
+
+    "start_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Date when patient started taking medication",
+      "required": false,
+      "examples": ["2025-09-30", "2025-01-10"],
+      "guidance": "May be same as prescription_date or different if patient delayed starting."
+    },
+
+    "end_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Date when medication was stopped",
+      "required": false,
+      "examples": ["2025-10-30", "2025-06-15"],
+      "guidance": "Only populate for discontinued or completed medications."
+    },
+
+    "status": {
+      "type": "enum",
+      "values": ["active", "completed", "discontinued", "on_hold", "cancelled"],
+      "description": "Current status of medication",
+      "required": false,
+      "default": "active",
+      "status_definitions": {
+        "active": "Currently being taken",
+        "completed": "Course of treatment finished as planned",
+        "discontinued": "Stopped before completion",
+        "on_hold": "Temporarily suspended",
+        "cancelled": "Prescription cancelled/never started"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 5 values. Default is 'active' if not specified."
+    },
+
+    "adherence_notes": {
+      "type": "string",
+      "description": "Notes on patient adherence or compliance",
+      "required": false,
+      "examples": [
+        "Patient taking as prescribed",
+        "Missed doses occasionally",
+        "Discontinued due to side effects",
+        "Good compliance reported"
+      ],
+      "guidance": "Extract any notes about how patient is following prescription."
+    },
+
+    "source_shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Source document reference",
+      "required": false,
+      "example": "uuid-from-context",
+      "guidance": "UUID of the shell file this medication was extracted from."
+    },
+
+    "confidence_score": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Overall confidence in the extraction (0.00-1.00)",
+      "required": false,
+      "default": 1.0,
+      "examples": [1.0, 0.95, 0.80],
+      "note": "Different precision than ai_confidence (2 decimals vs 3)"
+    },
+
+    "ai_extracted": {
+      "type": "boolean",
+      "description": "Always true for AI-extracted medications",
+      "required": true,
+      "default": true
+    },
+
+    "ai_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in the extraction (0.000-1.000)",
+      "required": true,
+      "examples": [0.950, 0.875, 0.680],
+      "confidence_guidance": {
+        "high": ">= 0.900 - Clear, unambiguous extraction. Safe to auto-accept.",
+        "medium": "0.700 - 0.899 - Reasonable confidence, may need review for safety-critical fields",
+        "low": "< 0.700 - Ambiguous or uncertain, requires review"
+      },
+      "guidance": "Medications are safety-critical. Be honest about uncertainty, especially for dosing."
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag if this medication needs human review",
+      "required": true,
+      "default": false,
+      "guidance": "Set to true if: (1) ai_confidence < 0.900, (2) dosing information is ambiguous, (3) potential drug interactions noted, (4) any safety concerns."
+    },
+
+    "drug_interaction_checked": {
+      "type": "boolean",
+      "description": "Whether drug interactions were checked",
+      "required": false,
+      "default": false,
+      "guidance": "Set to true if AI performed drug interaction checking against other patient medications."
+    },
+
+    "notes": {
+      "type": "string",
+      "description": "Additional clinical notes about medication",
+      "required": false,
+      "examples": [
+        "Patient reports nausea as side effect",
+        "Dose adjusted from 20mg to 10mg",
+        "Take with food to reduce GI upset"
+      ],
+      "guidance": "Free-text notes providing additional context."
+    },
+
+    "clinical_context": {
+      "type": "jsonb",
+      "description": "Additional structured context",
+      "required": false,
+      "default": "{}",
+      "examples": [
+        {"side_effects": ["nausea", "dizziness"], "interactions": ["warfarin"]},
+        {"refills_remaining": 2, "pharmacy": "CVS Pharmacy"}
+      ],
+      "guidance": "JSONB field for flexible structured data. Default is empty object."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Active prescription with full details",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "medication_name": "Lisinopril",
+        "generic_name": "Lisinopril",
+        "brand_name": "Prinivil",
+        "strength": "10 mg",
+        "dosage_form": "tablet",
+        "prescribed_dose": "1 tablet",
+        "frequency": "daily",
+        "route": "oral",
+        "indication": "Hypertension",
+        "prescribing_provider": "Dr. Sarah Johnson",
+        "prescription_date": "2025-09-30",
+        "start_date": "2025-09-30",
+        "status": "active",
+        "source_shell_file_id": "uuid-from-context",
+        "ai_extracted": true,
+        "ai_confidence": 0.920,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Discontinued medication with adherence notes",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "medication_name": "Metformin",
+        "generic_name": "Metformin hydrochloride",
+        "strength": "500 mg",
+        "dosage_form": "tablet",
+        "prescribed_dose": "2 tablets",
+        "frequency": "twice daily",
+        "route": "oral",
+        "indication": "Type 2 diabetes",
+        "start_date": "2024-06-15",
+        "end_date": "2025-08-20",
+        "status": "discontinued",
+        "adherence_notes": "Discontinued due to gastrointestinal side effects",
+        "ai_extracted": true,
+        "ai_confidence": 0.880,
+        "requires_review": true
+      }
+    },
+    {
+      "description": "As-needed medication",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "medication_name": "Acetaminophen",
+        "generic_name": "Paracetamol",
+        "brand_name": "Tylenol",
+        "strength": "500 mg",
+        "dosage_form": "tablet",
+        "prescribed_dose": "1-2 tablets",
+        "frequency": "as needed (max 8 tablets/day)",
+        "route": "oral",
+        "indication": "Pain relief",
+        "status": "active",
+        "ai_extracted": true,
+        "ai_confidence": 0.950,
+        "requires_review": false
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "safety_critical": "Medications are safety-critical. Always set requires_review=true if ai_confidence < 0.900 or if dosing is ambiguous.",
+    "dosing_precision": "Extract strength, prescribed_dose, and frequency exactly as stated. Never infer or calculate.",
+    "status_default": "If status is not explicitly stated, default to 'active' for current medications.",
+    "duration_format": "Use PostgreSQL INTERVAL format for duration_prescribed (e.g., '30 days', '3 months').",
+    "code_assignment": "Medical codes (rxnorm_code, pbs_code, atc_code) are typically assigned via medical_code_assignments table but can be extracted if stated.",
+    "multiple_names": "If both generic and brand names are mentioned, populate both fields.",
+    "confidence_thresholds": {
+      "auto_accept": ">= 0.900 for complete, unambiguous medication information",
+      "review_recommended": "< 0.900 for any safety-critical medication",
+      "manual_review_required": "< 0.700 or any dosing ambiguity"
+    }
+  },
+
+  "validation_rules": {
+    "medication_name": "Must be provided (NOT NULL)",
+    "status": "If provided, must be one of: 'active', 'completed', 'discontinued', 'on_hold', 'cancelled'",
+    "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
+    "confidence_score": "If provided, must be between 0.00 and 1.00 with 2 decimal places",
+    "duration_prescribed": "If provided, must be valid PostgreSQL INTERVAL format",
+    "clinical_context": "If provided, must be valid JSONB",
+    "safety_rule": "For medications: ai_confidence < 0.900 REQUIRES requires_review = true"
+  }
+}

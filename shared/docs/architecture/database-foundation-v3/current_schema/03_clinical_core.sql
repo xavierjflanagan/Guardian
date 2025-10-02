@@ -344,10 +344,16 @@ CREATE TABLE IF NOT EXISTS patient_clinical_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ, -- Soft delete for compliance
-    
+
     -- User Review Tracking
     reviewed_by UUID REFERENCES auth.users(id),
-    reviewed_at TIMESTAMPTZ
+    reviewed_at TIMESTAMPTZ,
+
+    -- Migration 08: Hub-and-Spoke Architecture Enforcement
+    is_synthetic BOOLEAN DEFAULT FALSE, -- Tracks backfilled events created for orphaned clinical records
+
+    -- Migration 08: Composite unique constraint enables composite FKs on child tables
+    CONSTRAINT patient_clinical_events_id_patient_id_key UNIQUE (id, patient_id)
 );
 
 -- =============================================================================
@@ -360,9 +366,10 @@ CREATE TABLE IF NOT EXISTS patient_clinical_events (
 -- This section defines the supporting detail tables that extend the central hub
 
 -- Observation details table for information gathering events (CRITICAL V3 COMPONENT)
+-- Migration 08: This table has NO patient_id column - derives it through event_id → patient_clinical_events
 CREATE TABLE IF NOT EXISTS patient_observations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
     
     -- Classification
     observation_type TEXT NOT NULL, -- 'vital_sign', 'lab_result', 'physical_finding', 'assessment_score'
@@ -394,10 +401,14 @@ CREATE TABLE IF NOT EXISTS patient_observations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_observations_event_id ON patient_observations(event_id);
+
 -- Intervention details table for action events (CRITICAL V3 COMPONENT)
+-- Migration 08: This table has NO patient_id column - derives it through event_id → patient_clinical_events
 CREATE TABLE IF NOT EXISTS patient_interventions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
     
     -- Classification
     intervention_type TEXT NOT NULL, -- 'medication_admin', 'vaccination', 'minor_procedure', 'surgery', 'therapy'
@@ -430,6 +441,9 @@ CREATE TABLE IF NOT EXISTS patient_interventions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_interventions_event_id ON patient_interventions(event_id);
 
 -- Healthcare encounters table for visit context (CRITICAL V3 COMPONENT)
 CREATE TABLE IF NOT EXISTS healthcare_encounters (
@@ -526,12 +540,11 @@ CREATE TABLE IF NOT EXISTS healthcare_timeline_events (
 -- These tables provide additional clinical detail alongside the V3 core architecture
 
 -- Patient medical conditions (specialized detail table) - ENHANCED with narrative linking
+-- Migration 08: This table HAS patient_id column (denormalized for performance)
 CREATE TABLE IF NOT EXISTS patient_conditions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    
-    -- Link to V3 core architecture
-    clinical_event_id UUID REFERENCES patient_clinical_events(id),
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Renamed from clinical_event_id, now required
     
     -- NARRATIVE LINKING SYSTEM - Core UX Feature
     shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE, -- Source file reference
@@ -573,13 +586,22 @@ CREATE TABLE IF NOT EXISTS patient_conditions (
     -- Lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at TIMESTAMPTZ
+    archived_at TIMESTAMPTZ,
+
+    -- Migration 08: Composite FK ensures patient_id consistency with parent event
+    CONSTRAINT patient_conditions_event_patient_fk FOREIGN KEY (event_id, patient_id)
+        REFERENCES patient_clinical_events(id, patient_id) ON DELETE CASCADE
 );
 
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_conditions_event_id ON patient_conditions(event_id);
+
 -- Patient allergies and adverse reactions
+-- Migration 08: This table HAS patient_id column (denormalized for performance)
 CREATE TABLE IF NOT EXISTS patient_allergies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
     
     -- Allergen details
     allergen_name TEXT NOT NULL,
@@ -621,13 +643,22 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
     -- Lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at TIMESTAMPTZ
+    archived_at TIMESTAMPTZ,
+
+    -- Migration 08: Composite FK ensures patient_id consistency with parent event
+    CONSTRAINT patient_allergies_event_patient_fk FOREIGN KEY (event_id, patient_id)
+        REFERENCES patient_clinical_events(id, patient_id) ON DELETE CASCADE
 );
 
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_allergies_event_id ON patient_allergies(event_id);
+
 -- Patient vital signs and measurements
+-- Migration 08: This table HAS patient_id column (denormalized for performance)
 CREATE TABLE IF NOT EXISTS patient_vitals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
     
     -- Measurement details
     vital_type TEXT NOT NULL CHECK (vital_type IN (
@@ -666,8 +697,15 @@ CREATE TABLE IF NOT EXISTS patient_vitals (
     -- Lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    archived_at TIMESTAMPTZ
+    archived_at TIMESTAMPTZ,
+
+    -- Migration 08: Composite FK ensures patient_id consistency with parent event
+    CONSTRAINT patient_vitals_event_patient_fk FOREIGN KEY (event_id, patient_id)
+        REFERENCES patient_clinical_events(id, patient_id) ON DELETE CASCADE
 );
+
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_vitals_event_id ON patient_vitals(event_id);
 
 -- =============================================================================
 -- SECTION 4: V3 ENHANCED CLINICAL TABLES
@@ -675,9 +713,11 @@ CREATE TABLE IF NOT EXISTS patient_vitals (
 -- CRITICAL FIX: patient_id correctly references user_profiles(id)
 
 -- Patient immunizations with comprehensive healthcare standards integration
+-- Migration 08: This table HAS patient_id column (denormalized for performance)
 CREATE TABLE IF NOT EXISTS patient_immunizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
     
     -- Immunization Details
     vaccine_name TEXT NOT NULL, -- "COVID-19 mRNA vaccine", "Influenza vaccine"
@@ -727,13 +767,22 @@ CREATE TABLE IF NOT EXISTS patient_immunizations (
     -- Audit fields
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    archived_at TIMESTAMPTZ
+    archived_at TIMESTAMPTZ,
+
+    -- Migration 08: Composite FK ensures patient_id consistency with parent event
+    CONSTRAINT patient_immunizations_event_patient_fk FOREIGN KEY (event_id, patient_id)
+        REFERENCES patient_clinical_events(id, patient_id) ON DELETE CASCADE
 );
 
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_immunizations_event_id ON patient_immunizations(event_id);
+
 -- Patient medications (enhanced for V3)
+-- Migration 08: This table HAS patient_id column (denormalized for performance)
 CREATE TABLE IF NOT EXISTS patient_medications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
     
     -- Medication identification
     medication_name TEXT NOT NULL,
@@ -784,8 +833,15 @@ CREATE TABLE IF NOT EXISTS patient_medications (
     -- Lifecycle
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    archived_at TIMESTAMPTZ
+    archived_at TIMESTAMPTZ,
+
+    -- Migration 08: Composite FK ensures patient_id consistency with parent event
+    CONSTRAINT patient_medications_event_patient_fk FOREIGN KEY (event_id, patient_id)
+        REFERENCES patient_clinical_events(id, patient_id) ON DELETE CASCADE
 );
+
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_medications_event_id ON patient_medications(event_id);
 
 -- =============================================================================
 -- SECTION 4B: CLINICAL NARRATIVE LINKING SYSTEM 
@@ -1889,6 +1945,22 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 COMMIT;
+
+-- =============================================================================
+-- MIGRATION 08 AUDIT TRACKING
+-- =============================================================================
+
+-- Audit table for tracking synthetic events created during hub-and-spoke migration
+-- Created by: Migration 08 (2025-09-30_08_enforce_hub_spoke_architecture.sql)
+-- Purpose: Track which clinical records required synthetic patient_clinical_events backfill
+CREATE TABLE IF NOT EXISTS migration_08_backfill_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_table TEXT NOT NULL,
+    source_record_id UUID NOT NULL,
+    created_event_id UUID NOT NULL,
+    backfill_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    backfill_reason TEXT
+);
 
 -- =============================================================================
 -- FRESH START BLUEPRINT: 03_clinical_core.sql COMPLETE

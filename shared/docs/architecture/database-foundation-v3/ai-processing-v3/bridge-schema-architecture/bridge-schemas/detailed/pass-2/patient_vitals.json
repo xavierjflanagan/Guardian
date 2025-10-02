@@ -7,6 +7,7 @@
 
   "required_fields": [
     "patient_id",
+    "event_id",
     "vital_type",
     "measurement_value",
     "unit",
@@ -20,7 +21,17 @@
       "description": "Patient identifier from processing context (not extracted from document)",
       "required": true,
       "example": "uuid-from-context",
-      "guidance": "Unlike patient_observations/patient_interventions, this table references patient_id directly (not via event_id)."
+      "guidance": "This table HAS patient_id column (denormalized for RLS performance). The composite FK ensures patient_id consistency with parent event."
+    },
+
+    "event_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "References parent patient_clinical_events record (the clinical event this vital measurement is part of)",
+      "required": true,
+      "cascade": "ON DELETE CASCADE",
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "This links the vital measurement to the parent clinical event. Migration 08 requires event_id NOT NULL and enforces consistency via composite FK."
     },
 
     "vital_type": {
@@ -243,73 +254,6 @@
       "required": true,
       "default": false,
       "guidance": "Set to true if ai_confidence < 0.700 or if values seem clinically implausible."
-    },
-
-    "clinical_event_id": {
-      "type": "uuid",
-      "description": "Links to patient_clinical_events (temporal management)",
-      "required": false,
-      "example": "uuid-of-parent-clinical-event",
-      "guidance": "Part of temporal management system. Optional for Pass 2."
-    },
-
-    "primary_narrative_id": {
-      "type": "uuid",
-      "description": "Links to clinical_narratives (Pass 3)",
-      "required": false,
-      "default": null,
-      "guidance": "Leave null in Pass 2. Populated by Pass 3 semantic processing."
-    },
-
-    "clinical_effective_date": {
-      "type": "date",
-      "format": "ISO 8601 (YYYY-MM-DD)",
-      "description": "Clinical relevance date",
-      "required": false,
-      "examples": ["2025-09-30"],
-      "guidance": "Typically same date as measurement_date but in DATE format."
-    },
-
-    "date_confidence": {
-      "type": "enum",
-      "values": ["high", "medium", "low", "conflicted"],
-      "description": "Confidence in the extracted date",
-      "required": false
-    },
-
-    "extracted_dates": {
-      "type": "jsonb",
-      "description": "Array of all date extraction attempts",
-      "required": false,
-      "default": []
-    },
-
-    "date_source": {
-      "type": "enum",
-      "values": ["clinical_content", "document_date", "file_metadata", "upload_timestamp", "user_provided"],
-      "description": "Where the date was extracted from",
-      "required": false
-    },
-
-    "date_conflicts": {
-      "type": "jsonb",
-      "description": "Array of conflicting dates",
-      "required": false,
-      "default": []
-    },
-
-    "date_resolution_reason": {
-      "type": "string",
-      "description": "Why this date was chosen",
-      "required": false
-    },
-
-    "clinical_identity_key": {
-      "type": "string",
-      "description": "Deduplication fingerprint",
-      "required": false,
-      "example": "vital_bp_2025-09-30_120/80",
-      "guidance": "Create key combining vital_type, date, and value for deduplication."
     }
   },
 
@@ -318,6 +262,7 @@
       "description": "Blood pressure measurement with full context",
       "extraction": {
         "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
         "vital_type": "blood_pressure",
         "measurement_value": {"systolic": 120, "diastolic": 80},
         "unit": "mmHg",
@@ -331,17 +276,14 @@
         "reference_range": {"systolic": {"low": 90, "high": 120}, "diastolic": {"low": 60, "high": 80}},
         "ai_extracted": true,
         "ai_confidence": 0.950,
-        "requires_review": false,
-        "clinical_event_id": "uuid-of-parent-clinical-event",
-        "clinical_effective_date": "2025-09-30",
-        "date_confidence": "high",
-        "date_source": "clinical_content"
+        "requires_review": false
       }
     },
     {
       "description": "Temperature measurement",
       "extraction": {
         "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
         "vital_type": "temperature",
         "measurement_value": {"degrees": 98.6},
         "unit": "F",
@@ -359,6 +301,7 @@
       "description": "Weight measurement",
       "extraction": {
         "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
         "vital_type": "weight",
         "measurement_value": {"value": 70.5},
         "unit": "kg",
@@ -375,6 +318,7 @@
       "description": "Oxygen saturation with device info",
       "extraction": {
         "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
         "vital_type": "oxygen_saturation",
         "measurement_value": {"percentage": 98},
         "unit": "%",
@@ -392,10 +336,11 @@
 
   "extraction_guidelines": {
     "jsonb_structure": "The measurement_value JSONB structure MUST match the vital_type. Blood pressure uses {systolic, diastolic}. Most others use {value} or type-specific keys.",
-    "required_fields_strict": "All 5 required fields (patient_id, vital_type, measurement_value, unit, measurement_date) must be provided. Database will reject records missing these.",
+    "required_fields_strict": "All 6 required fields (patient_id, event_id, vital_type, measurement_value, unit, measurement_date) must be provided. Database will reject records missing these.",
     "vital_type_validation": "vital_type is CHECK constrained in database - must be exactly one of the 10 allowed values.",
     "unit_requirement": "unit is NOT NULL in database - always provide a unit, even if you need to infer it from context.",
-    "patient_id_context": "patient_id comes from processing context, not from document extraction. This table does NOT use event_id like observations/interventions.",
+    "patient_id_context": "patient_id comes from processing context. This table HAS patient_id column (denormalized for RLS performance) and uses composite FK to ensure consistency with parent event.",
+    "event_id_requirement": "event_id is NOT NULL (Migration 08) - links to parent patient_clinical_events. Composite FK ensures patient_id matches parent event's patient_id.",
     "reference_ranges": "Extract reference ranges when provided in document. Structure should mirror measurement_value (e.g., BP reference has systolic/diastolic sub-ranges).",
     "confidence_precision": "Two different numeric precisions: ai_confidence (4,3) vs confidence_score (3,2). Be precise."
   },
@@ -406,8 +351,9 @@
     "blood_pressure_structure": "If vital_type='blood_pressure', measurement_value must have systolic and diastolic keys",
     "unit": "NOT NULL - must always be provided",
     "measurement_date": "NOT NULL - must be valid TIMESTAMPTZ",
+    "event_id": "NOT NULL - must reference valid patient_clinical_events record",
     "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
     "confidence_score": "If provided, must be between 0.00 and 1.00 with 2 decimal places",
-    "all_jsonb_fields": "measurement_value, device_info, reference_range, extracted_dates, date_conflicts must be valid JSON"
+    "all_jsonb_fields": "measurement_value, device_info, reference_range must be valid JSON"
   }
 }

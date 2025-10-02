@@ -1,9 +1,10 @@
 {
   "table": "patient_vitals",
   "pass": "pass-2",
-  "required": ["patient_id", "vital_type", "measurement_value", "unit", "measurement_date"],
+  "required": ["patient_id", "event_id", "vital_type", "measurement_value", "unit", "measurement_date"],
   "fields": {
-    "patient_id": "uuid (from context, NOT event_id)",
+    "patient_id": "uuid (from context, has patient_id column)",
+    "event_id": "uuid (parent clinical event, NOT NULL)",
     "vital_type": "blood_pressure|heart_rate|temperature|respiratory_rate|oxygen_saturation|weight|height|bmi|blood_glucose|other",
     "measurement_value": "jsonb (structure varies by vital_type)",
     "unit": "string (NOT NULL)",
@@ -20,16 +21,7 @@
     "reference_range": "jsonb?",
     "ai_extracted": "boolean (true)",
     "ai_confidence": "numeric(4,3) 0.000-1.000",
-    "requires_review": "boolean",
-    "clinical_event_id": "uuid?",
-    "primary_narrative_id": "uuid? (Pass 3)",
-    "clinical_effective_date": "date?",
-    "date_confidence": "high|medium|low|conflicted?",
-    "extracted_dates": "jsonb?",
-    "date_source": "clinical_content|document_date|file_metadata|upload_timestamp|user_provided?",
-    "date_conflicts": "jsonb?",
-    "date_resolution_reason": "string?",
-    "clinical_identity_key": "string?"
+    "requires_review": "boolean"
   },
   "jsonb_structures": {
     "blood_pressure": {"systolic": "number", "diastolic": "number"},
@@ -44,6 +36,7 @@
   },
   "example": {
     "patient_id": "uuid-from-context",
+    "event_id": "uuid-of-parent-clinical-event",
     "vital_type": "blood_pressure",
     "measurement_value": {"systolic": 120, "diastolic": 80},
     "unit": "mmHg",
@@ -57,10 +50,6 @@
     "reference_range": {"systolic": {"low": 90, "high": 120}, "diastolic": {"low": 60, "high": 80}},
     "ai_extracted": true,
     "ai_confidence": 0.950,
-    "requires_review": false,
-    "clinical_event_id": "uuid-of-parent-clinical-event",
-    "clinical_effective_date": "2025-09-30",
-    "date_confidence": "high",
-    "date_source": "clinical_content"
+    "requires_review": false
   }
 }

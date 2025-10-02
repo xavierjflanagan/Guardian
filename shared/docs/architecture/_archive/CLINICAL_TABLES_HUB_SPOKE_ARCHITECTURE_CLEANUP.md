@@ -1,9 +1,10 @@
 # Clinical Tables Hub-and-Spoke Architecture Cleanup
 
-**Status:** 🔴 CRITICAL ARCHITECTURAL INCONSISTENCY IDENTIFIED
+**Status:** ✅ COMPLETED - Migration 08 executed successfully in staging
 **Created:** 30 September 2025
-**Priority:** HIGH - Affects all clinical data extraction and referential integrity
-**Issue:** Clinical tables have inconsistent foreign key patterns (some use event_id, others use patient_id directly)
+**Completed:** 30 September 2025
+**Migration File:** `migration_history/2025-09-30_08_enforce_hub_spoke_architecture.sql`
+**Source of Truth Updated:** `current_schema/03_clinical_core.sql`
 
 ---
 
@@ -367,34 +368,44 @@ patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE
 
 ## Implementation Plan
 
-### Phase 1: Schema Migration (Database Changes)
-- [ ] Add event_id columns to tables missing it
-- [ ] Create backfill scripts for existing data
-- [ ] Run backfill in staging environment
-- [ ] Validate backfill accuracy
-- [ ] Make event_id NOT NULL after backfill
-- [ ] Add CHECK constraints for patient_id consistency
-- [ ] Create indexes on event_id columns
+### Phase 1: Schema Migration (Database Changes) ✅ COMPLETED
+- [x] Add event_id columns to tables missing it
+- [x] Create backfill scripts for existing data
+- [x] Run backfill in staging environment
+- [x] Validate backfill accuracy
+- [x] Make event_id NOT NULL after backfill
+- [x] Add composite FK constraints for patient_id consistency
+- [x] Create indexes on event_id columns
+- [x] Update source of truth SQL files (03_clinical_core.sql)
 
-### Phase 2: Bridge Schema Updates
-- [ ] Update all Pass 2 bridge schemas to require event_id
-- [ ] Add extraction order guidance: "Create patient_clinical_events first"
-- [ ] Update examples to show hub-and-spoke flow
-- [ ] Add validation rules for event_id presence
+### Phase 2: Bridge Schema Updates (IN PROGRESS)
+- [x] patient_clinical_events (completed)
+- [x] patient_observations (completed)
+- [x] patient_interventions (completed)
+- [x] patient_vitals (completed)
+- [x] medical_code_assignments (completed)
+- [x] healthcare_encounters (completed)
+- [ ] patient_conditions (pending - needs source schema + GPT-5 review)
+- [ ] patient_allergies (pending)
+- [ ] patient_medications (pending)
+- [ ] patient_immunizations (pending)
+- [ ] user_profiles (pending)
+- [ ] profile_appointments (pending)
+- [ ] Remaining Pass 2 tables (6 remaining)
 
-### Phase 3: Pass 2 AI Processing Updates
+### Phase 3: Pass 2 AI Processing Updates (PENDING)
 - [ ] Update system prompt to enforce event-first extraction
 - [ ] Implement transaction logic: create event → get event_id → create details
 - [ ] Add validation layer to reject detail records without event_id
 - [ ] Update error messages to guide correct extraction flow
 
-### Phase 4: Application Layer Updates
+### Phase 4: Application Layer Updates (PENDING)
 - [ ] Update API endpoints to create events + details atomically
 - [ ] Add helper functions for "synthetic" events (manual entry use case)
 - [ ] Update frontend to handle event-first creation flow
 - [ ] Migrate existing API consumers
 
-### Phase 5: Testing & Validation
+### Phase 5: Testing & Validation (PENDING)
 - [ ] Unit tests for all clinical table insertions
 - [ ] Integration tests for Pass 2 extraction flow
 - [ ] Performance testing (query latency with new JOINs)
@@ -455,8 +466,107 @@ patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE
 
 ---
 
-**Document Status:** 🟡 AWAITING DECISION
-**Next Review:** After stakeholder approval
-**Owner:** Xavier Flanagan / Claude Code
+## Migration 08 - EXECUTION COMPLETED
+
+**Migration File:** `migration_history/2025-09-30_08_enforce_hub_spoke_architecture.sql`
+**Status:** ✅ EXECUTED in staging environment (30 September 2025)
+**Source of Truth Updated:** ✅ `current_schema/03_clinical_core.sql` (all changes reflected)
+
+### Execution Summary
+
+**Database Changes Applied:**
+1. ✅ patient_clinical_events: Added `is_synthetic` column + `UNIQUE(id, patient_id)` constraint
+2. ✅ patient_observations: event_id documented as required + index added
+3. ✅ patient_interventions: event_id documented as required + index added
+4. ✅ patient_vitals: Added `event_id` column + composite FK + index
+5. ✅ patient_conditions: Renamed `clinical_event_id`→`event_id` + composite FK + index
+6. ✅ patient_allergies: Added `event_id` column + composite FK + index
+7. ✅ patient_medications: Added `event_id` column + composite FK + index
+8. ✅ patient_immunizations: Added `event_id` column + composite FK + index
+9. ✅ migration_08_backfill_audit: Audit table created for tracking synthetic events
+
+**Backfill Results:**
+- 5 tables required synthetic event creation (vitals, conditions, allergies, medications, immunizations)
+- All orphaned records successfully linked to synthetic patient_clinical_events
+- All synthetic events flagged with `is_synthetic = TRUE`
+- Backfill audit trail captured in migration_08_backfill_audit table
+
+**Validation Results:**
+- ✅ All 7 clinical detail tables have NOT NULL event_id
+- ✅ All composite FKs enforce patient_id consistency with parent events
+- ✅ All indexes created for JOIN performance
+- ✅ Zero orphaned clinical records
+- ✅ Zero cross-patient data leakage (composite FKs prevent it)
+
+**Source of Truth Updates:**
+- ✅ Backup created: `current_schema/archive/03_clinical_core_pre_migration_08_20250930.sql`
+- ✅ All 9 schema changes applied to `03_clinical_core.sql`
+- ✅ Migration script header updated with source of truth change documentation
+
+**Next Steps:**
+- Monitor staging environment for any issues
+- Prepare for production deployment when ready
+- Update Pass 2 bridge schemas to reflect new hub-and-spoke requirements
+
+---
+
+## Migration 08 Implementation Notes
+
+**Created:** 30 September 2025
+**GPT-5 Review 1:** Incorporated all feedback (30 Sept 2025)
+**GPT-5 Review 2:** All verification corrections applied (30 Sept 2025)
+**GPT-5 Review 3:** SQL syntax fix applied (30 Sept 2025)
+
+**Key Corrections Applied (Review 1):**
+1. ✅ **healthcare_encounters EXCLUDED** - It's a parent table (patient_clinical_events has encounter_id → healthcare_encounters), not a child requiring event_id
+2. ✅ **Standardized on event_id** - Renamed clinical_event_id → event_id across all tables for consistency
+3. ✅ **Composite FK enforcement** - Added UNIQUE (id, patient_id) to patient_clinical_events, then composite FKs on all child tables for patient_id integrity
+4. ✅ **Minimal downtime strategy** - NOT VALID constraints + VALIDATE CONSTRAINT, CONCURRENT indexes
+5. ✅ **Backfill audit trail** - migration_08_backfill_audit table tracks all synthetic events
+6. ✅ **is_synthetic flag** - patient_clinical_events.is_synthetic marks backfilled events
+7. ✅ **Dropped redundant columns** - Remove clinical_event_id from observations/interventions if present
+
+**Schema Corrections Applied (Review 2):**
+1. ✅ **patient_conditions** - Fixed: use `shell_file_id` (not primary_shell_file_id)
+2. ✅ **patient_allergies** - Fixed: use `source_shell_file_id` and `verified_date` (not primary_shell_file_id and onset_date which doesn't exist)
+3. ✅ **patient_medications** - Fixed: use `source_shell_file_id` (not primary_shell_file_id)
+4. ✅ **patient_immunizations** - Fixed: use `source_shell_file_id` (not primary_shell_file_id)
+5. ✅ **Backfill row mapping** - Fixed: exact ID joins using created_at + updated_at + event_date (not fragile LIKE matches)
+6. ✅ **UNIQUE constraint optimization** - CREATE UNIQUE INDEX CONCURRENTLY first, then attach as constraint (production-safe)
+
+**SQL Syntax Corrections (Review 3):**
+1. ✅ **RAISE NOTICE statements** - Fixed: Replaced 7 standalone RAISE NOTICE statements (outside DO blocks) with SQL comments
+   - These would have caused syntax errors in PostgreSQL
+   - Now uses `-- Note:` comments for migration progress tracking
+
+**Affected Tables (7 clinical detail tables):**
+- patient_observations (already has event_id, drop clinical_event_id if present)
+- patient_interventions (already has event_id, drop clinical_event_id if present)
+- patient_vitals (add event_id)
+- patient_conditions (rename clinical_event_id → event_id)
+- patient_allergies (rename clinical_event_id → event_id)
+- patient_medications (rename clinical_event_id → event_id)
+- patient_immunizations (rename clinical_event_id → event_id)
+
+**Explicitly Excluded:**
+- healthcare_encounters (parent table - no event_id)
+- healthcare_timeline_events (aggregator with clinical_event_ids[] array)
+
+**Migration Phases:**
+1. Prepare patient_clinical_events hub with composite UNIQUE constraint
+2. Backfill synthetic events for orphaned records
+3. Add/rename event_id columns
+4. Link orphaned records to synthetic events
+5. Create indexes CONCURRENTLY (non-blocking)
+6. Add composite FK constraints (NOT VALID)
+7. Validate constraints (can be done during low-traffic window)
+8. Enforce NOT NULL constraint
+
+**Testing Required Before Production:**
+- Run in staging with production data snapshot
+- Verify all validation queries return expected results
+- Test backfill logic doesn't create duplicate events
+- Verify composite FK prevents cross-patient data leakage
+- Performance test with indexes under load
 
 **END OF DOCUMENT**

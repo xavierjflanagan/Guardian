@@ -1,20 +1,20 @@
 # patient_interventions Bridge Schema (Source) - Pass 2
 
-**Status:** ✅ Recreated from database source of truth
-**Database Source:** /current_schema/03_clinical_core.sql (lines 398-432)
-**Temporal Columns:** Added via migration 02 (lines 989-1072)
-**Last Updated:** 30 September 2025
+**Status:** ✅ Updated for Migration 08
+**Database Source:** /current_schema/03_clinical_core.sql (lines 407-446)
+**Last Updated:** 30 September 2025 (Migration 08 alignment)
 **Priority:** HIGH - Intervention details for action events (medications, procedures, treatments, therapy)
 
 ## Database Table Structure
 
 ```sql
+-- Migration 08: This table has NO patient_id column - derives it through event_id → patient_clinical_events
 CREATE TABLE IF NOT EXISTS patient_interventions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES patient_clinical_events(id) ON DELETE CASCADE, -- Migration 08: Required hub reference
 
     -- Classification
-    intervention_type TEXT NOT NULL, -- 'medication_admin', 'vaccination', 'minor_procedure', 'surgery', 'therapy'
+    intervention_type TEXT NOT NULL,
 
     -- Substance/Medication Details (for drugs, vaccines, etc.)
     substance_name TEXT, -- "Influenza A Vaccine", "Lidocaine", "Atorvastatin"
@@ -25,11 +25,11 @@ CREATE TABLE IF NOT EXISTS patient_interventions (
     route TEXT, -- 'oral', 'intramuscular', 'topical', 'intravenous'
     frequency TEXT, -- 'daily', 'twice_daily', 'as_needed'
 
-    -- Technique and Equipment
+    -- Procedure/Surgery Details
     technique TEXT, -- 'cryotherapy', 'excision', 'injection', 'suture'
     equipment_used TEXT, -- "Liquid nitrogen", "10-blade scalpel"
 
-    -- Outcomes and Follow-up
+    -- Outcomes
     immediate_outcome TEXT, -- 'successful', 'partial', 'complications'
     complications TEXT, -- Description of any complications
     followup_required BOOLEAN DEFAULT FALSE,
@@ -42,24 +42,11 @@ CREATE TABLE IF NOT EXISTS patient_interventions (
 
     -- Audit
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    -- Temporal Management (from migration 02, lines 989-1072)
-    clinical_event_id UUID REFERENCES patient_clinical_events(id),
-    primary_narrative_id UUID REFERENCES clinical_narratives(id),
-    valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    valid_to TIMESTAMPTZ NULL,
-    superseded_by_record_id UUID REFERENCES patient_interventions(id) ON DELETE SET NULL,
-    supersession_reason TEXT,
-    is_current BOOLEAN GENERATED ALWAYS AS (valid_to IS NULL) STORED,
-    clinical_effective_date DATE,
-    date_confidence TEXT CHECK (date_confidence IN ('high', 'medium', 'low', 'conflicted')),
-    extracted_dates JSONB DEFAULT '[]'::jsonb,
-    date_source TEXT CHECK (date_source IN ('clinical_content', 'document_date', 'file_metadata', 'upload_timestamp', 'user_provided')),
-    date_conflicts JSONB DEFAULT '[]'::jsonb,
-    date_resolution_reason TEXT,
-    clinical_identity_key TEXT
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration 08: Event reference index for efficient joins
+CREATE INDEX IF NOT EXISTS idx_patient_interventions_event_id ON patient_interventions(event_id);
 ```
 
 ## AI Extraction Requirements for Pass 2
@@ -97,17 +84,6 @@ interface PatientInterventionsExtraction {
   ai_extracted: boolean;                   // Always true for AI-extracted interventions
   ai_confidence: number;                   // 0.000-1.000 (3 decimal places)
   requires_review: boolean;                // True if confidence below threshold
-
-  // TEMPORAL DATA MANAGEMENT (OPTIONAL for Pass 2)
-  clinical_event_id?: string;              // UUID - links to patient_clinical_events
-  primary_narrative_id?: string;           // UUID - links to clinical_narratives (Pass 3)
-  clinical_effective_date?: string;        // ISO 8601 DATE
-  date_confidence?: 'high' | 'medium' | 'low' | 'conflicted';
-  extracted_dates?: object[];              // JSONB array of date extraction attempts
-  date_source?: 'clinical_content' | 'document_date' | 'file_metadata' | 'upload_timestamp' | 'user_provided';
-  date_conflicts?: object[];               // JSONB array of conflicting dates
-  date_resolution_reason?: string;         // Why this date was chosen
-  clinical_identity_key?: string;          // Deduplication fingerprint
 }
 ```
 
@@ -167,11 +143,7 @@ Therapeutic interventions:
   "followup_required": false,
   "ai_extracted": true,
   "ai_confidence": 0.920,
-  "requires_review": false,
-  "clinical_event_id": "uuid-of-parent-clinical-event",
-  "clinical_effective_date": "2025-09-30",
-  "date_confidence": "high",
-  "date_source": "clinical_content"
+  "requires_review": false
 }
 ```
 
@@ -192,9 +164,6 @@ Therapeutic interventions:
   "ai_extracted": true,
   "ai_confidence": 0.950,
   "requires_review": false,
-  "clinical_event_id": "uuid-of-parent-clinical-event",
-  "clinical_effective_date": "2025-09-30",
-  "date_confidence": "high"
 }
 ```
 
@@ -210,8 +179,7 @@ Therapeutic interventions:
   "followup_instructions": "Return in 2 weeks to assess healing",
   "ai_extracted": true,
   "ai_confidence": 0.880,
-  "requires_review": false,
-  "clinical_event_id": "uuid-of-parent-clinical-event"
+  "requires_review": false
 }
 ```
 
@@ -228,8 +196,7 @@ Therapeutic interventions:
   "followup_instructions": "Physical therapy starting week 2, follow-up appointment in 6 weeks",
   "ai_extracted": true,
   "ai_confidence": 0.850,
-  "requires_review": true,
-  "clinical_event_id": "uuid-of-parent-clinical-event"
+  "requires_review": true
 }
 ```
 
@@ -244,25 +211,32 @@ Therapeutic interventions:
   "followup_instructions": "Weekly sessions for 8 weeks",
   "ai_extracted": true,
   "ai_confidence": 0.800,
-  "requires_review": false,
-  "clinical_event_id": "uuid-of-parent-clinical-event"
+  "requires_review": false
 }
 ```
 
 ## Critical Notes
 
-1. **Parent Relationship**: `event_id` MUST reference a valid `patient_clinical_events` record with activity_type='intervention'
-2. **Contextual Fields**: Different intervention types use different fields:
-   - medication_admin/vaccination: substance_name, dose_amount, dose_unit, route, frequency
-   - minor_procedure/surgery: technique, equipment_used
+1. **Migration 08 - NO patient_id Column**: This table does NOT have a `patient_id` column. Patient ID is derived through the relationship: `patient_interventions.event_id → patient_clinical_events.patient_id`. This is a key architectural design for hub-and-spoke enforcement.
+
+2. **Parent Relationship**: `event_id` MUST reference a valid `patient_clinical_events` record with `activity_type='intervention'`. This is a NOT NULL requirement enforced by the database.
+
+3. **Contextual Fields**: Different intervention types use different fields:
+   - medication/vaccine: substance_name, dosage, route, frequency, manufacturer, lot_number
+   - procedure/surgery: technique, equipment_used
    - therapy: technique (therapy type)
-3. **Safety-Critical**: Medications and vaccinations are safety-critical - set requires_review=true if ai_confidence < 0.900
-4. **Numeric Precision**: `ai_confidence` uses 3 decimals (0.000-1.000), but `dose_amount` uses generic NUMERIC (no specific precision)
-5. **Route Examples**: 'oral', 'intramuscular', 'topical', 'intravenous', 'subcutaneous', 'transdermal', 'inhalation'
-6. **Frequency Examples**: 'daily', 'twice_daily', 'three_times_daily', 'as_needed', 'every_4_hours', 'weekly'
-7. **Temporal Columns**: This table HAS temporal management columns (added via migration 02, lines 989-1072)
-8. **Deduplication**: Use `clinical_identity_key` for identifying duplicate interventions across multiple uploads
-9. **JSONB Fields**: `extracted_dates` and `date_conflicts` are JSONB arrays
+
+4. **Safety-Critical**: Medications and vaccinations are safety-critical - set `requires_review=true` if `ai_confidence < 0.900`
+
+5. **Numeric Precision**: `ai_confidence` uses 3 decimals (0.000-1.000)
+
+6. **Route Examples**: 'oral', 'intramuscular', 'topical', 'intravenous', 'subcutaneous', 'transdermal', 'inhalation'
+
+7. **Frequency Examples**: 'daily', 'twice_daily', 'three_times_daily', 'as_needed', 'every_4_hours', 'weekly'
+
+8. **Status Values**: 'active', 'completed', 'discontinued', 'planned'
+
+9. **Index for Performance**: `idx_patient_interventions_event_id` index added in Migration 08 for efficient JOINs through the hub-and-spoke architecture.
 
 ## Intervention Type Selection Logic
 
@@ -274,20 +248,19 @@ Therapeutic interventions:
 
 ## Schema Validation Checklist
 
-- [ ] `event_id` references a valid patient_clinical_events record
+- [ ] `event_id` references a valid patient_clinical_events record (NOT NULL requirement)
 - [ ] `intervention_type` is one of: 'medication_admin', 'vaccination', 'minor_procedure', 'surgery', 'therapy'
 - [ ] For medication_admin/vaccination: `substance_name` should be provided
-- [ ] For minor_procedure/surgery: `technique` should be provided
+- [ ] For minor_procedure/surgery/therapy: `technique` should be provided
+- [ ] If `dose_amount` is provided, `dose_unit` should be provided
 - [ ] `ai_confidence` is between 0.000 and 1.000 with 3 decimal places
 - [ ] `followup_required` is boolean (true/false)
-- [ ] `date_confidence` (if provided) is one of: 'high', 'medium', 'low', 'conflicted'
-- [ ] `date_source` (if provided) is one of: 'clinical_content', 'document_date', 'file_metadata', 'upload_timestamp', 'user_provided'
-- [ ] JSONB fields are valid JSON objects/arrays
 
 ## Database Constraint Notes
 
+- **NO patient_id column**: Patient ID is NOT stored on this table - it is derived through `event_id → patient_clinical_events → patient_id` relationship (Migration 08 hub-and-spoke architecture)
 - **FK to parent event**: `event_id` has ON DELETE CASCADE - if parent clinical event is deleted, this intervention is automatically deleted
-- **Temporal self-reference**: `superseded_by_record_id` references patient_interventions(id) for version tracking
-- **Generated column**: `is_current` is automatically computed as `(valid_to IS NULL)`, cannot be manually set
-- **No CHECK constraints on text fields**: intervention_type values are documented but not DB-enforced (allows flexibility)
-- **Flexible medication fields**: dose_amount is NUMERIC without specific precision to accommodate various medication doses
+- **intervention_type values**: Use extraction values: 'medication_admin', 'vaccination', 'minor_procedure', 'surgery', 'therapy' (database does not enforce CHECK constraint)
+- **Dose fields**: Use separate `dose_amount` (NUMERIC) and `dose_unit` (TEXT) fields
+- **Flexible field usage**: Different intervention_type values use different fields (contextual field importance)
+- **Index optimization**: `idx_patient_interventions_event_id` ensures efficient JOINs to parent events
