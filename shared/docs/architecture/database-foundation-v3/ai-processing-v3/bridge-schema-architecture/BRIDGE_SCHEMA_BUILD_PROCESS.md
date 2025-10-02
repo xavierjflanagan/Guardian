@@ -1,7 +1,7 @@
 # Bridge Schema Build Process - Assembly Line Documentation
 
 **Date Created:** 30 September 2025
-**Status:** Active Build Process
+**Status:** Build Process Complete 1st October 2025 ✅
 **Purpose:** Document the systematic three-tier bridge schema creation workflow to ensure consistency and prevent crashes/rework
 
 ---
@@ -204,7 +204,7 @@ This document describes the assembly line process for creating bridge schemas fo
 ## Progress Tracking
 
 ### Completed Tables
-**Status:** 6 of 18 Pass 2 tables complete (3/3 tiers each)
+**Status:** 10 of 18 Pass 2 tables complete (3/3 tiers each)
 
 - [x] patient_clinical_events (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
 - [x] patient_observations (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
@@ -212,26 +212,145 @@ This document describes the assembly line process for creating bridge schemas fo
 - [x] patient_vitals (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
 - [x] medical_code_assignments (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
 - [x] healthcare_encounters (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] patient_medications (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] patient_conditions (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] patient_allergies (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] patient_immunizations (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
 
-### Remaining Pass 2 Tables (12 tables)
+### Completed Pass 2 Tables (3 additional tables)
+**Status:** 13 of 18 Pass 2 tables complete (3/3 tiers each)
 
-**Core Clinical Data Extraction (6 tables):**
-- [ ] patient_conditions
-- [ ] patient_allergies
-- [ ] patient_medications
-- [ ] patient_immunizations
-- [ ] user_profiles
-- [ ] profile_appointments
-- [ ] pass2_clinical_metrics
+- [x] user_profiles (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] profile_appointments (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] pass2_clinical_metrics (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
 
-**Pass 2 Versions (5 multi-pass tables):**
-- [ ] shell_files (pass-2-versions)
-- [ ] ai_processing_sessions (pass-2-versions)
-- [ ] manual_review_queue (pass-2-versions)
-- [ ] ai_confidence_scoring (pass-2-versions)
-- [ ] entity_processing_audit (pass-2-versions)
+### Completed Pass 1 Tables (3 tables)
+**Status:** 3 of 3 Pass 1 single-pass tables complete (3/3 tiers each)
 
-**Total Schemas Required:** 18 tables × 3 tiers = 54 schema files
+- [x] pass1_entity_metrics (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+- [x] profile_classification_audit (source ✅ + GPT-5 review ✅ + detailed ✅ + minimal ✅)
+
+### Completed Multi-Pass Tables (5 tables × 2 versions × 3 tiers = 30 schemas)
+
+**Status:** ✅ ALL 30 MULTI-PASS SCHEMAS COMPLETE! (Completed: 1 October 2025)
+
+**Multi-Pass Architecture:**
+Each of these 5 tables has TWO bridge schema versions:
+- **Pass 1 Version (CREATE):** Initializes record during entity detection
+- **Pass 2 Version (UPDATE):** Updates record during clinical enrichment
+
+**Build Order (by dependency/complexity):**
+1. [x] shell_files (Pass 1 ✅ + Pass 2 ✅) - Document container foundation
+2. [x] ai_processing_sessions (Pass 1 ✅ + Pass 2 ✅) - Session coordination layer
+3. [x] entity_processing_audit (Pass 1 ✅ + Pass 2 ✅) - Core per-entity audit trail (most complex)
+4. [x] ai_confidence_scoring (Pass 1 ✅ + Pass 2 ✅) - Confidence metadata layer (optional Pass 2 updates)
+5. [x] manual_review_queue (Pass 1 ✅ + Pass 2 ✅) - Review workflow management (Pass 2 creates new items)
+
+**Total Schemas Required:**
+- Pass 2 single-pass: 13 tables × 3 tiers = 39 schemas ✅ COMPLETE
+- Pass 1 single-pass: 2 tables × 3 tiers = 6 schemas ✅ COMPLETE
+- Multi-pass: 5 tables × 2 versions × 3 tiers = 30 schemas ✅ COMPLETE
+- **Grand Total:** 75 schema files ✅ ALL COMPLETE!
+
+---
+
+## Multi-Pass Table Architecture
+
+### Overview
+5 tables span both Pass 1 and Pass 2, requiring separate bridge schema versions for each pass. These tables use a CREATE (Pass 1) → UPDATE (Pass 2) pattern.
+
+### The 5 Multi-Pass Tables
+
+**1. shell_files** - Document container and processing orchestrator
+- **Pass 1 CREATE:** File upload, OCR processing, entity detection metadata
+- **Pass 2 UPDATE:** Clinical enrichment completion status, final processing metrics
+- **Database Location:** `03_clinical_core.sql`
+- **Foreign Key Note:** Referenced by patient_vitals.source_shell_file_id
+
+**2. ai_processing_sessions** - Session coordination across passes
+- **Pass 1 CREATE:** Session initialization, entity detection tracking, Pass 1 metrics
+- **Pass 2 UPDATE:** Clinical enrichment status, Pass 2 completion metrics, final totals
+- **Database Location:** `04_ai_processing.sql`
+- **Foreign Key Note:** Referenced by all metrics tables via processing_session_id
+
+**3. entity_processing_audit** - Per-entity audit trail (MOST COMPLEX)
+- **Pass 1 CREATE:** Entity detection, spatial location, OCR cross-validation, Pass 1 confidence
+- **Pass 2 UPDATE:** Clinical enrichment results, links to final clinical tables, Pass 2 confidence
+- **Database Location:** `04_ai_processing.sql`
+- **Foreign Key Note:** Links to 7 clinical tables via final_*_id columns
+
+**4. ai_confidence_scoring** - Confidence tracking across passes
+- **Pass 1 CREATE:** Entity detection confidence scores, OCR agreement scores
+- **Pass 2 UPDATE:** Clinical enrichment confidence scores, cross-validation results
+- **Database Location:** `04_ai_processing.sql`
+
+**5. manual_review_queue** - Review queue management
+- **Pass 1 CREATE:** Enqueue low-confidence entities, contamination risks, safety flags
+- **Pass 2 UPDATE:** Clinical enrichment review results, resolution status
+- **Database Location:** `04_ai_processing.sql`
+
+### Pass 1 vs Pass 2 Bridge Schema Differences
+
+**Pass 1 Version (CREATE focus):**
+- AI instruction: "Create new record with these fields during entity detection"
+- Populates: Entity identity, detection confidence, spatial location, OCR data
+- Sets status fields to initial values (e.g., pass2_status='pending')
+- Focus: What data to capture when entity is FIRST detected
+
+**Pass 2 Version (UPDATE focus):**
+- AI instruction: "Update existing record with these fields during clinical enrichment"
+- Populates: Enrichment results, clinical confidence, final table links, completion timestamps
+- Updates status fields to final values (e.g., pass2_status='completed')
+- Focus: What data to add when entity is ENRICHED with clinical context
+
+**Example Field Distribution (entity_processing_audit):**
+
+Pass 1 CREATE fields:
+```
+entity_id, original_text, entity_category, entity_subtype,
+spatial_bbox, page_number, pass1_confidence, requires_schemas,
+processing_priority, pass1_model_used, ai_visual_interpretation,
+ocr_reference_text, ai_ocr_agreement_score
+```
+
+Pass 2 UPDATE fields:
+```
+pass2_status, pass2_confidence, pass2_started_at, pass2_completed_at,
+enrichment_errors, final_event_id, final_observation_id,
+final_intervention_id, pass2_model_used, pass2_token_usage
+```
+
+### Build Process for Multi-Pass Tables
+
+**For each of the 5 tables, execute this sequence:**
+
+1. **Create Pass 1 Source Schema** (`.md` in `source/pass-1/pass-1-versions/`)
+   - Focus on CREATE operation fields
+   - Document which fields are populated during entity detection
+   - Include Pass 1 examples
+
+2. **GPT-5 Review Pass 1 Source** (mandatory)
+   - Verify CREATE fields match database
+   - Check Pass 1 logic correctness
+
+3. **Create Pass 1 Detailed + Minimal Schemas** (`.json` in `detailed/pass-1/` and `minimal/pass-1/`)
+   - Derive from Pass 1 source schema
+   - Focus on CREATE operation guidance
+
+4. **Create Pass 2 Source Schema** (`.md` in `source/pass-2/pass-2-versions/`)
+   - Focus on UPDATE operation fields
+   - Document which fields are populated during clinical enrichment
+   - Include Pass 2 examples
+
+5. **GPT-5 Review Pass 2 Source** (mandatory)
+   - Verify UPDATE fields match database
+   - Check Pass 2 logic correctness
+
+6. **Create Pass 2 Detailed + Minimal Schemas** (`.json` in `detailed/pass-2/` and `minimal/pass-2/`)
+   - Derive from Pass 2 source schema
+   - Focus on UPDATE operation guidance
+
+**Total: 6 schemas per table (3 for Pass 1, 3 for Pass 2)**
 
 ---
 
@@ -369,6 +488,185 @@ Before marking a table as complete, verify:
 - HAS temporal columns (confirmed in migration line 192)
 - Narrative fields: chief_complaint, summary, clinical_impression, plan
 - Five comprehensive examples covering all encounter types
+
+**2025-10-01 - patient_medications completion:**
+- GPT-5 review approved source schema with no issues
+- Medication records with prescription details, dosing, and status management
+- HAS patient_id column (denormalized for RLS performance) with composite FK to patient_clinical_events
+- Migration 08: event_id NOT NULL, renamed medication_reference_id FK column removed in migration 06
+- status CHECK constraint with 5 values: active, completed, discontinued, on_hold, cancelled
+- Safety-critical handling: requires_review=true if ai_confidence < 0.900
+- Multiple medication coding systems: rxnorm_code, pbs_code, atc_code
+- INTERVAL type for duration_prescribed (PostgreSQL interval format)
+
+**2025-10-01 - patient_conditions completion:**
+- GPT-5 review approved source schema with no issues
+- Medical conditions and diagnoses with temporal tracking and severity management
+- shell_file_id is NOT NULL (unique requirement for this table)
+- Migration 08: event_id renamed from clinical_event_id and made NOT NULL
+- primary_narrative_id for Pass 3 semantic narrative linking (optional, ON DELETE SET NULL)
+- 3 CHECK constraints: condition_system (3 values), severity (4 values), status (5 values)
+- Temporal date fields: onset_date, diagnosed_date, resolved_date (all DATE type, not TIMESTAMPTZ)
+
+**2025-10-01 - patient_allergies completion:**
+- GPT-5 review approved source schema with no issues
+- Patient allergies and adverse reactions - SAFETY-CRITICAL data
+- 4 CHECK constraints: allergen_type (5 values), reaction_type (4 values), severity (4 values), status (4 values)
+- TEXT[] array for symptoms field (PostgreSQL array type)
+- Safety rule: ALWAYS requires_review=true for severe or life_threatening severity regardless of ai_confidence
+- medication_reference_id FK column removed in migration 06 (vestigial cleanup)
+- Two different numeric precisions: ai_confidence (4,3) vs confidence_score (3,2)
+
+**2025-10-01 - patient_immunizations completion:**
+- GPT-5 review approved source schema with no issues
+- Vaccination records with healthcare standards integration - SAFETY-CRITICAL data
+- 4 required NOT NULL fields: patient_id, event_id, vaccine_name, administration_date
+- administration_date is TIMESTAMPTZ (includes time and timezone), expiration_date is DATE (date only)
+- clinical_validation_status CHECK constraint with 4 values: pending, validated, requires_review, rejected
+- 2 TEXT[] arrays: contraindications, adverse_reactions (any adverse reactions trigger requires_review=true)
+- Multiple healthcare coding systems: SNOMED, CPT, CVX, NDC, ACIR (Australian), PBS (Australian)
+- dose_amount uses NUMERIC(6,3) - 6 total digits with 3 decimal places (e.g., 0.300 mL)
+
+---
+
+## Multi-Pass Schema Completion (1 October 2025)
+
+### shell_files (Pass 1 + Pass 2) - COMPLETE
+
+**Pass 1 CREATE (GPT-5 approved):**
+- File upload and OCR processing initialization
+- Key fields: filename, file_size_bytes, mime_type, storage_path, status='uploaded'
+- File classification: file_type, file_subtype, confidence_score
+- Content analysis: extracted_text, ocr_confidence, page_count
+- Processing initialization: processing_started_at (default NOW())
+- Pass 1 populates all physical file metadata and initial processing status
+
+**Pass 2 UPDATE (GPT-5 approved):**
+- Clinical enrichment completion tracking
+- Updates: status='completed', processing_completed_at, processing_duration_seconds
+- Cost tracking: processing_cost_estimate (ADD Pass 2 costs, don't replace)
+- Uses COALESCE pattern to avoid overwriting timestamps: COALESCE(processing_completed_at, NOW())
+- Idempotent UPDATE with WHERE status='processing' guard
+- Pass 3 fields (ai_synthesized_summary, narrative_count) remain NULL
+
+**Key Patterns:**
+- Cost accumulation: Pass 2 ADDS to Pass 1 costs
+- Status progression: 'uploaded' → 'processing' (Pass 1) → 'completed' (Pass 2)
+- Timestamp safety: Use COALESCE to set once, never overwrite
+
+---
+
+### ai_processing_sessions (Pass 1 + Pass 2) - COMPLETE
+
+**Pass 1 CREATE (GPT-5 approved with INTERVAL format note):**
+- Session coordination and entity detection tracking
+- Required: patient_id, shell_file_id, session_type
+- Session initialization: session_status='initiated', workflow_step='entity_detection'
+- Processing metadata: ai_model_version='v3', processing_mode='automated'
+- Progress tracking: total_steps=5 (default), completed_steps=0
+- Quality metrics: overall_confidence, quality_score from entity detection
+- Start time: processing_started_at=NOW()
+
+**Pass 2 UPDATE (GPT-5 approved):**
+- Session completion tracking
+- Updates: session_status='completed'|'failed', workflow_step='completed'
+- Completion: completed_steps=total_steps, processing_completed_at=NOW()
+- Duration: total_processing_time (INTERVAL type, calculate from started_at to completed_at)
+- Quality updates: overall_confidence (use COALESCE), quality_score
+- Error handling: error_message, error_context (include pass='pass-2')
+- Idempotent: WHERE session_status='processing' guard
+
+**Key Patterns:**
+- INTERVAL type for total_processing_time (PostgreSQL duration format)
+- Cross-pass coordination: All metrics tables reference this via processing_session_id
+- Error context includes pass identifier for troubleshooting
+
+---
+
+### entity_processing_audit (Pass 1 + Pass 2) - COMPLETE
+
+**Pass 1 CREATE (GPT-5 approved with patient_id CASCADE note):**
+- Most complex multi-pass table - complete per-entity audit trail
+- Required: shell_file_id, patient_id, processing_session_id, entity_id, original_text, entity_category, entity_subtype
+- Entity identity: entity_id pattern "entity_001", "entity_002" (zero-padded sequential)
+- Spatial mapping: spatial_bbox (JSONB), page_number, location_context, unique_marker
+- Pass 1 confidence: pass1_confidence, requires_schemas (TEXT[]), processing_priority (5 enum values)
+- AI-OCR cross-validation: ai_visual_interpretation, ocr_reference_text, ai_ocr_agreement_score
+- Discrepancy tracking: discrepancy_type, discrepancy_notes, visual_quality_assessment
+- Quality flags: validation_flags (TEXT[]), cross_validation_score, manual_review_required
+- Profile safety: profile_verification_confidence, pii_sensitivity_level
+- Pass 2 coordination: pass2_status='pending'|'skipped' (document_structure entities skip Pass 2)
+
+**Pass 2 UPDATE (GPT-5 approved):**
+- Clinical enrichment results and final clinical data linkage
+- Updates: pass2_status='completed'|'failed', pass2_confidence
+- Timing: pass2_started_at (set once with COALESCE), pass2_completed_at
+- Metrics: pass2_model_used, pass2_token_usage, pass2_cost_estimate
+- Final clinical links (populate ONE OR MORE based on entity_subtype):
+  - final_event_id, final_encounter_id, final_observation_id
+  - final_intervention_id, final_condition_id, final_allergy_id, final_vital_id
+- Entity subtype mapping: vital signs → both observations + vitals, medications → interventions, diagnoses → conditions + events
+- Error handling: enrichment_errors if Pass 2 fails
+
+**Key Patterns:**
+- Foreign key note: patient_id is NOT NULL without CASCADE (shell_file_id and processing_session_id have CASCADE)
+- Multiple final links: Some entities link to multiple clinical tables for complete context
+- Document structure skip: entity_category='document_structure' has pass2_status='skipped', no final links
+
+---
+
+### ai_confidence_scoring (Pass 1 + Pass 2) - COMPLETE
+
+**Pass 1 CREATE (GPT-5 approved):**
+- Entity detection confidence metrics and quality tracking
+- Required: processing_session_id only (most flexible multi-pass table)
+- Optional: entity_processing_audit_id (session-level vs entity-level scoring)
+- Confidence breakdown: entity_detection_confidence, text_extraction_confidence, spatial_alignment_confidence
+- Model-specific: vision_model_confidence, language_model_confidence, classification_model_confidence
+- Composite scores: overall_confidence, reliability_score, clinical_relevance_score
+- Quality indicators: confidence_trend (improving|stable|declining), outlier_detection, confidence_flags (TEXT[])
+- Human validation: human_validation_available, human_agreement_score, model_accuracy_score
+- Model performance: processing_time_ms, model_version, calibration_score
+
+**Pass 2 UPDATE (GPT-5 approved - optional operation):**
+- Optional clinical enrichment confidence updates
+- Updates: clinical_coding_confidence (clinical classification confidence)
+- May update: overall_confidence (recalculate with Pass 2), reliability_score, confidence_flags (append Pass 2 flags)
+- Use array_append() to ADD Pass 2 flags without removing Pass 1 flags
+- Timestamp note: updated_at must be manually set (no automatic trigger)
+
+**Key Patterns:**
+- LEAST rigid Pass separation: Pass 2 updates are ENTIRELY OPTIONAL and ADDITIVE
+- Most deployments may skip Pass 2 updates and use Pass 1 metrics only
+- Confidence calculation examples provided in source schema (weighted average, variance-based reliability)
+
+---
+
+### manual_review_queue (Pass 1 + Pass 2) - COMPLETE
+
+**Pass 1 CREATE (GPT-5 approved with duplicate key fix):**
+- Human review queue for low-confidence detection and safety concerns
+- Required: patient_id, processing_session_id, shell_file_id, review_type, review_title, review_description
+- Review types (Pass 1 focus): entity_validation, profile_classification, low_confidence, contamination_risk, safety_concern
+- Priority levels: low|normal|high|urgent|critical (critical/urgent BLOCK Pass 2 until resolved)
+- AI context: ai_confidence_score, ai_concerns (TEXT[]), flagged_issues (TEXT[])
+- Review content: review_title (short), review_description (detailed), ai_suggestions
+- Clinical context: JSONB with page numbers, entity IDs, detected names, etc.
+- Assignment: assigned_reviewer, assigned_at, estimated_review_time (default '15 minutes' INTERVAL)
+- Workflow: review_status='pending' (Pass 1 initialization)
+
+**Pass 2 CREATE (new items, optional):**
+- Creates NEW review items (does NOT update Pass 1 items)
+- Review type (Pass 2 focus): clinical_accuracy
+- Optional creation: Only create if clinical enrichment confidence < threshold
+- Priority: Typically normal|high (not critical/urgent - Pass 2 reviews typically NON-BLOCKING)
+- AI concerns (Pass 2 examples): ambiguous_clinical_context, missing_date_information, multiple_possible_codes
+- Clinical context: Include entity_id, pass2_confidence, missing_fields, possible_codes
+
+**Key Patterns:**
+- UNIQUE multi-pass pattern: Pass 2 CREATES new items, doesn't UPDATE Pass 1 items
+- Processing gates: Critical/urgent reviews from Pass 1 BLOCK Pass 2 until completed
+- Same table structure for both passes, distinguished by review_type field
 
 ---
 

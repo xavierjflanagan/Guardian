@@ -1,0 +1,42 @@
+{
+  "table": "profile_appointments",
+  "pass": "pass-2",
+  "required": ["profile_id", "account_owner_id", "appointment_date", "appointment_type"],
+  "fields": {
+    "profile_id": "uuid (context, NOT patient_id)",
+    "account_owner_id": "uuid (auth context, denormalized)",
+    "appointment_date": "timestamptz (NOT NULL, ISO 8601 with timezone)",
+    "appointment_type": "string (NOT NULL)",
+    "provider_name": "string?",
+    "facility_name": "string?",
+    "appointment_duration_minutes": "integer?",
+    "status": "scheduled|confirmed|completed|cancelled|no_show? (default: scheduled)",
+    "chief_complaint": "string? (clinical reason)",
+    "appointment_notes": "string? (administrative)",
+    "reminder_preferences": "jsonb? (default: {})",
+    "visible_to_primary_account": "boolean? (default: true)",
+    "requires_guardian_consent": "boolean? (default: false)",
+    "calendar_event_id": "string? (external calendar)",
+    "provider_system_id": "string? (provider system)"
+  },
+  "status_values": {
+    "scheduled": "Scheduled, not confirmed",
+    "confirmed": "Confirmed",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "no_show": "Patient no-show"
+  },
+  "example": {
+    "profile_id": "uuid-from-context",
+    "account_owner_id": "uuid-from-auth-context",
+    "appointment_date": "2025-10-15T14:30:00Z",
+    "appointment_type": "General Checkup",
+    "provider_name": "Dr. Sarah Johnson",
+    "facility_name": "City Medical Center",
+    "appointment_duration_minutes": 30,
+    "status": "scheduled",
+    "chief_complaint": "Annual physical examination",
+    "visible_to_primary_account": true,
+    "requires_guardian_consent": false
+  }
+}

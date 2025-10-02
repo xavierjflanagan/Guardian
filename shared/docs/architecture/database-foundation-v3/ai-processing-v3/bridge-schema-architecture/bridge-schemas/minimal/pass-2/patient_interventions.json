@@ -20,16 +20,7 @@
     "followup_instructions": "string?",
     "ai_extracted": "boolean (true)",
     "ai_confidence": "numeric(4,3) 0.000-1.000",
-    "requires_review": "boolean",
-    "clinical_event_id": "uuid?",
-    "primary_narrative_id": "uuid? (Pass 3)",
-    "clinical_effective_date": "date?",
-    "date_confidence": "high|medium|low|conflicted?",
-    "extracted_dates": "jsonb?",
-    "date_source": "clinical_content|document_date|file_metadata|upload_timestamp|user_provided?",
-    "date_conflicts": "jsonb?",
-    "date_resolution_reason": "string?",
-    "clinical_identity_key": "string?"
+    "requires_review": "boolean"
   },
   "intervention_types": {
     "medication_admin": "medications, prescriptions",
@@ -55,7 +46,6 @@
     "frequency": "daily",
     "ai_extracted": true,
     "ai_confidence": 0.920,
-    "requires_review": false,
-    "clinical_event_id": "uuid-of-parent-clinical-event"
+    "requires_review": false
   }
 }

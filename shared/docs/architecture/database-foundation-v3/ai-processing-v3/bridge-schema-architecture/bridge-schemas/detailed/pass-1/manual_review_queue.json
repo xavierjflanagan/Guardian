@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0.0",
+  "table": "manual_review_queue",
+  "pass": "pass-1",
+  "operation": "CREATE",
+  "description": "Pass 1 CREATE operation for manual_review_queue. Creates review queue items for low-confidence entity detection, AI-OCR discrepancies, profile classification uncertainty, and safety concerns. Critical for patient safety and processing gates.",
+
+  "required_fields": [
+    "patient_id",
+    "processing_session_id",
+    "shell_file_id",
+    "review_type",
+    "review_title",
+    "review_description"
+  ],
+
+  "fields": {
+    "patient_id": {
+      "type": "uuid",
+      "source": "context",
+      "required": true,
+      "example": "uuid-of-patient",
+      "guidance": "References user_profiles(id) ON DELETE CASCADE. Which patient this review relates to. NOT NULL."
+    },
+
+    "processing_session_id": {
+      "type": "uuid",
+      "source": "context",
+      "required": true,
+      "example": "uuid-of-session",
+      "guidance": "References ai_processing_sessions(id) ON DELETE CASCADE. Which session flagged this review. NOT NULL."
+    },
+
+    "shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "required": true,
+      "example": "uuid-of-shell-file",
+      "guidance": "References shell_files(id) ON DELETE CASCADE. Which file requires review. NOT NULL."
+    },
+
+    "review_type": {
+      "type": "enum",
+      "values": ["entity_validation", "profile_classification", "clinical_accuracy", "safety_concern", "low_confidence", "contamination_risk"],
+      "required": true,
+      "examples": ["low_confidence", "profile_classification", "contamination_risk"],
+      "guidance": "NOT NULL. Type of review required. Pass 1 typically uses entity_validation, profile_classification, safety_concern, low_confidence, contamination_risk."
+    },
+
+    "priority": {
+      "type": "enum",
+      "values": ["low", "normal", "high", "urgent", "critical"],
+      "default": "normal",
+      "examples": ["high", "urgent", "critical"],
+      "guidance": "NOT NULL DEFAULT 'normal'. Priority level. critical/urgent BLOCK Pass 2 processing."
+    },
+
+    "ai_confidence_score": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "examples": [0.620, 0.550, 0.320],
+      "guidance": "NUMERIC(4,3). AI confidence that triggered this review. 0.000-1.000. Optional but recommended."
+    },
+
+    "ai_concerns": {
+      "type": "text_array",
+      "examples": [["low_ocr_confidence", "handwriting_detected", "ai_ocr_discrepancy"], ["multiple_names_detected", "age_mismatch"]],
+      "guidance": "TEXT[]. Technical issues detected by AI. Optional but recommended for diagnostics."
+    },
+
+    "flagged_issues": {
+      "type": "text_array",
+      "examples": [["unclear_medication_dosage"], ["potential_contamination"], ["safety_concern", "potential_data_breach"]],
+      "guidance": "TEXT[]. Business/safety issues flagged. Optional but recommended for prioritization."
+    },
+
+    "review_title": {
+      "type": "string",
+      "required": true,
+      "examples": ["Low Confidence Medication Detection", "Uncertain Patient Identity", "CRITICAL: Multiple Patient Data Detected"],
+      "guidance": "TEXT NOT NULL. Short summary of review requirement."
+    },
+
+    "review_description": {
+      "type": "string",
+      "required": true,
+      "examples": ["Detected medication 'Lisinopril' with dosage, but OCR interpreted '10mg' as '1Omg' (digit-letter confusion). AI confidence: 62%. Handwritten notation present."],
+      "guidance": "TEXT NOT NULL. Detailed explanation of what needs review and why."
+    },
+
+    "ai_suggestions": {
+      "type": "string",
+      "examples": ["Verify medication name and dosage. Check for other handwritten entries on same page.", "DO NOT PROCESS. Quarantine document. Verify intended patient. Possible document contamination or multi-patient record."],
+      "guidance": "TEXT. What AI recommends human reviewer should focus on. Optional but strongly recommended."
+    },
+
+    "clinical_context": {
+      "type": "jsonb",
+      "default": "{}",
+      "examples": [
+        {"page_number": 2, "section": "medications", "entity_id": "entity_012"},
+        {"detected_names": ["Sarah Johnson", "Emily Johnson"], "age_indicators": ["42 years old", "8 years old"]}
+      ],
+      "guidance": "JSONB DEFAULT '{}'. Additional metadata for reviewer (page numbers, entity IDs, etc.). Optional."
+    },
+
+    "assigned_reviewer": {
+      "type": "string",
+      "examples": ["profile_safety_team", "safety_team"],
+      "guidance": "TEXT. User identifier or role for assignment. Optional, can assign during Pass 1 or later."
+    },
+
+    "assigned_at": {
+      "type": "timestamptz",
+      "examples": ["2025-01-01T12:35:10Z"],
+      "guidance": "TIMESTAMPTZ. When review was assigned. Optional, set when assigning."
+    },
+
+    "estimated_review_time": {
+      "type": "interval",
+      "default": "15 minutes",
+      "examples": ["00:05:00", "00:10:00", "00:15:00"],
+      "guidance": "INTERVAL DEFAULT '15 minutes'. Estimated time for review. Optional, adjust based on complexity."
+    },
+
+    "review_status": {
+      "type": "enum",
+      "values": ["pending", "in_review", "completed", "escalated", "deferred"],
+      "default": "pending",
+      "guidance": "NOT NULL DEFAULT 'pending'. Pass 1 sets 'pending'. Reviewer updates during/after review."
+    }
+  },
+
+  "fields_not_set_by_pass1": [
+    "reviewer_decision",
+    "reviewer_notes",
+    "modifications_required",
+    "review_started_at",
+    "review_completed_at",
+    "actual_review_time",
+    "review_quality_score",
+    "reviewer_confidence"
+  ],
+
+  "extraction_guidelines": {
+    "operation": "CREATE one review queue item per issue requiring manual review",
+    "pass1_responsibility": "Flag low-confidence entities, AI-OCR discrepancies, profile uncertainty, safety concerns",
+    "blocking_reviews": "critical/urgent priority reviews BLOCK Pass 2 until completed",
+    "review_content_requirements": "review_title (short summary) + review_description (detailed explanation) are REQUIRED",
+    "ai_suggestions_importance": "Strongly recommended to guide human reviewer",
+    "clinical_context_usage": "Include page numbers, entity IDs, entity details for reviewer context",
+    "assignment_strategy": "May assign to specific reviewer/role during Pass 1, or assign later via UI"
+  },
+
+  "validation_rules": {
+    "patient_id": "Must be valid UUID (NOT NULL)",
+    "processing_session_id": "Must be valid UUID (NOT NULL)",
+    "shell_file_id": "Must be valid UUID (NOT NULL)",
+    "review_type": "Must be one of 6 enum values (NOT NULL)",
+    "priority": "Must be one of 5 enum values (defaults to 'normal')",
+    "review_title": "Must be non-empty (NOT NULL)",
+    "review_description": "Must be non-empty (NOT NULL)",
+    "ai_confidence_score": "If provided, must be 0.000-1.000",
+    "ai_concerns": "If provided, must be TEXT[] array",
+    "flagged_issues": "If provided, must be TEXT[] array",
+    "clinical_context": "If provided, must be valid JSONB",
+    "estimated_review_time": "If provided, must be valid INTERVAL",
+    "review_status": "Defaults to 'pending'",
+    "all_reviewer_fields": "Must remain NULL until review starts"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "table": "pass1_entity_metrics",
+  "pass": "pass-1",
+  "required": ["profile_id", "shell_file_id", "processing_session_id", "entities_detected", "processing_time_ms", "vision_model_used"],
+  "fields": {
+    "profile_id": "uuid (context, cross-pass join key)",
+    "shell_file_id": "uuid (source document)",
+    "processing_session_id": "uuid (PRIMARY cross-pass join key)",
+    "entities_detected": "integer (NOT NULL, entity count)",
+    "processing_time_ms": "integer (NOT NULL, consistent across passes)",
+    "vision_model_used": "string (NOT NULL)",
+    "ocr_model_used": "string? (optional)",
+    "ocr_agreement_average": "numeric(4,3)? 0.000-1.000",
+    "confidence_distribution": "jsonb? (e.g., {high: 18, medium: 5, low: 2})",
+    "entity_types_found": "string[]? (entity categories)",
+    "vision_tokens_used": "integer?",
+    "ocr_pages_processed": "integer?",
+    "cost_usd": "numeric(8,4)? (consistent across passes)",
+    "user_agent": "string?",
+    "ip_address": "inet?"
+  },
+  "quality_indicators": {
+    "high": "ocr_agreement >= 0.900, conf.high >= 70% entities",
+    "moderate": "ocr_agreement 0.750-0.899 OR conf.high >= 50%",
+    "low": "ocr_agreement < 0.750 OR conf.low > 25%"
+  },
+  "cross_pass_naming": {
+    "pass1": "entities_detected",
+    "pass2": "clinical_entities_enriched",
+    "pass3": "(planned) narratives_generated"
+  },
+  "cross_pass_keys": {
+    "processing_session_id": "Primary join for rollup analytics",
+    "profile_id": "Per-patient aggregation",
+    "shell_file_id": "Per-document tracking"
+  },
+  "example": {
+    "profile_id": "uuid-from-context",
+    "shell_file_id": "uuid-of-processed-document",
+    "processing_session_id": "uuid-of-ai-session",
+    "entities_detected": 25,
+    "processing_time_ms": 1800,
+    "vision_model_used": "gpt-4o",
+    "ocr_agreement_average": 0.920,
+    "confidence_distribution": {
+      "high": 18,
+      "medium": 5,
+      "low": 2
+    },
+    "entity_types_found": ["medication", "condition", "vital_sign", "observation"],
+    "vision_tokens_used": 2500,
+    "cost_usd": 0.0075
+  }
+}

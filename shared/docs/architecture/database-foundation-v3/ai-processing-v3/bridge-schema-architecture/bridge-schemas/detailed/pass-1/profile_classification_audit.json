@@ -1,0 +1,440 @@
+{
+  "schema_version": "1.0.0",
+  "table": "profile_classification_audit",
+  "pass": "pass-1",
+  "description": "Pass 1 profile classification and contamination prevention audit. This table tracks AI-driven profile type recommendations, identity verification results, and contamination risk analysis to ensure safe profile/patient assignment.",
+  "clinical_context": "This is a SYSTEM-GENERATED audit table, NOT extracted from medical documents. It tracks Pass 1 profile classification analysis including contamination prevention checks. The AI processing system populates this table automatically to determine which profile medical data should be assigned to.",
+
+  "required_fields": [
+    "processing_session_id",
+    "shell_file_id",
+    "recommended_profile_type"
+  ],
+
+  "fields": {
+    "processing_session_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "AI processing session identifier",
+      "required": true,
+      "example": "uuid-of-ai-session",
+      "guidance": "References ai_processing_sessions(id) ON DELETE CASCADE. PRIMARY cross-pass join key for rollup analytics across Pass 1, Pass 2, and Pass 3."
+    },
+
+    "shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Source document being classified",
+      "required": true,
+      "example": "uuid-of-processed-document",
+      "guidance": "References shell_files(id) ON DELETE CASCADE. Tracks which document was analyzed for profile classification."
+    },
+
+    "recommended_profile_type": {
+      "type": "enum",
+      "values": ["self", "child", "adult_dependent", "pet"],
+      "description": "AI-recommended profile type based on document analysis",
+      "required": true,
+      "examples": ["self", "child", "pet"],
+      "guidance": "TEXT with CHECK constraint. Must match one of four profile types. This is the AI's classification recommendation before manual review."
+    },
+
+    "profile_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in profile type recommendation",
+      "required": false,
+      "examples": [0.950, 0.820, 0.985],
+      "guidance": "NUMERIC(4,3) - 0.000-1.000 range with 3 decimal places. Measures AI confidence in profile classification. Higher values indicate stronger classification confidence."
+    },
+
+    "identity_extraction_results": {
+      "type": "jsonb",
+      "description": "Identity markers extracted from document",
+      "required": false,
+      "default": "{}",
+      "examples": [
+        {"name_found": "John Smith", "dob_found": "1985-03-15", "medicare_number": "2123 45678 9"},
+        {"name_found": "Emma Johnson", "dob_found": "2015-06-20", "parent_guardian": "Sarah Johnson"},
+        {"pet_name": "Max", "species": "dog", "breed": "Golden Retriever", "owner": "Michael Brown"}
+      ],
+      "guidance": "JSONB object with flexible structure showing extracted identity markers. Defaults to empty object. Common fields: name_found, dob_found, medicare_number, parent_guardian, pet_name, species, breed, owner."
+    },
+
+    "contamination_risk_score": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "Risk score for profile data contamination",
+      "required": false,
+      "examples": [0.050, 0.450, 0.030],
+      "guidance": "NUMERIC(4,3) - 0.000-1.000 range with 3 decimal places. Measures risk of medical data contamination across profiles. Higher values indicate higher contamination risk. Critical for patient safety."
+    },
+
+    "contamination_checks_performed": {
+      "type": "jsonb",
+      "description": "Details of contamination safety checks performed",
+      "required": false,
+      "default": "{}",
+      "examples": [
+        {"name_consistency": "passed", "date_consistency": "passed", "age_consistency": "passed"},
+        {"name_consistency": "passed", "multiple_names_detected": "warning", "age_consistency": "passed"},
+        {"veterinary_context": "confirmed", "species_consistency": "passed", "human_medical_data": "not_detected"}
+      ],
+      "guidance": "JSONB object with flexible structure showing contamination check results. Defaults to empty object. Common fields: name_consistency, date_consistency, age_consistency, multiple_names_detected, veterinary_context, species_consistency."
+    },
+
+    "contamination_warnings": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of contamination warnings detected",
+      "required": false,
+      "examples": [
+        [],
+        ["Multiple names detected in document (child + parent)", "Parent medical information present in same document"],
+        []
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Contains specific contamination warnings. Empty array means no warnings. Consider GIN index for analytics: CREATE INDEX idx_contamination_warnings ON profile_classification_audit USING GIN(contamination_warnings);"
+    },
+
+    "cross_profile_risk_detected": {
+      "type": "boolean",
+      "description": "Flag indicating cross-profile data mixing risk detected",
+      "required": false,
+      "default": false,
+      "examples": [false, true, false],
+      "guidance": "BOOLEAN type. Defaults to FALSE. TRUE indicates document contains data from multiple profiles/patients. Critical safety flag."
+    },
+
+    "identity_consistency_score": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "Identity consistency score across document",
+      "required": false,
+      "examples": [0.950, 0.820, 0.990],
+      "guidance": "NUMERIC(4,3) - 0.000-1.000 range with 3 decimal places. Measures consistency of identity markers throughout document. Higher values indicate more consistent identity."
+    },
+
+    "identity_markers_found": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of identity marker types detected",
+      "required": false,
+      "examples": [
+        ["full_name", "dob", "medicare_number", "address"],
+        ["child_name", "dob", "parent_name", "immunization_record"],
+        ["pet_name", "species", "breed", "microchip_number"]
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Contains types of identity markers detected in document. Used for classification confidence. Consider GIN index for analytics."
+    },
+
+    "age_indicators": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of age-related indicators found",
+      "required": false,
+      "examples": [
+        ["adult_age_range", "medicare_card_holder"],
+        ["child_age_range", "pediatric_consultation"],
+        ["pet_age_7_years"]
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Contains age-related markers that help determine profile type. Used for age appropriateness validation."
+    },
+
+    "relationship_indicators": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of relationship markers detected",
+      "required": false,
+      "examples": [
+        [],
+        ["parent", "guardian"],
+        ["owner"]
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Contains relationship indicators (e.g., parent, child, guardian, owner). Helps detect contamination risk when multiple relationships present."
+    },
+
+    "medicare_number_detected": {
+      "type": "boolean",
+      "description": "Flag indicating Medicare number detection",
+      "required": false,
+      "default": false,
+      "examples": [true, false, false],
+      "guidance": "BOOLEAN type. Defaults to FALSE. TRUE indicates Australian Medicare number detected in document. Specific to Australian healthcare context."
+    },
+
+    "healthcare_identifier_type": {
+      "type": "string",
+      "description": "Type of healthcare identifier detected",
+      "required": false,
+      "examples": ["medicare", "immunization_record", "veterinary_microchip"],
+      "guidance": "TEXT field. Describes the type of healthcare identifier found (e.g., medicare, immunization_record, veterinary_microchip). Helps with profile classification."
+    },
+
+    "healthcare_provider_context": {
+      "type": "string",
+      "description": "Healthcare provider context extracted from document",
+      "required": false,
+      "examples": ["General Practitioner", "Pediatric Clinic", "Veterinary Clinic"],
+      "guidance": "TEXT field. Describes the healthcare provider context. Helps determine profile type (e.g., veterinary clinic suggests pet profile)."
+    },
+
+    "classification_reasoning": {
+      "type": "string",
+      "description": "AI reasoning for profile type classification",
+      "required": false,
+      "examples": [
+        "Document contains consistent adult identity markers with Medicare number matching patient age. No contamination indicators detected.",
+        "Document contains child identity markers but also references parent information. Contamination risk moderate due to mixed profile data.",
+        "Clear veterinary medical record with species-specific treatment. No human medical data contamination detected."
+      ],
+      "guidance": "TEXT field. Provides AI explainability for classification decision. Important for manual review and audit trail."
+    },
+
+    "manual_review_required": {
+      "type": "boolean",
+      "description": "Flag indicating need for manual review",
+      "required": false,
+      "default": false,
+      "examples": [false, true, false],
+      "guidance": "BOOLEAN type. Defaults to FALSE. TRUE indicates AI detected issues requiring human review before proceeding with Pass 2 extraction."
+    },
+
+    "reviewed_by_user": {
+      "type": "boolean",
+      "description": "Flag indicating user has reviewed classification",
+      "required": false,
+      "default": false,
+      "examples": [false, false, false],
+      "guidance": "BOOLEAN type. Defaults to FALSE. Set to TRUE after user manually reviews and confirms/corrects classification."
+    },
+
+    "final_profile_assignment": {
+      "type": "enum",
+      "values": ["self", "child", "adult_dependent", "pet"],
+      "description": "Final profile assignment after review (if applicable)",
+      "required": false,
+      "examples": ["self", "child", "pet"],
+      "guidance": "TEXT with CHECK constraint. Only populated after manual review if classification was corrected. Must match one of four profile types."
+    },
+
+    "medical_appropriateness_score": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "Medical content appropriateness score for profile type",
+      "required": false,
+      "examples": [0.980, 0.900, 0.995],
+      "guidance": "NUMERIC(4,3) - 0.000-1.000 range with 3 decimal places. Measures whether medical content is appropriate for recommended profile type. Higher values indicate better appropriateness."
+    },
+
+    "age_appropriateness_validated": {
+      "type": "boolean",
+      "description": "Flag indicating age-appropriate content validation",
+      "required": false,
+      "default": false,
+      "examples": [true, true, true],
+      "guidance": "BOOLEAN type. Defaults to FALSE. TRUE indicates AI validated content is age-appropriate for profile type (e.g., pediatric content for child profile)."
+    },
+
+    "safety_flags": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of safety concerns detected",
+      "required": false,
+      "examples": [
+        [],
+        ["cross_profile_data_detected", "parent_child_mixing"],
+        []
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Contains specific safety concerns requiring attention. Empty array means no safety issues. Critical for patient safety review."
+    },
+
+    "ai_model_used": {
+      "type": "string",
+      "description": "AI model used for classification",
+      "required": false,
+      "default": "gpt-4o-mini",
+      "examples": ["gpt-4o-mini", "gpt-4o", "claude-3-5-sonnet-20241022"],
+      "guidance": "TEXT field. Defaults to 'gpt-4o-mini'. Model identifier string for classification analysis. Required for quality analysis and cost attribution."
+    },
+
+    "validation_method": {
+      "type": "enum",
+      "values": ["automated", "human_guided", "manual_review"],
+      "description": "Validation approach used",
+      "required": false,
+      "default": "automated",
+      "examples": ["automated", "automated", "automated"],
+      "guidance": "TEXT with CHECK constraint. Defaults to 'automated'. Describes validation approach: automated (AI only), human_guided (AI + human hints), manual_review (human classification)."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "High-confidence self profile classification with no contamination",
+      "extraction": {
+        "processing_session_id": "uuid-of-ai-session",
+        "shell_file_id": "uuid-of-processed-document",
+        "recommended_profile_type": "self",
+        "profile_confidence": 0.950,
+        "identity_extraction_results": {
+          "name_found": "John Smith",
+          "dob_found": "1985-03-15",
+          "medicare_number": "2123 45678 9"
+        },
+        "contamination_risk_score": 0.050,
+        "contamination_checks_performed": {
+          "name_consistency": "passed",
+          "date_consistency": "passed",
+          "age_consistency": "passed"
+        },
+        "contamination_warnings": [],
+        "cross_profile_risk_detected": false,
+        "identity_consistency_score": 0.950,
+        "identity_markers_found": ["full_name", "dob", "medicare_number", "address"],
+        "age_indicators": ["adult_age_range", "medicare_card_holder"],
+        "relationship_indicators": [],
+        "medicare_number_detected": true,
+        "healthcare_identifier_type": "medicare",
+        "healthcare_provider_context": "General Practitioner",
+        "classification_reasoning": "Document contains consistent adult identity markers with Medicare number matching patient age. No contamination indicators detected.",
+        "manual_review_required": false,
+        "medical_appropriateness_score": 0.980,
+        "age_appropriateness_validated": true,
+        "safety_flags": [],
+        "ai_model_used": "gpt-4o-mini",
+        "validation_method": "automated"
+      }
+    },
+    {
+      "description": "Child profile with contamination warning requiring manual review",
+      "extraction": {
+        "processing_session_id": "uuid-of-ai-session",
+        "shell_file_id": "uuid-of-processed-document",
+        "recommended_profile_type": "child",
+        "profile_confidence": 0.820,
+        "identity_extraction_results": {
+          "name_found": "Emma Johnson",
+          "dob_found": "2015-06-20",
+          "parent_guardian": "Sarah Johnson"
+        },
+        "contamination_risk_score": 0.450,
+        "contamination_checks_performed": {
+          "name_consistency": "passed",
+          "multiple_names_detected": "warning",
+          "age_consistency": "passed"
+        },
+        "contamination_warnings": [
+          "Multiple names detected in document (child + parent)",
+          "Parent medical information present in same document"
+        ],
+        "cross_profile_risk_detected": true,
+        "identity_consistency_score": 0.820,
+        "identity_markers_found": ["child_name", "dob", "parent_name", "immunization_record"],
+        "age_indicators": ["child_age_range", "pediatric_consultation"],
+        "relationship_indicators": ["parent", "guardian"],
+        "medicare_number_detected": false,
+        "healthcare_identifier_type": "immunization_record",
+        "healthcare_provider_context": "Pediatric Clinic",
+        "classification_reasoning": "Document contains child identity markers but also references parent information. Contamination risk moderate due to mixed profile data.",
+        "manual_review_required": true,
+        "medical_appropriateness_score": 0.900,
+        "age_appropriateness_validated": true,
+        "safety_flags": ["cross_profile_data_detected", "parent_child_mixing"],
+        "ai_model_used": "gpt-4o-mini",
+        "validation_method": "automated"
+      }
+    },
+    {
+      "description": "Pet profile classification with veterinary context",
+      "extraction": {
+        "processing_session_id": "uuid-of-ai-session",
+        "shell_file_id": "uuid-of-processed-document",
+        "recommended_profile_type": "pet",
+        "profile_confidence": 0.985,
+        "identity_extraction_results": {
+          "pet_name": "Max",
+          "species": "dog",
+          "breed": "Golden Retriever",
+          "owner": "Michael Brown"
+        },
+        "contamination_risk_score": 0.030,
+        "contamination_checks_performed": {
+          "veterinary_context": "confirmed",
+          "species_consistency": "passed",
+          "human_medical_data": "not_detected"
+        },
+        "contamination_warnings": [],
+        "cross_profile_risk_detected": false,
+        "identity_consistency_score": 0.990,
+        "identity_markers_found": ["pet_name", "species", "breed", "microchip_number"],
+        "age_indicators": ["pet_age_7_years"],
+        "relationship_indicators": ["owner"],
+        "medicare_number_detected": false,
+        "healthcare_identifier_type": "veterinary_microchip",
+        "healthcare_provider_context": "Veterinary Clinic",
+        "classification_reasoning": "Clear veterinary medical record with species-specific treatment. No human medical data contamination detected.",
+        "manual_review_required": false,
+        "medical_appropriateness_score": 0.995,
+        "age_appropriateness_validated": true,
+        "safety_flags": [],
+        "ai_model_used": "gpt-4o-mini",
+        "validation_method": "automated"
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "system_generated": "This table is populated AUTOMATICALLY by the AI processing system during Pass 1. It is NOT extracted from medical documents. It classifies which profile medical data should be assigned to.",
+    "required_fields_strict": "Only 3 required fields (processing_session_id, shell_file_id, recommended_profile_type) must be provided.",
+    "safety_critical": "Contamination prevention is CRITICAL. contamination_risk_score, contamination_warnings, and cross_profile_risk_detected must be populated to ensure patient safety.",
+    "profile_type_values": "recommended_profile_type and final_profile_assignment must be one of: 'self', 'child', 'adult_dependent', 'pet'.",
+    "validation_method_values": "validation_method must be one of: 'automated', 'human_guided', 'manual_review'.",
+    "australian_context": "medicare_number_detected and healthcare_identifier_type are specific to Australian healthcare system.",
+    "manual_review_triggers": "Set manual_review_required=true when contamination_risk_score > 0.3 OR cross_profile_risk_detected=true OR profile_confidence < 0.7.",
+    "quality_indicators": {
+      "high_quality": "profile_confidence >= 0.900 AND contamination_risk_score <= 0.1 AND cross_profile_risk_detected=false",
+      "moderate_quality": "profile_confidence 0.700-0.899 OR contamination_risk_score 0.1-0.3",
+      "requires_review": "profile_confidence < 0.700 OR contamination_risk_score > 0.3 OR cross_profile_risk_detected=true"
+    },
+    "performance_optimization": "Database creates indexes on processing_session_id and shell_file_id. Consider GIN indexes on TEXT[] arrays for filtering by identity markers, age indicators, or safety flags."
+  },
+
+  "interoperability_notes": {
+    "cross_pass_keys": "Uses processing_session_id same as pass1_entity_metrics and pass2_clinical_metrics for cross-pass joins.",
+    "consistent_precision": "All confidence/score fields use NUMERIC(4,3) matching pass1_entity_metrics.ocr_agreement_average and pass2_clinical_metrics.average_clinical_confidence.",
+    "pass2_integration": "This table determines WHICH profile Pass 2 should assign clinical entities to. contamination_risk_score informs whether Pass 2 should proceed or require manual review.",
+    "analytics_pattern": "Join with pass1_entity_metrics and pass2_clinical_metrics using processing_session_id to analyze classification → entity detection → clinical extraction pipeline.",
+    "summary_layer": "Include in materialized view aggregating cross-pass metrics per processing_session_id: classification confidence, contamination risk, entity counts, clinical extraction counts.",
+    "indexes": "Database creates indexes on processing_session_id (FK to ai_processing_sessions) and shell_file_id (FK to shell_files)."
+  },
+
+  "validation_rules": {
+    "processing_session_id": "Must be valid UUID (NOT NULL)",
+    "shell_file_id": "Must be valid UUID (NOT NULL)",
+    "recommended_profile_type": "Must be one of: 'self', 'child', 'adult_dependent', 'pet' (NOT NULL)",
+    "profile_confidence": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
+    "identity_extraction_results": "If provided, must be valid JSONB object",
+    "contamination_risk_score": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
+    "contamination_checks_performed": "If provided, must be valid JSONB object",
+    "contamination_warnings": "If provided, must be valid TEXT[] array",
+    "cross_profile_risk_detected": "Must be boolean (defaults to FALSE)",
+    "identity_consistency_score": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
+    "identity_markers_found": "If provided, must be valid TEXT[] array",
+    "age_indicators": "If provided, must be valid TEXT[] array",
+    "relationship_indicators": "If provided, must be valid TEXT[] array",
+    "medicare_number_detected": "Must be boolean (defaults to FALSE)",
+    "final_profile_assignment": "If provided, must be one of: 'self', 'child', 'adult_dependent', 'pet'",
+    "medical_appropriateness_score": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
+    "age_appropriateness_validated": "Must be boolean (defaults to FALSE)",
+    "safety_flags": "If provided, must be valid TEXT[] array",
+    "validation_method": "If provided, must be one of: 'automated', 'human_guided', 'manual_review'"
+  }
+}

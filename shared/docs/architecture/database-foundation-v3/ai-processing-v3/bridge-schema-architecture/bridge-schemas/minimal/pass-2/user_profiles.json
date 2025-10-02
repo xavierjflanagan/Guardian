@@ -1,0 +1,74 @@
+{
+  "table": "user_profiles",
+  "pass": "pass-2",
+  "required": ["account_owner_id", "profile_type", "display_name"],
+  "fields": {
+    "account_owner_id": "uuid (auth context, NOT extracted)",
+    "profile_type": "self|child|pet|dependent (NOT NULL)",
+    "display_name": "string (NOT NULL)",
+    "profile_status": "active|inactive|pending_transfer? (default: active)",
+    "full_name": "string?",
+    "date_of_birth": "date?",
+    "species": "string? (pets only)",
+    "breed": "string? (pets only)",
+    "relationship": "string? (custom enum)",
+    "legal_status": "guardian|parent|caregiver|self|owner?",
+    "theme_color": "string? (default: #2563eb)",
+    "avatar_url": "string?",
+    "custom_theme": "jsonb? (default: {})",
+    "profile_icon": "string?",
+    "auth_level": "string? (custom enum, default: read_write)",
+    "auth_verified_at": "timestamptz?",
+    "auth_verification_status": "string? (custom enum, default: unverified)",
+    "auth_method": "string? (file_extraction, manual_entry, etc.)",
+    "transferred_from": "uuid? (self-ref)",
+    "transferred_to": "uuid? (self-ref)",
+    "archived": "boolean? (default: false)",
+    "archived_at": "timestamptz?",
+    "archived_by": "uuid? (auth.users ref)",
+    "archival_reason": "string?",
+    "recovery_expires_at": "timestamptz?",
+    "processing_restricted_at": "timestamptz?",
+    "legal_hold": "boolean? (default: false)",
+    "erasure_performed_at": "timestamptz?",
+    "erasure_scope": "string? (pii_only, analytics_only, full_restriction)",
+    "region_of_record": "string? (AU, US, EU)",
+    "date_preferences": "jsonb? (default: AU locale)",
+    "is_pregnancy_profile": "boolean? (default: false)",
+    "expected_due_date": "date?",
+    "transitioned_to_child_profile_id": "uuid? (self-ref)"
+  },
+  "profile_types": {
+    "self": "Account owner's profile",
+    "child": "Child/minor dependent",
+    "pet": "Pet/animal (vet records)",
+    "dependent": "Other dependent"
+  },
+  "profile_status": {
+    "active": "Active (default)",
+    "inactive": "Deactivated",
+    "pending_transfer": "Being transferred"
+  },
+  "legal_status": {
+    "guardian": "Legal guardian",
+    "parent": "Parent",
+    "caregiver": "Caregiver",
+    "self": "Self",
+    "owner": "Pet owner"
+  },
+  "example": {
+    "account_owner_id": "uuid-from-auth-context",
+    "profile_type": "self",
+    "display_name": "Sarah Johnson",
+    "full_name": "Sarah Marie Johnson",
+    "date_of_birth": "1985-03-15",
+    "legal_status": "self",
+    "profile_status": "active",
+    "region_of_record": "AU",
+    "date_preferences": {
+      "preferred_format": "DD/MM/YYYY",
+      "home_country": "AU",
+      "timezone": "Australia/Sydney"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "table": "ai_processing_sessions",
+  "pass": "pass-1",
+  "operation": "CREATE",
+  "required": ["patient_id", "shell_file_id", "session_type"],
+  "fields": {
+    "patient_id": "uuid (context)",
+    "shell_file_id": "uuid (context)",
+    "session_type": "shell_file_processing|entity_extraction|clinical_validation|profile_classification|decision_support|semantic_processing",
+    "session_status": "initiated|processing|completed|failed|cancelled (default: initiated)",
+    "ai_model_version": "string (default: v3)",
+    "model_config": "jsonb? (default: {})",
+    "processing_mode": "automated|human_guided|validation_only?",
+    "workflow_step": "entity_detection|profile_classification|clinical_extraction|semantic_processing|validation|decision_support|completed (default: entity_detection)",
+    "total_steps": "integer? (default: 5)",
+    "completed_steps": "integer? (default: 0)",
+    "overall_confidence": "numeric(4,3)? 0.000-1.000",
+    "requires_human_review": "boolean? (default: false)",
+    "quality_score": "numeric(4,3)? 0.000-1.000",
+    "processing_started_at": "timestamptz (default: NOW())",
+    "processing_completed_at": "null (Pass 2 sets)",
+    "total_processing_time": "interval? (Pass 2 calculates)",
+    "error_message": "string?",
+    "error_context": "jsonb? (include pass=pass-1 if fails)",
+    "retry_count": "integer? (default: 0)",
+    "max_retries": "integer? (default: 3)"
+  },
+  "example": {
+    "patient_id": "uuid-of-patient",
+    "shell_file_id": "uuid-of-shell-file",
+    "session_type": "shell_file_processing",
+    "session_status": "processing",
+    "workflow_step": "entity_detection",
+    "total_steps": 5,
+    "completed_steps": 1,
+    "overall_confidence": 0.850,
+    "processing_started_at": "2025-01-01T12:34:56Z"
+  }
+}

@@ -1,0 +1,337 @@
+{
+  "schema_version": "1.0.0",
+  "table": "entity_processing_audit",
+  "pass": "pass-1",
+  "operation": "CREATE",
+  "description": "Pass 1 CREATE operation for entity_processing_audit. Creates complete audit record for each detected entity including spatial mapping, AI-OCR cross-validation, and Pass 2 coordination metadata. Most complex multi-pass table.",
+
+  "required_fields": [
+    "shell_file_id",
+    "patient_id",
+    "processing_session_id",
+    "entity_id",
+    "original_text",
+    "entity_category",
+    "entity_subtype",
+    "pass1_confidence",
+    "requires_schemas",
+    "processing_priority",
+    "pass1_model_used",
+    "pass1_vision_processing"
+  ],
+
+  "fields": {
+    "shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "required": true,
+      "example": "uuid-of-shell-file",
+      "guidance": "References shell_files(id) ON DELETE CASCADE. Which file this entity was detected in."
+    },
+
+    "patient_id": {
+      "type": "uuid",
+      "source": "context",
+      "required": true,
+      "example": "uuid-of-patient",
+      "guidance": "References user_profiles(id) (no CASCADE). Which patient profile this entity belongs to."
+    },
+
+    "processing_session_id": {
+      "type": "uuid",
+      "source": "context",
+      "required": true,
+      "example": "uuid-of-session",
+      "guidance": "References ai_processing_sessions(id) ON DELETE CASCADE. Links to session coordination."
+    },
+
+    "entity_id": {
+      "type": "string",
+      "required": true,
+      "examples": ["entity_001", "entity_042"],
+      "guidance": "Unique identifier for this entity within the session. Use pattern: entity_NNN (zero-padded)."
+    },
+
+    "original_text": {
+      "type": "string",
+      "required": true,
+      "examples": ["BP: 120/80 mmHg", "Lisinopril 10mg daily"],
+      "guidance": "Exact text as detected in document. NOT NULL."
+    },
+
+    "entity_category": {
+      "type": "enum",
+      "values": ["clinical_event", "healthcare_context", "document_structure"],
+      "required": true,
+      "examples": ["clinical_event", "document_structure"],
+      "guidance": "Primary classification. NOT NULL. document_structure entities skip Pass 2."
+    },
+
+    "entity_subtype": {
+      "type": "string",
+      "required": true,
+      "examples": ["vital_sign_blood_pressure", "medication", "section_header"],
+      "guidance": "Specific classification (vital_sign, medication, diagnosis, etc.). NOT NULL."
+    },
+
+    "unique_marker": {
+      "type": "string",
+      "examples": ["BP: 120/80", "Lisinopril"],
+      "guidance": "Searchable text pattern for entity relocation. Optional but recommended."
+    },
+
+    "location_context": {
+      "type": "string",
+      "examples": ["Page 1, vitals section, third row", "Page 2, medications list"],
+      "guidance": "Human-readable location description. Optional but recommended for UX."
+    },
+
+    "spatial_bbox": {
+      "type": "jsonb",
+      "examples": [{"x": 125, "y": 340, "width": 180, "height": 25, "page": 1}],
+      "guidance": "Page coordinates for click-to-zoom functionality. JSONB object with x, y, width, height, page."
+    },
+
+    "page_number": {
+      "type": "integer",
+      "examples": [1, 2],
+      "guidance": "Document page where entity appears. Optional but recommended."
+    },
+
+    "pass1_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "required": true,
+      "examples": [0.980, 0.750],
+      "guidance": "NUMERIC(4,3) NOT NULL. Pass 1 entity detection confidence. 0.000-1.000."
+    },
+
+    "requires_schemas": {
+      "type": "text_array",
+      "required": true,
+      "examples": [["patient_observations", "patient_vitals"], ["patient_interventions"], []],
+      "guidance": "TEXT[] NOT NULL DEFAULT '{}'. Database tables Pass 2 should populate. Empty for document_structure."
+    },
+
+    "processing_priority": {
+      "type": "enum",
+      "values": ["highest", "high", "medium", "low", "logging_only"],
+      "required": true,
+      "examples": ["highest", "high", "logging_only"],
+      "guidance": "NOT NULL. Pass 2 urgency. logging_only skips Pass 2 enrichment."
+    },
+
+    "pass2_status": {
+      "type": "enum",
+      "values": ["pending", "skipped", "in_progress", "completed", "failed"],
+      "default": "pending",
+      "examples": ["pending", "skipped"],
+      "guidance": "NOT NULL DEFAULT 'pending'. Pass 1 sets 'pending' or 'skipped'. Pass 2 updates to other values."
+    },
+
+    "pass1_model_used": {
+      "type": "string",
+      "required": true,
+      "examples": ["gpt-4o-mini", "claude-3-5-sonnet"],
+      "guidance": "AI model used for entity detection. NOT NULL."
+    },
+
+    "pass1_vision_processing": {
+      "type": "boolean",
+      "default": false,
+      "required": true,
+      "examples": [true, false],
+      "guidance": "Whether vision model was used. NOT NULL."
+    },
+
+    "pass1_token_usage": {
+      "type": "integer",
+      "examples": [1250, 980],
+      "guidance": "Token consumption for Pass 1 processing. Optional."
+    },
+
+    "pass1_image_tokens": {
+      "type": "integer",
+      "examples": [800],
+      "guidance": "Image tokens for vision models. Optional."
+    },
+
+    "pass1_cost_estimate": {
+      "type": "numeric",
+      "precision": 8,
+      "scale": 4,
+      "examples": [0.0045, 0.0032],
+      "guidance": "NUMERIC(8,4). Cost estimate for Pass 1 processing. Optional."
+    },
+
+    "ai_visual_interpretation": {
+      "type": "string",
+      "examples": ["Blood pressure reading in standard clinical format with unit notation"],
+      "guidance": "What AI vision model detected. Optional but strongly recommended for vision processing."
+    },
+
+    "visual_formatting_context": {
+      "type": "string",
+      "examples": ["Bold text in vital signs table", "Heading style, 18pt bold"],
+      "guidance": "Visual formatting description (bold, table, chart, etc.). Optional."
+    },
+
+    "ai_visual_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "examples": [0.985, 0.720],
+      "guidance": "NUMERIC(4,3). AI's confidence in visual interpretation. 0.000-1.000. Optional."
+    },
+
+    "ocr_reference_text": {
+      "type": "string",
+      "examples": ["BP: 120/80 mmHg", "Lisinopril 1Omg daily"],
+      "guidance": "What OCR extracted for this entity. Optional but strongly recommended for cross-validation."
+    },
+
+    "ocr_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "examples": [0.990, 0.680],
+      "guidance": "NUMERIC(4,3). OCR's confidence in the text. 0.000-1.000. Optional."
+    },
+
+    "ocr_provider": {
+      "type": "string",
+      "examples": ["google_vision", "aws_textract"],
+      "guidance": "OCR service used. Optional."
+    },
+
+    "ai_ocr_agreement_score": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "examples": [1.0, 0.850],
+      "guidance": "NUMERIC(4,3). Agreement between AI and OCR (0.0-1.0). Optional but recommended."
+    },
+
+    "spatial_mapping_source": {
+      "type": "enum",
+      "values": ["ocr_exact", "ocr_approximate", "ai_estimated", "none"],
+      "examples": ["ocr_exact", "ocr_approximate"],
+      "guidance": "How spatial coordinates were determined. Optional."
+    },
+
+    "discrepancy_type": {
+      "type": "string",
+      "examples": ["ocr_character_confusion", "text_mismatch"],
+      "guidance": "Type of AI-OCR disagreement. Optional, populate if discrepancy detected."
+    },
+
+    "discrepancy_notes": {
+      "type": "string",
+      "examples": ["OCR interpreted '10' as '1O' (digit-letter confusion)"],
+      "guidance": "Human-readable explanation of differences. Optional."
+    },
+
+    "visual_quality_assessment": {
+      "type": "string",
+      "examples": ["high_quality", "blurry", "partial_handwriting"],
+      "guidance": "AI assessment of source image quality. Optional."
+    },
+
+    "validation_flags": {
+      "type": "text_array",
+      "default": "{}",
+      "examples": [["low_confidence", "high_discrepancy"], ["ocr_uncertainty", "handwriting_present"]],
+      "guidance": "TEXT[] DEFAULT '{}'. Quality flags. Optional but recommended for quality tracking."
+    },
+
+    "cross_validation_score": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "examples": [0.990, 0.750],
+      "guidance": "NUMERIC(4,3). Overall AI-OCR agreement quality. 0.000-1.000. Optional."
+    },
+
+    "manual_review_required": {
+      "type": "boolean",
+      "default": false,
+      "examples": [false, true],
+      "guidance": "Flag for manual review. DEFAULT FALSE. Pass 1 sets true for low confidence."
+    },
+
+    "profile_verification_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "examples": [0.950],
+      "guidance": "NUMERIC(4,3). Confidence in patient identity match. 0.000-1.000. Optional."
+    },
+
+    "pii_sensitivity_level": {
+      "type": "enum",
+      "values": ["none", "low", "medium", "high"],
+      "examples": ["medium", "high", "none"],
+      "guidance": "Data sensitivity level for audit logging. Optional."
+    },
+
+    "compliance_flags": {
+      "type": "text_array",
+      "default": "{}",
+      "examples": [["clinical_data"], ["medication_data", "requires_verification"]],
+      "guidance": "TEXT[] DEFAULT '{}'. HIPAA, Privacy Act compliance flags. Optional."
+    }
+  },
+
+  "fields_not_set_by_pass1": [
+    "pass2_confidence",
+    "pass2_started_at",
+    "pass2_completed_at",
+    "enrichment_errors",
+    "pass2_model_used",
+    "pass2_token_usage",
+    "pass2_cost_estimate",
+    "final_event_id",
+    "final_encounter_id",
+    "final_observation_id",
+    "final_intervention_id",
+    "final_condition_id",
+    "final_allergy_id",
+    "final_vital_id",
+    "manual_review_completed",
+    "manual_review_notes",
+    "manual_reviewer_id"
+  ],
+
+  "extraction_guidelines": {
+    "operation": "CREATE one audit record per detected entity",
+    "entity_id_pattern": "entity_001, entity_002, ..., entity_NNN (zero-padded sequential)",
+    "pass1_responsibility": "Complete entity detection audit with spatial mapping and AI-OCR cross-validation",
+    "pass2_coordination": "Set pass2_status='pending' for clinical_event/healthcare_context, 'skipped' for document_structure",
+    "requires_schemas_usage": "Array of table names for Pass 2 to populate (empty for document_structure)",
+    "priority_levels": "highest=critical clinical, high=standard clinical, medium=contextual, low=supplemental, logging_only=skip Pass 2"
+  },
+
+  "validation_rules": {
+    "shell_file_id": "Must be valid UUID (NOT NULL)",
+    "patient_id": "Must be valid UUID (NOT NULL, no CASCADE)",
+    "processing_session_id": "Must be valid UUID (NOT NULL)",
+    "entity_id": "Must be unique string (NOT NULL)",
+    "original_text": "Must be non-empty (NOT NULL)",
+    "entity_category": "Must be one of 3 enum values (NOT NULL)",
+    "entity_subtype": "Must be non-empty (NOT NULL)",
+    "pass1_confidence": "Must be 0.000-1.000 (NOT NULL)",
+    "requires_schemas": "Must be TEXT[] (NOT NULL, can be empty)",
+    "processing_priority": "Must be one of 5 enum values (NOT NULL)",
+    "pass2_status": "Defaults to 'pending', Pass 1 may set 'skipped'",
+    "pass1_model_used": "Must be non-empty (NOT NULL)",
+    "pass1_vision_processing": "Must be boolean (NOT NULL)",
+    "all_pass2_fields": "Must remain NULL until Pass 2 processing"
+  }
+}
