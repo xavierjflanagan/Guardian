@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const supabase_js_1 = require("@supabase/supabase-js");
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const pass1_1 = require("./pass1");
 // Load environment variables
 dotenv_1.default.config();
 // =============================================================================
@@ -21,6 +22,12 @@ const config = {
     supabase: {
         url: process.env.SUPABASE_URL,
         serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    },
+    openai: {
+        apiKey: process.env.OPENAI_API_KEY,
+    },
+    googleCloud: {
+        apiKey: process.env.GOOGLE_CLOUD_API_KEY,
     },
     worker: {
         // FIXED: Use deployment guide configuration
@@ -47,9 +54,25 @@ class V3Worker {
     workerId;
     activeJobs = new Map();
     heartbeatInterval;
+    pass1Detector;
     constructor() {
         this.workerId = config.worker.id;
         this.supabase = (0, supabase_js_1.createClient)(config.supabase.url, config.supabase.serviceRoleKey);
+        // Initialize Pass 1 detector if OpenAI key is available
+        if (config.openai.apiKey) {
+            const pass1Config = {
+                openai_api_key: config.openai.apiKey,
+                model: 'gpt-4o',
+                temperature: 0.1,
+                max_tokens: 4000,
+                confidence_threshold: 0.7,
+            };
+            this.pass1Detector = new pass1_1.Pass1EntityDetector(pass1Config);
+            console.log(`[${this.workerId}] Pass 1 Entity Detector initialized`);
+        }
+        else {
+            console.warn(`[${this.workerId}] OpenAI API key not found - Pass 1 disabled`);
+        }
         console.log(`[${this.workerId}] V3 Worker initialized`);
     }
     // Start the worker
@@ -134,6 +157,9 @@ class V3Worker {
                 case 'ai_processing':
                     result = await this.processAIJob(job);
                     break;
+                case 'pass1_entity_detection':
+                    result = await this.processPass1EntityDetection(job);
+                    break;
                 default:
                     throw new Error(`Unknown job type: ${job.job_type}`);
             }
@@ -190,6 +216,95 @@ class V3Worker {
             status: 'completed',
             message: 'AI processing completed (simulation)',
         };
+    }
+    // Process Pass 1 Entity Detection
+    async processPass1EntityDetection(job) {
+        if (!this.pass1Detector) {
+            throw new Error('Pass 1 detector not initialized - OpenAI API key may be missing');
+        }
+        const payload = job.job_payload;
+        console.log(`[${this.workerId}] Starting Pass 1 entity detection for shell_file ${payload.shell_file_id}`);
+        // Run Pass 1 processing
+        const result = await this.pass1Detector.processDocument(payload);
+        if (!result.success) {
+            throw new Error(`Pass 1 processing failed: ${result.error}`);
+        }
+        console.log(`[${this.workerId}] Pass 1 detected ${result.total_entities_detected} entities`);
+        console.log(`[${this.workerId}] - Clinical events: ${result.entities_by_category.clinical_event}`);
+        console.log(`[${this.workerId}] - Healthcare context: ${result.entities_by_category.healthcare_context}`);
+        console.log(`[${this.workerId}] - Document structure: ${result.entities_by_category.document_structure}`);
+        // Get ALL Pass 1 database records (7 tables)
+        console.log(`[${this.workerId}] Building Pass 1 database records (7 tables)...`);
+        const dbRecords = await this.pass1Detector.getAllDatabaseRecords(payload);
+        // Insert into ALL 7 Pass 1 tables
+        await this.insertPass1DatabaseRecords(dbRecords, payload.shell_file_id);
+        console.log(`[${this.workerId}] Pass 1 complete - inserted records into 7 tables`);
+        console.log(`[${this.workerId}] - entity_processing_audit: ${result.records_created.entity_audit}`);
+        console.log(`[${this.workerId}] - ai_confidence_scoring: ${result.records_created.confidence_scoring}`);
+        console.log(`[${this.workerId}] - manual_review_queue: ${result.records_created.manual_review_queue}`);
+        return result;
+    }
+    // Insert Pass 1 records into all 7 database tables
+    async insertPass1DatabaseRecords(records, shellFileId) {
+        // 1. INSERT ai_processing_sessions
+        const { error: sessionError } = await this.supabase
+            .from('ai_processing_sessions')
+            .insert(records.ai_processing_session);
+        if (sessionError) {
+            throw new Error(`Failed to insert ai_processing_sessions: ${sessionError.message}`);
+        }
+        // 2. INSERT entity_processing_audit (bulk)
+        if (records.entity_processing_audit.length > 0) {
+            const { error: entityError } = await this.supabase
+                .from('entity_processing_audit')
+                .insert(records.entity_processing_audit);
+            if (entityError) {
+                throw new Error(`Failed to insert entity_processing_audit: ${entityError.message}`);
+            }
+        }
+        // 3. UPDATE shell_files
+        const { error: shellError } = await this.supabase
+            .from('shell_files')
+            .update(records.shell_file_updates)
+            .eq('id', shellFileId);
+        if (shellError) {
+            console.warn(`[${this.workerId}] Failed to update shell_files:`, shellError);
+            // Non-fatal - continue
+        }
+        // 4. INSERT profile_classification_audit
+        const { error: profileError } = await this.supabase
+            .from('profile_classification_audit')
+            .insert(records.profile_classification_audit);
+        if (profileError) {
+            throw new Error(`Failed to insert profile_classification_audit: ${profileError.message}`);
+        }
+        // 5. INSERT pass1_entity_metrics
+        const { error: metricsError } = await this.supabase
+            .from('pass1_entity_metrics')
+            .insert(records.pass1_entity_metrics);
+        if (metricsError) {
+            throw new Error(`Failed to insert pass1_entity_metrics: ${metricsError.message}`);
+        }
+        // 6. INSERT ai_confidence_scoring (optional - may be empty)
+        if (records.ai_confidence_scoring.length > 0) {
+            const { error: confidenceError } = await this.supabase
+                .from('ai_confidence_scoring')
+                .insert(records.ai_confidence_scoring);
+            if (confidenceError) {
+                console.warn(`[${this.workerId}] Failed to insert ai_confidence_scoring:`, confidenceError);
+                // Non-fatal - continue
+            }
+        }
+        // 7. INSERT manual_review_queue (optional - may be empty)
+        if (records.manual_review_queue.length > 0) {
+            const { error: reviewError } = await this.supabase
+                .from('manual_review_queue')
+                .insert(records.manual_review_queue);
+            if (reviewError) {
+                console.warn(`[${this.workerId}] Failed to insert manual_review_queue:`, reviewError);
+                // Non-fatal - continue
+            }
+        }
     }
     // Complete a job
     async completeJob(jobId, result) {

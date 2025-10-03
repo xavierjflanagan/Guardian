@@ -1,0 +1,298 @@
+"use strict";
+/**
+ * Pass 1 Translation Layer - AI Output to Database Format
+ * Created: 2025-10-03
+ * Purpose: PURE CODE FUNCTION (no AI) that flattens nested AI JSON to flat database columns
+ *
+ * This is the "wasteful but necessary" translation layer that converts:
+ * - Nested AI response JSON → Flat database table columns
+ * - Adds metadata and session context
+ * - Prepares records for batch insertion into entity_processing_audit
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.translateAIOutputToDatabase = translateAIOutputToDatabase;
+exports.batchEntityRecords = batchEntityRecords;
+exports.validateEntityRecord = validateEntityRecord;
+exports.validateRecordBatch = validateRecordBatch;
+exports.generateRecordStatistics = generateRecordStatistics;
+exports.formatRecordSummary = formatRecordSummary;
+const pass1_schema_mapping_1 = require("./pass1-schema-mapping");
+// =============================================================================
+// MAIN TRANSLATION FUNCTION
+// =============================================================================
+/**
+ * Translates AI response to database-ready format
+ *
+ * This function:
+ * 1. Flattens nested AI JSON structures
+ * 2. Adds session metadata
+ * 3. Assigns schemas for Pass 2
+ * 4. Sets processing priority
+ * 5. Initializes Pass 2 status
+ *
+ * @param aiResponse - The complete response from GPT-4o Vision
+ * @param sessionMetadata - Processing session context
+ * @returns Array of database-ready records for entity_processing_audit table
+ */
+function translateAIOutputToDatabase(aiResponse, sessionMetadata) {
+    return aiResponse.entities.map((entity) => {
+        // Assign schemas based on entity subtype
+        const requiredSchemas = (0, pass1_schema_mapping_1.assignEntitySchemas)(entity.classification.entity_subtype);
+        // Determine processing priority
+        const priority = (0, pass1_schema_mapping_1.determineProcessingPriority)(entity.classification.entity_category, entity.classification.entity_subtype);
+        // Determine if Pass 2 should skip this entity (document_structure)
+        const skipPass2 = entity.classification.entity_category === 'document_structure';
+        // Build the flattened database record
+        const record = {
+            // =========================================================================
+            // PRIMARY REFERENCES
+            // =========================================================================
+            shell_file_id: sessionMetadata.shell_file_id,
+            patient_id: sessionMetadata.patient_id,
+            processing_session_id: sessionMetadata.processing_session_id,
+            // =========================================================================
+            // ENTITY IDENTITY (Direct mappings from AI)
+            // =========================================================================
+            entity_id: entity.entity_id,
+            original_text: entity.original_text,
+            entity_category: entity.classification.entity_category,
+            entity_subtype: entity.classification.entity_subtype,
+            // =========================================================================
+            // SPATIAL AND CONTEXT INFORMATION (Direct mappings)
+            // =========================================================================
+            unique_marker: entity.spatial_information.unique_marker,
+            location_context: entity.spatial_information.location_context,
+            spatial_bbox: entity.spatial_information.bounding_box || null, // JSONB in database
+            page_number: entity.spatial_information.page_number,
+            // =========================================================================
+            // PASS 1 PROCESSING RESULTS (Computed + Direct)
+            // =========================================================================
+            pass1_confidence: entity.classification.confidence,
+            requires_schemas: requiredSchemas,
+            processing_priority: priority,
+            // =========================================================================
+            // PASS 2 COORDINATION (Initialized by Pass 1)
+            // =========================================================================
+            pass2_status: skipPass2 ? 'skipped' : 'pending',
+            // =========================================================================
+            // AI MODEL METADATA (From session + response)
+            // =========================================================================
+            pass1_model_used: sessionMetadata.model_used,
+            pass1_vision_processing: sessionMetadata.vision_processing,
+            pass1_token_usage: aiResponse.processing_metadata.token_usage.total_tokens,
+            pass1_image_tokens: aiResponse.processing_metadata.token_usage.image_tokens,
+            pass1_cost_estimate: aiResponse.processing_metadata.cost_estimate,
+            // =========================================================================
+            // DUAL-INPUT PROCESSING METADATA (FLATTENED from nested structure)
+            // =========================================================================
+            ai_visual_interpretation: entity.visual_interpretation.ai_sees,
+            visual_formatting_context: entity.visual_interpretation.formatting_context,
+            ai_visual_confidence: entity.visual_interpretation.ai_confidence,
+            visual_quality_assessment: entity.visual_interpretation.visual_quality,
+            // =========================================================================
+            // OCR CROSS-REFERENCE DATA (FLATTENED from nested structure)
+            // =========================================================================
+            ocr_reference_text: entity.ocr_cross_reference.ocr_text,
+            ocr_confidence: entity.ocr_cross_reference.ocr_confidence,
+            ocr_provider: sessionMetadata.ocr_provider,
+            ai_ocr_agreement_score: entity.ocr_cross_reference.ai_ocr_agreement,
+            spatial_mapping_source: entity.spatial_information.spatial_source,
+            // =========================================================================
+            // DISCREPANCY TRACKING (FLATTENED from nested structure)
+            // =========================================================================
+            discrepancy_type: entity.ocr_cross_reference.discrepancy_type,
+            discrepancy_notes: entity.ocr_cross_reference.discrepancy_notes,
+            // =========================================================================
+            // QUALITY AND VALIDATION METADATA (FLATTENED from nested structure)
+            // =========================================================================
+            cross_validation_score: entity.quality_indicators.cross_validation_score,
+            manual_review_required: entity.quality_indicators.requires_manual_review,
+            // =========================================================================
+            // PROFILE SAFETY (From document-level assessment)
+            // =========================================================================
+            profile_verification_confidence: aiResponse.profile_safety.patient_identity_confidence,
+            // =========================================================================
+            // TIMESTAMPS (Handled by database defaults)
+            // =========================================================================
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        return record;
+    });
+}
+// =============================================================================
+// BATCH PROCESSING HELPERS
+// =============================================================================
+/**
+ * Split entity records into batches for database insertion
+ *
+ * @param records - All entity audit records
+ * @param batchSize - Maximum records per batch (default 100)
+ * @returns Array of record batches
+ */
+function batchEntityRecords(records, batchSize = 100) {
+    const batches = [];
+    for (let i = 0; i < records.length; i += batchSize) {
+        batches.push(records.slice(i, i + batchSize));
+    }
+    return batches;
+}
+// =============================================================================
+// VALIDATION HELPERS
+// =============================================================================
+/**
+ * Validate that a translated record has all required fields
+ *
+ * @param record - Entity audit record to validate
+ * @returns Validation result with any missing fields
+ */
+function validateEntityRecord(record) {
+    const errors = [];
+    // Required string fields
+    const requiredStrings = [
+        'shell_file_id',
+        'patient_id',
+        'processing_session_id',
+        'entity_id',
+        'original_text',
+        'entity_category',
+        'entity_subtype',
+        'unique_marker',
+        'location_context',
+        'pass1_model_used',
+        'ocr_provider',
+        'spatial_mapping_source',
+        'ai_visual_interpretation',
+        'visual_formatting_context',
+        'visual_quality_assessment',
+    ];
+    for (const field of requiredStrings) {
+        if (!record[field] || (typeof record[field] === 'string' && record[field].trim() === '')) {
+            errors.push(`Missing required field: ${field}`);
+        }
+    }
+    // Required number fields
+    const requiredNumbers = [
+        'pass1_confidence',
+        'page_number',
+        'ai_visual_confidence',
+        'ai_ocr_agreement_score',
+        'cross_validation_score',
+    ];
+    for (const field of requiredNumbers) {
+        if (typeof record[field] !== 'number') {
+            errors.push(`Invalid or missing number field: ${field}`);
+        }
+    }
+    // Required arrays
+    if (!Array.isArray(record.requires_schemas)) {
+        errors.push('Invalid requires_schemas: must be array');
+    }
+    // Confidence score validation (0.0 - 1.0)
+    if (record.pass1_confidence < 0 || record.pass1_confidence > 1) {
+        errors.push(`Invalid pass1_confidence: ${record.pass1_confidence} (must be 0.0-1.0)`);
+    }
+    return {
+        valid: errors.length === 0,
+        errors,
+    };
+}
+/**
+ * Validate all records in a batch
+ *
+ * @param records - Array of entity audit records
+ * @returns Summary of validation results
+ */
+function validateRecordBatch(records) {
+    const allErrors = [];
+    records.forEach((record, index) => {
+        const validation = validateEntityRecord(record);
+        if (!validation.valid) {
+            allErrors.push({
+                recordIndex: index,
+                entityId: record.entity_id,
+                errors: validation.errors,
+            });
+        }
+    });
+    return {
+        valid: allErrors.length === 0,
+        totalRecords: records.length,
+        invalidRecords: allErrors.length,
+        errors: allErrors,
+    };
+}
+// =============================================================================
+// STATISTICS HELPERS
+// =============================================================================
+/**
+ * Generate statistics about translated records
+ *
+ * @param records - Array of entity audit records
+ * @returns Statistical summary
+ */
+function generateRecordStatistics(records) {
+    const byCategory = {
+        clinical_event: 0,
+        healthcare_context: 0,
+        document_structure: 0,
+    };
+    const byPriority = {
+        highest: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        logging_only: 0,
+    };
+    let pass2Pending = 0;
+    let pass2Skipped = 0;
+    let manualReviewRequired = 0;
+    let totalConfidence = 0;
+    let totalAgreement = 0;
+    for (const record of records) {
+        byCategory[record.entity_category]++;
+        byPriority[record.processing_priority]++;
+        if (record.pass2_status === 'pending')
+            pass2Pending++;
+        if (record.pass2_status === 'skipped')
+            pass2Skipped++;
+        if (record.manual_review_required)
+            manualReviewRequired++;
+        totalConfidence += record.pass1_confidence;
+        totalAgreement += record.ai_ocr_agreement_score;
+    }
+    return {
+        total_entities: records.length,
+        by_category: byCategory,
+        by_priority: byPriority,
+        pass2_pending: pass2Pending,
+        pass2_skipped: pass2Skipped,
+        manual_review_required: manualReviewRequired,
+        average_confidence: records.length > 0 ? totalConfidence / records.length : 0,
+        average_ai_ocr_agreement: records.length > 0 ? totalAgreement / records.length : 0,
+    };
+}
+// =============================================================================
+// DEBUG HELPERS
+// =============================================================================
+/**
+ * Create a human-readable summary of a translated record (for debugging)
+ *
+ * @param record - Entity audit record
+ * @returns Formatted string summary
+ */
+function formatRecordSummary(record) {
+    return `
+Entity: ${record.entity_id}
+Text: "${record.original_text}"
+Category: ${record.entity_category} / ${record.entity_subtype}
+Confidence: ${(record.pass1_confidence * 100).toFixed(1)}%
+AI-OCR Agreement: ${(record.ai_ocr_agreement_score * 100).toFixed(1)}%
+Location: Page ${record.page_number}, ${record.location_context}
+Schemas Required: ${record.requires_schemas.join(', ') || 'none'}
+Priority: ${record.processing_priority}
+Pass 2 Status: ${record.pass2_status}
+Manual Review: ${record.manual_review_required ? 'YES' : 'NO'}
+`.trim();
+}
+//# sourceMappingURL=pass1-translation.js.map
