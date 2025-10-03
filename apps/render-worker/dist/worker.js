@@ -157,9 +157,6 @@ class V3Worker {
                 case 'ai_processing':
                     result = await this.processAIJob(job);
                     break;
-                case 'pass1_entity_detection':
-                    result = await this.processPass1EntityDetection(job);
-                    break;
                 default:
                     throw new Error(`Unknown job type: ${job.job_type}`);
             }
@@ -209,8 +206,19 @@ class V3Worker {
     }
     // Process AI job
     async processAIJob(job) {
-        // TODO: Implement AI processing
-        console.log(`[${this.workerId}] Processing AI job ${job.id}`);
+        const payload = job.job_payload;
+        // Check if this is a Pass 1 entity detection job by payload structure
+        if (payload.raw_file && payload.ocr_spatial_data && payload.shell_file_id) {
+            console.log(`[${this.workerId}] Detected Pass 1 entity detection job (job_type='ai_processing')`);
+            return await this.processPass1EntityDetection(job);
+        }
+        // Check if this is a Pass 2 enrichment job (future)
+        if (payload.entity_id && payload.entity_type && payload.bridge_schemas) {
+            console.log(`[${this.workerId}] Detected Pass 2 enrichment job (not yet implemented)`);
+            throw new Error('Pass 2 enrichment not yet implemented');
+        }
+        // Unknown AI job type
+        console.warn(`[${this.workerId}] Unknown AI job payload structure - defaulting to simulation`);
         await this.sleep(3000);
         return {
             status: 'completed',
