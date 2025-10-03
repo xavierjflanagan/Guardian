@@ -37,9 +37,11 @@ export async function uploadFile(file: File, patientId: string): Promise<string>
   );
 
   if (processingError) {
+    console.error('Edge Function error:', processingError);
+    console.error('Edge Function response data:', data);
     // If processing fails, try to clean up the uploaded file
     await supabase.storage.from("medical-docs").remove([filePath]);
-    throw processingError;
+    throw new Error(`Processing failed: ${processingError.message || JSON.stringify(processingError)}`);
   }
 
   // Return shell_file_id for tracking
