@@ -69,17 +69,17 @@ export function translateAIOutputToDatabase(
       entity_subtype: entity.classification.entity_subtype,
 
       // =========================================================================
-      // SPATIAL AND CONTEXT INFORMATION (Direct mappings)
+      // SPATIAL AND CONTEXT INFORMATION (Direct mappings with safety guards)
       // =========================================================================
-      unique_marker: entity.spatial_information.unique_marker,
-      location_context: entity.spatial_information.location_context,
-      spatial_bbox: entity.spatial_information.bounding_box || null, // JSONB in database
-      page_number: entity.spatial_information.page_number,
+      unique_marker: entity.spatial_information?.unique_marker || '',
+      location_context: entity.spatial_information?.location_context || '',
+      spatial_bbox: entity.spatial_information?.bounding_box || null, // JSONB in database
+      page_number: entity.spatial_information?.page_number || 1,
 
       // =========================================================================
-      // PASS 1 PROCESSING RESULTS (Computed + Direct)
+      // PASS 1 PROCESSING RESULTS (Computed + Direct with safety guards)
       // =========================================================================
-      pass1_confidence: entity.classification.confidence,
+      pass1_confidence: entity.classification?.confidence || 0,
       requires_schemas: requiredSchemas,
       processing_priority: priority,
 
@@ -89,42 +89,42 @@ export function translateAIOutputToDatabase(
       pass2_status: skipPass2 ? 'skipped' : 'pending',
 
       // =========================================================================
-      // AI MODEL METADATA (From session + response)
+      // AI MODEL METADATA (From session + response with safety guards)
       // =========================================================================
       pass1_model_used: sessionMetadata.model_used,
       pass1_vision_processing: sessionMetadata.vision_processing,
-      pass1_token_usage: aiResponse.processing_metadata.token_usage.total_tokens,
-      pass1_image_tokens: aiResponse.processing_metadata.token_usage.image_tokens,
-      pass1_cost_estimate: aiResponse.processing_metadata.cost_estimate,
+      pass1_token_usage: aiResponse.processing_metadata?.token_usage?.total_tokens || 0,
+      pass1_image_tokens: aiResponse.processing_metadata?.token_usage?.image_tokens || 0,
+      pass1_cost_estimate: aiResponse.processing_metadata?.cost_estimate || 0,
 
       // =========================================================================
-      // DUAL-INPUT PROCESSING METADATA (FLATTENED from nested structure)
+      // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards)
       // =========================================================================
-      ai_visual_interpretation: entity.visual_interpretation.ai_sees,
-      visual_formatting_context: entity.visual_interpretation.formatting_context,
-      ai_visual_confidence: entity.visual_interpretation.ai_confidence,
-      visual_quality_assessment: entity.visual_interpretation.visual_quality,
+      ai_visual_interpretation: entity.visual_interpretation?.ai_sees || '',
+      visual_formatting_context: entity.visual_interpretation?.formatting_context || '',
+      ai_visual_confidence: entity.visual_interpretation?.ai_confidence || 0,
+      visual_quality_assessment: entity.visual_interpretation?.visual_quality || '',
 
       // =========================================================================
-      // OCR CROSS-REFERENCE DATA (FLATTENED from nested structure)
+      // OCR CROSS-REFERENCE DATA (FLATTENED with safety guards)
       // =========================================================================
-      ocr_reference_text: entity.ocr_cross_reference.ocr_text,
-      ocr_confidence: entity.ocr_cross_reference.ocr_confidence,
+      ocr_reference_text: entity.ocr_cross_reference?.ocr_text || null,
+      ocr_confidence: entity.ocr_cross_reference?.ocr_confidence || null,
       ocr_provider: sessionMetadata.ocr_provider,
-      ai_ocr_agreement_score: entity.ocr_cross_reference.ai_ocr_agreement,
-      spatial_mapping_source: entity.spatial_information.spatial_source,
+      ai_ocr_agreement_score: entity.ocr_cross_reference?.ai_ocr_agreement || 0,
+      spatial_mapping_source: entity.spatial_information?.spatial_source || 'unknown',
 
       // =========================================================================
-      // DISCREPANCY TRACKING (FLATTENED from nested structure)
+      // DISCREPANCY TRACKING (FLATTENED with safety guards)
       // =========================================================================
-      discrepancy_type: entity.ocr_cross_reference.discrepancy_type,
-      discrepancy_notes: entity.ocr_cross_reference.discrepancy_notes,
+      discrepancy_type: entity.ocr_cross_reference?.discrepancy_type || null,
+      discrepancy_notes: entity.ocr_cross_reference?.discrepancy_notes || null,
 
       // =========================================================================
-      // QUALITY AND VALIDATION METADATA (FLATTENED from nested structure)
+      // QUALITY AND VALIDATION METADATA (FLATTENED with safety guards)
       // =========================================================================
-      cross_validation_score: entity.quality_indicators.cross_validation_score,
-      manual_review_required: entity.quality_indicators.requires_manual_review,
+      cross_validation_score: entity.quality_indicators?.cross_validation_score || 0,
+      manual_review_required: entity.quality_indicators?.requires_manual_review || false,
 
       // =========================================================================
       // PROFILE SAFETY (From document-level assessment)

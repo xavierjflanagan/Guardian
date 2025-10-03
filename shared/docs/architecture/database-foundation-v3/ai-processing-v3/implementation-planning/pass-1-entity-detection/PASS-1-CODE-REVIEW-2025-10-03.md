@@ -1,4 +1,4 @@
-## Pass 1 Code Review and Readiness Assessment
+## Pass 1 Code Review and Readiness Assessment, by gpt5
 
 **Project:** Exora Health — AI Processing V3 / Pass 1 (Entity Detection)
 
