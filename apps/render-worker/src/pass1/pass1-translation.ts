@@ -112,7 +112,7 @@ export function translateAIOutputToDatabase(
       ocr_confidence: entity.ocr_cross_reference?.ocr_confidence || null,
       ocr_provider: sessionMetadata.ocr_provider,
       ai_ocr_agreement_score: entity.ocr_cross_reference?.ai_ocr_agreement || 0,
-      spatial_mapping_source: entity.spatial_information?.spatial_source || 'unknown',
+      spatial_mapping_source: entity.spatial_information?.spatial_source || 'none',
 
       // =========================================================================
       // DISCREPANCY TRACKING (FLATTENED with safety guards)

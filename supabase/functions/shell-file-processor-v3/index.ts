@@ -14,22 +14,138 @@
 
 import { createServiceRoleClient, getEdgeFunctionEnv } from '../_shared/supabase-client.ts';
 import { handlePreflight, addCORSHeaders } from '../_shared/cors.ts';
-import { 
-  createErrorResponse, 
-  createSuccessResponse, 
+import {
+  createErrorResponse,
+  createSuccessResponse,
   handleError,
   validateMethod,
   getCorrelationId,
   getIdempotencyKey,
-  ErrorCode 
+  ErrorCode
 } from '../_shared/error-handling.ts';
-import { 
+import {
   ShellFileUploadRequest,
   UploadProcessingResponse,
   JobPayload,
   EnqueueJobResponse,
-  ShellFileRecord 
+  ShellFileRecord
 } from '../_shared/types.ts';
+
+// =============================================================================
+// OCR INTEGRATION - Google Cloud Vision API
+// =============================================================================
+
+interface OCRSpatialData {
+  extracted_text: string;
+  spatial_mapping: Array<{
+    text: string;
+    bounding_box: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    confidence: number;
+  }>;
+  ocr_confidence: number;
+  processing_time_ms: number;
+  ocr_provider: string;
+}
+
+/**
+ * Process document with Google Cloud Vision OCR
+ */
+async function processWithGoogleVisionOCR(
+  base64Data: string,
+  mimeType: string
+): Promise<OCRSpatialData> {
+  const googleApiKey = Deno.env.get('GOOGLE_CLOUD_API_KEY');
+  if (!googleApiKey) {
+    throw new Error('GOOGLE_CLOUD_API_KEY not configured');
+  }
+
+  const startTime = Date.now();
+
+  // Call Google Cloud Vision API
+  const response = await fetch(
+    `https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          image: { content: base64Data },
+          features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+        }],
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Google Vision API failed: ${response.status} ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  const annotation = result.responses?.[0]?.fullTextAnnotation;
+
+  if (!annotation) {
+    throw new Error('No text detected in document');
+  }
+
+  // Extract full text
+  const extractedText = annotation.text || '';
+
+  // Build spatial mapping from pages
+  const spatialMapping: OCRSpatialData['spatial_mapping'] = [];
+  let totalConfidence = 0;
+  let confidenceCount = 0;
+
+  for (const page of (annotation.pages || [])) {
+    for (const block of (page.blocks || [])) {
+      for (const paragraph of (block.paragraphs || [])) {
+        const words = paragraph.words || [];
+        const text = words
+          .map((w: any) => w.symbols?.map((s: any) => s.text).join('') || '')
+          .join(' ');
+
+        if (text && paragraph.boundingBox?.vertices) {
+          const vertices = paragraph.boundingBox.vertices;
+          const x = Math.min(...vertices.map((v: any) => v.x || 0));
+          const y = Math.min(...vertices.map((v: any) => v.y || 0));
+          const maxX = Math.max(...vertices.map((v: any) => v.x || 0));
+          const maxY = Math.max(...vertices.map((v: any) => v.y || 0));
+
+          spatialMapping.push({
+            text,
+            bounding_box: {
+              x,
+              y,
+              width: maxX - x,
+              height: maxY - y,
+            },
+            confidence: paragraph.confidence || 0.85,
+          });
+
+          if (paragraph.confidence) {
+            totalConfidence += paragraph.confidence;
+            confidenceCount++;
+          }
+        }
+      }
+    }
+  }
+
+  const avgConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0.85;
+  const processingTime = Date.now() - startTime;
+
+  return {
+    extracted_text: extractedText,
+    spatial_mapping: spatialMapping,
+    ocr_confidence: avgConfidence,
+    processing_time_ms: processingTime,
+    ocr_provider: 'google_cloud_vision',
+  };
+}
 
 /**
  * Main Edge Function Handler
@@ -229,24 +345,56 @@ async function processShellFileUpload(
     jobId = existingJob.id;
     console.log(`[${correlationId}] Job already exists: ${jobId}`);
   } else {
-    // Step 4: Enqueue processing job using VERIFIED V3 RPC signature
-    const jobPayload: JobPayload = {
+    // Step 3.5: Download file and run OCR
+    console.log(`[${correlationId}] Downloading file for OCR: ${data.file_path}`);
+    const { data: fileData, error: downloadError } = await supabase
+      .storage
+      .from('medical-docs')
+      .download(data.file_path);
+
+    if (downloadError || !fileData) {
+      throw new Error(`File download failed: ${downloadError?.message || 'No file data'}`);
+    }
+
+    // Convert file to base64 for OCR
+    const arrayBuffer = await fileData.arrayBuffer();
+    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    console.log(`[${correlationId}] Running Google Cloud Vision OCR...`);
+    const ocrData = await processWithGoogleVisionOCR(base64Data, data.mime_type);
+    console.log(`[${correlationId}] OCR complete: ${ocrData.extracted_text.length} chars, ${ocrData.spatial_mapping.length} spatial elements`);
+
+    // Step 4: Enqueue Pass 1 entity detection job with OCR data
+    const jobPayload = {
       shell_file_id: shellFileId,
       patient_id: data.patient_id,
-      file_path: data.file_path,
-      estimated_tokens: estimateTokensFromFile(data.file_size_bytes, data.mime_type),
+      processing_session_id: crypto.randomUUID(),
+      raw_file: {
+        file_data: base64Data,
+        file_type: data.mime_type,
+        filename: data.filename,
+        file_size: data.file_size_bytes,
+      },
+      ocr_spatial_data: ocrData,
+      document_metadata: {
+        filename: data.filename,
+        file_type: data.mime_type,
+        page_count: data.estimated_pages || 1,
+        patient_id: data.patient_id,
+        upload_timestamp: new Date().toISOString(),
+      },
       correlation_id: correlationId,
     };
-    
-    // VERIFIED: enqueue_job_v3(job_type, job_name, job_payload, job_category, priority, p_scheduled_at)
+
+    // Create Pass 1 entity detection job (ai_processing type)
     const { data: jobResponse, error: enqueueError } = await supabase
       .rpc('enqueue_job_v3', {
-        job_type: 'shell_file_processing',
-        job_name: `Process ${data.filename}`,
+        job_type: 'ai_processing',
+        job_name: `Pass 1: ${data.filename}`,
         job_payload: jobPayload,
         job_category: 'standard',
         priority: 5,
-        p_scheduled_at: new Date().toISOString(), // VERIFIED: p_scheduled_at parameter name
+        p_scheduled_at: new Date().toISOString(),
       });
       
     if (enqueueError) {
