@@ -33,6 +33,7 @@ import {
   buildPass1DatabaseRecords,
   Pass1DatabaseRecords,
 } from './pass1-database-builder';
+import { validateSchemaMapping } from './pass1-schema-mapping';
 
 // =============================================================================
 // PASS 1 ENTITY DETECTOR CLASS
@@ -47,6 +48,14 @@ export class Pass1EntityDetector {
     this.openai = new OpenAI({
       apiKey: config.openai_api_key,
     });
+
+    // Validate schema mappings on startup (fail-fast pattern)
+    const validation = validateSchemaMapping();
+    if (!validation.valid) {
+      throw new Error(
+        `Pass 1 schema mapping validation failed:\n${validation.errors.join('\n')}`
+      );
+    }
   }
 
   // ===========================================================================
@@ -238,8 +247,27 @@ export class Pass1EntityDetector {
 
     const processingTime = (Date.now() - startTime) / 1000;
 
-    // Parse the response
-    const rawResult = JSON.parse(response.choices[0].message.content || '{}');
+    // Parse and validate the response
+    const rawContent = response.choices[0]?.message?.content;
+    if (!rawContent) {
+      throw new Error('OpenAI returned empty response');
+    }
+
+    const rawResult = JSON.parse(rawContent);
+
+    // Strict validation - fail fast if AI response is malformed
+    if (!rawResult.processing_metadata) {
+      throw new Error('AI response missing processing_metadata');
+    }
+    if (!rawResult.entities || !Array.isArray(rawResult.entities)) {
+      throw new Error('AI response missing entities array');
+    }
+    if (!rawResult.document_coverage) {
+      throw new Error('AI response missing document_coverage');
+    }
+    if (!rawResult.cross_validation_results) {
+      throw new Error('AI response missing cross_validation_results');
+    }
 
     // Enhance with actual token usage and cost
     const enhancedResponse: Pass1AIResponse = {
@@ -254,24 +282,18 @@ export class Pass1EntityDetector {
           image_tokens: this.estimateImageTokens(input.raw_file.file_size),
         },
         cost_estimate: this.calculateCost(response.usage, input.raw_file.file_size),
-        confidence_metrics: rawResult.processing_metadata?.confidence_metrics || {
-          overall_confidence: 0.8,
-          visual_interpretation_confidence: 0.8,
+        confidence_metrics: rawResult.processing_metadata.confidence_metrics || {
+          overall_confidence: 0,
+          visual_interpretation_confidence: 0,
           category_confidence: {
-            clinical_event: 0.8,
-            healthcare_context: 0.8,
-            document_structure: 0.9,
+            clinical_event: 0,
+            healthcare_context: 0,
+            document_structure: 0,
           },
         },
       },
-      entities: rawResult.entities || [],
-      document_coverage: rawResult.document_coverage || {
-        total_content_processed: 0,
-        content_classified: 0,
-        coverage_percentage: 0,
-        unclassified_segments: [],
-        visual_quality_score: 0.8,
-      },
+      entities: rawResult.entities,
+      document_coverage: rawResult.document_coverage,
       cross_validation_results: rawResult.cross_validation_results || {
         ai_ocr_agreement_score: 0.85,
         high_discrepancy_count: 0,

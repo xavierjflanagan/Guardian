@@ -84,10 +84,12 @@ INPUT 1 - RAW DOCUMENT IMAGE:
 [Base64 image data provided to vision model]
 
 INPUT 2 - OCR SPATIAL REFERENCE:
-OCR Text: "${input.ocr_spatial_data.extracted_text}"
-OCR Spatial Coordinates: ${JSON.stringify(input.ocr_spatial_data.spatial_mapping, null, 2)}
+OCR Text: "${truncateOCRText(input.ocr_spatial_data.extracted_text, 2000)}"
+OCR Spatial Coordinates (sample):
+${formatSpatialMapping(input.ocr_spatial_data.spatial_mapping, 100)}
 OCR Confidence: ${input.ocr_spatial_data.ocr_confidence}
 OCR Provider: ${input.ocr_spatial_data.ocr_provider}
+(Note: Full spatial mapping available contextually - focus on visual interpretation)
 
 PROCESSING INSTRUCTIONS:
 1. PRIMARY ANALYSIS: Use your vision capabilities to interpret the raw document image
@@ -117,10 +119,22 @@ Return a JSON object with this exact structure:
   "processing_metadata": {
     "model_used": "gpt-4o",
     "vision_processing": true,
-    "total_entities_detected": <number>,
-    "processing_time_estimate": <seconds>,
-    "overall_confidence": <0.0-1.0>,
-    "visual_interpretation_confidence": <0.0-1.0>
+    "processing_time_seconds": <number>,
+    "token_usage": {
+      "prompt_tokens": <number>,
+      "completion_tokens": <number>,
+      "total_tokens": <number>
+    },
+    "cost_estimate": <number>,
+    "confidence_metrics": {
+      "overall_confidence": <0.0-1.0>,
+      "visual_interpretation_confidence": <0.0-1.0>,
+      "category_confidence": {
+        "clinical_event": <0.0-1.0>,
+        "healthcare_context": <0.0-1.0>,
+        "document_structure": <0.0-1.0>
+      }
+    }
   },
   "entities": [
     {

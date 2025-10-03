@@ -20,6 +20,7 @@ const openai_1 = __importDefault(require("openai"));
 const pass1_prompts_1 = require("./pass1-prompts");
 const pass1_translation_1 = require("./pass1-translation");
 const pass1_database_builder_1 = require("./pass1-database-builder");
+const pass1_schema_mapping_1 = require("./pass1-schema-mapping");
 // =============================================================================
 // PASS 1 ENTITY DETECTOR CLASS
 // =============================================================================
@@ -31,6 +32,11 @@ class Pass1EntityDetector {
         this.openai = new openai_1.default({
             apiKey: config.openai_api_key,
         });
+        // Validate schema mappings on startup (fail-fast pattern)
+        const validation = (0, pass1_schema_mapping_1.validateSchemaMapping)();
+        if (!validation.valid) {
+            throw new Error(`Pass 1 schema mapping validation failed:\n${validation.errors.join('\n')}`);
+        }
     }
     // ===========================================================================
     // MAIN PROCESSING METHOD
@@ -186,8 +192,25 @@ class Pass1EntityDetector {
             response_format: { type: 'json_object' },
         });
         const processingTime = (Date.now() - startTime) / 1000;
-        // Parse the response
-        const rawResult = JSON.parse(response.choices[0].message.content || '{}');
+        // Parse and validate the response
+        const rawContent = response.choices[0]?.message?.content;
+        if (!rawContent) {
+            throw new Error('OpenAI returned empty response');
+        }
+        const rawResult = JSON.parse(rawContent);
+        // Strict validation - fail fast if AI response is malformed
+        if (!rawResult.processing_metadata) {
+            throw new Error('AI response missing processing_metadata');
+        }
+        if (!rawResult.entities || !Array.isArray(rawResult.entities)) {
+            throw new Error('AI response missing entities array');
+        }
+        if (!rawResult.document_coverage) {
+            throw new Error('AI response missing document_coverage');
+        }
+        if (!rawResult.cross_validation_results) {
+            throw new Error('AI response missing cross_validation_results');
+        }
         // Enhance with actual token usage and cost
         const enhancedResponse = {
             processing_metadata: {
@@ -201,24 +224,18 @@ class Pass1EntityDetector {
                     image_tokens: this.estimateImageTokens(input.raw_file.file_size),
                 },
                 cost_estimate: this.calculateCost(response.usage, input.raw_file.file_size),
-                confidence_metrics: rawResult.processing_metadata?.confidence_metrics || {
-                    overall_confidence: 0.8,
-                    visual_interpretation_confidence: 0.8,
+                confidence_metrics: rawResult.processing_metadata.confidence_metrics || {
+                    overall_confidence: 0,
+                    visual_interpretation_confidence: 0,
                     category_confidence: {
-                        clinical_event: 0.8,
-                        healthcare_context: 0.8,
-                        document_structure: 0.9,
+                        clinical_event: 0,
+                        healthcare_context: 0,
+                        document_structure: 0,
                     },
                 },
             },
-            entities: rawResult.entities || [],
-            document_coverage: rawResult.document_coverage || {
-                total_content_processed: 0,
-                content_classified: 0,
-                coverage_percentage: 0,
-                unclassified_segments: [],
-                visual_quality_score: 0.8,
-            },
+            entities: rawResult.entities,
+            document_coverage: rawResult.document_coverage,
             cross_validation_results: rawResult.cross_validation_results || {
                 ai_ocr_agreement_score: 0.85,
                 high_discrepancy_count: 0,

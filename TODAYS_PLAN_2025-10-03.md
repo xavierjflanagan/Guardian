@@ -149,15 +149,32 @@ Instead of creating a new `pass1_entity_detection` job_type, we should:
 - [ ] Store OCR spatial data with shell_file
 - [ ] Update upload flow to create Pass 1 job after OCR
 
-### Phase 6: Pass 1 Job Creation Integration
-- [ ] Update upload flow to create Pass 1 job
-  - [ ] After file upload + OCR
-  - [ ] Create job with type `pass1_entity_detection`
-  - [ ] Include all required payload fields:
-    - `shell_file_id`, `patient_id`, `processing_session_id`
-    - `raw_file` (base64 + metadata)
-    - `ocr_spatial_data` (from OCR step)
-    - `document_metadata`
+### Phase 6: Worker Fix for 'ai_processing' Job Type ✅ COMPLETE!
+- [x] Fix worker to handle 'ai_processing' job_type instead of 'pass1_entity_detection'
+- [x] Remove unreachable 'pass1_entity_detection' case from switch statement
+- [x] Add payload-based routing in processAIJob() method
+- [x] Detect Pass 1 jobs by structure: raw_file + ocr_spatial_data + shell_file_id
+- [x] Add future Pass 2 detection: entity_id + entity_type + bridge_schemas
+- [x] Build and test TypeScript compilation
+- [x] Commit and push to staging
+- [x] Auto-deploy to Render.com (triggered by push)
+
+**Implementation:**
+```typescript
+case 'ai_processing':
+  // Payload-based routing
+  if (payload.raw_file && payload.ocr_spatial_data && payload.shell_file_id) {
+    return await this.processPass1EntityDetection(job);
+  }
+  // Future: Pass 2 detection here
+```
+
+**Status:** Worker now accepts job_type='ai_processing' and routes to Pass 1 handler
+
+### Phase 6.1: Update Upload Flow (Next Step)
+- [ ] Modify shell-file-processor-v3 to create 'ai_processing' jobs
+- [ ] Add OCR integration (Google Cloud Vision)
+- [ ] Include Pass 1 payload structure in job
 
 ### Phase 7: First Manual Test
 - [ ] Create test job manually in job_queue table
