@@ -52,7 +52,7 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch documents function
+  // Fetch documents function (V3: using shell_files table)
   const fetchDocuments = useCallback(async () => {
     if (!user) {
       setDocuments([]);
@@ -62,18 +62,18 @@ export default function DashboardPage() {
     // Loading state now handled by useDocuments hook
     try {
       const { data, error } = await supabase
-        .from("documents")
+        .from("shell_files")
         .select("*")
         .eq("patient_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error fetching documents:", error);
+        console.error("Error fetching shell_files:", error);
       } else {
         setDocuments(data || []);
       }
     } catch (error) {
-      console.error("Error fetching documents:", error);
+      console.error("Error fetching shell_files:", error);
     } finally {
       // Loading state now handled by useDocuments hook
     }
