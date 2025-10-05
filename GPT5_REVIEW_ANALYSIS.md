@@ -391,10 +391,12 @@ logInfo({
 
 ## Summary & Action Plan
 
-### Immediate Actions (Before Next Upload Test)
+### 🎉 COMPLETED ACTIONS (2025-10-05)
 1. ✅ Fix worker job type mismatch - DONE
-2. ⏳ Wait for worker to process pending jobs
-3. ⏳ Verify Pass 1 results in database
+2. ✅ Wait for worker to process pending jobs - DONE (3 jobs completed)
+3. ✅ Verify Pass 1 results in database - DONE (6 entities detected)
+4. ✅ Fix shell_files status constraint - DONE (added pass1_complete, pass2_complete, pass3_complete)
+5. ✅ End-to-end V3 pipeline verified - DONE (upload → OCR → Pass 1 → 7 tables → status update)
 
 ### Short-term Actions (This Week)
 1. **HIGH PRIORITY:** Add JWT validation to Edge Function (Security)
@@ -408,18 +410,116 @@ logInfo({
 3. Document logging standards
 4. Add integration tests
 
+### Low Priority / Cosmetic Fixes
+1. **LOW PRIORITY:** Fix `system_config` vs `system_configuration` table name in deployed track_shell_file_upload_usage function
+   - **Issue:** Edge Function logs show warning "relation 'system_config' does not exist"
+   - **Current Impact:** None - function gracefully handles missing table and returns tracking_disabled: true
+   - **Root Cause:** Deployed function has old table name; schema files are correct
+   - **Fix:** Redeploy track_shell_file_upload_usage function from migration 2025-10-05_11 or run manual ALTER
+
 ### Already Complete
 - ✅ CORS headers with expose configuration
 - ✅ Render worker configuration
 - ✅ Usage tracking service role support
 - ✅ RLS policies for shell_files
 - ✅ Idempotency key support
+- ✅ Worker claiming and processing jobs
+- ✅ Pass 1 entity detection with GPT-4o Vision
+- ✅ Database writes to all 7 Pass 1 tables
+- ✅ shell_files status updates to pass1_complete
 
 ### Need Investigation
 - Browser ability to read exposed headers
 - OpenAI SDK retry behavior
 - Edge Function memory/timeout limits with large files
 - RLS policy testing for usage_tracking
+
+---
+
+## 10. Pass 1 Entity Detection - Critical Low Entity Count Issue
+
+**GPT-5 Suggestion:** Not in original review - discovered during testing
+
+**Investigation:**
+- **Current Implementation:** Pass 1 only detecting 2-3 entities per document
+- **Expected Behavior:** Should detect 15-20+ entities from typical medical documents
+- **Example Document:** Patient health summary with:
+  - 9 immunizations (Fluvax, Vivaxim, Dukoral, Stamaril, Havrix, Typhim Vi, Boostrix, Engerix-B, Fluad)
+  - Patient demographics (name, DOB, address, phone numbers, MRN)
+  - Allergies section
+  - Family history
+  - Social history
+  - Current medications
+- **Actual Output:** Only 2 entities (1 patient_identifier, 1 immunization)
+- **Data Loss:** Missing 85-90% of medical information
+
+**Verification:**
+- [x] OCR extracted full text - ✅ All 9 immunizations present in extracted_text
+- [x] Worker processed job successfully - ✅ Job status: completed
+- [x] Database records created - ✅ Only 2 entities in entity_processing_audit
+- [ ] Check GPT-4o Vision actual response (needs verbose logging)
+- [ ] Verify entities not filtered during translation
+- [ ] Verify entities not rejected during database insert
+
+**Agreement:** 🚨 **CRITICAL BUG - Not in GPT-5 review but discovered during testing**
+
+**Justification:**
+1. Pass 1 is the foundation of the entire AI pipeline - missing entities = data loss
+2. Users expect all medical information to be extracted and structured
+3. 85-90% data loss makes the product non-functional
+4. OCR is working perfectly - problem is in AI prompt or translation layer
+
+**Root Cause Analysis:**
+Three possible failure points:
+1. **AI Prompt Issue:** GPT-4o Vision being too conservative, only returning 2 entities in JSON response
+2. **Translation/Filtering Issue:** AI detecting all entities but worker code filtering them out
+3. **Database Insert Issue:** All entities translated but some failing to insert (schema mismatch)
+
+**Investigation Plan:**
+```typescript
+// Added verbose logging in Pass1EntityDetector.ts line 93-97:
+console.log(`[Pass1] AI returned ${aiResponse.entities.length} entities`);
+console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
+console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
+console.log(`[Pass1] Full AI response entities:`, JSON.stringify(aiResponse.entities, null, 2));
+```
+
+**Expected Debug Output:**
+- If AI returns 2 entities → Prompt engineering problem (fix prompts)
+- If AI returns 15+ entities → Translation/filtering problem (fix worker code)
+- If translation creates 15+ records but DB has 2 → Schema/insert problem (fix database)
+
+**Proposed Fix (TBD based on debug output):**
+
+**Option A: Prompt Engineering Fix** (if AI only returns 2 entities)
+- Strengthen entity detection instructions
+- Add explicit requirement: "Detect EVERY piece of medical information"
+- Add examples of all immunizations in a list being separate entities
+- Increase context window or reduce truncation
+
+**Option B: Translation Fix** (if AI returns all but code filters)
+- Review pass1-translation.ts for filtering logic
+- Check if entity subtypes are being rejected
+- Verify all entity categories are handled
+
+**Option C: Database Schema Fix** (if records fail insert)
+- Check entity_processing_audit schema constraints
+- Verify required fields are populated
+- Review database error logs
+
+**Action Items:**
+- [x] Add verbose logging to see AI raw response
+- [ ] Deploy worker with logging
+- [ ] Upload test document
+- [ ] Analyze Render logs for AI response
+- [ ] Identify root cause (prompt vs translation vs schema)
+- [ ] Implement appropriate fix
+- [ ] Re-test with same document
+- [ ] Verify all 15+ entities detected
+
+**Priority:** 🚨 **CRITICAL** - Core AI functionality broken, must fix before production use
+
+**Status:** Investigation in progress (verbose logging added, awaiting deployment)
 
 ---
 
