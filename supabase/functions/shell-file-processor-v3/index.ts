@@ -370,6 +370,7 @@ async function processShellFileUpload(
       shell_file_id: shellFileId,
       patient_id: data.patient_id,
       processing_session_id: crypto.randomUUID(),
+      job_lane: 'ai_queue_simple', // Required for ai_processing job type
       raw_file: {
         file_data: base64Data,
         file_type: data.mime_type,
