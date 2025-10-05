@@ -106,7 +106,8 @@ CREATE TABLE IF NOT EXISTS shell_files (
     
     -- Processing status
     status TEXT NOT NULL DEFAULT 'uploaded' CHECK (status IN (
-        'uploaded', 'processing', 'completed', 'failed', 'archived'
+        'uploaded', 'processing', 'pass1_complete', 'pass2_complete', 'pass3_complete',
+        'completed', 'failed', 'archived'
     )),
     processing_started_at TIMESTAMPTZ,
     processing_completed_at TIMESTAMPTZ,
