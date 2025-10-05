@@ -90,6 +90,12 @@ export class Pass1EntityDetector {
       console.log(`[Pass1] Calling ${this.config.model} for entity detection...`);
       const aiResponse = await this.callAIForEntityDetection(input);
 
+      // DEBUG: Log what AI actually returned
+      console.log(`[Pass1] AI returned ${aiResponse.entities.length} entities`);
+      console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
+      console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
+      console.log(`[Pass1] Full AI response entities:`, JSON.stringify(aiResponse.entities, null, 2));
+
       // Step 4: Translate AI output to database format
       console.log(`[Pass1] Translating ${aiResponse.entities.length} entities to database format...`);
       const entityRecords = translateAIOutputToDatabase(aiResponse, sessionMetadata);
