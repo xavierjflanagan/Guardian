@@ -217,8 +217,8 @@ export class Pass1EntityDetector {
   private async callAIForEntityDetection(input: Pass1Input): Promise<Pass1AIResponse> {
     const startTime = Date.now();
 
-    // Generate the prompt
-    const prompt = generatePass1ClassificationPrompt(input);
+    // Generate the prompt with model name for response template
+    const prompt = generatePass1ClassificationPrompt(input, this.config.model);
 
     // Call OpenAI with vision + text
     // Build request parameters based on model capabilities
