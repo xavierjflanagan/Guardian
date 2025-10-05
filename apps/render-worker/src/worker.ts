@@ -86,7 +86,7 @@ class V3Worker {
     if (config.openai.apiKey) {
       const pass1Config: Pass1Config = {
         openai_api_key: config.openai.apiKey,
-        model: 'gpt-4o',
+        model: 'gpt-5', // Upgraded from gpt-4o to gpt-5 (better multimodal vision, Aug 2025 release)
         temperature: 0.1,
         max_tokens: 4000,
         confidence_threshold: 0.7,
