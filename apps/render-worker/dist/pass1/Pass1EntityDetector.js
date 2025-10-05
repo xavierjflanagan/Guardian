@@ -164,8 +164,8 @@ class Pass1EntityDetector {
      */
     async callAIForEntityDetection(input) {
         const startTime = Date.now();
-        // Generate the prompt
-        const prompt = (0, pass1_prompts_1.generatePass1ClassificationPrompt)(input);
+        // Generate the prompt with model name for response template
+        const prompt = (0, pass1_prompts_1.generatePass1ClassificationPrompt)(input, this.config.model);
         // Call OpenAI with vision + text
         // Build request parameters based on model capabilities
         const isGPT5 = this.config.model.startsWith('gpt-5');

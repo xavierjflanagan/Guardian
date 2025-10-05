@@ -2,7 +2,7 @@
 /**
  * Pass 1 Entity Detection - AI Prompt Templates
  * Created: 2025-10-03
- * Purpose: Dual-input (vision + OCR) prompt templates for GPT-4o Vision
+ * Purpose: Dual-input (vision + OCR) prompt templates for vision-capable AI models
  *
  * These prompts instruct the AI to:
  * 1. Analyze raw document image with vision capabilities (PRIMARY)
@@ -76,7 +76,7 @@ ENTITY DISAMBIGUATION RULES:
 // =============================================================================
 // MAIN CLASSIFICATION PROMPT
 // =============================================================================
-function generatePass1ClassificationPrompt(input) {
+function generatePass1ClassificationPrompt(input, modelName = 'vision-model') {
     return `
 You are a medical document entity detection system using DUAL INPUTS for maximum accuracy.
 
@@ -117,7 +117,7 @@ Return a JSON object with this exact structure:
 
 {
   "processing_metadata": {
-    "model_used": "gpt-5",
+    "model_used": "${modelName}",
     "vision_processing": true,
     "processing_time_seconds": <number>,
     "token_usage": {
