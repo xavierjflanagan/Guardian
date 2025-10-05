@@ -519,7 +519,150 @@ console.log(`[Pass1] Full AI response entities:`, JSON.stringify(aiResponse.enti
 
 **Priority:** 🚨 **CRITICAL** - Core AI functionality broken, must fix before production use
 
-**Status:** Investigation in progress (verbose logging added, awaiting deployment)
+**Status:** ✅ ROOT CAUSE IDENTIFIED - GPT-5 hitting 4000 token output limit (finish_reason: "length")
+
+**Temporary Fix Applied (2025-10-05):**
+- Increased max_completion_tokens from 4000 → 8000
+- Handles 1-3 page documents
+- Cost: ~$0.08/document (still 95% cheaper than Textract)
+
+**Known Limitation:** Will hit token limits again on larger documents (8+ pages)
+
+---
+
+## 11. Pass 1 Token Scaling - Multi-Page Document Support
+
+**Issue Discovered:** 2025-10-05 during GPT-5 upgrade testing
+**Current Implementation:** Single AI call processes entire document (all pages)
+**Limitation:** Token output caps prevent processing large documents
+
+**Scaling Problem:**
+- **1-2 pages:** ~8,000 tokens needed ✅ (current fix handles this)
+- **8-10 pages:** ~32,000+ tokens needed ❌ (will hit cap)
+- **20+ pages:** ~80,000+ tokens needed ❌ (impossible with current approach)
+
+**Root Cause:**
+Current architecture sends all pages to GPT-5 in a single API call. The model generates entity JSON for all pages, which exceeds max_completion_tokens for large documents. This doesn't scale beyond 3-4 pages.
+
+**Proposed Solution: Page-by-Page Processing (Option 1)**
+
+**Architecture Change:**
+```typescript
+// CURRENT (doesn't scale):
+Pass 1 → Entire document (all pages) → 1 GPT-5 call → Combined JSON
+Problem: 10-page doc needs 40K+ tokens, hits limit
+
+// PROPOSED (scales infinitely):
+Pass 1 → Page 1 → GPT-5 call → Entities for page 1
+Pass 1 → Page 2 → GPT-5 call → Entities for page 2
+Pass 1 → Page 3 → GPT-5 call → Entities for page 3
+...
+Pass 1 → Merge all page results → Combined entity list
+```
+
+**Implementation Plan:**
+
+**Step 1: Modify OCR Layer**
+- Split OCR spatial data by page number
+- Return array of per-page OCR results instead of combined text
+
+**Step 2: Update Pass 1 Input Structure**
+```typescript
+// Current: Single input for all pages
+interface Pass1Input {
+  raw_file: { file_data: string, ... }  // All pages
+  ocr_spatial_data: { extracted_text: string, ... }  // All pages combined
+}
+
+// Proposed: Array of page inputs
+interface Pass1PageInput {
+  page_number: number;
+  raw_file: { file_data: string, ... }  // Single page image
+  ocr_spatial_data: { extracted_text: string, ... }  // Single page text
+}
+
+interface Pass1DocumentInput {
+  shell_file_id: string;
+  patient_id: string;
+  pages: Pass1PageInput[];  // Process each separately
+}
+```
+
+**Step 3: Implement Page-by-Page Processing**
+```typescript
+async processDocumentByPages(input: Pass1DocumentInput): Promise<Pass1ProcessingResult> {
+  const allEntities: EntityAuditRecord[] = [];
+
+  // Process each page independently
+  for (const page of input.pages) {
+    const pageResult = await this.processPage(page);
+    allEntities.push(...pageResult.entities);
+  }
+
+  // Merge results
+  return {
+    total_entities_detected: allEntities.length,
+    entities_by_category: calculateCategoryCounts(allEntities),
+    // ... other metrics
+  };
+}
+```
+
+**Step 4: Optional - Parallel Processing**
+```typescript
+// Process pages concurrently (faster, but higher API rate limit usage)
+const pageResults = await Promise.all(
+  input.pages.map(page => this.processPage(page))
+);
+const allEntities = pageResults.flatMap(r => r.entities);
+```
+
+**Benefits:**
+1. **Infinite Scaling:** 100-page documents work the same as 1-page
+2. **Predictable Cost:** $0.08 per page (consistent regardless of document size)
+3. **Memory Efficient:** Process one page at a time
+4. **Parallelizable:** Can process pages concurrently for speed
+5. **Resilient:** If one page fails, others still process
+6. **Better Error Handling:** Page-level retry on failures
+
+**Considerations:**
+1. **Cross-Page Entities:** Rare in medical documents (most entities are page-contained)
+   - Mitigation: Add post-processing step to detect/merge duplicates
+2. **API Rate Limits:** More calls = higher rate limit usage
+   - Mitigation: Sequential processing or rate-limited parallel processing
+3. **Cost:** Linear scaling with page count (expected and acceptable)
+4. **Latency:** 10-page doc takes 10x longer (but still acceptable for background job)
+
+**Alternative Solutions Considered:**
+
+**Option 2: Dynamic Token Allocation**
+- Adjust max_tokens based on page count
+- ❌ Still hits absolute API limits (128K context window)
+- ❌ Doesn't solve fundamental scaling issue
+
+**Option 3: Document Chunking**
+- Split document into overlapping chunks
+- ❌ Complex to implement correctly
+- ❌ Duplicate entity detection issues
+- ❌ Hard to merge results cleanly
+
+**Decision:** Option 1 (Page-by-Page) is the only solution that truly scales
+
+**Action Items:**
+- [ ] Research: How does OCR return page boundaries? (Google Vision API page detection)
+- [ ] Design: Pass 1 input schema changes for multi-page support
+- [ ] Implement: Page-by-page processing loop in Pass1EntityDetector
+- [ ] Implement: Result merging logic (combine entities from all pages)
+- [ ] Implement: Duplicate entity detection (cross-page matching)
+- [ ] Test: 1-page, 5-page, 10-page, 50-page documents
+- [ ] Document: Update API documentation with page-by-page approach
+- [ ] Monitor: API rate limits and adjust concurrent processing as needed
+
+**Priority:** HIGH - Required for production use with real medical documents (often 10+ pages)
+
+**Estimated Effort:** 4-6 hours (design + implementation + testing)
+
+**Status:** Documented - Scheduled for next sprint after GPT-5 testing completes
 
 ---
 
