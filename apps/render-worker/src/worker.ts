@@ -91,6 +91,7 @@ class V3Worker {
         max_tokens: 8000, // Increased for GPT-5 (was hitting 4000 token limit with finish_reason: 'length')
         confidence_threshold: 0.7,
       };
+      console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
       this.pass1Detector = new Pass1EntityDetector(pass1Config);
       console.log(`[${this.workerId}] Pass 1 Entity Detector initialized`);
     } else {
