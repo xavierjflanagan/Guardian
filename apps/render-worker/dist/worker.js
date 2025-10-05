@@ -114,7 +114,7 @@ class V3Worker {
         const { data, error } = await this.supabase
             .rpc('claim_next_job_v3', {
             p_worker_id: this.workerId, // FIXED: Correct parameter name (with p_ prefix)
-            p_job_types: ['shell_file_processing'], // Start with document processing
+            p_job_types: ['ai_processing'], // FIXED: Match Edge Function job type
             p_job_lanes: null // Optional parameter
         });
         if (error) {
