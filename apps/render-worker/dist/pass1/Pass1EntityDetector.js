@@ -210,8 +210,17 @@ class Pass1EntityDetector {
         const processingTime = (Date.now() - startTime) / 1000;
         // Parse and validate the response
         const rawContent = response.choices[0]?.message?.content;
+        const finishReason = response.choices[0]?.finish_reason;
         if (!rawContent) {
-            throw new Error('OpenAI returned empty response');
+            // Enhanced error reporting for debugging
+            const errorDetails = {
+                finish_reason: finishReason,
+                choices_length: response.choices?.length || 0,
+                has_refusal: !!response.choices[0]?.message?.refusal,
+                refusal_text: response.choices[0]?.message?.refusal,
+                model: this.config.model,
+            };
+            throw new Error(`OpenAI returned empty response. Details: ${JSON.stringify(errorDetails)}`);
         }
         const rawResult = JSON.parse(rawContent);
         // Strict validation - fail fast if AI response is malformed
