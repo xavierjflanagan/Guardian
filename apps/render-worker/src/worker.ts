@@ -88,7 +88,7 @@ class V3Worker {
         openai_api_key: config.openai.apiKey,
         model: 'gpt-5', // Upgraded from gpt-4o to gpt-5 (better multimodal vision, Aug 2025 release)
         temperature: 0.1,
-        max_tokens: 4000,
+        max_tokens: 8000, // Increased for GPT-5 (was hitting 4000 token limit with finish_reason: 'length')
         confidence_threshold: 0.7,
       };
       this.pass1Detector = new Pass1EntityDetector(pass1Config);
