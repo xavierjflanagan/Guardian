@@ -88,7 +88,7 @@ class V3Worker {
         openai_api_key: config.openai.apiKey,
         model: 'gpt-5', // Upgraded from gpt-4o to gpt-5 (better multimodal vision, Aug 2025 release)
         temperature: 0.1,
-        max_tokens: 8000, // Increased for GPT-5 (was hitting 4000 token limit with finish_reason: 'length')
+        max_tokens: 16000, // GPT-5 maximum output tokens (was 8000, but complex medical docs need full capacity)
         confidence_threshold: 0.7,
       };
       console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
