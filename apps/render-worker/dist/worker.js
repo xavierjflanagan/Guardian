@@ -117,6 +117,15 @@ class V3Worker {
             p_job_types: ['ai_processing'], // FIXED: Match Edge Function job type
             p_job_lanes: null // Optional parameter
         });
+        // VERBOSE LOGGING: See what RPC actually returns
+        console.log(`[${this.workerId}] RPC claim_next_job_v3 response:`, {
+            hasError: !!error,
+            error: error,
+            dataType: typeof data,
+            dataIsArray: Array.isArray(data),
+            dataLength: data ? (Array.isArray(data) ? data.length : 'NOT_ARRAY') : 'NULL',
+            dataValue: data
+        });
         if (error) {
             console.error(`[${this.workerId}] Error claiming job:`, error);
             return null;
@@ -124,6 +133,7 @@ class V3Worker {
         if (data && data.length > 0) {
             // FIXED: Function returns job_id, job_type, job_payload, retry_count
             const jobData = data[0];
+            console.log(`[${this.workerId}] Job data from RPC:`, jobData);
             // Need to fetch full job details
             const { data: fullJob, error: fetchError } = await this.supabase
                 .from('job_queue')
@@ -137,6 +147,7 @@ class V3Worker {
             console.log(`[${this.workerId}] Claimed job ${fullJob.id} (${fullJob.job_type})`);
             return fullJob;
         }
+        console.log(`[${this.workerId}] No jobs available (data empty or null)`);
         return null;
     }
     // Process a single job
