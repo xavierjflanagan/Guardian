@@ -167,7 +167,9 @@ class Pass1EntityDetector {
         // Generate the prompt
         const prompt = (0, pass1_prompts_1.generatePass1ClassificationPrompt)(input);
         // Call OpenAI with vision + text
-        const response = await this.openai.chat.completions.create({
+        // Build request parameters based on model capabilities
+        const isGPT5 = this.config.model.startsWith('gpt-5');
+        const requestParams = {
             model: this.config.model,
             messages: [
                 {
@@ -192,10 +194,19 @@ class Pass1EntityDetector {
                     ],
                 },
             ],
-            // GPT-5 only supports temperature: 1.0 (default), so omit the parameter
-            max_completion_tokens: this.config.max_tokens, // GPT-5 uses max_completion_tokens instead of max_tokens
             response_format: { type: 'json_object' },
-        });
+        };
+        // Model-specific parameters
+        if (isGPT5) {
+            // GPT-5: Uses max_completion_tokens, temperature fixed at 1.0
+            requestParams.max_completion_tokens = this.config.max_tokens;
+        }
+        else {
+            // GPT-4o and earlier: Uses max_tokens and custom temperature
+            requestParams.max_tokens = this.config.max_tokens;
+            requestParams.temperature = this.config.temperature;
+        }
+        const response = await this.openai.chat.completions.create(requestParams);
         const processingTime = (Date.now() - startTime) / 1000;
         // Parse and validate the response
         const rawContent = response.choices[0]?.message?.content;
