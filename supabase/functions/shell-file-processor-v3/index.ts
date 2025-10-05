@@ -12,6 +12,7 @@
 // - track_shell_file_upload_usage(p_profile_id, p_shell_file_id, p_file_size_bytes, p_estimated_pages)
 // =============================================================================
 
+import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { createServiceRoleClient, getEdgeFunctionEnv } from '../_shared/supabase-client.ts';
 import { handlePreflight, addCORSHeaders } from '../_shared/cors.ts';
 import {
@@ -356,9 +357,9 @@ async function processShellFileUpload(
       throw new Error(`File download failed: ${downloadError?.message || 'No file data'}`);
     }
 
-    // Convert file to base64 for OCR
+    // Convert file to base64 for OCR using Deno's efficient encoder
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64Data = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const base64Data = encodeBase64(new Uint8Array(arrayBuffer));
 
     console.log(`[${correlationId}] Running Google Cloud Vision OCR...`);
     const ocrData = await processWithGoogleVisionOCR(base64Data, data.mime_type);

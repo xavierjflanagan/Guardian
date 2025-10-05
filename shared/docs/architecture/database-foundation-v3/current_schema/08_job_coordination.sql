@@ -860,7 +860,8 @@ CREATE OR REPLACE FUNCTION track_shell_file_upload_usage(
     p_profile_id UUID,
     p_shell_file_id UUID,
     p_file_size_bytes BIGINT,
-    p_estimated_pages INTEGER DEFAULT 1
+    p_estimated_pages INTEGER DEFAULT 1,
+    p_user_id UUID DEFAULT NULL  -- Optional for service role calls (Edge Functions)
 ) RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -872,10 +873,14 @@ DECLARE
     limits_exceeded BOOLEAN := FALSE;
     tracking_enabled BOOLEAN := FALSE;
     actual_file_size BIGINT;
+    caller_user_id UUID;
 BEGIN
-    -- FIXED: CRITICAL SECURITY GUARD - Verify caller has access to profile
-    IF NOT has_profile_access(auth.uid(), p_profile_id) THEN
-        RAISE EXCEPTION 'Unauthorized: User % cannot access profile %', auth.uid(), p_profile_id;
+    -- Determine caller: use provided p_user_id (service role) or auth.uid() (user context)
+    caller_user_id := COALESCE(p_user_id, auth.uid());
+
+    -- SECURITY GUARD: Verify caller has access to profile (skip if service role with no user)
+    IF caller_user_id IS NOT NULL AND NOT has_profile_access(caller_user_id, p_profile_id) THEN
+        RAISE EXCEPTION 'Unauthorized: User % cannot access profile %', caller_user_id, p_profile_id;
     END IF;
     
     -- FIXED: Fetch actual file size from database (estimated_pages column doesn't exist - use provided param)

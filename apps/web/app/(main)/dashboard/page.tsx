@@ -96,22 +96,11 @@ export default function DashboardPage() {
     setUploadError(null);
 
     try {
-      const newFilePath = await uploadFile(file, user.id);
-
-      // Invoke the document-processor-complex Edge Function for immediate AI processing
-      const { error: functionError } = await supabase.functions.invoke(
-        "document-processor-complex",
-        {
-          body: { filePath: newFilePath },
-        }
-      );
-
-      if (functionError) {
-        throw new Error(`Failed to start processing: ${functionError.message}`);
-      }
+      // V3: uploadFile now handles everything (storage + shell-file-processor-v3 + job enqueue)
+      const shellFileId = await uploadFile(file, user.id);
 
       setUploadMessage("File uploaded and AI processing started!");
-      
+
       // Refresh documents list
       await fetchDocuments();
     } catch (err) {
