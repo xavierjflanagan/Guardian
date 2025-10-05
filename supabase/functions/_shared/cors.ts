@@ -11,7 +11,9 @@ import { CORSConfig, HTTPMethod } from './types.ts';
 const CORS_CONFIG: CORSConfig = {
   origin: [
     'https://exorahealth.com.au',           // Production domain
+    'https://www.exorahealth.com.au',       // Production domain (www)
     'https://staging.exorahealth.com.au',   // Staging domain
+    'https://www.staging.exorahealth.com.au', // Staging domain (www)
     'http://localhost:3000',                // Local development
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -29,7 +31,7 @@ const CORS_CONFIG: CORSConfig = {
 /**
  * Create CORS headers for Edge Function responses
  */
-export function createCORSHeaders(origin?: string): Headers {
+export function createCORSHeaders(origin?: string, requestedHeaders?: string | null, requestedMethod?: string | null): Headers {
   const headers = new Headers();
   
   // Determine allowed origin
@@ -41,9 +43,18 @@ export function createCORSHeaders(origin?: string): Headers {
   
   headers.set('Access-Control-Allow-Origin', allowedOrigin);
   headers.set('Access-Control-Allow-Methods', CORS_CONFIG.methods.join(', '));
-  headers.set('Access-Control-Allow-Headers', CORS_CONFIG.headers.join(', '));
+
+  // If browser asked for specific headers, reflect them; otherwise use config
+  const allowHeaders = (requestedHeaders && requestedHeaders.trim().length > 0)
+    ? requestedHeaders
+    : CORS_CONFIG.headers.join(', ');
+  headers.set('Access-Control-Allow-Headers', allowHeaders);
   headers.set('Access-Control-Allow-Credentials', CORS_CONFIG.credentials.toString());
   headers.set('Access-Control-Max-Age', '86400'); // 24 hours preflight cache
+  // Allow browser to read custom response headers for debugging
+  headers.set('Access-Control-Expose-Headers', 'x-correlation-id, x-idempotency-key');
+  // Ensure caches and CDNs vary on origin and requested headers/method
+  headers.set('Vary', 'Origin, Access-Control-Request-Headers, Access-Control-Request-Method');
   
   return headers;
 }
@@ -53,7 +64,9 @@ export function createCORSHeaders(origin?: string): Headers {
  */
 export function handlePreflight(request: Request): Response {
   const origin = request.headers.get('origin');
-  const corsHeaders = createCORSHeaders(origin);
+  const requestedHeaders = request.headers.get('access-control-request-headers');
+  const requestedMethod = request.headers.get('access-control-request-method');
+  const corsHeaders = createCORSHeaders(origin, requestedHeaders, requestedMethod);
   
   return new Response(null, {
     status: 204,
