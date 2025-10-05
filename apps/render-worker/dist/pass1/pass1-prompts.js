@@ -117,7 +117,7 @@ Return a JSON object with this exact structure:
 
 {
   "processing_metadata": {
-    "model_used": "gpt-4o",
+    "model_used": "gpt-5",
     "vision_processing": true,
     "processing_time_seconds": <number>,
     "token_usage": {
