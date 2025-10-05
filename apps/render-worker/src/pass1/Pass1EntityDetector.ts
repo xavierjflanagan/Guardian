@@ -246,7 +246,7 @@ export class Pass1EntityDetector {
           ],
         },
       ],
-      temperature: this.config.temperature,
+      // GPT-5 only supports temperature: 1.0 (default), so omit the parameter
       max_completion_tokens: this.config.max_tokens, // GPT-5 uses max_completion_tokens instead of max_tokens
       response_format: { type: 'json_object' },
     });
