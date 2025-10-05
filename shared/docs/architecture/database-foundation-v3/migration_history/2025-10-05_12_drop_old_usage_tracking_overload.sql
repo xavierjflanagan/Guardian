@@ -7,7 +7,7 @@
 -- ERROR: Could not choose the best candidate function between [4-param] and [5-param]
 -- ROOT CAUSE: CREATE OR REPLACE only replaces exact signature matches.
 --             Migration 2025-10-05_11 added 5th parameter, creating overload instead of replacing
--- SOURCE OF TRUTH: Only 5-param version in current_schema/08_job_coordination.sql (lines 859-941)
+-- SOURCE OF TRUTH: Already correct - only 5-param version in current_schema/08_job_coordination.sql (lines 859-941)
 -- FIX: Drop old 4-parameter version, keep only new 5-parameter version
 -- =============================================================================
 
