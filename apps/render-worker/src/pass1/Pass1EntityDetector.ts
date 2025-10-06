@@ -388,7 +388,7 @@ export class Pass1EntityDetector {
             bounding_box: e.bbox || { x: 0, y: 0, width: 0, height: 0 },
             unique_marker: e.text || '',
             location_context: 'unknown',
-            spatial_source: 'ai_estimate',
+            spatial_source: 'ai_estimated',
           },
           quality_indicators: {
             detection_confidence: 0.5,
