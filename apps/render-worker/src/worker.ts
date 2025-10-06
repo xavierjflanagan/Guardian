@@ -86,9 +86,9 @@ class V3Worker {
     if (config.openai.apiKey) {
       const pass1Config: Pass1Config = {
         openai_api_key: config.openai.apiKey,
-        model: 'gpt-5', // Upgraded from gpt-4o to gpt-5 (better multimodal vision, Aug 2025 release)
+        model: 'gpt-5-mini', // Balanced speed/cost/accuracy (Aug 2025) - 5x cheaper and faster than gpt-5
         temperature: 0.1,
-        max_tokens: 16000, // GPT-5 maximum output tokens (was 8000, but complex medical docs need full capacity)
+        max_tokens: 16000, // GPT-5-mini maximum output tokens (same as gpt-5)
         confidence_threshold: 0.7,
       };
       console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
