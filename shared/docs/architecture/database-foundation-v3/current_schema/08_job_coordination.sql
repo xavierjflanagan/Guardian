@@ -479,7 +479,7 @@ END $$;
 -- 7. Add system configuration for timeouts, intervals, and feature flags
 INSERT INTO system_configuration (config_key, config_value, config_type, description, is_sensitive) VALUES
 ('worker.heartbeat_interval_seconds', '30', 'system', 'Heartbeat interval for worker health monitoring', false),
-('worker.timeout_seconds', '300', 'system', 'Worker timeout threshold (5 minutes)', false),
+('worker.timeout_seconds', '1800', 'system', 'Worker timeout threshold (30 minutes - increased for GPT-5 vision processing)', false),
 ('worker.reclaim_jitter_max_seconds', '60', 'system', 'Maximum jitter when reclaiming timed-out jobs', false),
 ('queue.backpressure_delay_seconds', '30', 'system', 'Default backpressure delay for rate limiting', false),
 -- FIXED: Analytics and billing feature flags (use 'system' config_type)
