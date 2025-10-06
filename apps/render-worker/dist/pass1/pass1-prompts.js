@@ -106,6 +106,12 @@ CRITICAL REQUIREMENTS:
 5. Map each visual entity to the closest OCR spatial coordinates when available
 6. Mark spatial_source appropriately based on coordinate accuracy
 
+CRITICAL: LIST HANDLING RULES
+- When you see a LIST of items (immunizations, medications, allergies, etc.), each item is a SEPARATE entity
+- Example: If you see "Fluvax (Influenza), Vivaxim, Dukoral, Stamaril" → create 4 separate immunization entities
+- Do NOT summarize lists - extract every individual item as its own entity
+- Each line item in a medical list must be its own entity with unique entity_id
+
 CLASSIFICATION CATEGORIES:
 
 ${ENTITY_TAXONOMY}
