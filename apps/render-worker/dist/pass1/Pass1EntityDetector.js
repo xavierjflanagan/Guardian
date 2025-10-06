@@ -21,6 +21,7 @@ const pass1_prompts_1 = require("./pass1-prompts");
 const pass1_translation_1 = require("./pass1-translation");
 const pass1_database_builder_1 = require("./pass1-database-builder");
 const pass1_schema_mapping_1 = require("./pass1-schema-mapping");
+const image_processing_1 = require("../utils/image-processing");
 // =============================================================================
 // PASS 1 ENTITY DETECTOR CLASS
 // =============================================================================
@@ -166,6 +167,13 @@ class Pass1EntityDetector {
         const startTime = Date.now();
         // Generate the prompt with model name for response template
         const prompt = (0, pass1_prompts_1.generatePass1ClassificationPrompt)(input, this.config.model);
+        // CRITICAL: Downscale image to reduce token usage (1600px max, 75% quality)
+        console.log(`[Pass1] Downscaling image before AI processing...`);
+        const originalSize = input.raw_file.file_size;
+        const optimizedImageData = await (0, image_processing_1.downscaleImage)(input.raw_file.file_data, 1600, 75);
+        const optimizedSize = Buffer.from(optimizedImageData, 'base64').length;
+        const tokenReduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
+        console.log(`[Pass1] Image optimized: ${originalSize} → ${optimizedSize} bytes (${tokenReduction}% reduction)`);
         // Call OpenAI with vision + text
         // Build request parameters based on model capabilities
         const isGPT5 = this.config.model.startsWith('gpt-5');
@@ -179,11 +187,11 @@ class Pass1EntityDetector {
                 {
                     role: 'user',
                     content: [
-                        // Image input (PRIMARY)
+                        // Image input (PRIMARY) - now using optimized/downscaled image
                         {
                             type: 'image_url',
                             image_url: {
-                                url: `data:${input.raw_file.file_type};base64,${input.raw_file.file_data}`,
+                                url: `data:${input.raw_file.file_type};base64,${optimizedImageData}`,
                             },
                         },
                         // Text prompt with OCR reference (SECONDARY)
