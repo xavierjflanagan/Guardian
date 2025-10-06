@@ -25,6 +25,10 @@ import {
   PASS1_SYSTEM_MESSAGE,
 } from './pass1-prompts';
 import {
+  generateMinimalListPrompt,
+  MINIMAL_SYSTEM_MESSAGE,
+} from './pass1-prompts-minimal-test';
+import {
   translateAIOutputToDatabase,
   validateRecordBatch,
   generateRecordStatistics,
@@ -218,8 +222,20 @@ export class Pass1EntityDetector {
   private async callAIForEntityDetection(input: Pass1Input): Promise<Pass1AIResponse> {
     const startTime = Date.now();
 
-    // Generate the prompt with model name for response template
-    const prompt = generatePass1ClassificationPrompt(input, this.config.model);
+    // EXPERIMENTAL: Toggle between full prompt and minimal test prompt
+    const useMinimalPrompt = process.env.USE_MINIMAL_PROMPT === 'true';
+
+    let prompt: string;
+    let systemMessage: string;
+
+    if (useMinimalPrompt) {
+      console.log(`[Pass1] 🧪 EXPERIMENTAL: Using MINIMAL list-first prompt`);
+      prompt = generateMinimalListPrompt(input);
+      systemMessage = MINIMAL_SYSTEM_MESSAGE;
+    } else {
+      prompt = generatePass1ClassificationPrompt(input, this.config.model);
+      systemMessage = PASS1_SYSTEM_MESSAGE;
+    }
 
     // CRITICAL: Downscale images to reduce token usage (1600px max, 75% quality)
     // Skip downscaling for PDFs (handle separately)
@@ -252,7 +268,7 @@ export class Pass1EntityDetector {
       messages: [
         {
           role: 'system',
-          content: PASS1_SYSTEM_MESSAGE,
+          content: systemMessage,
         },
         {
           role: 'user',
@@ -307,7 +323,113 @@ export class Pass1EntityDetector {
 
     const rawResult = JSON.parse(rawContent);
 
-    // Strict validation - fail fast if AI response is malformed
+    // Handle minimal prompt response (different format)
+    if (useMinimalPrompt) {
+      console.log(`[Pass1] 🧪 MINIMAL PROMPT: AI returned ${rawResult.entities?.length || 0} entities`);
+      console.log(`[Pass1] 🧪 MINIMAL PROMPT: Total count reported: ${rawResult.total_count || 'N/A'}`);
+
+      // Log all entity texts for debugging
+      if (rawResult.entities && Array.isArray(rawResult.entities)) {
+        console.log(`[Pass1] 🧪 MINIMAL PROMPT: Extracted entities:`,
+          rawResult.entities.map((e: any) => e.text).join(' | '));
+      }
+
+      // Transform minimal response to full format for compatibility
+      if (!rawResult.entities || !Array.isArray(rawResult.entities)) {
+        throw new Error('Minimal prompt: AI response missing entities array');
+      }
+
+      // Return early with minimal structure - we just want to count entities for the test
+      const minimalEnhanced: Pass1AIResponse = {
+        processing_metadata: {
+          model_used: this.config.model,
+          vision_processing: true,
+          processing_time_seconds: processingTime,
+          token_usage: {
+            prompt_tokens: response.usage?.prompt_tokens || 0,
+            completion_tokens: response.usage?.completion_tokens || 0,
+            total_tokens: response.usage?.total_tokens || 0,
+            image_tokens: this.estimateImageTokens(optimizedSize),
+          },
+          cost_estimate: this.calculateCost(response.usage, optimizedSize),
+          confidence_metrics: {
+            overall_confidence: 0.5,
+            visual_interpretation_confidence: 0.5,
+            category_confidence: {
+              clinical_event: 0,
+              healthcare_context: 0,
+              document_structure: 0,
+            },
+          },
+        },
+        entities: rawResult.entities.map((e: any, idx: number) => ({
+          entity_id: `ent_${String(idx + 1).padStart(3, '0')}`,
+          original_text: e.text || '',
+          classification: {
+            entity_category: e.category === 'clinical' ? 'clinical_event' : 'healthcare_context',
+            entity_subtype: e.category === 'clinical' ? 'clinical_other' : 'patient_identifier',
+            confidence: 0.5,
+          },
+          visual_interpretation: {
+            ai_sees: e.text || '',
+            formatting_context: 'minimal test',
+            visual_quality: 'unknown',
+            ai_confidence: 0.5,
+          },
+          ocr_cross_reference: {
+            ocr_text: '',
+            ocr_confidence: 0,
+            ai_ocr_agreement: 0,
+            discrepancy_type: 'none',
+            discrepancy_notes: null,
+          },
+          spatial_information: {
+            page_number: 1,
+            bounding_box: e.bbox || { x: 0, y: 0, width: 0, height: 0 },
+            unique_marker: e.text || '',
+            location_context: 'unknown',
+            spatial_source: 'ai_estimate',
+          },
+          quality_indicators: {
+            detection_confidence: 0.5,
+            classification_confidence: 0.5,
+            cross_validation_score: 0,
+            requires_manual_review: true,
+          },
+        })),
+        document_coverage: {
+          total_content_processed: rawResult.total_count || rawResult.entities.length,
+          content_classified: rawResult.entities.length,
+          coverage_percentage: 100,
+          unclassified_segments: [],
+          visual_quality_score: 0.5,
+        },
+        cross_validation_results: {
+          ai_ocr_agreement_score: 0,
+          high_discrepancy_count: 0,
+          ocr_missed_entities: 0,
+          ai_missed_ocr_text: 0,
+          spatial_mapping_success_rate: 0,
+        },
+        quality_assessment: {
+          completeness_score: 0.5,
+          classification_confidence: 0.5,
+          cross_validation_score: 0,
+          requires_manual_review: true,
+          quality_flags: ['minimal_test_prompt'],
+        },
+        profile_safety: {
+          patient_identity_confidence: 0.5,
+          age_appropriateness_score: 0.5,
+          safety_flags: [],
+          requires_identity_verification: true,
+        },
+      };
+
+      return minimalEnhanced;
+    }
+
+    // Standard full prompt validation
     if (!rawResult.processing_metadata) {
       throw new Error('AI response missing processing_metadata');
     }
