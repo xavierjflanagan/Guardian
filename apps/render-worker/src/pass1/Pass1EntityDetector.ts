@@ -34,6 +34,7 @@ import {
   Pass1DatabaseRecords,
 } from './pass1-database-builder';
 import { validateSchemaMapping } from './pass1-schema-mapping';
+import { downscaleImage } from '../utils/image-processing';
 
 // =============================================================================
 // PASS 1 ENTITY DETECTOR CLASS
@@ -220,6 +221,14 @@ export class Pass1EntityDetector {
     // Generate the prompt with model name for response template
     const prompt = generatePass1ClassificationPrompt(input, this.config.model);
 
+    // CRITICAL: Downscale image to reduce token usage (1600px max, 75% quality)
+    console.log(`[Pass1] Downscaling image before AI processing...`);
+    const originalSize = input.raw_file.file_size;
+    const optimizedImageData = await downscaleImage(input.raw_file.file_data, 1600, 75);
+    const optimizedSize = Buffer.from(optimizedImageData, 'base64').length;
+    const tokenReduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
+    console.log(`[Pass1] Image optimized: ${originalSize} → ${optimizedSize} bytes (${tokenReduction}% reduction)`);
+
     // Call OpenAI with vision + text
     // Build request parameters based on model capabilities
     const isGPT5 = this.config.model.startsWith('gpt-5');
@@ -233,11 +242,11 @@ export class Pass1EntityDetector {
         {
           role: 'user',
           content: [
-            // Image input (PRIMARY)
+            // Image input (PRIMARY) - now using optimized/downscaled image
             {
               type: 'image_url' as const,
               image_url: {
-                url: `data:${input.raw_file.file_type};base64,${input.raw_file.file_data}`,
+                url: `data:${input.raw_file.file_type};base64,${optimizedImageData}`,
               },
             },
             // Text prompt with OCR reference (SECONDARY)
