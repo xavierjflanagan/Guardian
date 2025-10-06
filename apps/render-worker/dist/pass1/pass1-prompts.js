@@ -105,6 +105,7 @@ CRITICAL REQUIREMENTS:
 4. Identify 100% of document content visible in the image
 5. Map each visual entity to the closest OCR spatial coordinates when available
 6. Mark spatial_source appropriately based on coordinate accuracy
+7. Always emit uncertain items as entities; set requires_manual_review=true when confidence < 0.7
 
 CRITICAL: LIST HANDLING RULES (STRICT)
 - Treat each list item as a SEPARATE entity across all list formats:
@@ -112,9 +113,9 @@ CRITICAL: LIST HANDLING RULES (STRICT)
 - If a single line contains multiple items (commas, slashes, "and"), SPLIT into separate entities
 - Preserve item order and page locality; do not summarize lists
 - Only deduplicate exact duplicates (character-for-character). Similar items must remain separate
-- For each list section processed, include:
-  - list_items_found: <count of visually distinct items>
-  - entities_emitted: <count>
+- Report overall list extraction metrics in document_coverage.list_extraction_metrics:
+  - total_list_items_found: <count of visually distinct items across entire document>
+  - total_entities_emitted: <count of entities created from lists>
   - list_items_missed: ["verbatim text of any missed item"] (empty if none)
 
 OUTPUT SIZE SAFEGUARDS
@@ -222,11 +223,6 @@ Return a JSON object with this exact structure:
     "requires_identity_verification": true/false
   }
 }
-
-DOCUMENT PROCESSING:
-Raw Image: [Provided as base64 image input to vision model]
-OCR Reference Text: ${input.ocr_spatial_data.extracted_text.substring(0, 500)}...
-OCR Spatial Mapping: [See INPUT 2 above]
 
 Process this document using both visual analysis and OCR cross-validation. Return ONLY the JSON object, no additional text.
 `.trim();

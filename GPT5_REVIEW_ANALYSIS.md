@@ -932,3 +932,134 @@ Then re-evaluate GPT-5-mini for cost savings.
 **Priority:** HIGHEST - Blocking all medical document processing
 
 **Estimated Total Effort:** 8-12 hours to implement all fixes
+
+---
+
+## 13. Prompt Engineering Refinements - Entity Extraction Quality (2025-10-06)
+
+**Issue Discovered:** Low entity count (2 instead of 15+) - AI treating lists as single entities
+**Root Cause:** Prompt lacked explicit list handling instructions
+**Status:** In Progress - Iterative improvements based on 2nd opinion AI review
+
+### Why Prompts Need Explicit Instructions
+
+**Question:** Why can't we just ask AI to "extract every single entity"?
+
+**Answer:** Not AI "laziness" - it's precision requirements:
+1. **Ambiguity in "extract everything"**: AI might interpret as "extract key points" or "summarize"
+2. **Medical context requires precision**: Without rules, AI makes assumptions (9 immunizations → 1 "immunization history")
+3. **Edge cases need guidance**: Comma-separated vs bullet lists, duplicates, multi-item lines
+4. **Confidence thresholds**: AI needs explicit instructions on uncertain items
+
+### Initial Fix (COMPLETED 2025-10-06)
+
+**Problem:** AI detecting only first item in lists (1/9 immunizations)
+
+**Solution:** Added LIST HANDLING RULES
+```typescript
+CRITICAL: LIST HANDLING RULES (STRICT)
+- Treat each list item as SEPARATE entity across all formats
+- Split multi-item lines (commas, slashes, "and")
+- Preserve item order and page locality
+- Only deduplicate exact duplicates (character-for-character)
+```
+
+**Result:** Pending test (deployed, awaiting verification)
+
+### 2nd Opinion AI Review - Prompt Optimization
+
+**Reviewed:** Complete prompt file (348 lines) for token efficiency and extraction completeness
+
+**Findings & Actions:**
+
+#### ✅ High Priority (IMPLEMENT NOW)
+
+**1. Pass Model Name to Prompt (CRITICAL)**
+- **Issue:** Line 215 - prompt generation doesn't receive model name
+- **Impact:** Metadata shows generic "vision-model" instead of actual model (gpt-4o)
+- **Fix:** Change `generatePass1ClassificationPrompt(input)` → `generatePass1ClassificationPrompt(input, this.config.model)`
+- **Status:** [ ] To implement
+
+**2. Remove Duplicate OCR Text (TOKEN WASTE)**
+- **Issue:** Lines 226-231 - OCR text mentioned twice (already at line 87)
+- **Impact:** Wastes tokens, no added value
+- **Fix:** Delete entire "DOCUMENT PROCESSING" section
+- **Status:** [ ] To implement
+
+**3. Add Low-Confidence Inclusion Rule (QUALITY)**
+- **Issue:** AI may skip uncertain entities
+- **Impact:** Missing data when AI lacks confidence
+- **Fix:** Add to CRITICAL REQUIREMENTS: "Always emit uncertain items; set requires_manual_review=true when confidence < 0.7"
+- **Status:** [ ] To implement
+
+**4. Fix Metrics Instruction Wording (CLARITY)**
+- **Issue:** Lines 115-121 say "for each list section" but response format has global metrics
+- **Impact:** Confusing, might cause AI to misreport
+- **Fix:** Change "for each list section" → "Report overall list extraction metrics"
+- **Status:** [ ] To implement
+
+#### ⚠️ Medium Priority (DO SOON)
+
+**5. Compress Taxonomy Examples (~30% reduction)**
+- **Current:** `• vital_sign: Physiological measurements (BP: 140/90, temp: 98.6°F, pulse: 72 bpm)`
+- **Proposed:** `• vital_sign: BP 140/90, temp 98.6°F, pulse 72bpm`
+- **Impact:** Save tokens while preserving clarity
+- **Decision:** AGREE - Compress carefully, keep medical clarity
+- **Status:** [ ] To implement
+
+**6. Server-Side Truncation Enforcement**
+- **Issue:** Prompt instructs 120-char limit but no code enforcement
+- **Impact:** AI might exceed limit anyway
+- **Fix:** Add truncation in `pass1-translation.ts` before database insert
+- **Decision:** AGREE - Defense in depth
+- **Status:** [ ] To implement
+
+#### ❌ Low Priority (DO LATER - After 95%+ Accuracy)
+
+**7. Remove list_extraction_metrics**
+- **Suggestion:** Drop metrics to save tokens
+- **Decision:** DISAGREE - Too valuable for debugging
+- **Rationale:** `list_items_missed` array is our "smoking gun" for detecting extraction failures
+- **Status:** Keep for now, remove once extraction is reliable
+
+### Analysis Summary
+
+**Keep (Working Well):**
+- ✅ Dual-input framing (vision + OCR)
+- ✅ Clear primacy of visual analysis
+- ✅ List-handling rules (split items, don't summarize)
+- ✅ Truncation guidance (120 chars)
+
+**Tighten (Improvements Needed):**
+- 🔧 Model name passing for accurate metadata
+- 🔧 Remove token waste (duplicate OCR text)
+- 🔧 Low-confidence inclusion (emit uncertain entities)
+- 🔧 Metrics instruction alignment
+
+**Token Optimization Opportunities:**
+- Compress taxonomy examples (~30% reduction)
+- Remove redundant text
+- Server-side enforcement of limits
+
+### Implementation Plan
+
+**Batch 1 - High Priority (Current Session):**
+- [ ] Fix model name passing (Pass1EntityDetector.ts line 215)
+- [ ] Remove duplicate OCR section (pass1-prompts.ts lines 226-231)
+- [ ] Add low-confidence inclusion rule (CRITICAL REQUIREMENTS)
+- [ ] Fix metrics instruction wording (lines 115-121)
+
+**Batch 2 - Medium Priority (Next Session):**
+- [ ] Compress taxonomy examples by ~30%
+- [ ] Add server-side 120-char truncation in translation layer
+
+**Batch 3 - Later (After Validation):**
+- [ ] Consider removing list_extraction_metrics if 95%+ accuracy achieved
+
+**Expected Impact:**
+- Improved entity extraction completeness
+- Reduced token usage (faster processing, lower costs)
+- Better debugging visibility
+- More accurate metadata logging
+
+**Status:** 🔨 IN PROGRESS - Implementing Batch 1 (High Priority items)
