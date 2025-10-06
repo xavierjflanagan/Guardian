@@ -680,3 +680,255 @@ const allEntities = pageResults.flatMap(r => r.entities);
 2. Prioritize security fix (JWT validation)
 3. Plan OCR refactoring (biggest architectural improvement)
 4. Incrementally add retry logic and structured logging
+
+---
+
+## 12. GPT-5 Performance Crisis & Model Selection (CRITICAL)
+
+**Issue Discovered:** 2025-10-06 during production testing
+**Problem:** GPT-5 family models are 15-30x slower than expected for complex vision+OCR prompts
+
+### Performance Benchmark Comparison
+
+**Expected Performance (OpenAI benchmarks):**
+- GPT-4o: 191 tokens/sec = ~84 seconds for 16K output
+- GPT-5-mini: Should be "optimized for speed" per OpenAI docs
+
+**Actual Performance (Production testing):**
+- GPT-5 standard: 15-17 minutes for 2-page document (timeout)
+- GPT-5-mini: 16+ minutes for **1-page** document (12 tokens/sec!)
+- **15-30x slower than benchmark expectations**
+
+### Root Cause Analysis
+
+**Not the model itself - it's the implementation:**
+
+1. **Oversized Input Context:**
+   - 348-line prompt (pass1-prompts.ts)
+   - Large base64 image in job payload
+   - Full OCR spatial data + cross-validation requirements
+   - Complex nested JSON schema requirements
+   - Result: Massive input that even "mini" models struggle with
+
+2. **Base64 Payload Bloat:**
+   - Raw file embedded as base64 in job_payload JSON
+   - Inflates database rows and network transfers
+   - Increases processing overhead
+   - Example: 1MB image → ~1.4MB base64 → embedded in every job record
+
+3. **No Image Optimization:**
+   - Images sent at full resolution to OpenAI
+   - No downscaling (should be max 1600px width)
+   - No compression (should be JPEG quality ~75%)
+   - Dramatically increases token count and API latency
+
+### Solution: Revert to GPT-4o + Architecture Fixes
+
+**Immediate Action (COMPLETED 2025-10-06):**
+- ✅ Reverted from GPT-5-mini → GPT-4o
+- ✅ Increased worker timeout from 300s → 1800s (30 min)
+- ✅ Increased max_tokens from 8000 → 16000
+
+**Expected GPT-4o Performance:**
+- Proven track record: 191 tokens/sec
+- Should complete 1-page document in ~2 minutes
+- Stable and production-ready
+
+### Critical Architectural Fixes Required
+
+#### 1. Remove Base64 from Job Payload (HIGH PRIORITY)
+
+**Current Flow (BROKEN):**
+```typescript
+Edge Function:
+1. Upload file to Supabase Storage ✓
+2. Download file from storage ❌ (unnecessary)
+3. Convert to base64 ❌ (bloat)
+4. Embed in job payload ❌ (huge JSON)
+5. Insert job into database ❌ (slow, memory-intensive)
+
+Worker:
+1. Read job payload with embedded base64
+2. Send to OpenAI
+```
+
+**Proposed Flow (FIXED):**
+```typescript
+Edge Function:
+1. Upload file to Supabase Storage ✓
+2. Create shell_files record ✓
+3. Enqueue job with REFERENCE only ✓
+   {
+     storage_path: "medical-docs/{user_id}/{file}",
+     mime_type: "image/jpeg",
+     file_size: 1024000,
+     checksum: "sha256..."
+   }
+4. Return 201 (fast!) ✓
+
+Worker:
+1. Read job payload (tiny - just reference)
+2. Download file from storage using storage_path
+3. Downscale image (max 1600px, JPEG 75%)
+4. Convert to base64 just-in-time
+5. Send optimized image to OpenAI
+```
+
+**Benefits:**
+- ✅ Smaller job rows → faster DB reads/writes
+- ✅ Lower memory pressure in worker
+- ✅ Less network overhead between components
+- ✅ Enables on-demand image optimization
+- ✅ Safer retries (file stored separately)
+- ✅ Avoids JSON/row size limits
+- ✅ Reduces PII exposure in logs/DB
+- ✅ Cleaner architecture separation
+
+**Implementation Requirements:**
+- Edge Function: Stop converting to base64, enqueue only storage_path
+- Worker: Download from storage, downscale, then process
+- Add checksum validation to detect file tampering
+- Graceful handling of "file missing" scenarios
+- Ensure worker has storage read permissions (service role - already configured)
+
+**Estimated Effort:** 2-3 hours
+
+#### 2. Image Downscaling (HIGH PRIORITY)
+
+**Current:** Full-resolution images sent to OpenAI
+**Problem:** Massive token counts, slow processing, high costs
+
+**Solution:**
+```typescript
+// Add before OpenAI API call
+async function downscaleImage(
+  base64Data: string,
+  maxWidth: number = 1600,
+  quality: number = 75
+): Promise<string> {
+  // Use sharp or similar library
+  const buffer = Buffer.from(base64Data, 'base64');
+  const resized = await sharp(buffer)
+    .resize(maxWidth, null, { withoutEnlargement: true })
+    .jpeg({ quality })
+    .toBuffer();
+  return resized.toString('base64');
+}
+
+// Usage in Pass1EntityDetector
+const optimizedImage = await downscaleImage(input.raw_file.file_data);
+// Send optimizedImage to OpenAI instead of raw
+```
+
+**Expected Impact:**
+- 50-70% reduction in image tokens
+- Faster API response times
+- Lower costs
+- Still excellent quality for medical documents
+
+**Estimated Effort:** 1-2 hours
+
+#### 3. Compact Output Fallback (MEDIUM PRIORITY)
+
+**Problem:** When finish_reason === "length", we lose all data
+
+**Solution:**
+```typescript
+// Add to Pass1EntityDetector
+private async callAIWithFallback(input: Pass1Input): Promise<Pass1AIResponse> {
+  try {
+    // First attempt: Full schema
+    return await this.callAIForEntityDetection(input);
+  } catch (error) {
+    if (error.finish_reason === 'length') {
+      console.warn('[Pass1] Token limit hit, retrying with compact schema');
+
+      // Second attempt: Reduced schema
+      // - Limit free-text fields to 120 chars
+      // - Limit arrays to 50 items max
+      // - Remove verbose document_coverage details
+      return await this.callAIForEntityDetection(input, { compact: true });
+    }
+    throw error;
+  }
+}
+```
+
+**Benefits:**
+- Prevents complete data loss on token limit
+- Graceful degradation
+- Still captures essential medical data
+
+**Estimated Effort:** 2-3 hours
+
+#### 4. Prompt Optimization (MEDIUM PRIORITY)
+
+**Current:** 348-line prompt with verbose instructions
+**Problem:** Adds unnecessary tokens to every request
+
+**Solution:**
+- Reduce prompt from 348 lines → <100 lines
+- Remove redundant instructions
+- Simplify JSON schema documentation
+- Keep only essential classification categories
+- Use more concise language
+
+**Expected Impact:**
+- 30-50% reduction in input tokens
+- Faster processing
+- Lower costs
+
+**Estimated Effort:** 2-4 hours
+
+### Model Selection Decision Matrix
+
+| Model | Speed | Cost | Quality | Use Case |
+|-------|-------|------|---------|----------|
+| **GPT-4o** ✅ | 191 tok/sec | $2.50/$10 per 1M | Excellent | **CURRENT: Production-ready** |
+| GPT-5 | 12 tok/sec ❌ | $1.25/$10 per 1M | Best | Too slow for current architecture |
+| GPT-5-mini | 12 tok/sec ❌ | $0.25/$2 per 1M | Good | Too slow for current architecture |
+| GPT-4o-mini | ~100 tok/sec | $0.15/$0.60 per 1M | Good | Potential future option |
+
+**Decision: Use GPT-4o until architectural fixes are complete**
+
+Once we implement:
+- ✅ Image downscaling
+- ✅ Remove base64 from payload
+- ✅ Compact output fallback
+- ✅ Prompt optimization
+
+Then re-evaluate GPT-5-mini for cost savings.
+
+### Action Items
+
+**Immediate (This Week):**
+- [x] Revert to GPT-4o - DONE 2025-10-06
+- [x] Increase worker timeout to 30 min - DONE 2025-10-06
+- [ ] Test GPT-4o performance (should be ~2 min per page)
+- [ ] Implement image downscaling
+- [ ] Remove base64 from job payload
+
+**Short-term (Next Sprint):**
+- [ ] Add compact output fallback
+- [ ] Optimize prompt size
+- [ ] Add retry logic with exponential backoff
+- [ ] Implement structured logging
+
+**Long-term (Future):**
+- [ ] Page-by-page processing for multi-page documents
+- [ ] Re-evaluate GPT-5-mini once optimizations complete
+- [ ] Consider GPT-4o-mini for cost optimization
+
+### Lessons Learned
+
+1. **Never trust model names alone** - "mini" doesn't guarantee speed
+2. **Benchmark in production context** - Lab benchmarks ≠ real performance
+3. **Architecture matters more than model** - Oversized inputs kill any model
+4. **Measure before optimizing model choice** - Fix architecture first
+5. **GPT-4o is production-proven** - Stick with what works until optimized
+
+**Status:** 🚨 CRITICAL - Production blocked until GPT-4o deployment completes
+
+**Priority:** HIGHEST - Blocking all medical document processing
+
+**Estimated Total Effort:** 8-12 hours to implement all fixes
