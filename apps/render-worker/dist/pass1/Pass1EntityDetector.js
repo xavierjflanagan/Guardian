@@ -167,13 +167,28 @@ class Pass1EntityDetector {
         const startTime = Date.now();
         // Generate the prompt with model name for response template
         const prompt = (0, pass1_prompts_1.generatePass1ClassificationPrompt)(input, this.config.model);
-        // CRITICAL: Downscale image to reduce token usage (1600px max, 75% quality)
-        console.log(`[Pass1] Downscaling image before AI processing...`);
-        const originalSize = input.raw_file.file_size;
-        const optimizedImageData = await (0, image_processing_1.downscaleImage)(input.raw_file.file_data, 1600, 75);
-        const optimizedSize = Buffer.from(optimizedImageData, 'base64').length;
-        const tokenReduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
-        console.log(`[Pass1] Image optimized: ${originalSize} → ${optimizedSize} bytes (${tokenReduction}% reduction)`);
+        // CRITICAL: Downscale images to reduce token usage (1600px max, 75% quality)
+        // Skip downscaling for PDFs (handle separately)
+        let optimizedImageData = input.raw_file.file_data;
+        let optimizedSize = input.raw_file.file_size;
+        let outputMimeType = input.raw_file.file_type;
+        const isImage = input.raw_file.file_type.startsWith('image/');
+        const isPDF = input.raw_file.file_type === 'application/pdf';
+        if (isImage) {
+            console.log(`[Pass1] Downscaling image before AI processing...`);
+            optimizedImageData = await (0, image_processing_1.downscaleImage)(input.raw_file.file_data, 1600, 75);
+            optimizedSize = Buffer.from(optimizedImageData, 'base64').length;
+            outputMimeType = 'image/jpeg'; // Downscaled images are always JPEG
+            const tokenReduction = ((1 - optimizedSize / input.raw_file.file_size) * 100).toFixed(1);
+            console.log(`[Pass1] Image optimized: ${input.raw_file.file_size} → ${optimizedSize} bytes (${tokenReduction}% reduction)`);
+        }
+        else if (isPDF) {
+            console.log(`[Pass1] PDF detected - using original (PDF-to-image conversion not yet implemented)`);
+            // TODO: Implement PDF-to-image conversion before downscaling
+        }
+        else {
+            console.warn(`[Pass1] Unsupported file type for optimization: ${input.raw_file.file_type}`);
+        }
         // Call OpenAI with vision + text
         // Build request parameters based on model capabilities
         const isGPT5 = this.config.model.startsWith('gpt-5');
@@ -187,11 +202,11 @@ class Pass1EntityDetector {
                 {
                     role: 'user',
                     content: [
-                        // Image input (PRIMARY) - now using optimized/downscaled image
+                        // Image input (PRIMARY) - using optimized image with correct MIME type
                         {
                             type: 'image_url',
                             image_url: {
-                                url: `data:${input.raw_file.file_type};base64,${optimizedImageData}`,
+                                url: `data:${outputMimeType};base64,${optimizedImageData}`,
                             },
                         },
                         // Text prompt with OCR reference (SECONDARY)
@@ -244,7 +259,7 @@ class Pass1EntityDetector {
         if (!rawResult.cross_validation_results) {
             throw new Error('AI response missing cross_validation_results');
         }
-        // Enhance with actual token usage and cost
+        // Enhance with actual token usage and cost (using optimized image size)
         const enhancedResponse = {
             processing_metadata: {
                 model_used: this.config.model,
@@ -254,9 +269,9 @@ class Pass1EntityDetector {
                     prompt_tokens: response.usage?.prompt_tokens || 0,
                     completion_tokens: response.usage?.completion_tokens || 0,
                     total_tokens: response.usage?.total_tokens || 0,
-                    image_tokens: this.estimateImageTokens(input.raw_file.file_size),
+                    image_tokens: this.estimateImageTokens(optimizedSize),
                 },
-                cost_estimate: this.calculateCost(response.usage, input.raw_file.file_size),
+                cost_estimate: this.calculateCost(response.usage, optimizedSize),
                 confidence_metrics: rawResult.processing_metadata.confidence_metrics || {
                     overall_confidence: 0,
                     visual_interpretation_confidence: 0,
