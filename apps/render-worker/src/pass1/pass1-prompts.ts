@@ -106,11 +106,21 @@ CRITICAL REQUIREMENTS:
 5. Map each visual entity to the closest OCR spatial coordinates when available
 6. Mark spatial_source appropriately based on coordinate accuracy
 
-CRITICAL: LIST HANDLING RULES
-- When you see a LIST of items (immunizations, medications, allergies, etc.), each item is a SEPARATE entity
-- Example: If you see "Fluvax (Influenza), Vivaxim, Dukoral, Stamaril" → create 4 separate immunization entities
-- Do NOT summarize lists - extract every individual item as its own entity
-- Each line item in a medical list must be its own entity with unique entity_id
+CRITICAL: LIST HANDLING RULES (STRICT)
+- Treat each list item as a SEPARATE entity across all list formats:
+  - Bullet/numbered lists, comma-separated lines, table rows/columns
+- If a single line contains multiple items (commas, slashes, "and"), SPLIT into separate entities
+- Preserve item order and page locality; do not summarize lists
+- Only deduplicate exact duplicates (character-for-character). Similar items must remain separate
+- For each list section processed, include:
+  - list_items_found: <count of visually distinct items>
+  - entities_emitted: <count>
+  - list_items_missed: ["verbatim text of any missed item"] (empty if none)
+
+OUTPUT SIZE SAFEGUARDS
+- Truncate all free-text fields (ai_sees, ocr_text, discrepancy_notes, formatting_context) to <=120 characters
+- Do not include unrequested narrative or analysis
+- Keep JSON output lean and focused on entity data only
 
 CLASSIFICATION CATEGORIES:
 
@@ -184,7 +194,12 @@ Return a JSON object with this exact structure:
     "content_classified": <number>,
     "coverage_percentage": <0-100>,
     "unclassified_segments": ["any content not classified"],
-    "visual_quality_score": <0.0-1.0>
+    "visual_quality_score": <0.0-1.0>,
+    "list_extraction_metrics": {
+      "total_list_items_found": <number>,
+      "total_entities_emitted": <number>,
+      "list_items_missed": ["verbatim text of any missed items"]
+    }
   },
   "cross_validation_results": {
     "ai_ocr_agreement_score": <0.0-1.0>,
