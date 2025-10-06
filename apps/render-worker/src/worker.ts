@@ -86,9 +86,9 @@ class V3Worker {
     if (config.openai.apiKey) {
       const pass1Config: Pass1Config = {
         openai_api_key: config.openai.apiKey,
-        model: 'gpt-5-mini', // Balanced speed/cost/accuracy (Aug 2025) - 5x cheaper and faster than gpt-5
+        model: 'gpt-4o', // PROVEN FAST: 191 tokens/sec = ~84 sec for 16K tokens (GPT-5 family too slow for production)
         temperature: 0.1,
-        max_tokens: 16000, // GPT-5-mini maximum output tokens (same as gpt-5)
+        max_tokens: 16000, // GPT-4o supports up to 16K output
         confidence_threshold: 0.7,
       };
       console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
