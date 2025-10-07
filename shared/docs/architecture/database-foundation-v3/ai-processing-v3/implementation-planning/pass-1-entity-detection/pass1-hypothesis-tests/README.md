@@ -118,6 +118,8 @@ Pass 1 entity detection was only extracting 3 entities from documents that shoul
 
 ## Related Documentation
 
+- [Test 05 - Gold Standard Variability Analysis](./test-05-gold-standard-variability-analysis.md) - 5-run consistency analysis
+- [Test 03 - Minimal Prompt Variability Analysis](./test-03-gpt5-mini-minimal-variability-analysis.md) - Based on incorrect Test 03
 - [MINIMAL_PROMPT_TEST_INSTRUCTIONS.md](/MINIMAL_PROMPT_TEST_INSTRUCTIONS.md) - Test procedure
 - [PASS1_TRIAGE_PLAN_2025-10-06.md](/PASS1_TRIAGE_PLAN_2025-10-06.md) - Triage analysis
 - [GPT5_REVIEW_ANALYSIS.md](/GPT5_REVIEW_ANALYSIS.md) - Architecture review

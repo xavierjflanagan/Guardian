@@ -297,9 +297,10 @@ USE_MINIMAL_PROMPT=false  // Use gold standard prompt
 
 ## Related Tests
 
+- [Test 05 - Variability Analysis](./test-05-gold-standard-variability-analysis.md) - **5-run consistency analysis for gold standard**
 - [Test 03 - Misidentified as Minimal](./test-03-gpt5-mini-minimal-prompt.md) (Actually gold standard + fallbacks)
 - [Test 04 - Cancelled Experiment](./test-04-gpt5-mini-structured-prompt.md) (Minimal prompt evolution failed)
-- [Variability Analysis](./test-03-gpt5-mini-minimal-variability-analysis.md) (Based on incorrect Test 03)
+- [Test 03 - Variability Analysis](./test-03-gpt5-mini-minimal-variability-analysis.md) (Based on incorrect Test 03)
 
 ---
 
