@@ -1,401 +1,439 @@
-# GPT-5-mini + Gold Standard Prompt - Variability Analysis
+# Test 05: Gold Standard Prompt - Variability Analysis
 
 **Date:** 2025-10-07
-**Purpose:** Analyze consistency and variability across 5 test runs with GPT-5-mini + gold standard prompt
-**Document:** Patient Health Summary (same file uploaded 5 times)
-**Configuration:** Gold Standard prompt (348 lines) with constraint hardening
+**Purpose:** Analyze consistency and variability across 4 successful test runs with GPT-5-mini + gold standard prompt
+**Document:** Patient Health Summary (same file uploaded 4 times)
+**Configuration:** Gold Standard prompt (348 lines) with constraint hardening (post Run 3 fix)
 
 ## Executive Summary
 
-**Overall Consistency: EXCELLENT (97% entity count stability)**
+**Overall Consistency: GOOD (89% entity count stability)**
 
-- **Run 1:** 38 entities (96% confidence, 98.3% AI-OCR agreement)
-- **Run 2:** 38 entities (95% confidence, 98.5% AI-OCR agreement)
-- **Run 3:** FAILED (constraint violation - pre-fix)
-- **Run 4:** 39 entities (93% confidence, 98.5% AI-OCR agreement) - Post-fix validation
-- **Run 5:** 37 entities (93% confidence, 98.2% AI-OCR agreement) - Extended validation
-- **Variation:** 2 entities difference (5.4% variance across successful runs)
+- **Run 1:** 47 entities (97% OCR agreement, 97% confidence)
+- **Run 2:** 39 entities (96% OCR agreement, 98% confidence)
+- **Run 4:** 35 entities (98% OCR agreement, 97% confidence) - Post-fix validation
+- **Run 5:** 40 entities (98% OCR agreement, 97% confidence) - Extended validation
+- **Variation:** 12 entities difference (25% variance across runs)
 
-**Key Finding:** Unlike the minimal prompt (Test 03), the gold standard demonstrates:
-1. **Intelligent entity grouping** - AI consolidates related data (e.g., patient identifiers)
-2. **High-quality metadata** - 93-96% confidence vs 50% fallback values
-3. **Consistent core data** - Patient demographics 100% captured
-4. **Non-deterministic grouping** - Run 5 showed first deviation in healthcare_context entities
+**Critical Finding: Healthcare Context Variance**
+- **Runs 1 & 2:** 20 healthcare_context entities (100% consistent)
+- **Runs 4 & 5:** 9 healthcare_context entities (100% consistent)
+- **Pattern shift:** 55% reduction in healthcare_context entities between Run 2 and Run 4
 
-**Clinical Data Reliability: 100%** - All critical medical information detected in all runs.
+**Clinical Data Reliability: 100%**
+- All immunization records detected in all runs
+- All critical patient demographics captured
+- Zero medical data loss
 
-**Prompt Hardening Success: 100%** - Zero constraint violations after spatial_mapping_source fix.
-
----
-
-## Entity Count Breakdown by Category
-
-| Category | Run 1 | Run 2 | Run 4 | Run 5 | Average | Stability |
-|----------|-------|-------|-------|-------|---------|-----------|
-| **clinical_event** | 17 | 12 | 13 | 19 | 15.3 | Variable (12-19) - entity grouping |
-| **healthcare_context** | 20 | 20 | 20 | 9 | 17.3 | **High variance in Run 5** |
-| **document_structure** | 10 | 7 | 6 | 9 | 8.0 | Moderate (6-10) |
-| **Total** | **47** | **39** | **39** | **37** | **40.5** | **Consistent (±5%)** |
-
-**Note:** Run 1 entity count includes an unresolved discrepancy (47 vs documented 38). Excluding Run 1, average is 38.3 entities.
+**Quality Metrics:**
+- Average confidence: 97% (range: 96-98%)
+- Average OCR agreement: 97.3% (range: 96-98%)
+- All entities classified with proper taxonomy
+- Zero validation errors post-fix
 
 ---
 
-## Critical Observation: Healthcare Context Stability Shift (Run 5)
+## Data Source and Methodology
 
-### Runs 1, 2, 4: Perfect Consistency
-- All 3 runs extracted **exactly 20 healthcare_context entities**
-- 100% identical patient demographic extraction
-- This was considered the "gold standard baseline"
+**Database Tables Queried:**
+1. `pass1_entity_metrics` - Session-level metrics and quality scores
+2. `entity_processing_audit` - Individual entity records with classifications
 
-### Run 5: First Major Deviation
-- Only **9 healthcare_context entities** (-55% reduction)
-- **Hypothesis:** AI consolidated multiple patient identifier fields into fewer, more comprehensive entities
-- **Examples of possible consolidation:**
-  - "Name:" + "Xavier Flanagan" → 1 entity (vs 2 separate)
-  - "Address:" + "505 Grasslands Rd" + "Boneo 3939" → 1 entity (vs 3 separate)
-  - "Phone:" + "5988 6686" → 1 entity (vs 2 separate)
+**Session IDs:**
+- Run 1: `c33140db-8539-474c-bf54-46d66b6048bf` (03:32:11 UTC)
+- Run 2: `5f455b06-3ff8-46d0-b320-c9bf469b9f80` (03:55:01 UTC)
+- Run 4: `e4d3b340-e607-455d-9e85-6fa2c3961e2a` (06:33:29 UTC)
+- Run 5: `394fe1a7-265e-486a-8042-e07e50dcfa2f` (21:34:05 UTC)
 
-### Clinical Impact
-- ✅ **Zero data loss** - All information captured, just grouped differently
-- ✅ **Quality maintained** - 98.2% AI-OCR agreement (within normal range)
-- ⚠️ **Entity counting unreliable** - Cannot use entity count as quality metric
+**Note:** Run 3 failed with constraint violation (pre-fix) and is excluded from this analysis.
 
 ---
 
-## Detailed Variability Analysis
+## Entity Count Summary
 
-### 1. Clinical Events - Moderate Variance (12-19 entities)
-
-**Run 1:** 17 clinical_event entities
-**Run 2:** 12 clinical_event entities
-**Run 4:** 13 clinical_event entities
-**Run 5:** 19 clinical_event entities
-
-**Range:** 7 entity variance (58% swing)
-
-**Sources of Variance:**
-1. **Immunization splitting:** Multi-component vaccines (Boostrix, Vivaxim) split differently
-   - Combined: "Boostrix (Pertussis, Diphtheria, Tetanus)" = 1 entity
-   - Split: "Boostrix (Pertussis)", "Boostrix (Diphtheria)", "Boostrix (Tetanus)" = 3 entities
-2. **Allergy entries:** "Nil known" sometimes extracted separately vs embedded in header
-3. **Medication entries:** "No long term medications" classification varies
-
-**Clinical Impact:** ✅ ZERO - All immunizations captured in all runs (9 vaccines consistently detected)
+| Run | Total | clinical_event | healthcare_context | document_structure | Timestamp |
+|-----|-------|----------------|-------------------|-------------------|-----------|
+| **Run 1** | **47** | 17 | 20 | 10 | 03:32:11 |
+| **Run 2** | **39** | 12 | 20 | 7 | 03:55:01 |
+| **Run 4** | **35** | 16 | **9** | 10 | 06:33:29 |
+| **Run 5** | **40** | 21 | **9** | 10 | 21:34:05 |
+| **Average** | **40.3** | **16.5** | **14.5** | **9.3** | - |
+| **Range** | 35-47 | 12-21 | 9-20 | 7-10 | - |
+| **Variance** | 25% | 43% | **55%** | 30% | - |
 
 ---
 
-### 2. Healthcare Context - HIGH Variance (9-20 entities)
+## Critical Finding: Healthcare Context Bifurcation
 
-**Runs 1, 2, 4:** 20 healthcare_context entities (100% consistent)
-**Run 5:** 9 healthcare_context entities (-55% deviation)
+### Pattern 1: High Healthcare Context (Runs 1 & 2)
+**20 healthcare_context entities per run**
 
-**This is the MOST SIGNIFICANT finding in the variability analysis.**
+**Breakdown:**
+- Run 1: 8 patient_identifier + 8 healthcare_context_other + 4 facility_identifier = 20
+- Run 2: 8 patient_identifier + 11 healthcare_context_other + 1 facility_identifier = 20
 
-**Possible Entity Consolidation Patterns (Run 5):**
+**Interpretation:** AI splitting patient demographics into granular entities
+- Separate entities for labels and values (e.g., "Name:" + "Xavier Flanagan")
+- Individual address components split
+- Each phone number as separate entity
 
-#### Patient Demographics (likely consolidated)
-- **Separate entities (Runs 1-4):**
-  - "Name:"
-  - "Xavier Flanagan"
-  - "Address:"
-  - "505 Grasslands Rd"
-  - "Boneo 3939"
-  - "D.O.B.:"
-  - "25/04/1994"
+### Pattern 2: Low Healthcare Context (Runs 4 & 5)
+**9 healthcare_context entities per run**
 
-- **Consolidated (Run 5 hypothesis):**
-  - "Name: Xavier Flanagan"
-  - "Address: 505 Grasslands Rd, Boneo 3939"
-  - "D.O.B.: 25/04/1994"
+**Breakdown:**
+- Run 4: 8 patient_identifier + 1 provider_identifier = 9
+- Run 5: 8 patient_identifier + 1 facility_identifier = 9
 
-**Impact on Pass 2 Processing:**
-- ⚠️ **Database insertion logic needs flexibility** - Cannot assume 1 entity = 1 field
-- ⚠️ **Entity parsing required** - Need to extract structured data from consolidated text
-- ✅ **Information preserved** - All data still present, just formatted differently
+**Interpretation:** AI consolidating patient demographics into combined entities
+- Labels + values merged (e.g., "Name: Xavier Flanagan")
+- Address lines consolidated
+- Contact information grouped
 
----
-
-### 3. Document Structure - Low Variance (6-10 entities)
-
-**Run 1:** 10 document_structure entities
-**Run 2:** 7 document_structure entities
-**Run 4:** 6 document_structure entities
-**Run 5:** 9 document_structure entities
-
-**Range:** 4 entity variance (67% swing but small absolute numbers)
-
-**Sources of Variance:**
-1. **Page markers:** "Page 1 of 20" sometimes split into components
-2. **Headers:** Document title classification varies
-3. **Footers:** Signature lines, watermarks detected inconsistently
-
-**Clinical Impact:** ✅ NONE - Document structure entities are logged only, not processed
+**Impact:**
+- **Zero data loss** - All information captured in both patterns
+- **Different granularity** - Same content, different entity boundaries
+- **Consistent within pattern** - Runs 1&2 identical, Runs 4&5 identical
 
 ---
 
-## Pass 2 Entities Queued Analysis
+## Detailed Entity Breakdown by Category
 
-| Run | Total Entities | Pass 2 Queued | Queue Rate | Status |
-|-----|---------------|---------------|------------|--------|
-| Run 1 | 38 | 26 | 68% | ✅ Success |
-| Run 2 | 38 | 26 | 68% | ✅ Success |
-| Run 4 | 39 | 33 | 85% | ✅ Success |
-| Run 5 | 37 | 28 | 76% | ✅ Success |
+### Clinical Events (12-21 entities, 43% variance)
 
-**Average Pass 2 Queue Rate:** 74%
+| Subtype | Run 1 | Run 2 | Run 4 | Run 5 | Notes |
+|---------|-------|-------|-------|-------|-------|
+| **immunization** | 15 | 10 | 10 | 15 | Vaccine splitting varies |
+| **clinical_other** | 0 | 0 | 4 | 4 | Section headers classified here in Runs 4&5 |
+| **allergy** | 1 | 1 | 1 | 1 | **100% consistent** |
+| **medication** | 1 | 1 | 1 | 1 | **100% consistent** |
+| **TOTAL** | **17** | **12** | **16** | **21** | - |
 
-**Insight:** Run 4 had the highest Pass 2 queue rate (85%), suggesting more entities were classified as requiring medical enrichment.
+**Key Variance: Immunization Splitting**
+- **15 immunization entities:** Multi-component vaccines split (e.g., "Boostrix (Pertussis)", "Boostrix (Diphtheria)", "Boostrix (Tetanus)")
+- **10 immunization entities:** Multi-component vaccines combined (e.g., "Boostrix (Pertussis, Diphtheria, Tetanus)")
 
----
+**Actual Vaccines (9 total, 100% detected in all runs):**
+1. Fluvax (Influenza) - 11/04/2010
+2. Fluvax (Influenza) - 02/04/2011
+3. Vivaxim (Hepatitis A, Typhoid) - 03/10/2011
+4. Dukoral (Cholera) - 03/10/2011
+5. Stamaril (Yellow Fever) - 14/11/2014
+6. Havrix 1440 (Hepatitis A) - 14/11/2014
+7. Typhim Vi (Typhoid) - 14/11/2014
+8. Boostrix (Pertussis, Diphtheria, Tetanus) - 06/01/2017
+9. Engerix-B Adult (Hepatitis B) - 11/01/2017
+10. Fluad (Influenza) - 19/03/2020
 
-## Confidence and Quality Metrics
+**Clinical Data Reliability: 100% - All vaccines detected in all runs**
 
-| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Average | Range |
-|--------|-------|-------|-------|-------|---------|-------|
-| **Overall Confidence** | 96% | 95% | 93% | 93% | 94.3% | 93-96% |
-| **AI-OCR Agreement** | 98.3% | 98.5% | 98.5% | 98.2% | 98.4% | 98.2-98.5% |
-| **Manual Review Required** | 0 | 0 | 0 | 0 | 0 | 0 |
-| **Processing Time** | 4m19s | 2m48s | 4m43s | 4m36s | 4m7s | 2m48s-4m43s |
-| **Cost** | $0.194 | $0.194 | $0.196 | $0.202 | $0.197 | $0.194-$0.202 |
+### Healthcare Context (9-20 entities, 55% variance)
 
-**Key Findings:**
-- ✅ **High confidence:** 93-96% (vs 50% fallback values in Test 03)
-- ✅ **Excellent accuracy:** 98.4% avg AI-OCR agreement
-- ✅ **Zero manual review:** All entities high enough confidence for automation
-- ✅ **Stable cost:** ~$0.20/document (60% cheaper than GPT-4o)
-- ⚠️ **Processing time variance:** 2m48s - 4m43s (71% range, likely API latency)
+| Subtype | Run 1 | Run 2 | Run 4 | Run 5 | Pattern |
+|---------|-------|-------|-------|-------|---------|
+| **patient_identifier** | 8 | 8 | 8 | 8 | **100% consistent** |
+| **healthcare_context_other** | 8 | 11 | 0 | 0 | Granular vs consolidated |
+| **facility_identifier** | 4 | 1 | 0 | 1 | Varies |
+| **provider_identifier** | 0 | 0 | 1 | 0 | Rare |
+| **TOTAL** | **20** | **20** | **9** | **9** | Bifurcated pattern |
 
----
+**Critical Insight:**
+- **patient_identifier count is IDENTICAL (8) across ALL runs**
+- Variance comes from `healthcare_context_other` and `facility_identifier` classification
+- Same underlying data, different entity boundary decisions
 
-## Processing Time Deep Dive
+### Document Structure (7-10 entities, 30% variance)
 
-### Run-by-Run Breakdown
+| Subtype | Run 1 | Run 2 | Run 4 | Run 5 | Notes |
+|---------|-------|-------|-------|-------|-------|
+| **document_structure_other** | 7 | 4 | 1 | 2 | Varies significantly |
+| **form_structure** | 0 | 0 | 6 | 5 | Only in Runs 4&5 |
+| **header** | 1 | 1 | 1 | 1 | **100% consistent** |
+| **page_marker** | 1 | 1 | 1 | 1 | **100% consistent** |
+| **signature_line** | 1 | 1 | 0 | 1 | Mostly consistent |
+| **footer** | 0 | 0 | 1 | 0 | Rare |
+| **TOTAL** | **10** | **7** | **10** | **10** | - |
 
-| Run | AI Processing | Total Job Duration | Overhead | Notes |
-|-----|---------------|-------------------|----------|-------|
-| Run 1 | 4m 19s (259s) | 8m 56s (536s) | 4m 37s | Initial validation |
-| Run 2 | 2m 48s (168s) | 6m 5s (365s) | 3m 17s | **Fastest AI processing** |
-| Run 4 | 4m 43s (282s) | 9m 23s (563s) | 4m 40s | Post-fix validation |
-| Run 5 | 4m 36s (276s) | 8m 43s (523s) | 4m 7s | Extended validation |
-
-**AI Processing Time Variance: 2m48s - 4m43s (71% range)**
-**Total Job Duration Variance: 6m5s - 9m23s (54% range)**
-
-**Analysis:**
-- ⚠️ **Non-deterministic processing time** - Run 2 was 37% faster than Run 1
-- ✅ **Background job architecture handles variance** - All times acceptable for async processing
-- 💡 **Possible causes:** OpenAI API load, network latency, model temperature (0.1 still has minor randomness)
-
----
-
-## Prompt Hardening Validation
-
-### Pre-Fix (Run 3)
-- **Status:** ❌ FAILED
-- **Error:** Database constraint violation on `spatial_mapping_source`
-- **Processing Time:** 17m 31s before failure
-- **Root Cause:** AI generated invalid enum value (not 'ocr_exact', 'ocr_approximate', 'ai_estimated', or 'none')
-
-### Post-Fix (Runs 4 & 5)
-- **Status:** ✅ 100% SUCCESS (2/2 runs)
-- **Fix Applied:** Explicitly enumerated valid spatial_source values in prompt (lines 107-111)
-- **Commit:** 20a993b (2025-10-07)
-- **Validation:** Zero constraint violations in 2 subsequent runs
-
-**Success Rate:**
-- Pre-fix: 66% (2 of 3 runs successful)
-- Post-fix: 100% (2 of 2 runs successful)
-- **Overall: 80% (4 of 5 total runs successful)**
+**Observation:** Runs 4&5 classify form elements as `form_structure` instead of `document_structure_other`
 
 ---
 
-## Gold Standard vs Minimal Prompt Comparison
+## Quality Metrics Analysis
 
-| Metric | Minimal (Test 03) | Gold Standard (Test 05) | Winner |
-|--------|-------------------|-------------------------|--------|
-| **Entity Count** | 52-55 (avg 53) | 37-39 (avg 38.3) | Minimal (+38%) |
-| **Confidence Scores** | 0.5 (fallback) | 93-96% (real AI) | ✅ **Gold Standard** |
-| **AI-OCR Agreement** | 0% (not tracked) | 98.4% | ✅ **Gold Standard** |
-| **Metadata Quality** | "minimal test", "unknown" | Rich descriptions | ✅ **Gold Standard** |
-| **Healthcare Context Consistency** | Variable | 100% (Runs 1-4), 45% (Run 5) | ⚠️ Tie |
-| **Clinical Event Consistency** | Variable | Variable | Tie |
-| **Processing Time** | 3m 13s | 4m 7s | Minimal (21% faster) |
-| **Cost** | $0.011 | $0.197 | Minimal (94% cheaper) |
-| **Production Ready** | ❌ Poor metadata | ✅ High quality | ✅ **Gold Standard** |
+### Confidence Scores (from pass1_entity_metrics)
 
-**Verdict:** Gold Standard wins on quality, Minimal wins on cost. **Quality > Quantity for production medical data.**
+| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Average |
+|--------|-------|-------|-------|-------|---------|
+| **Overall Confidence** | 97% | 98% | 97% | 97% | **97.3%** |
+| **OCR Agreement** | 97% | 96% | 98% | 98% | **97.3%** |
+| **High Confidence Entities** | 47 | 39 | 35 | 40 | 40.3 |
+| **Medium Confidence** | 0 | 0 | 0 | 0 | 0 |
+| **Low Confidence** | 0 | 0 | 0 | 0 | 0 |
+
+**Quality Assessment: EXCELLENT**
+- All entities classified as "high confidence"
+- 97%+ average confidence across all runs
+- 97%+ OCR agreement (AI and OCR strongly align)
+- Zero entities requiring manual review
+
+### Entity-Level Confidence (from entity_processing_audit)
+
+**Immunization Records (highest priority clinical data):**
+
+| Run | Count | Avg Confidence | Range |
+|-----|-------|----------------|-------|
+| Run 1 | 15 | 97.7% | 95-99% |
+| Run 2 | 10 | 98.6% | 96-99% |
+| Run 4 | 10 | 98.2% | 95-99% |
+| Run 5 | 15 | 97.7% | 95-99% |
+
+**Patient Identifiers:**
+
+| Run | Count | Avg Confidence | Range |
+|-----|-------|----------------|-------|
+| Run 1 | 8 | 97.1% | 92-99% |
+| Run 2 | 8 | 97.3% | 92-99% |
+| Run 4 | 8 | 97.4% | 95-99% |
+| Run 5 | 8 | 96.8% | 92-99% |
+
+**Consistent high confidence across all entity types and runs.**
 
 ---
 
-## Clinical Data Consistency Assessment
+## Cost and Performance
 
-### Critical Medical Information (100% Captured Across All Runs)
+| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Average |
+|--------|-------|-------|-------|-------|---------|
+| **Cost per Document** | $0.220 | $0.209 | $0.184 | $0.198 | **$0.203** |
+| **Processing Time** | N/A | N/A | N/A | N/A | ~4 minutes |
+| **Model** | gpt-5-mini | gpt-5-mini | gpt-5-mini | gpt-5-mini | - |
 
-✅ **Patient Demographics:**
-- Name: Xavier Flanagan
-- DOB: 25/04/1994
-- Address: 505 Grasslands Rd, Boneo 3939
-- Phone: 5988 6686, 0488180888
-
-✅ **Facility Information:**
-- South Coast Medical
-- 2841 Pt Nepean Rd, Blairgowrie 3942
-- Phone: 59888604
-
-✅ **Clinical Status:**
-- Allergies: "Nil known"
-- Current Medications: "No long term medications"
-- Family History: "Not recorded"
-
-✅ **Immunizations (All 9 vaccines detected every run):**
-1. 11/04/2010 Fluvax (Influenza)
-2. 02/04/2011 Fluvax (Influenza)
-3. 03/10/2011 Vivaxim (Hepatitis A, Typhoid)
-4. 03/10/2011 Dukoral (Cholera)
-5. 14/11/2014 Stamaril (Yellow Fever)
-6. 14/11/2014 Havrix 1440 (Hepatitis A)
-7. 14/11/2014 Typhim Vi (Typhoid)
-8. 06/01/2017 Boostrix (Pertussis, Diphtheria, Tetanus)
-9. 11/01/2017 Engerix-B Adult (Hepatitis B)
-10. 19/03/2020 Fluad (Influenza)
-
-**ZERO clinical data loss across all successful runs.**
+**Cost Variance:** 16% range ($0.184-$0.220)
+- Likely correlated with entity count
+- Run 1 (47 entities) was most expensive
+- Run 4 (35 entities) was least expensive
 
 ---
 
 ## Sources of Variability (Ranked by Impact)
 
-### 1. Entity Consolidation vs Splitting (HIGH IMPACT)
-**Run 5 deviation suggests AI makes real-time decisions about grouping related fields.**
+### 1. Healthcare Context Consolidation (HIGH IMPACT - 55% variance)
+**Pattern:** Bifurcation between granular (20 entities) and consolidated (9 entities)
 
-**Examples:**
-- Label + value as 1 entity vs 2 separate entities
-- Multi-component items as 1 entity vs N separate entities
-- Address lines consolidated vs split by line
+**Hypothesis:** The AI makes a high-level decision early in processing:
+- "Split all labels from values" → 20 entities (Runs 1&2)
+- "Combine labels with values" → 9 entities (Runs 4&5)
 
-**Impact:**
-- ⚠️ **Entity count unreliable as quality metric**
-- ⚠️ **Pass 2 processing needs flexible parsing**
-- ✅ **No data loss** - information preserved regardless
-
-### 2. List Item Splitting (MEDIUM IMPACT)
-**Combo vaccines handled inconsistently:**
-- Run with more splits → higher entity count
-- Run with consolidated entries → lower entity count
+**Evidence:**
+- Perfect consistency WITHIN each pattern (Runs 1&2 identical, Runs 4&5 identical)
+- No gradient (no runs with 10-19 entities) - it's binary
+- Same 8 patient_identifier entities across ALL runs (core data unchanged)
 
 **Impact:**
-- ⚠️ **Entity count variance** - directly affects total
-- ✅ **Clinical data complete** - all vaccine components captured
+- ✅ Zero data loss - all information captured
+- ⚠️ Entity count unreliable as quality metric
+- ⚠️ Pass 2 parsing must handle both patterns
 
-### 3. Processing Time Variance (LOW IMPACT)
-**2m48s - 4m43s range (71% variance)**
+### 2. Immunization Splitting (MEDIUM IMPACT - 33% variance)
+**Pattern:** Multi-component vaccines handled differently
+
+**Runs with 15 immunizations (Runs 1&5):**
+- Combination vaccines split into individual components
+- "Boostrix" → 3 entities (Pertussis, Diphtheria, Tetanus)
+- "Vivaxim" → 2 entities (Hepatitis A, Typhoid)
+
+**Runs with 10 immunizations (Runs 2&4):**
+- Combination vaccines kept together
+- "Boostrix (Pertussis, Diphtheria, Tetanus)" → 1 entity
+- "Vivaxim (Hepatitis A, Typhoid)" → 1 entity
 
 **Impact:**
-- ✅ **All times acceptable** for background jobs
-- ⚠️ **Cannot predict exact duration** - plan for worst case
+- ✅ All vaccine components captured either way
+- ✅ Clinical data complete
+- ⚠️ Different entity counts but same medical information
 
-### 4. Cost Variance (VERY LOW IMPACT)
-**$0.194 - $0.202 (4% variance)**
+### 3. Document Structure Classification (LOW IMPACT - 30% variance)
+**Pattern:** Form elements classified differently
+
+**Runs 1&2:** Use `document_structure_other` (7 and 4 entities)
+**Runs 4&5:** Use `form_structure` (6 and 5 entities)
 
 **Impact:**
-- ✅ **Highly stable** - ~$0.20/document reliable estimate
-- ✅ **Still 60% cheaper than GPT-4o**
+- ✅ All document structure elements detected
+- ✅ No impact on clinical processing (document_structure is logging-only)
+- ℹ️ Shows AI learning/adapting taxonomy usage
 
 ---
 
-## Recommendations for Production Use
+## Clinical Data Completeness Assessment
 
-### 1. Entity Count Monitoring ⚠️
-**DO NOT use entity count as a quality metric.**
+### 100% Captured Across All Runs
 
-**Instead, monitor:**
-- ✅ AI-OCR agreement score (target: >95%)
-- ✅ Overall confidence (target: >90%)
-- ✅ Manual review queue depth (target: 0)
-- ✅ Pass 2 success rate (target: >95%)
+**Patient Demographics:**
+- ✅ Name: Xavier Flanagan
+- ✅ DOB: 25/04/1994
+- ✅ Address: 505 Grasslands Rd, Boneo 3939
+- ✅ Phone: 5988 6686, Mobile: 0488180888
 
-### 2. Pass 2 Processing Design
-**Build flexible entity parsing:**
-```typescript
-// BAD: Assumes 1 entity = 1 field
-patient.name = entity.original_text;
+**Facility Information:**
+- ✅ South Coast Medical
+- ✅ 2841 Pt Nepean Rd, Blairgowrie 3942
+- ✅ Phone: 59888604
 
-// GOOD: Parses consolidated entities
-const parsed = parsePatientIdentifier(entity.original_text);
-patient.name = parsed.name;
-patient.dob = parsed.dob;
-patient.address = parsed.address;
+**Clinical Status:**
+- ✅ Allergies: "Nil known" (1 entity, 96% confidence)
+- ✅ Medications: "No long term medications" (1 entity, 93-95% confidence)
+
+**Immunizations (all 9 base vaccines + combination components):**
+- ✅ 100% detection rate across all runs
+- ✅ Average 97-98% confidence
+- ✅ All dates and vaccine names captured
+
+**ZERO clinical data loss across any run.**
+
+---
+
+## Pattern Stability Analysis
+
+### Stable Elements (0% variance)
+- ✅ patient_identifier count: 8 entities (all runs)
+- ✅ header: 1 entity (all runs)
+- ✅ page_marker: 1 entity (all runs)
+- ✅ allergy: 1 entity (all runs)
+- ✅ medication: 1 entity (all runs)
+
+### Bifurcated Elements (binary choice, stable within pattern)
+- ⚠️ healthcare_context total: 20 (Runs 1&2) or 9 (Runs 4&5)
+- ⚠️ immunization: 15 (Runs 1&5) or 10 (Runs 2&4)
+
+### Variable Elements (changes across runs)
+- ⚠️ clinical_event total: 12-21 (driven by immunization splitting)
+- ⚠️ document_structure total: 7-10 (driven by form_structure classification)
+
+---
+
+## Comparison to Test 03 (Minimal Prompt)
+
+| Metric | Test 03 (Minimal) | Test 05 (Gold Standard) | Winner |
+|--------|-------------------|-------------------------|--------|
+| **Entity Count** | 52-55 (avg 53) | 35-47 (avg 40) | Test 03 (+32%) |
+| **Confidence** | 50% (fallback) | 97% (real AI) | ✅ **Test 05** |
+| **OCR Agreement** | 0% (not tracked) | 97% | ✅ **Test 05** |
+| **Taxonomy Classification** | 2 types only | 10+ types | ✅ **Test 05** |
+| **Metadata Quality** | "minimal test", "unknown" | Rich descriptions | ✅ **Test 05** |
+| **Cost** | $0.09-0.11 | $0.18-0.22 | Test 03 (51% cheaper) |
+| **Production Ready** | ❌ Poor metadata | ✅ High quality | ✅ **Test 05** |
+
+**Verdict:** Test 05 wins on quality, Test 03 wins on cost. For medical data, **quality > quantity**.
+
+---
+
+## Production Implications
+
+### Entity Count is NOT a Reliable Quality Metric
+
+**Evidence:**
+- 25% variance across identical document uploads (35-47 entities)
+- Same clinical data captured in all runs
+- Variance driven by entity boundary decisions, not data detection
+
+**Recommendation:** Monitor quality metrics instead:
+- ✅ OCR agreement score (target: >95%) - ACHIEVED (97%)
+- ✅ Confidence scores (target: >90%) - ACHIEVED (97%)
+- ✅ Manual review queue (target: 0) - ACHIEVED (0)
+- ❌ Entity count (unreliable, do not use)
+
+### Pass 2 Must Handle Variable Entity Granularity
+
+**Scenario 1: Granular entities (Runs 1&2)**
+```
+Entity 1: "Name:"
+Entity 2: "Xavier Flanagan"
+→ Pass 2 must parse both to extract patient name
 ```
 
-### 3. Cost Budgeting
-**Budget for $0.20/document (use $0.25 for safety margin)**
+**Scenario 2: Consolidated entities (Runs 4&5)**
+```
+Entity 1: "Name: Xavier Flanagan"
+→ Pass 2 must parse single entity to extract patient name
+```
+
+**Solution:** Pass 2 entity parsing must use NLP to extract structured data from variable text, not rely on 1 entity = 1 field assumptions.
+
+### Cost Budget
+
+**Observed range:** $0.184 - $0.220 per document
+**Average:** $0.203 per document
+**Recommendation:** Budget $0.25/document for safety margin
 
 **At scale:**
-- 1,000 docs/month: $200/month
-- 10,000 docs/month: $2,000/month
-- 100,000 docs/month: $20,000/month
+- 1,000 docs/month: $250/month
+- 10,000 docs/month: $2,500/month
+- 100,000 docs/month: $25,000/month
 
-**Still 60-75% cheaper than GPT-4o alternatives.**
-
-### 4. Performance SLA
-**Set processing time SLA based on worst case:**
-- P50: 4 minutes
-- P95: 5 minutes
-- P99: 6 minutes
-- Max timeout: 10 minutes (for retries)
-
-### 5. Reliability Monitoring
-**Track constraint violations:**
-- Target: <1% failure rate
-- Current: 20% pre-fix, 0% post-fix
-- Action threshold: >5% failures → investigate prompt
+**Still 60% cheaper than GPT-4o alternative (~$0.50/document).**
 
 ---
 
 ## Conclusion
 
-**GPT-5-mini + Gold Standard Prompt is PRODUCTION-VALIDATED** with these characteristics:
+**Gold Standard + GPT-5-mini is PRODUCTION-READY** with these characteristics:
 
 ✅ **Clinical Reliability:**
-- 100% critical data capture across all runs
-- Zero medical information loss
-- All 9 immunizations detected every time
+- 100% detection rate for all medical information
+- Zero data loss across all variability patterns
+- All 9 immunization records captured every time
 
-✅ **Quality Metrics:**
-- 94% average confidence (vs 50% fallback values)
-- 98.4% AI-OCR agreement
-- Zero manual review required
+✅ **Quality Excellence:**
+- 97% average confidence (vs 50% fallback in Test 03)
+- 97% OCR agreement (AI and OCR strongly align)
+- Zero entities requiring manual review
+- Proper taxonomy classification (10+ entity types)
 
-✅ **Robustness:**
-- Prompt hardening eliminates constraint violations
-- 100% success rate post-fix (2/2 runs)
-- 80% overall success rate (4/5 runs including pre-fix failure)
+⚠️ **Expected Variability (Acceptable):**
+- Entity count: 35-47 entities (25% variance)
+- Entity granularity: Binary pattern (granular vs consolidated)
+- Immunization splitting: 10 or 15 entities (but all 9 vaccines captured)
+- Cost: $0.18-0.22 per document (acceptable range)
 
-⚠️ **Known Variability (Acceptable):**
-- Entity count: 37-39 entities (5% variance)
-- Entity grouping: Non-deterministic consolidation decisions
-- Processing time: 2m48s - 4m43s (acceptable for background jobs)
-- Cost: $0.194-$0.202 (highly stable)
+**The variability is intelligent entity boundary decisions, NOT data loss.**
 
-**The variability observed is NOT a production blocker:**
-- It's intelligent entity grouping, not data loss
-- All critical medical information consistently captured
-- Quality metrics remain excellent across all runs
-- Cost and performance within acceptable ranges
-
-**Production Deployment: APPROVED** ✅
+**Production Status: APPROVED** ✅
 
 ---
 
-**Next Steps:**
-1. Deploy to production with current gold standard configuration
-2. Monitor entity quality metrics (not entity count)
-3. Build flexible Pass 2 parsing to handle consolidated entities
-4. Track long-term success rate (target: >95%)
+## Recommendations
+
+### 1. Monitoring Strategy
+**DO monitor:**
+- OCR agreement (>95% target) ✅
+- Confidence scores (>90% target) ✅
+- Manual review queue depth ✅
+- Processing failures rate ✅
+
+**DO NOT monitor:**
+- Entity count as quality indicator ❌
+- Expect exact entity count reproducibility ❌
+
+### 2. Pass 2 Design
+- Build flexible entity parsers that handle variable granularity
+- Use NLP to extract structured data from entity text
+- Don't assume 1 entity = 1 database field
+- Validate extracted data, not entity count
+
+### 3. Cost Management
+- Budget $0.25/document (includes safety margin)
+- Monitor actual costs but expect $0.18-0.22 range
+- Still 60%+ cheaper than GPT-4o alternatives
+
+### 4. Quality Assurance
+- Current 97% confidence and OCR agreement is excellent
+- Zero manual review queue shows automation-ready quality
+- Proper taxonomy usage enables Pass 2 processing
+- Prompt hardening eliminated constraint violations
 
 ---
 
 **Last Updated:** 2025-10-07
-**Analysis Status:** Complete (5-run validation)
+**Data Source:** Supabase database queries (pass1_entity_metrics, entity_processing_audit)
+**Analysis Status:** Complete - Based on 4 successful runs (Runs 1, 2, 4, 5)
 **Production Readiness:** ✅ APPROVED
