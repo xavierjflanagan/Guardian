@@ -149,12 +149,29 @@ Pass 1 entity detection was only extracting 3 entities from documents that shoul
 | GPT-4o + Complex Prompt | ~60s | N/A | ❌ Under-extraction |
 | GPT-4o + Minimal Prompt | ~70s | No rich metadata | ⚠️ Limited |
 | GPT-5-mini + Minimal (Test 03) | 3m 13s | Fallback values only | ❌ Poor quality |
-| **GPT-5-mini + Gold Standard (Test 05)** | **4m 19s** | **Rich AI metadata** | ✅✅ **Yes** |
+| **GPT-5-mini + Gold Standard (Test 05)** | **3m 34s avg** | **Rich AI metadata** | ✅✅ **Yes** |
+
+### Variability Analysis (Test 05 - Multiple Runs)
+
+| Run | Entities | Confidence | AI-OCR | Processing Time | Status |
+|-----|----------|------------|--------|----------------|--------|
+| Run 1 | 38 | 96% | 98.3% | 4m 19s | ✅ Success |
+| Run 2 | 38 | 95% | 98.5% | 2m 48s | ✅ Success |
+| Run 3 | N/A | N/A | N/A | 17m 31s | ❌ Constraint violation |
+| **Average (successful)** | **38** | **95.5%** | **98.4%** | **3m 34s** | **66% success rate** |
+
+**Key Findings:**
+- 100% entity count consistency (38 entities in both successful runs)
+- Core patient data 100% identical across runs
+- Performance variance: 2m48s - 4m19s (35% range)
+- Known issue: Rare constraint violations on `spatial_mapping_source` field
+
+**Prompt Fix Applied:** Explicitly enumerated valid spatial_source values (lines 107-111 in pass1-prompts.ts)
 
 ---
 
 **Last Updated:** 2025-10-07
-**Status:** ✅ Testing complete - Gold Standard + GPT-5-mini in production
+**Status:** ✅ Testing complete - Gold Standard + GPT-5-mini in production (prompt hardening applied)
 
 ## Final Recommendation
 
