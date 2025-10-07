@@ -1,8 +1,35 @@
 # Test 03: GPT-5-mini with Minimal Prompt
 
 **Date:** 2025-10-06
-**Status:** ✅ COMPLETED - SUCCESS (Better quality + 5x cheaper!)
+**Status:** ⚠️ RESULTS INVALIDATED - See correction below
 **Priority:** HIGH (cost optimization)
+
+---
+
+## 🚨 CRITICAL CORRECTION (2025-10-07)
+
+**This test's conclusions were INCORRECT.**
+
+**What we thought:** GPT-5-mini + minimal prompt (20 lines) produced 52-55 high-quality entities.
+
+**What actually happened:**
+1. Environment variable `USE_MINIMAL_PROMPT` was likely set inconsistently
+2. Code used **GOLD STANDARD prompt** (348 lines from `pass1-prompts.ts`)
+3. BUT injected **fallback values** via code (Pass1EntityDetector.ts lines 365-398)
+4. Result: Correct entity count, but **poor quality metadata**:
+   - `visual_formatting_context`: "minimal test" (hardcoded fallback)
+   - `visual_quality_assessment`: "unknown" (hardcoded fallback)
+   - All confidence scores: 0.5 (hardcoded fallback)
+
+**Evidence:** Database query shows `visual_formatting_context = "minimal test"` which only appears in the fallback code path, not in any prompt.
+
+**Correct Test:** See [Test 05 - Gold Standard Production Validation](./test-05-gold-standard-production-validation.md) for TRUE gold standard results (38 entities, 96% confidence, 98.3% AI-OCR agreement).
+
+**This file is preserved for historical reference only.**
+
+---
+
+## Original Test Documentation (INVALIDATED)
 
 ## Hypothesis
 

@@ -1,8 +1,32 @@
 # Test 04: GPT-5-mini with Structured Prompt Evolution
 
 **Date:** 2025-10-07
-**Status:** 🚧 IN PROGRESS - Phased rollout
+**Status:** ❌ CANCELLED - Gold Standard Proven Superior
 **Priority:** HIGH (enable full medical data extraction)
+
+---
+
+## 🚨 EXPERIMENT CANCELLED (2025-10-07)
+
+**This phased approach was abandoned in favor of the gold standard prompt.**
+
+**Reason:** After multiple failed attempts to create a minimal prompt with proper schema validation:
+1. **Phase 1 Attempt:** 44 validation errors (schema mismatch)
+2. **Token Limit Fix:** Output exceeded 16K tokens (finish_reason: "length")
+3. **Schema Compression:** AI couldn't parse compressed format
+
+**Conclusion:** The gold standard prompt (348 lines) is OPTIMAL. The verbose schema examples are NECESSARY for AI to generate proper output structure.
+
+**Production Decision:** Use gold standard prompt with GPT-5-mini.
+- See [Test 05 - Gold Standard Production Validation](./test-05-gold-standard-production-validation.md)
+- Result: 38 high-quality entities, 96% confidence, 98.3% AI-OCR agreement
+- Cost: $0.194/doc (still 60% cheaper than GPT-4o)
+
+**This file is preserved to document the failed experiment and lessons learned.**
+
+---
+
+## Original Experiment Plan (NOT EXECUTED)
 
 ## Hypothesis
 
