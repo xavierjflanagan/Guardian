@@ -1,49 +1,123 @@
 /**
- * EXPERIMENTAL: Minimal List-First Prompt for Testing
- * Created: 2025-10-06
- * Purpose: Test if instruction dilution is causing under-extraction
+ * TEST 04 PHASE 1: Minimal Prompt + Entity Taxonomy
+ * Created: 2025-10-07
+ * Purpose: Add structured entity classification while maintaining extraction quality
  *
- * Hypothesis: The 348-line complex prompt is overwhelming the AI,
- * causing it to summarize lists instead of extracting individual items.
+ * Evolution from Test 03 (baseline):
+ * - Test 03: 20 lines, 53 entities avg, no classification
+ * - Phase 1: ~60 lines, target 50+ entities with proper categories
  *
- * This minimal prompt strips away all complexity to test pure extraction.
+ * Phase 1 adds: Compact 3-tier taxonomy, disambiguation rules, combo vaccine splitting
  */
 
 import { Pass1Input } from './pass1-types';
 
+// =============================================================================
+// ENTITY TAXONOMY (Compact Version - Based on Gold Standard)
+// =============================================================================
+
+const ENTITY_TAXONOMY = `
+=== CLINICAL EVENTS (Full medical analysis required) ===
+• vital_sign: BP, temp, pulse, weight, height
+• lab_result: Blood tests, glucose, HbA1c, cholesterol
+• physical_finding: Exam findings, heart sounds, breath sounds
+• symptom: Patient complaints, chest pain, headache
+• medication: Prescribed drugs with dosage
+• procedure: Medical procedures, surgeries, imaging
+• immunization: Vaccines administered (split combo vaccines by disease)
+• diagnosis: Medical conditions, diseases
+• allergy: Known allergies and adverse reactions
+• healthcare_encounter: Visits, consultations, ER admissions
+• clinical_other: Clinical info not fitting other subtypes
+
+=== HEALTHCARE CONTEXT (Profile matching) ===
+• patient_identifier: Name, DOB, MRN, address, phone
+• provider_identifier: Doctor names, NPI, credentials
+• facility_identifier: Hospital, clinic, room numbers
+• appointment: Scheduled visits, follow-ups
+• referral: Specialist referrals
+• insurance_information: Coverage, policy numbers
+• billing_code: CPT, ICD-10 codes
+• healthcare_context_other: Healthcare info not fitting other subtypes
+
+=== DOCUMENT STRUCTURE (Logging only) ===
+• section_header: Document section titles
+• page_marker: Page numbers, footers
+• logo: Institutional branding
+• signature_line: Signature areas
+• watermark: Security features
+• document_structure_other: Structural elements not fitting other categories
+`;
+
+const DISAMBIGUATION_RULES = `
+DISAMBIGUATION:
+- Substance + dosage → medication; condition name → diagnosis
+- Scheduled/future → appointment; performed → procedure
+- With credentials → provider_identifier; signature area → signature_line
+- Combo vaccines: SPLIT into separate entities per disease (e.g., "Boostrix (Pertussis, Diphtheria, Tetanus)" → 3 immunization entities)
+- Skip standalone disease names if already in dated clinical entries (legend items)
+`;
+
+// =============================================================================
+// MINIMAL PROMPT WITH TAXONOMY
+// =============================================================================
+
 /**
- * Ultra-minimal prompt focused ONLY on list extraction
- * No taxonomy, no examples, no complex instructions
+ * Phase 1: Minimal prompt + entity taxonomy for classification
  */
 export function generateMinimalListPrompt(_input: Pass1Input): string {
   return `
-Extract EVERY piece of information from this medical document as SEPARATE entities.
+Extract EVERY piece of information from this medical document as SEPARATE entities with proper classification.
 
-CRITICAL RULES:
+CRITICAL LIST RULES (UNCHANGED FROM BASELINE):
 1. Each list item = separate entity (DO NOT summarize lists)
 2. If you see 9 immunizations, emit 9 separate entities
-3. Each phone number = separate entity
-4. Each address = separate entity
-5. Split multi-item lines (commas, "and", slashes) into separate entities
+3. Each phone number, address line = separate entity
+4. Split multi-item lines (commas, "and", slashes) into separate entities
+5. Combination vaccines: Split into separate entities per disease component
+
+ENTITY CLASSIFICATION:
+${ENTITY_TAXONOMY}
+
+${DISAMBIGUATION_RULES}
+
+ADDITIONAL RULES:
+- Section headers (Immunisations, Medications, Family History) → section_header
+- Do NOT extract standalone disease names if already captured in dated entries
+- Each immunization record with date = separate immunization entity
+- "Not recorded" or "Nil known" → clinical_other (clinical status info)
+- ALWAYS emit uncertain items; set confidence < 0.7 when unsure (never skip entities)
+- Cap original_text to 120 characters (truncate longer text)
 
 Return JSON with this structure:
 {
   "entities": [
     {
-      "id": "1",
-      "text": "exact text from document",
-      "category": "patient_info|clinical|facility|other",
-      "bbox": {"x": 0, "y": 0, "width": 0, "height": 0}
+      "entity_id": "ent_001",
+      "original_text": "exact text from document (max 120 chars)",
+      "classification": {
+        "entity_category": "clinical_event|healthcare_context|document_structure",
+        "entity_subtype": "specific_subtype_from_taxonomy",
+        "confidence": 0.95
+      },
+      "spatial_information": {
+        "page_number": 1,
+        "bounding_box": {"x": 0, "y": 0, "width": 0, "height": 0}
+      }
     }
   ],
-  "total_count": <number>
+  "total_entities": <number>
 }
 
-Extract EVERYTHING you see. No summarization. Each item = separate entity.
+NOTE: Bounding_box values are pixel coordinates on the page.
+
+Extract EVERYTHING you see. No summarization. Each item = separate classified entity.
+
+Return ONLY the JSON object, no extra text.
 `.trim();
 }
 
 /**
- * System message for minimal test
+ * System message for Phase 1 taxonomy test
  */
-export const MINIMAL_SYSTEM_MESSAGE = `You are a medical document entity extractor. Extract EVERY piece of information as separate entities. Never summarize lists.`;
+export const MINIMAL_SYSTEM_MESSAGE = `You are a medical document entity classifier. Extract EVERY piece of information as separate classified entities. Never summarize lists. Always split combination items into separate entities.`;
