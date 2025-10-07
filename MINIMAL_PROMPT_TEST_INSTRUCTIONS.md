@@ -1,5 +1,14 @@
 # Minimal Prompt A/B Test Instructions
 
+## TEST COMPLETED 2025-10-06
+
+**Result:** SUCCESS - Instruction dilution confirmed as root cause
+**Outcome:** 41 entities extracted (vs 3 with complex prompt) - **13x improvement**
+**Processing Time:** 70 seconds (acceptable for background jobs)
+**Decision:** Use minimal prompt approach in production
+
+---
+
 ## Purpose
 Test if the complex 348-line prompt is causing under-extraction (currently 3/15+ entities).
 
@@ -62,12 +71,27 @@ Look for:
 - **Actual:** 3 entities (1 name, 1 DOB, 1 immunization)
 - **Missing:** 8 immunizations, addresses, phones, facility info
 
+## ACTUAL TEST RESULTS (2025-10-06)
+
+**Test 1:** 41 entities extracted in 75 seconds
+**Test 2:** 41 entities extracted in 69.5 seconds
+**Consistency:** 100% - both tests produced identical entity counts
+**Cost:** $0.055 per document (GPT-4o with minimal prompt)
+
+**Conclusion:** Minimal prompt approach is production-ready and should replace complex prompt.
+
 ## Cleanup After Test
 
-Once test is complete:
-1. Remove `USE_MINIMAL_PROMPT` environment variable from Render.com
-2. Redeploy to return to standard prompt
-3. Document findings in PASS1_TRIAGE_PLAN_2025-10-06.md
+PRODUCTION DECISION:
+1. **KEEP** `USE_MINIMAL_PROMPT=true` in Render.com (proven superior)
+2. Mark complex prompt as deprecated
+3. Plan migration: Convert minimal prompt to primary implementation
+4. Archive this test file once migration complete
+
+COMPLETED ACTIONS:
+- ✅ Test results documented in PASS1_TRIAGE_PLAN_2025-10-06.md
+- ✅ Cost comparison analysis completed
+- ✅ Performance validation: 70s processing time acceptable
 
 ## Related Files
 
