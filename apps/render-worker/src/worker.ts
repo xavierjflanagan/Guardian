@@ -88,7 +88,7 @@ class V3Worker {
         openai_api_key: config.openai.apiKey,
         model: 'gpt-5-mini', // TESTING: GPT-5-mini with minimal prompt (5x cheaper than GPT-4o)
         temperature: 0.1,
-        max_tokens: 16000, // GPT-5-mini supports up to 16K output
+        max_tokens: 32000, // Increased for full schema output (55 entities × ~300 tokens)
         confidence_threshold: 0.7,
       };
       console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
