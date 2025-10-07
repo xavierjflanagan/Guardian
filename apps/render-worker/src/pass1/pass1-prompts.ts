@@ -104,7 +104,11 @@ CRITICAL REQUIREMENTS:
 3. Flag significant discrepancies between your vision and OCR
 4. Identify 100% of document content visible in the image
 5. Map each visual entity to the closest OCR spatial coordinates when available
-6. Mark spatial_source appropriately based on coordinate accuracy
+6. Mark spatial_source with EXACTLY one of these values based on coordinate accuracy:
+   - "ocr_exact": Coordinates directly from OCR with high precision
+   - "ocr_approximate": Coordinates from OCR with some uncertainty
+   - "ai_estimated": Coordinates estimated by visual analysis (no OCR match)
+   - "none": No spatial coordinates available
 7. Always emit uncertain items as entities; set requires_manual_review=true when confidence < 0.7
 
 CRITICAL: LIST HANDLING RULES (STRICT)
