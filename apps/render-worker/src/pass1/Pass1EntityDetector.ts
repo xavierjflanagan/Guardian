@@ -97,13 +97,19 @@ export class Pass1EntityDetector {
 
       // DEBUG: Log what AI actually returned
       console.log(`[Pass1] AI returned ${aiResponse.entities.length} entities`);
-      console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
-      console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
-      console.log(`[Pass1] Full AI response entities:`, JSON.stringify(aiResponse.entities, null, 2));
+      if (config.environment.verbose) {
+        console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
+        console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
+        // Only log first 3 entities to avoid blocking event loop
+        console.log(`[Pass1] Sample entities (first 3):`, JSON.stringify(aiResponse.entities.slice(0, 3), null, 2));
+      }
 
       // Step 4: Translate AI output to database format
       console.log(`[Pass1] Translating ${aiResponse.entities.length} entities to database format...`);
       const entityRecords = translateAIOutputToDatabase(aiResponse, sessionMetadata);
+
+      // Yield to event loop after heavy translation (allows heartbeat to fire)
+      await new Promise(resolve => setImmediate(resolve));
 
       // Step 5: Validate translated records
       const validation = validateRecordBatch(entityRecords);
@@ -114,6 +120,9 @@ export class Pass1EntityDetector {
 
       // Step 6: Generate statistics
       const stats = generateRecordStatistics(entityRecords);
+
+      // Yield to event loop after stats generation (allows heartbeat to fire)
+      await new Promise(resolve => setImmediate(resolve));
 
       // Step 7: Calculate processing time
       const processingTimeMs = Date.now() - startTime;
