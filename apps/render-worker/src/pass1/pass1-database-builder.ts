@@ -261,9 +261,9 @@ function buildPass1EntityMetrics(
     output_tokens: aiResponse.processing_metadata.token_usage.completion_tokens,
     total_tokens: aiResponse.processing_metadata.token_usage.total_tokens,
 
-    // DEPRECATED: Dual-write during migration period (remove in Phase 5)
+    // DEPRECATED: Dual-write during migration period (columns still exist, Step 6 not executed yet)
     vision_tokens_used: aiResponse.processing_metadata.token_usage.total_tokens,
-    // REMOVED: cost_usd (dropped in migration 15, calculate on-demand)
+    cost_usd: aiResponse.processing_metadata.cost_estimate,
 
     ocr_pages_processed: input.document_metadata.page_count,
   };
