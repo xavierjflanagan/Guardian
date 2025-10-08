@@ -34,16 +34,13 @@ export declare class Pass1EntityDetector {
      * Calculate cost for GPT-4o Vision processing
      *
      * GPT-4o Pricing (as of 2025):
-     * - Input: $2.50 per 1M tokens
+     * - Input: $2.50 per 1M tokens (includes image tokens from OpenAI)
      * - Output: $10.00 per 1M tokens
-     * - Image: ~$7.65 per 1M tokens (varies by size)
+     *
+     * Note: OpenAI's prompt_tokens already includes image tokens, so we don't
+     * need to estimate or add them separately.
      */
     private calculateCost;
-    /**
-     * Estimate image tokens based on file size
-     * Rough approximation: ~85 tokens per 1000 bytes for images
-     */
-    private estimateImageTokens;
     /**
      * Validate Pass 1 input before processing
      */

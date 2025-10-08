@@ -198,9 +198,9 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit (
     -- Processing Session Management
     processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
 
-    -- AI Model and Performance Metadata
-    pass1_model_used TEXT NOT NULL,        -- AI model used for entity detection (GPT-4o, Claude Vision)
-    pass1_vision_processing BOOLEAN DEFAULT FALSE, -- Whether vision model was used
+    -- AI Model and Performance Metadata (Session-level data via JOIN)
+    -- REMOVED: pass1_model_used (use JOIN to pass1_entity_metrics)
+    -- REMOVED: pass1_vision_processing (use JOIN to pass1_entity_metrics)
     pass2_model_used TEXT,                 -- AI model used for enrichment (if applicable)
     pass1_token_usage INTEGER,             -- Token consumption for Pass 1
     pass1_image_tokens INTEGER,            -- Image tokens for vision models
@@ -454,7 +454,7 @@ CREATE INDEX IF NOT EXISTS idx_entity_audit_visual_confidence ON entity_processi
 CREATE INDEX IF NOT EXISTS idx_entity_audit_cross_validation ON entity_processing_audit(cross_validation_score);
 CREATE INDEX IF NOT EXISTS idx_entity_audit_discrepancy ON entity_processing_audit(discrepancy_type) WHERE discrepancy_type IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entity_audit_spatial_source ON entity_processing_audit(spatial_mapping_source);
-CREATE INDEX IF NOT EXISTS idx_entity_audit_vision_processing ON entity_processing_audit(pass1_vision_processing) WHERE pass1_vision_processing = true;
+-- REMOVED: idx_entity_audit_vision_processing (pass1_vision_processing column dropped in migration 2025-10-08_16)
 
 -- Composite indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_processing ON entity_processing_audit(shell_file_id, processing_session_id, entity_category);

@@ -25,5 +25,5 @@ export interface Pass1DatabaseRecords {
 /**
  * Build complete Pass 1 database records from AI response
  */
-export declare function buildPass1DatabaseRecords(input: Pass1Input, aiResponse: Pass1AIResponse, sessionMetadata: ProcessingSessionMetadata, entityAuditRecords: EntityAuditRecord[]): Pass1DatabaseRecords;
+export declare function buildPass1DatabaseRecords(input: Pass1Input, aiResponse: Pass1AIResponse, sessionMetadata: ProcessingSessionMetadata, entityAuditRecords: EntityAuditRecord[], processingTimeMs: number): Pass1DatabaseRecords;
 //# sourceMappingURL=pass1-database-builder.d.ts.map

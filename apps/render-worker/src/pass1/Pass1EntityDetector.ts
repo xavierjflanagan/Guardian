@@ -116,16 +116,18 @@ export class Pass1EntityDetector {
       const stats = generateRecordStatistics(entityRecords);
 
       // Step 7: Calculate processing time
-      const processingTime = (Date.now() - startTime) / 1000;
+      const processingTimeMs = Date.now() - startTime;
+      const processingTimeSec = processingTimeMs / 1000;
 
-      console.log(`[Pass1] Processing complete: ${stats.total_entities} entities in ${processingTime.toFixed(2)}s`);
+      console.log(`[Pass1] Processing complete: ${stats.total_entities} entities in ${processingTimeSec.toFixed(2)}s`);
 
       // Step 8: Build all database records (7 tables)
       const databaseRecords = buildPass1DatabaseRecords(
         input,
         aiResponse,
         sessionMetadata,
-        entityRecords
+        entityRecords,
+        processingTimeMs  // Pass actual AI processing time (in ms)
       );
 
       // Step 9: Return success result
@@ -152,7 +154,7 @@ export class Pass1EntityDetector {
           manual_review_queue: databaseRecords.manual_review_queue.length,
         },
 
-        processing_time_seconds: processingTime,
+        processing_time_seconds: processingTimeSec,
         cost_estimate: aiResponse.processing_metadata.cost_estimate,
 
         quality_metrics: {
@@ -351,7 +353,7 @@ export class Pass1EntityDetector {
             total_tokens: response.usage?.total_tokens || 0,       // Sum
             // REMOVED: image_tokens estimation (already included in prompt_tokens by OpenAI)
           },
-          cost_estimate: this.calculateCost(response.usage, optimizedSize),
+          cost_estimate: this.calculateCost(response.usage),
           confidence_metrics: {
             overall_confidence: 0.5,
             visual_interpretation_confidence: 0.5,
@@ -455,7 +457,7 @@ export class Pass1EntityDetector {
           total_tokens: response.usage?.total_tokens || 0,       // Sum
           // REMOVED: image_tokens estimation (already included in prompt_tokens by OpenAI)
         },
-        cost_estimate: this.calculateCost(response.usage, optimizedSize),
+        cost_estimate: this.calculateCost(response.usage),
         confidence_metrics: rawResult.processing_metadata.confidence_metrics || {
           overall_confidence: 0,
           visual_interpretation_confidence: 0,
@@ -501,38 +503,25 @@ export class Pass1EntityDetector {
    * Calculate cost for GPT-4o Vision processing
    *
    * GPT-4o Pricing (as of 2025):
-   * - Input: $2.50 per 1M tokens
+   * - Input: $2.50 per 1M tokens (includes image tokens from OpenAI)
    * - Output: $10.00 per 1M tokens
-   * - Image: ~$7.65 per 1M tokens (varies by size)
+   *
+   * Note: OpenAI's prompt_tokens already includes image tokens, so we don't
+   * need to estimate or add them separately.
    */
-  private calculateCost(usage: any, fileSizeBytes: number): number {
+  private calculateCost(usage: any): number {
     const GPT4O_PRICING = {
       input_per_1m: 2.50,
       output_per_1m: 10.00,
-      image_per_1m: 7.65,
     };
 
-    const promptTokens = usage?.prompt_tokens || 0;
+    const promptTokens = usage?.prompt_tokens || 0;  // Already includes image tokens
     const completionTokens = usage?.completion_tokens || 0;
-    const imageTokens = this.estimateImageTokens(fileSizeBytes);
 
     const inputCost = (promptTokens / 1_000_000) * GPT4O_PRICING.input_per_1m;
     const outputCost = (completionTokens / 1_000_000) * GPT4O_PRICING.output_per_1m;
-    const imageCost = (imageTokens / 1_000_000) * GPT4O_PRICING.image_per_1m;
 
-    return inputCost + outputCost + imageCost;
-  }
-
-  /**
-   * DEPRECATED: Image token estimation (no longer used)
-   *
-   * OpenAI combines text and image tokens in prompt_tokens field - we don't need
-   * to estimate image tokens separately. This method kept for reference only.
-   *
-   * Previous logic: ~85 tokens per 1000 bytes for images
-   */
-  private estimateImageTokens(fileSizeBytes: number): number {
-    return Math.ceil((fileSizeBytes / 1000) * 85);
+    return inputCost + outputCost;
   }
 
   // ===========================================================================
@@ -617,7 +606,10 @@ export class Pass1EntityDetector {
     const aiResponse = await this.callAIForEntityDetection(input);
     const entityRecords = translateAIOutputToDatabase(aiResponse, sessionMetadata);
 
-    return buildPass1DatabaseRecords(input, aiResponse, sessionMetadata, entityRecords);
+    // Extract timing from AI response metadata
+    const processingTimeMs = aiResponse.processing_metadata.processing_time_seconds * 1000;
+
+    return buildPass1DatabaseRecords(input, aiResponse, sessionMetadata, entityRecords, processingTimeMs);
   }
 
   /**

@@ -91,8 +91,8 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       // AI MODEL METADATA (From session + response with safety guards)
       // =========================================================================
-      pass1_model_used: sessionMetadata.model_used,
-      pass1_vision_processing: sessionMetadata.vision_processing,
+      // REMOVED: pass1_model_used (session-level data, use JOIN to pass1_entity_metrics)
+      // REMOVED: pass1_vision_processing (session-level data, use JOIN to pass1_entity_metrics)
       pass1_token_usage: aiResponse.processing_metadata?.token_usage?.total_tokens || 0,
       pass1_image_tokens: 0,  // DEPRECATED: Image tokens now included in prompt_tokens by OpenAI
       pass1_cost_estimate: aiResponse.processing_metadata?.cost_estimate || 0,
@@ -123,13 +123,15 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       // QUALITY AND VALIDATION METADATA (FLATTENED with safety guards)
       // =========================================================================
+      validation_flags: aiResponse.quality_assessment?.quality_flags || [],
       cross_validation_score: entity.quality_indicators?.cross_validation_score || 0,
       manual_review_required: entity.quality_indicators?.requires_manual_review || false,
 
       // =========================================================================
-      // PROFILE SAFETY (From document-level assessment)
+      // PROFILE SAFETY AND COMPLIANCE (From document-level assessment)
       // =========================================================================
       profile_verification_confidence: aiResponse.profile_safety.patient_identity_confidence,
+      compliance_flags: aiResponse.profile_safety?.safety_flags || [],
 
       // =========================================================================
       // TIMESTAMPS (Handled by database defaults)
@@ -193,7 +195,6 @@ export function validateEntityRecord(record: EntityAuditRecord): {
     'entity_subtype',
     'unique_marker',
     'location_context',
-    'pass1_model_used',
     'ocr_provider',
     'spatial_mapping_source',
     'ai_visual_interpretation',
