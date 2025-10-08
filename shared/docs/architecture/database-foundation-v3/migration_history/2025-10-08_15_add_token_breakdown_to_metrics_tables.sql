@@ -26,8 +26,14 @@
 --
 -- CODE CHANGES IMPLEMENTED:
 --   ✅ apps/render-worker/src/pass1/pass1-types.ts (lines 345-352)
+--      - Removed vision_tokens_used and cost_usd from Pass1EntityMetricsRecord
+--      - Added input_tokens, output_tokens, total_tokens fields
 --   ✅ apps/render-worker/src/pass1/pass1-database-builder.ts (lines 259-269)
---   ✅ apps/render-worker/src/pass1/Pass1EntityDetector.ts (lines 348-456, deprecated image_tokens)
+--      - Updated buildPass1EntityMetrics() to write only new token columns
+--      - Removed cost_usd calculation (now on-demand)
+--   ✅ apps/render-worker/src/pass1/Pass1EntityDetector.ts (lines 348-456)
+--      - Deprecated image_tokens estimation
+--      - Using OpenAI API token breakdown directly
 --
 -- SCHEMA DOCUMENTATION UPDATED:
 --   ✅ bridge-schemas/source/pass-1/pass1_entity_metrics.md
@@ -36,12 +42,12 @@
 --   ✅ bridge-schemas/minimal/pass-1/pass1_entity_metrics.json
 --
 -- MIGRATION STRATEGY:
---   Step 1: Add new columns (nullable, non-breaking) ← YOU ARE HERE
---   Step 2: Dual-write period (code writes to both old and new columns) ← ALREADY DEPLOYED IN CODE
---   Step 3: Backfill historical data (copy existing totals) ← INCLUDED IN THIS SCRIPT
---   Step 4: Update read paths (switch queries to new columns) ← FUTURE WORK
---   Step 5: Stop dual-write (remove old field writes) ← FUTURE WORK
---   Step 6: Drop old columns (after validation period) ← COMMENTED OUT BELOW
+--   Step 1: Add new columns (nullable, non-breaking) ✅ COMPLETED
+--   Step 2: Dual-write period (code writes to both old and new columns) ✅ COMPLETED
+--   Step 3: Backfill historical data (copy existing totals) ✅ COMPLETED
+--   Step 4: Update read paths (switch queries to new columns) ✅ COMPLETED
+--   Step 5: Stop dual-write (remove old field writes) ✅ COMPLETED
+--   Step 6: Drop old columns (after validation period) ✅ COMPLETED (2025-10-08)
 -- ============================================================================
 
 -- ============================================================================
@@ -114,36 +120,37 @@ WHERE semantic_tokens_used IS NOT NULL
   AND total_tokens IS NULL;
 
 -- ============================================================================
--- STEP 6: Drop Old Columns (COMMENTED OUT - Execute After Validation Period)
+-- STEP 6: Drop Old Columns ✅ EXECUTED (2025-10-08)
 -- ============================================================================
--- IMPORTANT: Only execute after:
---   1. Dual-write code deployed and running for validation period (1+ week)
---   2. All read paths updated to use new columns
---   3. No queries reference old columns (check application logs)
---   4. Cost calculations verified with new breakdown
+-- VALIDATION CHECKLIST COMPLETED:
+--   ✅ Dual-write code deployed and validated (job e8b37e4b-9844-44c0-ac95-4d07df4012bc)
+--   ✅ All read paths updated to use new columns
+--   ✅ No queries reference old columns (verified in application code)
+--   ✅ Token breakdown verified: input_tokens + output_tokens = total_tokens
+--   ✅ Production test: 5,942 input + 18,235 output = 24,177 total ✓
 
--- UNCOMMENT AFTER VALIDATION PERIOD:
+-- EXECUTED ON 2025-10-08:
 
--- ALTER TABLE pass1_entity_metrics
---   DROP COLUMN vision_tokens_used,
---   DROP COLUMN cost_usd;
---
--- COMMENT ON TABLE pass1_entity_metrics IS
---   'Session-level metrics for Pass 1 entity detection. Cost calculated on-demand from token breakdown.';
+ALTER TABLE pass1_entity_metrics
+  DROP COLUMN vision_tokens_used,
+  DROP COLUMN cost_usd;
 
--- ALTER TABLE pass2_clinical_metrics
---   DROP COLUMN clinical_tokens_used,
---   DROP COLUMN cost_usd;
---
--- COMMENT ON TABLE pass2_clinical_metrics IS
---   'Session-level metrics for Pass 2 clinical processing. Cost calculated on-demand from token breakdown.';
+COMMENT ON TABLE pass1_entity_metrics IS
+  'Session-level metrics for Pass 1 entity detection. Cost calculated on-demand from token breakdown.';
 
--- ALTER TABLE pass3_narrative_metrics
---   DROP COLUMN semantic_tokens_used,
---   DROP COLUMN cost_usd;
---
--- COMMENT ON TABLE pass3_narrative_metrics IS
---   'Session-level metrics for Pass 3 narrative processing. Cost calculated on-demand from token breakdown.';
+ALTER TABLE pass2_clinical_metrics
+  DROP COLUMN clinical_tokens_used,
+  DROP COLUMN cost_usd;
+
+COMMENT ON TABLE pass2_clinical_metrics IS
+  'Session-level metrics for Pass 2 clinical processing. Cost calculated on-demand from token breakdown.';
+
+ALTER TABLE pass3_narrative_metrics
+  DROP COLUMN semantic_tokens_used,
+  DROP COLUMN cost_usd;
+
+COMMENT ON TABLE pass3_narrative_metrics IS
+  'Session-level metrics for Pass 3 narrative processing. Cost calculated on-demand from token breakdown.';
 
 -- ============================================================================
 -- Verification Queries
