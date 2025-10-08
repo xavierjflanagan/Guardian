@@ -341,9 +341,17 @@ export interface Pass1EntityMetricsRecord {
   ocr_agreement_average?: number;
   confidence_distribution?: Record<string, number>;
   entity_types_found?: string[];
-  vision_tokens_used?: number;
+
+  // NEW: Token breakdown for accurate cost calculation
+  input_tokens?: number;     // prompt_tokens from OpenAI API (text + images)
+  output_tokens?: number;    // completion_tokens from OpenAI API
+  total_tokens?: number;     // sum of input + output
+
+  // DEPRECATED: Keep during migration dual-write period, remove in Phase 5
+  vision_tokens_used?: number;  // Will be removed after migration
+  cost_usd?: number;           // Will be removed after migration (calculate on-demand)
+
   ocr_pages_processed?: number;
-  cost_usd?: number;
   user_agent?: string;
   ip_address?: string;
   created_at?: string;

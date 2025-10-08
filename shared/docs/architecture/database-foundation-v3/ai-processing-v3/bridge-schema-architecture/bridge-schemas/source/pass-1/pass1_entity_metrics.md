@@ -26,10 +26,13 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     confidence_distribution JSONB, -- { "high": 15, "medium": 8, "low": 2 }
     entity_types_found TEXT[], -- ['medication', 'condition', 'vital_sign']
 
+    -- Token Breakdown (for accurate cost calculation)
+    input_tokens INTEGER,       -- prompt_tokens from OpenAI API (text + images)
+    output_tokens INTEGER,      -- completion_tokens from OpenAI API
+    total_tokens INTEGER,       -- sum of input + output
+
     -- Cost and Performance
-    vision_tokens_used INTEGER,
     ocr_pages_processed INTEGER,
-    cost_usd NUMERIC(8,4),
 
     -- Metadata
     user_agent TEXT,
@@ -62,10 +65,13 @@ interface Pass1EntityMetricsExtraction {
   confidence_distribution?: object;        // JSONB - distribution of confidence levels
   entity_types_found?: string[];           // Array of entity type categories detected (TEXT[])
 
+  // TOKEN BREAKDOWN (OPTIONAL) - For accurate cost calculation
+  input_tokens?: number;                   // Input tokens (text + images) from OpenAI prompt_tokens
+  output_tokens?: number;                  // Output tokens from OpenAI completion_tokens
+  total_tokens?: number;                   // Sum of input + output from OpenAI total_tokens
+
   // COST AND PERFORMANCE (OPTIONAL)
-  vision_tokens_used?: number;             // Tokens consumed by vision model
   ocr_pages_processed?: number;            // Number of pages processed by OCR
-  cost_usd?: number;                       // NUMERIC(8,4) - processing cost in USD
 
   // METADATA (OPTIONAL)
   user_agent?: string;                     // User agent string
@@ -91,8 +97,9 @@ interface Pass1EntityMetricsExtraction {
     "low": 2
   },
   "entity_types_found": ["medication", "condition", "vital_sign", "observation"],
-  "vision_tokens_used": 2500,
-  "cost_usd": 0.0075
+  "input_tokens": 1800,
+  "output_tokens": 700,
+  "total_tokens": 2500
 }
 ```
 
@@ -113,9 +120,10 @@ interface Pass1EntityMetricsExtraction {
     "low": 2
   },
   "entity_types_found": ["medication", "condition", "vital_sign", "observation", "allergy"],
-  "vision_tokens_used": 3200,
-  "ocr_pages_processed": 4,
-  "cost_usd": 0.0096
+  "input_tokens": 2400,
+  "output_tokens": 800,
+  "total_tokens": 3200,
+  "ocr_pages_processed": 4
 }
 ```
 
@@ -136,9 +144,10 @@ interface Pass1EntityMetricsExtraction {
     "low": 2
   },
   "entity_types_found": ["medication", "condition"],
-  "vision_tokens_used": 1800,
-  "ocr_pages_processed": 2,
-  "cost_usd": 0.0036
+  "input_tokens": 1300,
+  "output_tokens": 500,
+  "total_tokens": 1800,
+  "ocr_pages_processed": 2
 }
 ```
 
@@ -181,16 +190,17 @@ interface Pass1EntityMetricsExtraction {
 - [ ] `ocr_agreement_average` (if provided) is between 0.000 and 1.000
 - [ ] `confidence_distribution` (if provided) is valid JSONB object
 - [ ] `entity_types_found` (if provided) is a valid TEXT[] array
-- [ ] `vision_tokens_used` (if provided) is a non-negative integer
+- [ ] `input_tokens` (if provided) is a non-negative integer
+- [ ] `output_tokens` (if provided) is a non-negative integer
+- [ ] `total_tokens` (if provided) is a non-negative integer matching sum of input + output
 - [ ] `ocr_pages_processed` (if provided) is a non-negative integer
-- [ ] `cost_usd` (if provided) is a non-negative number with max 4 decimal places
 - [ ] `ip_address` (if provided) is valid IPv4 or IPv6 format
 
 ## Database Constraint Notes
 
 - **NO patient_id or event_id**: Uses profile_id to reference user_profiles(id)
 - **NOT NULL constraints**: profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, vision_model_used
-- **Optional fields**: ocr_model_used, ocr_agreement_average, confidence_distribution, entity_types_found, vision_tokens_used, ocr_pages_processed, cost_usd, user_agent, ip_address
+- **Optional fields**: ocr_model_used, ocr_agreement_average, confidence_distribution, entity_types_found, input_tokens, output_tokens, total_tokens, ocr_pages_processed, user_agent, ip_address
 - **TEXT[] array**: entity_types_found (optional)
 - **JSONB object**: confidence_distribution (optional)
 - **NUMERIC precision**: ocr_agreement_average uses (4,3), cost_usd uses (8,4)
@@ -212,8 +222,8 @@ interface Pass1EntityMetricsExtraction {
 
 3. **Consistent Cost/Performance Fields**:
    - `processing_time_ms` INTEGER (same across all passes)
-   - `cost_usd` NUMERIC(8,4) (same across all passes)
-   - Token fields: `vision_tokens_used` (Pass 1) vs `clinical_tokens_used` (Pass 2)
+   - Token breakdown: `input_tokens`, `output_tokens`, `total_tokens` (same across all passes)
+   - Cost calculated on-demand from token breakdown and model pricing
 
 4. **Primary Join Key**: `processing_session_id` is the PRIMARY cross-pass join key for aggregation and rollup analytics.
 

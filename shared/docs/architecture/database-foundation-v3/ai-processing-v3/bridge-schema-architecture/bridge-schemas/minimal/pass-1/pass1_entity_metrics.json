@@ -13,9 +13,10 @@
     "ocr_agreement_average": "numeric(4,3)? 0.000-1.000",
     "confidence_distribution": "jsonb? (e.g., {high: 18, medium: 5, low: 2})",
     "entity_types_found": "string[]? (entity categories)",
-    "vision_tokens_used": "integer?",
+    "input_tokens": "integer? (prompt_tokens from API, text + images)",
+    "output_tokens": "integer? (completion_tokens from API)",
+    "total_tokens": "integer? (sum of input + output)",
     "ocr_pages_processed": "integer?",
-    "cost_usd": "numeric(8,4)? (consistent across passes)",
     "user_agent": "string?",
     "ip_address": "inet?"
   },
@@ -48,7 +49,8 @@
       "low": 2
     },
     "entity_types_found": ["medication", "condition", "vital_sign", "observation"],
-    "vision_tokens_used": 2500,
-    "cost_usd": 0.0075
+    "input_tokens": 1800,
+    "output_tokens": 700,
+    "total_tokens": 2500
   }
 }

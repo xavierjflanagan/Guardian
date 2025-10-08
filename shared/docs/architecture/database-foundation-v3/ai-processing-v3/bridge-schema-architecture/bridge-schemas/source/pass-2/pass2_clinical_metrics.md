@@ -29,10 +29,13 @@ CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
     bridge_schemas_used TEXT[],
     schema_loading_time_ms INTEGER,
 
+    -- Token Breakdown (for accurate cost calculation)
+    input_tokens INTEGER,       -- prompt_tokens from OpenAI API
+    output_tokens INTEGER,      -- completion_tokens from OpenAI API
+    total_tokens INTEGER,       -- sum of input + output
+
     -- Cost and Performance
-    clinical_tokens_used INTEGER NOT NULL,
     processing_time_ms INTEGER NOT NULL,
-    cost_usd NUMERIC(8,4),
 
     -- Metadata
     user_agent TEXT,
@@ -56,7 +59,6 @@ interface Pass2ClinicalMetricsExtraction {
   clinical_entities_enriched: number;      // Count of clinical entities extracted
   schemas_populated: string[];             // Array of table names populated (TEXT[])
   clinical_model_used: string;             // AI model name/version used
-  clinical_tokens_used: number;            // Total tokens consumed
   processing_time_ms: number;              // Processing duration in milliseconds
 
   // QUALITY METRICS (OPTIONAL)
@@ -68,8 +70,10 @@ interface Pass2ClinicalMetricsExtraction {
   bridge_schemas_used?: string[];          // Array of bridge schema names used (TEXT[])
   schema_loading_time_ms?: number;         // Time to load bridge schemas
 
-  // COST AND PERFORMANCE (OPTIONAL)
-  cost_usd?: number;                       // NUMERIC(8,4) - processing cost in USD
+  // TOKEN BREAKDOWN (OPTIONAL) - For accurate cost calculation
+  input_tokens?: number;                   // Input tokens from OpenAI prompt_tokens
+  output_tokens?: number;                  // Output tokens from OpenAI completion_tokens
+  total_tokens?: number;                   // Sum of input + output from OpenAI total_tokens
 
   // METADATA (OPTIONAL)
   user_agent?: string;                     // User agent string
