@@ -154,8 +154,6 @@ export interface EntityAuditRecord {
     requires_schemas: string[];
     processing_priority: ProcessingPriority;
     pass2_status: 'pending' | 'skipped';
-    pass1_model_used: string;
-    pass1_vision_processing: boolean;
     pass1_token_usage?: number;
     pass1_image_tokens?: number;
     pass1_cost_estimate?: number;
@@ -170,9 +168,11 @@ export interface EntityAuditRecord {
     spatial_mapping_source: SpatialMappingSource;
     discrepancy_type: string | null;
     discrepancy_notes: string | null;
+    validation_flags?: string[];
     cross_validation_score: number;
     manual_review_required: boolean;
     profile_verification_confidence?: number;
+    compliance_flags?: string[];
     created_at?: string;
     updated_at?: string;
 }
@@ -237,9 +237,12 @@ export interface Pass1EntityMetricsRecord {
     ocr_agreement_average?: number;
     confidence_distribution?: Record<string, number>;
     entity_types_found?: string[];
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
     vision_tokens_used?: number;
-    ocr_pages_processed?: number;
     cost_usd?: number;
+    ocr_pages_processed?: number;
     user_agent?: string;
     ip_address?: string;
     created_at?: string;

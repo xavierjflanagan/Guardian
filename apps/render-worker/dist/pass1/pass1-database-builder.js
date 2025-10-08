@@ -21,8 +21,8 @@ exports.buildPass1DatabaseRecords = buildPass1DatabaseRecords;
 /**
  * Build complete Pass 1 database records from AI response
  */
-function buildPass1DatabaseRecords(input, aiResponse, sessionMetadata, entityAuditRecords) {
-    const startTime = Date.now();
+function buildPass1DatabaseRecords(input, aiResponse, sessionMetadata, entityAuditRecords, processingTimeMs // Actual AI processing time from Pass1EntityDetector
+) {
     // 1. Build ai_processing_sessions record
     const aiProcessingSession = buildAIProcessingSessionRecord(input, aiResponse, sessionMetadata);
     // 2. Entity audit records (already built by translation layer)
@@ -32,7 +32,8 @@ function buildPass1DatabaseRecords(input, aiResponse, sessionMetadata, entityAud
     // 4. Build profile_classification_audit record
     const profileClassificationAudit = buildProfileClassificationAudit(input, aiResponse, sessionMetadata);
     // 5. Build pass1_entity_metrics record
-    const pass1EntityMetrics = buildPass1EntityMetrics(input, aiResponse, sessionMetadata, entityAuditRecords, Date.now() - startTime);
+    const pass1EntityMetrics = buildPass1EntityMetrics(input, aiResponse, sessionMetadata, entityAuditRecords, processingTimeMs // Use actual AI processing time, not database building time
+    );
     // 6. Build ai_confidence_scoring records (optional - only for low confidence)
     const aiConfidenceScoring = buildAIConfidenceScoringRecords(input, aiResponse, sessionMetadata, entityAuditRecords);
     // 7. Build manual_review_queue records (optional - only for flagged entities)
@@ -151,9 +152,14 @@ function buildPass1EntityMetrics(input, aiResponse, sessionMetadata, entityAudit
         ocr_agreement_average: aiResponse.cross_validation_results.ai_ocr_agreement_score,
         confidence_distribution: confidenceDistribution,
         entity_types_found: entityTypesFound,
+        // NEW: Token breakdown for accurate cost calculation
+        input_tokens: aiResponse.processing_metadata.token_usage.prompt_tokens,
+        output_tokens: aiResponse.processing_metadata.token_usage.completion_tokens,
+        total_tokens: aiResponse.processing_metadata.token_usage.total_tokens,
+        // DEPRECATED: Dual-write during migration period (remove in Phase 5)
         vision_tokens_used: aiResponse.processing_metadata.token_usage.total_tokens,
-        ocr_pages_processed: input.document_metadata.page_count,
         cost_usd: aiResponse.processing_metadata.cost_estimate,
+        ocr_pages_processed: input.document_metadata.page_count,
     };
 }
 function calculateConfidenceDistribution(entityAuditRecords) {

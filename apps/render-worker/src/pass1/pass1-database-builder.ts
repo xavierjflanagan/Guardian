@@ -64,9 +64,9 @@ export function buildPass1DatabaseRecords(
   input: Pass1Input,
   aiResponse: Pass1AIResponse,
   sessionMetadata: ProcessingSessionMetadata,
-  entityAuditRecords: EntityAuditRecord[]
+  entityAuditRecords: EntityAuditRecord[],
+  processingTimeMs: number  // Actual AI processing time from Pass1EntityDetector
 ): Pass1DatabaseRecords {
-  const startTime = Date.now();
 
   // 1. Build ai_processing_sessions record
   const aiProcessingSession = buildAIProcessingSessionRecord(
@@ -94,7 +94,7 @@ export function buildPass1DatabaseRecords(
     aiResponse,
     sessionMetadata,
     entityAuditRecords,
-    Date.now() - startTime
+    processingTimeMs  // Use actual AI processing time, not database building time
   );
 
   // 6. Build ai_confidence_scoring records (optional - only for low confidence)

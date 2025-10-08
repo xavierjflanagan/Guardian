@@ -1,21 +1,21 @@
 /**
- * EXPERIMENTAL: Minimal List-First Prompt for Testing
- * Created: 2025-10-06
- * Purpose: Test if instruction dilution is causing under-extraction
+ * TEST 04 PHASE 1: Minimal Prompt + Entity Taxonomy
+ * Created: 2025-10-07
+ * Purpose: Add structured entity classification while maintaining extraction quality
  *
- * Hypothesis: The 348-line complex prompt is overwhelming the AI,
- * causing it to summarize lists instead of extracting individual items.
+ * Evolution from Test 03 (baseline):
+ * - Test 03: 20 lines, 53 entities avg, no classification
+ * - Phase 1: ~60 lines, target 50+ entities with proper categories
  *
- * This minimal prompt strips away all complexity to test pure extraction.
+ * Phase 1 adds: Compact 3-tier taxonomy, disambiguation rules, combo vaccine splitting
  */
 import { Pass1Input } from './pass1-types';
 /**
- * Ultra-minimal prompt focused ONLY on list extraction
- * No taxonomy, no examples, no complex instructions
+ * Phase 1: Minimal prompt + entity taxonomy for classification
  */
 export declare function generateMinimalListPrompt(_input: Pass1Input): string;
 /**
- * System message for minimal test
+ * System message for Phase 1 taxonomy test
  */
-export declare const MINIMAL_SYSTEM_MESSAGE = "You are a medical document entity extractor. Extract EVERY piece of information as separate entities. Never summarize lists.";
+export declare const MINIMAL_SYSTEM_MESSAGE = "You are a medical document entity classifier. Extract EVERY piece of information as separate classified entities. Never summarize lists. Always split combination items into separate entities.";
 //# sourceMappingURL=pass1-prompts-minimal-test.d.ts.map

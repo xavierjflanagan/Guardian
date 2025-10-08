@@ -241,9 +241,9 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     -- Cost and Performance
     ocr_pages_processed INTEGER,
 
-    -- Metadata
-    user_agent TEXT,
-    ip_address INET,
+    -- Metadata (Compliance Audit Trail)
+    user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
+    ip_address INET,       -- NULL for background jobs; part of HIPAA audit trail
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -276,9 +276,9 @@ CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
     -- Cost and Performance
     processing_time_ms INTEGER NOT NULL,
 
-    -- Metadata
-    user_agent TEXT,
-    ip_address INET,
+    -- Metadata (Compliance Audit Trail)
+    user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
+    ip_address INET,       -- NULL for background jobs; part of HIPAA audit trail
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -308,9 +308,9 @@ CREATE TABLE IF NOT EXISTS pass3_narrative_metrics (
     -- Cost and Performance
     processing_time_ms INTEGER NOT NULL,
 
-    -- Metadata
-    user_agent TEXT,
-    ip_address INET,
+    -- Metadata (Compliance Audit Trail)
+    user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
+    ip_address INET,       -- NULL for background jobs; part of HIPAA audit trail
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -345,9 +345,9 @@ CREATE TABLE IF NOT EXISTS ai_processing_summary (
     -- Business Events (preserved from original usage_events)
     business_events JSONB DEFAULT '[]', -- [{"event": "plan_upgraded", "timestamp": "..."}]
 
-    -- Metadata
-    user_agent TEXT,
-    ip_address INET,
+    -- Metadata (Compliance Audit Trail)
+    user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
+    ip_address INET,       -- NULL for background jobs; part of HIPAA audit trail
     processing_started_at TIMESTAMPTZ,
     processing_completed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),

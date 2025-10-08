@@ -238,9 +238,9 @@ export interface EntityAuditRecord {
   // Pass 2 coordination (initialized by Pass 1)
   pass2_status: 'pending' | 'skipped';
 
-  // AI model metadata
-  pass1_model_used: string;
-  pass1_vision_processing: boolean;
+  // AI model metadata (session-level data via JOIN to pass1_entity_metrics)
+  // REMOVED: pass1_model_used (use JOIN to pass1_entity_metrics on shell_file_id)
+  // REMOVED: pass1_vision_processing (use JOIN to pass1_entity_metrics on shell_file_id)
   pass1_token_usage?: number;
   pass1_image_tokens?: number;
   pass1_cost_estimate?: number;
@@ -263,11 +263,13 @@ export interface EntityAuditRecord {
   discrepancy_notes: string | null;
 
   // Quality and validation (flattened)
+  validation_flags?: string[];       // Quality flags from AI (low_confidence, high_discrepancy, etc.)
   cross_validation_score: number;
   manual_review_required: boolean;
 
-  // Profile safety
+  // Profile safety and compliance
   profile_verification_confidence?: number;
+  compliance_flags?: string[];       // HIPAA, Privacy Act compliance flags from AI
 
   // Timestamps (handled by database)
   created_at?: string;
