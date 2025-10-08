@@ -351,7 +351,7 @@ export interface Pass1EntityMetricsRecord {
 
   // DEPRECATED: Keep during migration dual-write period, remove in Phase 5
   vision_tokens_used?: number;  // Will be removed after migration
-  cost_usd?: number;           // Will be removed after migration (calculate on-demand)
+  // REMOVED: cost_usd (dropped in migration 15, calculate on-demand)
 
   ocr_pages_processed?: number;
   user_agent?: string;
