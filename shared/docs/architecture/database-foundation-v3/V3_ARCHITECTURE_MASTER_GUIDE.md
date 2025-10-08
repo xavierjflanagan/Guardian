@@ -125,11 +125,8 @@ supabase/
 │   ├── shell-file-processor-v3/        # Deployed Edge Function
 │   ├── audit-logger-v3/               # Deployed Edge Function
 │   └── _shared/                       # Deployed shared utilities
-├── migrations/                         # APPLIED MIGRATIONS (historical record)
-│   ├── 20250831120000_initial_job_coordination.sql
-│   ├── 20250901143000_add_retry_config.sql
-│   ├── 20250905091500_update_rate_limits.sql
-│   └── ...                           # Additional ALTER statements
+├── migrations/                         # LEGACY DIRECTORY (not used in V3 workflow)
+│   └── README.md                      # Explains V3 uses MCP-based migrations
 ├── config.toml                        # Supabase project configuration
 └── README.md                          # Points to docs/current_* folders
 ```
@@ -149,7 +146,7 @@ apps/
 | Location | Purpose | Status | AI Should Read |
 |----------|---------|--------|----------------|
 | `docs/current_schema/` | **SOURCE** Complete database schema | Always current | ✅ **YES** |
-| `supabase/migrations/` | **ARTIFACT** Applied deployment history | Historical record | ❌ **NO** |
+| `supabase/migrations/` | **LEGACY** Not used in V3 workflow | Legacy directory | ❌ **NO** |
 | `docs/current_functions/` | **SOURCE** Complete Edge Function code | Always current | ✅ **YES** |
 | `supabase/functions/` | **ARTIFACT** Deployed function code | May be outdated | ❌ **NO** |
 | `docs/current_workers/` | **SOURCE** Complete worker implementation | Always current | ✅ **YES** |
@@ -434,22 +431,29 @@ HEALTH_CHECK_PORT=10000
 
 ## Development Workflow
 
+### **MCP-Based Migration System**
+
+Exora V3 uses **Supabase MCP tools** for database migrations instead of traditional Supabase CLI migrations. This means:
+- Migrations execute **directly to Supabase database** via `mcp__supabase__apply_migration()`
+- No need to copy files to `supabase/migrations/` directory
+- Migration history tracked in `migration_history/` with complete audit trails
+- Source of truth always in `current_schema/` files
+
 ### **Pre-Launch Development Process**
 
 #### **Phase 1: Database Schema Changes**
 ```bash
-# 1. Update source files directly (pre-launch advantage)
+# 1. Create migration script in migration_history/
+vim shared/docs/architecture/database-foundation-v3/migration_history/YYYY-MM-DD_NN_description.sql
+
+# 2. Execute migration via MCP (direct to database)
+# AI assistant uses: mcp__supabase__apply_migration(name, query)
+
+# 3. Update source of truth schema files
 vim shared/docs/architecture/database-foundation-v3/current_schema/08_job_coordination.sql
 
-# 2. Save version to history
-cp current_schema/08_job_coordination.sql migration_history/v1.1_$(date +%Y%m%d).sql
-
-# 3. Deploy via clean rebuild (no production data to lose)
-cp current_schema/*.sql supabase/migrations/
-supabase db reset --linked && supabase db push
-
-# 4. Update deployment status
-echo "v1.1 deployed $(date)" >> deployment/deployed_status.md
+# 4. Mark migration complete in migration header
+# Update checkboxes in migration_history/YYYY-MM-DD_NN_description.sql
 ```
 
 #### **Phase 2: Edge Function Development**
@@ -485,21 +489,27 @@ git add . && git commit -m "Update worker logic" && git push origin staging
 
 ### **Post-Launch Migration Process**
 ```bash
-# 1. Update source files (same as pre-launch)
+# 1. Create migration script with proper template
+vim migration_history/YYYY-MM-DD_NN_add_new_feature.sql
+# Include: problem, solution, affected tables, rollback script
+
+# 2. Review migration with human and second AI bot
+# Ensure idempotency, safety, and data preservation
+
+# 3. Execute migration via MCP (preserves production data)
+# AI assistant uses: mcp__supabase__apply_migration(name, query)
+
+# 4. Update source of truth schema files
 vim current_schema/08_job_coordination.sql
+# Reflects final state after migration
 
-# 2. Create ALTER migration (preserve production data)
-cat > supabase/migrations/$(date +%Y%m%d%H%M%S)_add_new_feature.sql << EOF
--- Add new feature without breaking existing data
-ALTER TABLE job_queue ADD COLUMN new_feature JSONB;
--- Update source reflects final state, migration shows the change
-EOF
+# 5. Update downstream files if needed
+# - Bridge schemas (bridge-schemas/source/*.md)
+# - Detailed schemas (bridge-schemas/detailed/*.json)
+# - Minimal schemas (bridge-schemas/minimal/*.json)
 
-# 3. Deploy migration only (no reset)
-supabase db push
-
-# 4. Update deployment tracking
-echo "Added new feature $(date)" >> deployment/deployment_log.md
+# 6. Mark migration complete with checkboxes
+# Update migration_history/YYYY-MM-DD_NN_add_new_feature.sql header
 ```
 
 ---
@@ -511,7 +521,8 @@ echo "Added new feature $(date)" >> deployment/deployment_log.md
 #### **Database Questions:**
 - ✅ **READ:** `current_schema/*.sql` files for complete database structure
 - ✅ **REFERENCE:** All tables, functions, relationships in schema files
-- ❌ **DON'T READ:** `supabase/migrations/` (historical deployment artifacts)
+- ✅ **READ:** `migration_history/*.sql` for understanding past changes and migration patterns
+- ❌ **DON'T READ:** `supabase/migrations/` (legacy directory, not used in V3 workflow)
 
 #### **Edge Function Questions:**
 - ✅ **READ:** `current_functions/*/index.ts` for complete function logic
@@ -686,11 +697,13 @@ GROUP BY worker_id;
 ### **Post-Launch Migration Strategy**
 When moving from pre-launch to production:
 
-1. **Database:** Switch from direct file updates to ALTER-based migrations
+1. **Database:** Continue using MCP-based migrations with ALTER statements (preserves data)
 2. **Functions:** Maintain source files, use proper CI/CD for deployment
 3. **Workers:** Implement blue-green deployment for zero-downtime updates
 4. **Monitoring:** Add comprehensive logging and alerting
 5. **Documentation:** Maintain single source of truth approach
+
+**Migration System Stays the Same:** The MCP-based migration workflow works for both pre-launch and post-launch. The only difference is migration SQL changes from CREATE statements to ALTER statements to preserve production data.
 
 ### **Scalability Considerations**
 - **Database:** Ready for horizontal scaling with proper indexes
