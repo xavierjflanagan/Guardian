@@ -349,9 +349,9 @@ export interface Pass1EntityMetricsRecord {
   output_tokens?: number;    // completion_tokens from OpenAI API
   total_tokens?: number;     // sum of input + output
 
-  // DEPRECATED: Keep during migration dual-write period, remove in Phase 5
-  vision_tokens_used?: number;  // Will be removed after migration
-  // REMOVED: cost_usd (dropped in migration 15, calculate on-demand)
+  // DEPRECATED: Keep during migration dual-write period (columns still exist, Step 6 not executed yet)
+  vision_tokens_used?: number;  // Will be removed in Step 6
+  cost_usd?: number;           // Will be removed in Step 6 (calculate on-demand)
 
   ocr_pages_processed?: number;
   user_agent?: string;
