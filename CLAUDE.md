@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Exora** (by Exora Health Pty Ltd) is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, and TypeScript.
+**Exora** (by Exora Health Pty Ltd) is an AI-powered healthcare application designed to help users aggregate, manage, and understand their medical records. It's a patient-owned healthcare data platform built with Next.js, Supabase, Render.com, Vercel and TypeScript.
 
-**Company:** Exora Health Pty Ltd (Australian company)  
-**Primary Domain:** exorahealth.com.au  
-**Status:** Still building out the product, currently designing the ai processing component of the pipeline to perfectly fit the database table format.
+**Company:** Exora Health Pty Ltd (Australian company)
+**Primary Domain:** exorahealth.com.au
+**Status:** V3 architecture operational. Pass 1 entity detection implemented and running. Pass 2 and Pass 3 in design phase.
 
 ## Development Commands
 
@@ -37,45 +37,33 @@ pnpm install
 
 ## Staging/Production Deployment Workflow
 
-Exora uses a **dual-environment deployment strategy** for safe development and controlled user testing:
+Exora uses a **single-branch production workflow** for simplicity:
 
 ### Environment Overview
-- **Production** (`exorahealth.com.au`): Password-protected for beta testers, clean UI
-- **Staging** (`staging.exorahealth.com.au`): Developer-only access via Vercel authentication, orange staging banners
+- **Production** (`exorahealth.com.au`): Main production environment on `main` branch
+- **Development**: Local development environment only
 
 ### Access Control
 - **Production Access**: Requires `SITE_PASSWORD` environment variable (7-day cookie expiry)
-- **Staging Access**: Vercel deployment protection - only team members with Vercel account access
-- **Security**: Dual-layer protection ensures proper environment isolation
+- **Security**: Password protection for beta tester access
 
 ### Daily Development Workflow
 ```bash
-# 1. Work on staging branch
-git checkout staging
-# Make changes, test features, iterate safely
-git add . && git commit -m "feature description" && git push
-# This deploys to staging.exorahealth.com.au automatically
-
-# 2. Release to beta testers (when ready)
+# Work on main branch (simplified workflow)
 git checkout main
-git merge staging    # Brings staging changes to production
-git push            # This deploys to exorahealth.com.au for beta testers
+# Make changes, test locally, then deploy
+git add . && git commit -m "feature description" && git push
+# This deploys to exorahealth.com.au automatically via Vercel
 ```
 
-### Environment Indicators
-- **Staging**: Orange banner with "🚧 STAGING ENVIRONMENT" on all pages
-- **Production**: Clean interface with no development indicators
-- **Browser Titles**: "[STAGING]" suffix on staging environment only
-
 ### V3 Background Processing Architecture
-**Render.com Worker Service:** `exora-v3-worker`
-- **Staging Deployment**: `staging` branch → Render.com with enhanced debugging
-- **Production Deployment**: `main` branch → Render.com with production optimization
+**Render.com Worker Service:** `Exora Health`
+- **Deployment**: `main` branch → Render.com auto-deploy
 - **Purpose**: V3 job queue processing (shell file processing, AI document analysis)
 - **Integration**: Supabase service role + V3 job coordination functions
-- **Configuration**: See [Render.com Deployment Guide](shared/docs/architecture/database-foundation-v3/render-com-deployment-guide.md)
+- **Configuration**: See [V3 Architecture Master Guide](shared/docs/architecture/database-foundation-v3/V3_ARCHITECTURE_MASTER_GUIDE.md)
 
-### Testing (Updated August 2025)
+### Testing (Updated October 2025)
 Jest + React Testing Library with **production-quality infrastructure**:
 - **Centralized Supabase mocking**: `test-utils/supabase-mocks.ts` for consistent, typed mocks
 - **Type-safe validation testing**: `isValidationFailure()` / `isValidationSuccess()` type guards (no more `as any`)
@@ -83,16 +71,17 @@ Jest + React Testing Library with **production-quality infrastructure**:
 - **Global test environment**: Fetch polyfill, crypto mocking, console management in `jest.setup.js`
 - **Healthcare-specific patterns**: PII sanitization, audit trail testing, RLS policy validation
 - **Resilient assertions**: `expect.objectContaining()` for robust, maintainable tests
-- **CI Status**: ✅ Fully operational - all blocking infrastructure issues resolved
+- **CI Status**: Fully operational - all blocking infrastructure issues resolved
 
 ## Architecture Overview
 
 ### Tech Stack
 - **Frontend**: Next.js 15.3.4 with React 19, TypeScript, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL database, Auth, Storage, Edge Functions)
+- **Background Workers**: Render.com Node.js service for AI processing
 - **Authentication**: Magic link authentication via Supabase Auth with PKCE flow
 - **File Storage**: Supabase Storage with user-isolated folders
-- **Edge Functions**: Deno runtime for document processing
+- **Edge Functions**: Deno runtime for document processing and audit logging
 
 ### Core Systems
 
@@ -102,25 +91,130 @@ Jest + React Testing Library with **production-quality infrastructure**:
 - **Middleware**: `middleware.ts` - Session management and cookie refresh
 - Magic link flow with comprehensive error handling
 
-#### 2. File Upload & Storage (`utils/uploadFile.ts`)
-- Supabase Storage with `medical-docs` bucket
-- User-specific folder structure: `medical-docs/{userId}/{timestamp}_{filename}`
+#### 2. File Upload & Storage
+- Supabase Storage with user-isolated folders
 - Atomic operations with database record creation
 - Row Level Security (RLS) for user data isolation
 
-#### 3. Document Processing Pipeline
-- **Edge Function**: `supabase/functions/document-processor/`
-- Deno runtime with TypeScript support
-- Status tracking: uploaded → processing → completed
-- Ready for OCR and AI integration
+#### 3. V3 Document Processing Pipeline
+
+**Architecture:** Three-stage pipeline with job queue coordination
+
+**Stage 1: Document Upload & Job Creation**
+- User uploads document via web frontend
+- `shell-file-processor-v3` Edge Function creates shell_file record
+- Job enqueued to `job_queue` table via `enqueue_job_v3()` RPC
+
+**Stage 2: Background AI Processing (Render.com Worker)**
+- Worker claims job via `claim_next_job_v3()` RPC
+- **Pass 1: Entity Detection** (OPERATIONAL)
+  - Location: `apps/render-worker/src/pass1/`
+  - Uses OpenAI GPT-4o Vision for entity detection
+  - Uses Google Cloud Vision OCR for text extraction
+  - Writes to 7 database tables (entity_processing_audit, ai_processing_sessions, etc.)
+- **Pass 2: Clinical Extraction** (DESIGNED, not yet implemented)
+  - Schema complete in `current_schema/08_job_coordination.sql`
+  - Bridge schemas defined
+- **Pass 3: Narrative Generation** (DESIGNED, not yet implemented)
+  - Schema complete
+  - Bridge schemas defined
+
+**Stage 3: Completion & Frontend Display**
+- Worker completes job via `complete_job()` RPC
+- Frontend displays processed medical data
 
 #### 4. Database Schema
-- **documents table**: Core document metadata with user isolation
-- **RLS policies**: Automatic user-based filtering
-- **Storage policies**: User-specific folder access
+
+**CRITICAL: Source of Truth Location**
+All database schemas are maintained in:
+```
+shared/docs/architecture/database-foundation-v3/current_schema/
+├── 01_foundations.sql          # Extensions, audit logging
+├── 02_profiles.sql             # User profiles, access control
+├── 03_clinical_core.sql        # Shell files, clinical data
+├── 04_ai_processing.sql        # AI pipeline infrastructure
+├── 05_healthcare_journey.sql   # Provider relationships
+├── 06_security.sql             # RLS policies
+├── 07_optimization.sql         # Performance indexes
+└── 08_job_coordination.sql     # V3 job queue, worker coordination, metrics tables
+```
+
+**DO NOT** read `supabase/migrations/` - those are historical deployment artifacts.
+**DO** read `current_schema/*.sql` files for current database structure.
+
+### Supabase Edge Functions
+
+Current operational Edge Functions:
+- **shell-file-processor-v3**: Document upload processing, job enqueuing
+- **audit-logger-v3**: Correlation logging and audit trail
+- **auto-provision-user-profile**: Automatic user profile creation
+
+**Source of truth:** `shared/docs/architecture/database-foundation-v3/current_functions/`
+**Deployed artifacts:** `supabase/functions/` (may be outdated)
 
 ### File Structure
- - look it up, changes a lot.
+- **Monorepo root**: `/`
+- **Web application**: `apps/web/`
+- **Render worker (deployed)**: `apps/render-worker/`
+- **Render worker (source of truth)**: `shared/docs/architecture/database-foundation-v3/current_workers/exora-v3-worker/`
+- **Shared packages**: `packages/`
+
+**CRITICAL**: The `apps/render-worker/` and `current_workers/exora-v3-worker/` directories are OUT OF SYNC. Always check both locations when investigating worker behavior.
+
+## Backend Inspection Tools
+
+Claude Code has access to **Render.com MCP** and **Supabase MCP** for backend inspection and management:
+
+### Supabase MCP Tools
+- `mcp__supabase__execute_sql` - Run read-only SQL queries against the database
+- `mcp__supabase__apply_migration` - Create and execute database migrations
+- `mcp__supabase__list_tables` - List all tables in schemas (WARNING: large output, use with caution)
+- `mcp__supabase__get_advisors` - Check for security vulnerabilities and performance issues
+- `mcp__supabase__get_logs` - Fetch logs for debugging (last 1 minute window)
+- `mcp__supabase__generate_typescript_types` - Generate types from database schema
+
+### Render.com MCP Tools
+- `mcp__render__list_services` - List all Render services (requires workspace selection first)
+- `mcp__render__get_service` - Get details about a specific service
+- `mcp__render__list_deploys` - List deployments for a service
+- `mcp__render__get_deploy` - Get deployment details
+- `mcp__render__list_logs` - Fetch service logs for debugging
+- `mcp__render__get_metrics` - Get performance metrics (CPU, memory, HTTP requests)
+
+### Usage Guidelines
+- Always verify backend state using these tools rather than assumptions
+- Use logs and metrics for debugging production issues
+- Check database schema before making migration decisions
+- For Render MCP: User must select workspace before tools can be used
+
+## Database Migration Procedure
+
+All database schema changes follow a strict **two-touchpoint workflow** to maintain data integrity and audit trails:
+
+### Two-Touchpoint Workflow
+
+**Touchpoint 1: Research + Create Script (AI single response)**
+1. Research what needs to change and perform impact analysis
+2. Identify which `current_schema/*.sql` files need updates (with line numbers)
+3. Create complete migration script in `migration_history/`
+4. Present script for human review + second AI bot review
+
+**Touchpoint 2: Execute + Finalize (AI single response, after review approval)**
+1. Apply any feedback from human + second AI bot review
+2. Execute migration via `mcp__supabase__apply_migration()`
+3. Update source of truth: `current_schema/*.sql` files
+4. Update downstream files:
+   - Bridge schemas (`bridge-schemas/source/*.md`)
+   - Detailed schemas (`bridge-schemas/detailed/*.json`)
+   - Minimal schemas (`bridge-schemas/minimal/*.json`)
+   - Worker TypeScript files (if applicable)
+   - Type definitions (if applicable)
+5. Mark migration header complete with execution date and checkboxes
+
+### Key Locations
+- **Migration History:** `shared/docs/architecture/database-foundation-v3/migration_history/`
+- **Source of Truth Schemas:** `shared/docs/architecture/database-foundation-v3/current_schema/`
+- **Migration README:** See `migration_history/README.md` for complete procedure and template
 
 ## Development Guidelines
 
@@ -153,11 +247,11 @@ Jest + React Testing Library with **production-quality infrastructure**:
 - User data isolation in both database and storage
 - Input validation on file uploads
 
-## ⚠️ CRITICAL: ID Semantics and Data Access Patterns
+## CRITICAL: ID Semantics and Data Access Patterns
 
 ### THE TRUTH: Two Physical ID Types
 
-**Guardian has only TWO physical ID types in the database:**
+**Exora has only TWO physical ID types in the database:**
 
 - **`auth.users.id`**: Account owners (subscription holders, auth entities)
 - **`user_profiles.id`**: Individual profiles/patients (the actual medical data subjects)
@@ -178,38 +272,38 @@ The **same physical `user_profiles.id`** gets different semantic labels:
 ### Critical Database Tables
 ```sql
 -- CORRECT queries (post Phase 0 fixes):
-SELECT * FROM documents WHERE patient_id = ?     -- ✅ Correct
-SELECT * FROM user_events WHERE profile_id = ?   -- ✅ Correct 
+SELECT * FROM shell_files WHERE patient_id = ?     -- Correct
+SELECT * FROM user_events WHERE profile_id = ?     -- Correct
 
 -- INCORRECT queries (would fail):
-SELECT * FROM documents WHERE user_id = ?        -- ❌ Wrong column name
-SELECT * FROM user_events WHERE patient_id = ?   -- ❌ Wrong context
+SELECT * FROM shell_files WHERE user_id = ?        -- Wrong column name
+SELECT * FROM user_events WHERE patient_id = ?     -- Wrong context
 ```
 
 ### Frontend Data Access Pattern
 ```typescript
-// ✅ CORRECT: Use ProfileProvider + resolution
+// CORRECT: Use ProfileProvider + resolution
 const { currentProfile } = useProfile();
 const { patientIds } = useAllowedPatients(); // Resolves profile→patient
-await supabase.from('documents').select('*').in('patient_id', patientIds);
+await supabase.from('shell_files').select('*').in('patient_id', patientIds);
 
-// ❌ INCORRECT: Direct user ID usage
-await supabase.from('documents').select('*').eq('user_id', user.id);
+// INCORRECT: Direct user ID usage
+await supabase.from('shell_files').select('*').eq('user_id', user.id);
 ```
 
 ### Audit Logging Pattern
 ```typescript
-// ✅ CORRECT: Use profile-aware audit function
+// CORRECT: Use profile-aware audit function
 await supabase.rpc('log_profile_audit_event', {
   p_profile_id: currentProfile.id,  // Function resolves to patient_id
   p_operation: 'DOCUMENT_VIEW',
   // ... other params
 });
 
-// ❌ INCORRECT: Direct patient_id assignment
+// INCORRECT: Direct patient_id assignment
 await supabase.rpc('log_audit_event', {
   p_patient_id: currentProfile.id,  // Wrong! profile_id ≠ patient_id
-  // ... other params  
+  // ... other params
 });
 ```
 
@@ -218,93 +312,118 @@ Use branded types to prevent ID mix-ups:
 ```typescript
 import { ProfileId, PatientId } from '@/types/ids';
 
-// ✅ CORRECT: Function signature enforces correct ID type
+// CORRECT: Function signature enforces correct ID type
 function fetchDocuments(patientId: PatientId) { /* ... */ }
 function switchProfile(profileId: ProfileId) { /* ... */ }
 
-// ❌ INCORRECT: Generic string allows wrong ID usage
+// INCORRECT: Generic string allows wrong ID usage
 function fetchDocuments(id: string) { /* ... */ }
 ```
 
 ## Current Status
 
-The core infrastructure is complete and production-ready:
-- ✅ Authentication system fully functional
-- ✅ File upload and storage system operational
-- ✅ Document processing pipeline operational (Vision + OCR)
-- ✅ User interface polished and responsive
-- ✅ AI/OCR integration complete - **POC ready for testing**
-- ✅ Phase 0 Critical Fixes implemented (ID semantics, ProfileProvider, missing tables)
-- ✅ Phase 3.1 Performance Optimization complete (production deployment ready)
-- 🚧 Phase 3.2 Security Hardening in progress (documentation complete, domain acquired, configuration pending)
+The core infrastructure is complete and operational:
+- Authentication system fully functional
+- File upload and storage system operational
+- V3 architecture deployed and operational
+- Pass 1 entity detection IMPLEMENTED and running on Render.com
+- Pass 2 and Pass 3 schemas designed, implementation pending
+- User interface polished and responsive
+- Phase 0 Critical Fixes implemented (ID semantics, ProfileProvider, missing tables)
 
-### Security Infrastructure
+### V3 AI Processing Pipeline - Current Status
 
-Comprehensive security framework established (Phase 3.2):
-- **Security Documentation:** Complete security checklist and procedures
-- **Compliance Framework:** Australian Privacy Act + HIPAA readiness documentation
-- **Testing Framework:** RLS policy testing and security validation procedures
-- **Incident Response:** Complete breach response and notification procedures
-- **Edge Functions:** Server-side audit logging for critical UI events (implemented)
-- **Domain Acquired:** exorahealth.com.au selected as primary (transfer to company pending)
-- **BLOCKING:** Domain configuration in Vercel required for CORS/CSP security implementation
+**Architecture:** Three-pass pipeline for medical document processing
 
-### Document Processing Pipeline
+#### Pass 1: Entity Detection - OPERATIONAL
+- **Location:** `apps/render-worker/src/pass1/`
+- **Model:** OpenAI GPT-4o Vision
+- **OCR:** Google Cloud Vision
+- **Purpose:** Detect and classify all entities in medical documents
+- **Database Tables:** Writes to 7 tables (entity_processing_audit, ai_processing_sessions, ai_confidence_scoring, manual_review_queue, profile_classification_audit, pass1_entity_metrics, shell_files)
+- **Status:** Fully implemented and operational on Render.com
+- **Cost:** ~$15-30 per 1,000 documents (85-90% reduction from AWS Textract)
 
-The application now includes a cost-optimized **Vision + OCR Safety Net** pipeline:
+#### Pass 2: Clinical Extraction - DESIGNED
+- **Purpose:** Extract structured clinical data from Pass 1 entities
+- **Schema:** Complete bridge schemas defined in `bridge-schemas/source/pass-2/`
+- **Database Tables:** Schema complete in `current_schema/08_job_coordination.sql`
+- **Status:** Schema complete, implementation pending
 
-#### Required Environment Variables
+#### Pass 3: Narrative Generation - DESIGNED
+- **Purpose:** Generate patient-friendly medical summaries
+- **Schema:** Designed
+- **Status:** Planning phase
+
+### Integration Points
+- **Job Queue:** V3 job coordination via Supabase (`job_queue` table)
+- **Worker:** Render.com service "Exora Health" processes jobs from queue
+- **Edge Functions:**
+  - `shell-file-processor-v3` - Document upload and job enqueuing
+  - `audit-logger-v3` - Audit trail correlation
+  - `auto-provision-user-profile` - Automatic profile creation
+
+### Required Environment Variables
 ```bash
-# Core Supabase (existing)
+# Core Supabase
 SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# New AI Processing APIs
-OPENAI_API_KEY=your_openai_api_key          # For GPT-4o Mini vision analysis
+# AI Processing APIs (for Render.com worker)
+OPENAI_API_KEY=your_openai_api_key          # For GPT-4o Vision analysis
 GOOGLE_CLOUD_API_KEY=your_google_api_key    # For Google Cloud Vision OCR
 
-# Legacy (can be removed)
-AWS_ACCESS_KEY_ID=optional                  # Old Textract integration
-AWS_SECRET_ACCESS_KEY=optional              # Old Textract integration
-AWS_REGION=optional                         # Old Textract integration
+# Worker Configuration
+NODE_ENV=production
+WORKER_CONCURRENCY=50
+HEALTH_CHECK_PORT=10000
 ```
 
-#### Pipeline Architecture
-1. **Google Cloud Vision OCR** (~$1.50/1K docs) - Text extraction safety net
-2. **GPT-4o Mini Vision** (~$15-30/1K docs) - Medical data analysis with OCR cross-validation
-3. **Database Storage** - Structured medical data with confidence scores
+### API Endpoints
+- `POST /functions/v1/shell-file-processor-v3` - Process and enqueue document for AI analysis
+- `POST /functions/v1/audit-logger-v3` - Log audit events with correlation
+- `POST /functions/v1/auto-provision-user-profile` - Auto-create user profile
 
-#### Cost Analysis
-- **Previous**: AWS Textract ~$250/1K docs
-- **Current**: Vision + OCR ~$16.50-31.50/1K docs (**85-90% cost reduction**)
+## Key Architecture Documents
 
-#### API Endpoints
-- `POST /functions/v1/document-processor` - Process uploaded documents
-- Returns structured medical data with confidence scores
+For deep understanding of the V3 system, consult these documents:
 
-## AI Processing Pipeline Development Plan
+### Master Architecture Guide
+- **V3 Architecture Master Guide**: `shared/docs/architecture/database-foundation-v3/V3_ARCHITECTURE_MASTER_GUIDE.md`
+  - Complete system overview
+  - Source of truth vs deployment artifacts explanation
+  - Integration patterns
+  - Development workflow
 
-**Current Priority**: Schema Research & AI Integration Strategy
+### Database Documentation
+- **Current Schema Files**: `shared/docs/architecture/database-foundation-v3/current_schema/*.sql`
+  - Always read these for current database structure
+  - Never read `supabase/migrations/` (historical artifacts)
 
-**Problem Identified**: The two-call AI architecture approach needs precise database schema understanding to work effectively. Currently "flying blind" without knowing exact table structures and field requirements.
+### Migration Documentation
+- **Migration Procedure**: `shared/docs/architecture/database-foundation-v3/migration_history/README.md`
+  - Two-touchpoint workflow
+  - Migration script template
+  - Best practices
 
-**Action Plan**:
-1. **Deep Database Schema Analysis**: Research all Exora database tables to understand:
-   - Exact field structures and data types for each clinical table
-   - Required vs optional fields for AI extraction
-   - Relationships between tables (foreign keys, joins)
-   - Validation rules and constraints
+### Worker Documentation
+- **Render.com Deployment Guide**: `shared/docs/architecture/database-foundation-v3/render-com-deployment-guide.md`
+- **Worker Architecture**: `shared/docs/architecture/database-foundation-v3/current_workers/WORKER_ARCHITECTURE.md`
 
-2. **Schema-to-AI Mapping Strategy**: Work backwards from database requirements:
-   - Map each table to specific AI extraction requirements
-   - Determine minimum viable schema guides for AI models
-   - Consider unified generalized schema approach vs table-specific schemas
+### Bridge Schemas
+- **Pass 1 Schemas**: `shared/docs/architecture/database-foundation-v3/ai-processing-v3/bridge-schema-architecture/bridge-schemas/source/pass-1/`
+- **Pass 2 Schemas**: `shared/docs/architecture/database-foundation-v3/ai-processing-v3/bridge-schema-architecture/bridge-schemas/source/pass-2/`
 
-3. **AI Processing Optimization**: Once schema requirements are clear:
-   - Refine two-call vs single-call architecture decision
-   - Optimize context window usage based on actual schema sizes
-   - Ensure AI output format matches database insertion requirements
+## Important Notes
 
-**Current Status**: Pipeline architecture documented in `shared/docs/architecture/ai-processing-v2/draft-ai-processing-pipeline-flow.md` - parked pending schema research completion.
+1. **Source of Truth Pattern**: Always check `current_*` directories in `shared/docs/architecture/database-foundation-v3/` for current code. Deployment artifacts (`apps/render-worker/`, `supabase/functions/`) may be outdated.
 
-**Key Insight**: Need to understand destination (database tables) before optimizing the journey (AI processing pipeline).
+2. **Worker Sync Issue**: `apps/render-worker/` and `current_workers/exora-v3-worker/` are OUT OF SYNC. Check both when investigating issues.
+
+3. **Pass 1 Only**: Only Pass 1 entity detection is currently implemented. Pass 2 and Pass 3 are schema-complete but not yet coded.
+
+4. **Google Cloud Vision**: Currently using Google Cloud Vision for OCR (not AWS Textract).
+
+5. **Single Branch Workflow**: Everything deploys from `main` branch (staging branch workflow was discontinued).
+
+6. **Job Queue Architecture**: All background processing goes through `job_queue` table with RPC functions (`enqueue_job_v3`, `claim_next_job_v3`, `complete_job`).
