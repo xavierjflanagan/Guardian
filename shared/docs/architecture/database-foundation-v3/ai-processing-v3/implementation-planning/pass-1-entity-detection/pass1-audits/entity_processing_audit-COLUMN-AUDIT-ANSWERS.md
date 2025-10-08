@@ -1,7 +1,18 @@
-# Pass 1 Column Audit - Detailed Answers
+# Pass 1 Column Audit - Complete & Final
 
 **Date:** 2025-10-08
-**Context:** Analyzing entity_processing_audit table columns for redundancy and optimization
+**Status:** ✅ **AUDIT COMPLETE** - All redundant columns removed
+**Context:** Comprehensive analysis of all 52 columns in `entity_processing_audit` table
+
+**Final Verdict:**
+- **Total Columns Reviewed:** 52 (100% coverage)
+- **Columns to Keep:** 52 ✅
+- **Columns to Remove:** 0 (5 already removed via Migrations 16 & 17)
+- **Architecture:** Clean separation - entity-level data only, session-level via JOIN
+
+**Migrations Executed:**
+- ✅ Migration 16: Removed `pass1_model_used`, `pass1_vision_processing`
+- ✅ Migration 17: Removed `pass1_token_usage`, `pass1_image_tokens`, `pass1_cost_estimate`
 
 ---
 
@@ -371,6 +382,149 @@ WHERE e.id = '...';
 - ❌ `pass1_token_usage` - **PENDING REMOVAL**
 - ❌ `pass1_image_tokens` - **PENDING REMOVAL**
 - ❌ `pass1_cost_estimate` - **PENDING REMOVAL**
+
+---
+
+---
+
+## 7. COMPLETE COLUMN INVENTORY - Final Audit (2025-10-08)
+
+**Purpose:** Definitive review of ALL 52 columns in `entity_processing_audit` table
+
+### PRIMARY KEYS & REFERENCES (6 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 1 | `id` | uuid | NO | ✅ KEEP | Primary key |
+| 2 | `shell_file_id` | uuid | NO | ✅ KEEP | FK to shell_files (document reference) |
+| 3 | `patient_id` | uuid | NO | ✅ KEEP | FK to user_profiles (data isolation) |
+| 4 | `entity_id` | text | NO | ✅ KEEP | Unique entity identifier from AI |
+| 5 | `processing_session_id` | uuid | NO | ✅ KEEP | FK to ai_processing_sessions (audit trail) |
+| 6 | `manual_reviewer_id` | uuid | YES | ✅ KEEP | FK to auth.users (manual review tracking) |
+
+### ENTITY IDENTITY (3 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 7 | `original_text` | text | NO | ✅ KEEP | Primary entity data for Pass 2 |
+| 8 | `entity_category` | text | NO | ✅ KEEP | Classification (clinical_event/healthcare_context/document_structure) |
+| 9 | `entity_subtype` | text | NO | ✅ KEEP | Specific type (vital_sign, medication, etc.) |
+
+### SPATIAL & CONTEXT (4 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 10 | `unique_marker` | text | YES | ✅ KEEP | Semantic field identifier (cross-document matching) |
+| 11 | `location_context` | text | YES | ✅ KEEP | Human-readable location ("page 1, vitals section") |
+| 12 | `spatial_bbox` | jsonb | YES | ✅ KEEP | Pixel coordinates for click-to-zoom |
+| 13 | `page_number` | integer | YES | ✅ KEEP | Document page location |
+
+### PASS 1 PROCESSING (2 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 14 | `pass1_confidence` | numeric | NO | ✅ KEEP | Entity-specific confidence score |
+| 15 | `requires_schemas` | text[] | NO | ✅ KEEP | Database schemas for Pass 2 enrichment |
+| 16 | `processing_priority` | text | NO | ✅ KEEP | Queue priority (highest/high/medium/low) |
+
+### PASS 2 COORDINATION (6 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 17 | `pass2_status` | text | NO | ✅ KEEP | Status (pending/skipped/in_progress/completed/failed) |
+| 18 | `pass2_confidence` | numeric | YES | ✅ KEEP | Pass 2 enrichment confidence |
+| 19 | `pass2_started_at` | timestamptz | YES | ✅ KEEP | Pass 2 processing start time |
+| 20 | `pass2_completed_at` | timestamptz | YES | ✅ KEEP | Pass 2 processing completion time |
+| 21 | `enrichment_errors` | text | YES | ✅ KEEP | Pass 2 error messages |
+| 22 | `pass2_model_used` | text | YES | ✅ KEEP | AI model for Pass 2 (entity-specific, not session) |
+| 23 | `pass2_token_usage` | integer | YES | ✅ KEEP | Pass 2 tokens (entity-specific, not session) |
+| 24 | `pass2_cost_estimate` | numeric | YES | ✅ KEEP | Pass 2 cost (entity-specific, not session) |
+
+**Note:** Pass 2 columns are entity-specific (different entities may use different models/tokens), unlike Pass 1 session-level data.
+
+### FINAL CLINICAL LINKS (7 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 25 | `final_event_id` | uuid | YES | ✅ KEEP | FK to patient_clinical_events (audit trail) |
+| 26 | `final_encounter_id` | uuid | YES | ✅ KEEP | FK to healthcare_encounters (audit trail) |
+| 27 | `final_observation_id` | uuid | YES | ✅ KEEP | FK to patient_observations (audit trail) |
+| 28 | `final_intervention_id` | uuid | YES | ✅ KEEP | FK to patient_interventions (audit trail) |
+| 29 | `final_condition_id` | uuid | YES | ✅ KEEP | FK to patient_conditions (audit trail) |
+| 30 | `final_allergy_id` | uuid | YES | ✅ KEEP | FK to patient_allergies (audit trail) |
+| 31 | `final_vital_id` | uuid | YES | ✅ KEEP | FK to patient_vitals (audit trail) |
+
+### DUAL-INPUT PROCESSING (4 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 32 | `ai_visual_interpretation` | text | YES | ✅ KEEP | What AI vision saw (5% adds context vs original_text) |
+| 33 | `visual_formatting_context` | text | YES | ✅ KEEP | How text appears (bold, indented, handwritten) |
+| 34 | `ai_visual_confidence` | numeric | YES | ✅ KEEP | AI's visual interpretation confidence |
+| 35 | `visual_quality_assessment` | text | YES | ✅ KEEP | Image quality assessment |
+
+### OCR CROSS-REFERENCE (5 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 36 | `ocr_reference_text` | text | YES | ✅ KEEP | OCR-extracted text for cross-validation |
+| 37 | `ocr_confidence` | numeric | YES | ✅ KEEP | OCR confidence score |
+| 38 | `ocr_provider` | text | YES | ✅ KEEP | OCR service used (google_vision, aws_textract) |
+| 39 | `ai_ocr_agreement_score` | numeric | YES | ✅ KEEP | Agreement between AI and OCR (0.0-1.0) |
+| 40 | `spatial_mapping_source` | text | YES | ✅ KEEP | Spatial data source (ocr_exact/approximate/ai_estimated) |
+
+### DISCREPANCY TRACKING (2 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 41 | `discrepancy_type` | text | YES | ✅ KEEP | Type of AI-OCR disagreement |
+| 42 | `discrepancy_notes` | text | YES | ✅ KEEP | Explanation of differences |
+
+### QUALITY & VALIDATION (3 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 43 | `validation_flags` | text[] | YES | ✅ KEEP | Quality flags (low_confidence, high_discrepancy) - needs mapping fix |
+| 44 | `cross_validation_score` | numeric | YES | ✅ KEEP | Overall AI-OCR agreement quality |
+| 45 | `manual_review_required` | boolean | YES | ✅ KEEP | Flags entity for manual review |
+| 46 | `manual_review_completed` | boolean | YES | ✅ KEEP | Tracks manual review completion |
+| 47 | `manual_review_notes` | text | YES | ✅ KEEP | Manual reviewer comments |
+
+### PROFILE SAFETY & COMPLIANCE (3 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 48 | `profile_verification_confidence` | numeric | YES | ✅ KEEP | Patient identity match confidence |
+| 49 | `pii_sensitivity_level` | text | YES | ✅ KEEP | PII sensitivity (none/low/medium/high) |
+| 50 | `compliance_flags` | text[] | YES | ✅ KEEP | HIPAA/Privacy Act flags - needs mapping fix |
+
+### AUDIT TIMESTAMPS (2 columns)
+
+| # | Column | Type | Nullable | Verdict | Reason |
+|---|--------|------|----------|---------|--------|
+| 51 | `created_at` | timestamptz | NO | ✅ KEEP | Record creation timestamp |
+| 52 | `updated_at` | timestamptz | NO | ✅ KEEP | Record update timestamp |
+
+---
+
+## FINAL VERDICT SUMMARY
+
+**Total Columns:** 52
+**Keep:** 52 ✅
+**Remove:** 0 ❌
+
+**Previously Removed (Migrations 16 & 17):**
+- ✅ `pass1_model_used` (Migration 16)
+- ✅ `pass1_vision_processing` (Migration 16)
+- ✅ `pass1_token_usage` (Migration 17)
+- ✅ `pass1_image_tokens` (Migration 17)
+- ✅ `pass1_cost_estimate` (Migration 17)
+
+**Pending Fixes (Not Removals):**
+- ⚠️ `validation_flags` - Add extraction code in pass1-translation.ts
+- ⚠️ `compliance_flags` - Add extraction code in pass1-translation.ts
+
+**Architecture Status:** ✅ **CLEAN** - All redundant session-level data removed, all remaining columns serve distinct entity-level purposes.
 
 ---
 
