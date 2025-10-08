@@ -28,6 +28,9 @@ import {
   generateMinimalListPrompt,
   MINIMAL_SYSTEM_MESSAGE,
 } from './pass1-prompts-minimal-test';
+
+// Check for verbose logging
+const VERBOSE = process.env.VERBOSE === 'true';
 import {
   translateAIOutputToDatabase,
   validateRecordBatch,
@@ -97,7 +100,7 @@ export class Pass1EntityDetector {
 
       // DEBUG: Log what AI actually returned
       console.log(`[Pass1] AI returned ${aiResponse.entities.length} entities`);
-      if (config.environment.verbose) {
+      if (VERBOSE) {
         console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
         console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
         // Only log first 3 entities to avoid blocking event loop
