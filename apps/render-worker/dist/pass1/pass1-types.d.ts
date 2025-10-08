@@ -154,9 +154,6 @@ export interface EntityAuditRecord {
     requires_schemas: string[];
     processing_priority: ProcessingPriority;
     pass2_status: 'pending' | 'skipped';
-    pass1_token_usage?: number;
-    pass1_image_tokens?: number;
-    pass1_cost_estimate?: number;
     ai_visual_interpretation: string;
     visual_formatting_context: string;
     ai_visual_confidence: number;
@@ -240,8 +237,6 @@ export interface Pass1EntityMetricsRecord {
     input_tokens?: number;
     output_tokens?: number;
     total_tokens?: number;
-    vision_tokens_used?: number;
-    cost_usd?: number;
     ocr_pages_processed?: number;
     user_agent?: string;
     ip_address?: string;

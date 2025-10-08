@@ -19,6 +19,8 @@ exports.Pass1EntityDetector = void 0;
 const openai_1 = __importDefault(require("openai"));
 const pass1_prompts_1 = require("./pass1-prompts");
 const pass1_prompts_minimal_test_1 = require("./pass1-prompts-minimal-test");
+// Check for verbose logging
+const VERBOSE = process.env.VERBOSE === 'true';
 const pass1_translation_1 = require("./pass1-translation");
 const pass1_database_builder_1 = require("./pass1-database-builder");
 const pass1_schema_mapping_1 = require("./pass1-schema-mapping");
@@ -69,20 +71,29 @@ class Pass1EntityDetector {
             const aiResponse = await this.callAIForEntityDetection(input);
             // DEBUG: Log what AI actually returned
             console.log(`[Pass1] AI returned ${aiResponse.entities.length} entities`);
-            console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
-            console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
-            console.log(`[Pass1] Full AI response entities:`, JSON.stringify(aiResponse.entities, null, 2));
+            if (VERBOSE) {
+                console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
+                console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
+                // Only log first 3 entities to avoid blocking event loop
+                console.log(`[Pass1] Sample entities (first 3):`, JSON.stringify(aiResponse.entities.slice(0, 3), null, 2));
+            }
             // Step 4: Translate AI output to database format
             console.log(`[Pass1] Translating ${aiResponse.entities.length} entities to database format...`);
             const entityRecords = (0, pass1_translation_1.translateAIOutputToDatabase)(aiResponse, sessionMetadata);
+            // Yield to event loop after heavy translation (allows heartbeat to fire)
+            await new Promise(resolve => setImmediate(resolve));
             // Step 5: Validate translated records
             const validation = (0, pass1_translation_1.validateRecordBatch)(entityRecords);
             if (!validation.valid) {
                 console.error(`[Pass1] Validation failed for ${validation.invalidRecords} records:`, validation.errors);
                 throw new Error(`Record validation failed: ${validation.errors.length} errors found`);
             }
+            // Yield to event loop after validation (allows heartbeat to fire)
+            await new Promise(resolve => setImmediate(resolve));
             // Step 6: Generate statistics
             const stats = (0, pass1_translation_1.generateRecordStatistics)(entityRecords);
+            // Yield to event loop after stats generation (allows heartbeat to fire)
+            await new Promise(resolve => setImmediate(resolve));
             // Step 7: Calculate processing time
             const processingTimeMs = Date.now() - startTime;
             const processingTimeSec = processingTimeMs / 1000;

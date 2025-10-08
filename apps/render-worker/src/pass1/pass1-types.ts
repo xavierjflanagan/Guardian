@@ -239,11 +239,11 @@ export interface EntityAuditRecord {
   pass2_status: 'pending' | 'skipped';
 
   // AI model metadata (session-level data via JOIN to pass1_entity_metrics)
-  // REMOVED: pass1_model_used (use JOIN to pass1_entity_metrics on shell_file_id)
-  // REMOVED: pass1_vision_processing (use JOIN to pass1_entity_metrics on shell_file_id)
-  pass1_token_usage?: number;
-  pass1_image_tokens?: number;
-  pass1_cost_estimate?: number;
+  // REMOVED (Migration 16): pass1_model_used (use JOIN to pass1_entity_metrics)
+  // REMOVED (Migration 16): pass1_vision_processing (use JOIN to pass1_entity_metrics)
+  // REMOVED (Migration 17): pass1_token_usage (use JOIN to pass1_entity_metrics.total_tokens)
+  // REMOVED (Migration 17): pass1_image_tokens (deprecated, always 0)
+  // REMOVED (Migration 17): pass1_cost_estimate (calculate on-demand from token breakdown)
 
   // DUAL-INPUT PROCESSING METADATA (flattened)
   ai_visual_interpretation: string;
