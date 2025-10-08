@@ -13,8 +13,8 @@
 **Migrations Executed:**
 - ✅ Migration 15: Added `input_tokens`, `output_tokens`, `total_tokens`; removed `vision_tokens_used`, `cost_usd`
 
-**Pending Fixes:**
-- ⚠️ `processing_time_ms` - Code bug (timing measured after AI processing, not during)
+**Audit Corrections:**
+- ✅ `processing_time_ms` - Verified correct (timing includes full AI call, previous audit claim was incorrect)
 
 ---
 
@@ -448,17 +448,17 @@ CREATE TABLE file_upload_audit (
 
 | Column | Issue | Verdict | Recommendation |
 |--------|-------|---------|----------------|
-| `processing_time_ms` | Always 0 (timing bug) | ⚠️ FIX | Move `startTime` to before AI call |
+| `processing_time_ms` | Verified correct | ✅ KEEP | Timing includes full AI call (audit error corrected) |
 | `confidence_distribution` | Working correctly | ✅ KEEP | Valuable quality metric |
-| `cost_usd` | Hardcoded pricing, forgotten updates | ❌ REMOVE | Use tokens + pricing lookup on-demand |
+| `cost_usd` | Hardcoded pricing, forgotten updates | ✅ REMOVED | Migration 15: Now calculate on-demand from token breakdown |
 | `user_agent` | NULL (no user context) | ✅ KEEP | Compliance audit design, document NULL reason |
 | `ip_address` | NULL (no user context) | ✅ KEEP | Compliance audit design, document NULL reason |
 
-### Priority Actions:
+### Completed Actions:
 
-1. **Fix `processing_time_ms` bug** (move timing to before AI call)
-2. **Remove `cost_usd` column** (calculate on-demand from tokens)
-3. **Document `user_agent`/`ip_address` NULL behavior** (compliance design intent)
+1. ✅ **Token breakdown migration** (Migration 15: Added input/output token tracking)
+2. ✅ **Removed `cost_usd` column** (Migration 15: Calculate on-demand from tokens)
+3. ✅ **Verified `processing_time_ms` correct** (Audit error corrected - timing includes full AI processing)
 
 ---
 
@@ -702,7 +702,7 @@ function calculateCost(tokens: { input: number, output: number }, modelName: str
 | # | Column | Type | Nullable | Verdict | Reason |
 |---|--------|------|----------|---------|--------|
 | 5 | `entities_detected` | integer | NO | ✅ KEEP | Count of entities found in document |
-| 6 | `processing_time_ms` | integer | NO | ⚠️ KEEP (BUG) | Session processing duration - **needs code fix** (currently measures DB building, not AI processing) |
+| 6 | `processing_time_ms` | integer | NO | ✅ KEEP | Session processing duration (includes full AI call + processing) |
 | 7 | `vision_model_used` | text | NO | ✅ KEEP | AI model identifier (e.g., "gpt-5-mini") |
 | 8 | `ocr_model_used` | text | YES | ✅ KEEP | OCR provider (google_vision, aws_textract) |
 | 9 | `ocr_agreement_average` | numeric | YES | ✅ KEEP | Average AI-OCR agreement score (0.0-1.0) |
@@ -758,8 +758,8 @@ function calculateCost(tokens: { input: number, output: number }, modelName: str
 - ✅ `vision_tokens_used` - Replaced by `total_tokens` with input/output breakdown
 - ✅ `cost_usd` - Calculate on-demand from accurate token breakdown
 
-**Pending Code Fixes (Not Removals):**
-- ⚠️ `processing_time_ms` - Move timing to BEFORE AI call (currently measures DB building only)
+**Audit Corrections:**
+- ✅ `processing_time_ms` - Verified correct (timing includes full AI processing, initial audit claim was incorrect)
 
 **Cost Calculation (On-Demand):**
 ```sql

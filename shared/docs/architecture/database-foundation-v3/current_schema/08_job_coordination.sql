@@ -225,6 +225,7 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     -- Pass 1 Specific Metrics
     entities_detected INTEGER NOT NULL,
     processing_time_ms INTEGER NOT NULL,
+    processing_time_minutes NUMERIC(10,2) NOT NULL GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED,
     vision_model_used TEXT NOT NULL,
     ocr_model_used TEXT,
 
@@ -275,6 +276,7 @@ CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
 
     -- Cost and Performance
     processing_time_ms INTEGER NOT NULL,
+    processing_time_minutes NUMERIC(10,2) NOT NULL GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED,
 
     -- Metadata (Compliance Audit Trail)
     user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
@@ -307,6 +309,7 @@ CREATE TABLE IF NOT EXISTS pass3_narrative_metrics (
 
     -- Cost and Performance
     processing_time_ms INTEGER NOT NULL,
+    processing_time_minutes NUMERIC(10,2) NOT NULL GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED,
 
     -- Metadata (Compliance Audit Trail)
     user_agent TEXT,       -- NULL for background jobs; populated for direct API calls

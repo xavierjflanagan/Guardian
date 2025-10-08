@@ -1,7 +1,7 @@
 {
   "table": "pass2_clinical_metrics",
   "pass": "pass-2",
-  "required": ["profile_id", "shell_file_id", "processing_session_id", "clinical_entities_enriched", "schemas_populated", "clinical_model_used", "clinical_tokens_used", "processing_time_ms"],
+  "required": ["profile_id", "shell_file_id", "processing_session_id", "clinical_entities_enriched", "schemas_populated", "clinical_model_used", "processing_time_ms", "processing_time_minutes"],
   "fields": {
     "profile_id": "uuid (context, cross-pass join key)",
     "shell_file_id": "uuid (source document)",
@@ -16,6 +16,7 @@
     "schema_loading_time_ms": "integer?",
     "clinical_tokens_used": "integer (NOT NULL)",
     "processing_time_ms": "integer (NOT NULL)",
+    "processing_time_minutes": "numeric(10,2) (NOT NULL, GENERATED, auto-calculated from ms / 60000)",
     "cost_usd": "numeric(8,4)?",
     "user_agent": "string?",
     "ip_address": "inet?"
@@ -44,6 +45,7 @@
     "schema_loading_time_ms": 45,
     "clinical_tokens_used": 3500,
     "processing_time_ms": 2100,
+    "processing_time_minutes": 0.04,
     "cost_usd": 0.0042
   }
 }

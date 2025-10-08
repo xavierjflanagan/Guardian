@@ -12,8 +12,8 @@
     "clinical_entities_enriched",
     "schemas_populated",
     "clinical_model_used",
-    "clinical_tokens_used",
-    "processing_time_ms"
+    "processing_time_ms",
+    "processing_time_minutes"
   ],
 
   "fields": {
@@ -144,6 +144,17 @@
       "guidance": "INTEGER type. End-to-end Pass 2 processing duration. Required for performance analysis. Non-negative."
     },
 
+    "processing_time_minutes": {
+      "type": "numeric",
+      "precision": 10,
+      "scale": 2,
+      "description": "Processing time in minutes (auto-calculated from processing_time_ms for human readability)",
+      "required": true,
+      "generated": true,
+      "examples": [3.00, 2.00, 5.67],
+      "guidance": "NUMERIC(10,2) GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED. Auto-calculated from processing_time_ms. Example: 180000 ms = 3.00 minutes. NOT NULL but automatically computed."
+    },
+
     "cost_usd": {
       "type": "numeric",
       "precision": 8,
@@ -233,7 +244,7 @@
 
   "extraction_guidelines": {
     "system_generated": "This table is populated AUTOMATICALLY by the AI processing system after Pass 2 completion. It is NOT extracted from medical documents.",
-    "required_fields_strict": "All 8 required fields (profile_id, shell_file_id, processing_session_id, clinical_entities_enriched, schemas_populated, clinical_model_used, clinical_tokens_used, processing_time_ms) must be provided.",
+    "required_fields_strict": "All 8 required fields (profile_id, shell_file_id, processing_session_id, clinical_entities_enriched, schemas_populated, clinical_model_used, processing_time_ms, processing_time_minutes (auto-calculated)) must be provided.",
     "schemas_populated_naming": "Must use EXACT database table names (e.g., 'patient_medications', NOT 'medications'). Case-sensitive.",
     "bridge_schemas_naming": "Must use bridge schema identifiers with tier suffix (e.g., 'patient_medications_detailed' or 'patient_medications_minimal').",
     "cross_pass_consistency": "Use consistent field names and precisions across Pass 1, Pass 2, and Pass 3 metrics tables for aggregation.",
@@ -264,6 +275,7 @@
     "clinical_model_used": "Must be provided (NOT NULL)",
     "clinical_tokens_used": "Must be non-negative integer (NOT NULL)",
     "processing_time_ms": "Must be non-negative integer (NOT NULL)",
+    "processing_time_minutes": "Auto-calculated from processing_time_ms (NOT NULL, GENERATED)",
     "average_clinical_confidence": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
     "manual_review_triggered_count": "If provided, must be non-negative integer",
     "validation_failures": "If provided, must be non-negative integer",

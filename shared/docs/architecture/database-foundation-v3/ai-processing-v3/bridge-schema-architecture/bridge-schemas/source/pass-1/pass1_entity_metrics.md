@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     -- Pass 1 Specific Metrics
     entities_detected INTEGER NOT NULL,
     processing_time_ms INTEGER NOT NULL,
+    processing_time_minutes NUMERIC(10,2) NOT NULL GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED,
     vision_model_used TEXT NOT NULL,
     ocr_model_used TEXT,
 
@@ -55,6 +56,7 @@ interface Pass1EntityMetricsExtraction {
   processing_session_id: string;           // UUID - references ai_processing_sessions (cross-pass join key)
   entities_detected: number;               // Count of entities detected in Pass 1
   processing_time_ms: number;              // Processing duration in milliseconds
+  processing_time_minutes: number;         // Processing duration in minutes (auto-calculated from processing_time_ms)
   vision_model_used: string;               // Vision AI model name/version used
 
   // PASS 1 SPECIFIC (OPTIONAL)
@@ -157,7 +159,7 @@ interface Pass1EntityMetricsExtraction {
 
 2. **Cross-Pass Consistency**: Mirrors Pass 2 structure with consistent field names and precisions. Use `processing_session_id` as PRIMARY cross-pass join key for rollup analytics.
 
-3. **Required Fields**: 6 NOT NULL fields without defaults: profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, vision_model_used.
+3. **Required Fields**: 7 NOT NULL fields (6 user-provided + 1 auto-calculated): profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, processing_time_minutes (auto-calculated), vision_model_used.
 
 4. **Pass-Specific Naming**: `entities_detected` (Pass 1) vs `clinical_entities_enriched` (Pass 2) - both represent entity counts but at different pipeline stages.
 
@@ -186,6 +188,7 @@ interface Pass1EntityMetricsExtraction {
 - [ ] `processing_session_id` is a valid UUID (from context, NOT NULL)
 - [ ] `entities_detected` is a non-negative integer (NOT NULL)
 - [ ] `processing_time_ms` is a non-negative integer (NOT NULL)
+- [ ] `processing_time_minutes` is auto-calculated from processing_time_ms (NOT NULL, GENERATED)
 - [ ] `vision_model_used` is provided (NOT NULL)
 - [ ] `ocr_agreement_average` (if provided) is between 0.000 and 1.000
 - [ ] `confidence_distribution` (if provided) is valid JSONB object
@@ -199,7 +202,7 @@ interface Pass1EntityMetricsExtraction {
 ## Database Constraint Notes
 
 - **NO patient_id or event_id**: Uses profile_id to reference user_profiles(id)
-- **NOT NULL constraints**: profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, vision_model_used
+- **NOT NULL constraints**: profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, processing_time_minutes (generated), vision_model_used
 - **Optional fields**: ocr_model_used, ocr_agreement_average, confidence_distribution, entity_types_found, input_tokens, output_tokens, total_tokens, ocr_pages_processed, user_agent, ip_address
 - **TEXT[] array**: entity_types_found (optional)
 - **JSONB object**: confidence_distribution (optional)

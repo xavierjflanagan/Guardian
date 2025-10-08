@@ -1,13 +1,14 @@
 {
   "table": "pass1_entity_metrics",
   "pass": "pass-1",
-  "required": ["profile_id", "shell_file_id", "processing_session_id", "entities_detected", "processing_time_ms", "vision_model_used"],
+  "required": ["profile_id", "shell_file_id", "processing_session_id", "entities_detected", "processing_time_ms", "processing_time_minutes", "vision_model_used"],
   "fields": {
     "profile_id": "uuid (context, cross-pass join key)",
     "shell_file_id": "uuid (source document)",
     "processing_session_id": "uuid (PRIMARY cross-pass join key)",
     "entities_detected": "integer (NOT NULL, entity count)",
     "processing_time_ms": "integer (NOT NULL, consistent across passes)",
+    "processing_time_minutes": "numeric(10,2) (NOT NULL, GENERATED, auto-calculated from ms / 60000)",
     "vision_model_used": "string (NOT NULL)",
     "ocr_model_used": "string? (optional)",
     "ocr_agreement_average": "numeric(4,3)? 0.000-1.000",
@@ -41,6 +42,7 @@
     "processing_session_id": "uuid-of-ai-session",
     "entities_detected": 25,
     "processing_time_ms": 1800,
+    "processing_time_minutes": 0.03,
     "vision_model_used": "gpt-4o",
     "ocr_agreement_average": 0.920,
     "confidence_distribution": {
