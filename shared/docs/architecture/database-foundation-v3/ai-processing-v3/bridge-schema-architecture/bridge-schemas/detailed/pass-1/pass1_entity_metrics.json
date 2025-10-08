@@ -11,6 +11,7 @@
     "processing_session_id",
     "entities_detected",
     "processing_time_ms",
+    "processing_time_minutes",
     "vision_model_used"
   ],
 
@@ -56,6 +57,17 @@
       "required": true,
       "examples": [1800, 2400, 1200],
       "guidance": "INTEGER type. End-to-end Pass 1 processing duration. Required for performance analysis. Non-negative. Consistent with Pass 2's processing_time_ms field."
+    },
+
+    "processing_time_minutes": {
+      "type": "numeric",
+      "precision": 10,
+      "scale": 2,
+      "description": "Processing time in minutes (auto-calculated from processing_time_ms for human readability)",
+      "required": true,
+      "generated": true,
+      "examples": [4.92, 3.00, 2.00],
+      "guidance": "NUMERIC(10,2) GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED. Auto-calculated from processing_time_ms. Example: 295084 ms = 4.92 minutes. NOT NULL but automatically computed."
     },
 
     "vision_model_used": {
@@ -240,7 +252,7 @@
 
   "extraction_guidelines": {
     "system_generated": "This table is populated AUTOMATICALLY by the AI processing system after Pass 1 completion. It is NOT extracted from medical documents.",
-    "required_fields_strict": "All 6 required fields (profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, vision_model_used) must be provided.",
+    "required_fields_strict": "All 7 required fields (profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, processing_time_minutes (auto-calculated), vision_model_used) must be provided.",
     "cross_pass_consistency": "Use consistent field names and precisions with Pass 2 and Pass 3 metrics tables for aggregation. processing_session_id is the PRIMARY join key.",
     "ocr_optional": "OCR fields (ocr_model_used, ocr_pages_processed) are optional. Vision-only processing may not populate these fields.",
     "cost_calculation": "Cost calculated on-demand from token breakdown: (input_tokens × input_price_per_token) + (output_tokens × output_price_per_token). Output tokens typically 4x more expensive than input.",
@@ -274,6 +286,7 @@
     "processing_session_id": "Must be valid UUID (NOT NULL)",
     "entities_detected": "Must be non-negative integer (NOT NULL)",
     "processing_time_ms": "Must be non-negative integer (NOT NULL)",
+    "processing_time_minutes": "Auto-calculated from processing_time_ms (NOT NULL, GENERATED)",
     "vision_model_used": "Must be provided (NOT NULL)",
     "ocr_agreement_average": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
     "confidence_distribution": "If provided, must be valid JSONB object",

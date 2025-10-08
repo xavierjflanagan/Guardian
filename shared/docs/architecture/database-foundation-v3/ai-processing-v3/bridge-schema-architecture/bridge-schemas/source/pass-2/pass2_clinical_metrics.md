@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
     clinical_entities_enriched INTEGER NOT NULL,
     schemas_populated TEXT[] NOT NULL, -- ['patient_conditions', 'patient_medications']
     clinical_model_used TEXT NOT NULL,
+    processing_time_ms INTEGER NOT NULL,
+    processing_time_minutes NUMERIC(10,2) NOT NULL GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED,
 
     -- Quality Metrics
     average_clinical_confidence NUMERIC(4,3),
@@ -33,9 +35,6 @@ CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
     input_tokens INTEGER,       -- prompt_tokens from OpenAI API
     output_tokens INTEGER,      -- completion_tokens from OpenAI API
     total_tokens INTEGER,       -- sum of input + output
-
-    -- Cost and Performance
-    processing_time_ms INTEGER NOT NULL,
 
     -- Metadata
     user_agent TEXT,
@@ -60,6 +59,7 @@ interface Pass2ClinicalMetricsExtraction {
   schemas_populated: string[];             // Array of table names populated (TEXT[])
   clinical_model_used: string;             // AI model name/version used
   processing_time_ms: number;              // Processing duration in milliseconds
+  processing_time_minutes: number;         // Processing duration in minutes (auto-calculated from processing_time_ms)
 
   // QUALITY METRICS (OPTIONAL)
   average_clinical_confidence?: number;    // NUMERIC(4,3) - average confidence across all extractions
@@ -147,7 +147,7 @@ interface Pass2ClinicalMetricsExtraction {
 
 1. **System-Generated Metrics**: This table is populated by the AI processing system, NOT extracted from medical documents. It tracks the performance and quality of the Pass 2 extraction process itself.
 
-2. **Required Fields**: 8 NOT NULL fields without defaults: profile_id, shell_file_id, processing_session_id, clinical_entities_enriched, schemas_populated, clinical_model_used, clinical_tokens_used, processing_time_ms.
+2. **Required Fields**: 8 NOT NULL fields (7 user-provided + 1 auto-calculated): profile_id, shell_file_id, processing_session_id, clinical_entities_enriched, schemas_populated, clinical_model_used, processing_time_ms, processing_time_minutes (auto-calculated).
 
 3. **TEXT[] Arrays**:
    - `schemas_populated`: Array of table names that were populated (e.g., ['patient_conditions', 'patient_medications'])
@@ -179,8 +179,8 @@ interface Pass2ClinicalMetricsExtraction {
 - [ ] `clinical_entities_enriched` is a non-negative integer (NOT NULL)
 - [ ] `schemas_populated` is a valid TEXT[] array with at least one table name (NOT NULL)
 - [ ] `clinical_model_used` is provided (NOT NULL)
-- [ ] `clinical_tokens_used` is a non-negative integer (NOT NULL)
 - [ ] `processing_time_ms` is a non-negative integer (NOT NULL)
+- [ ] `processing_time_minutes` is auto-calculated from processing_time_ms (NOT NULL, GENERATED)
 - [ ] `average_clinical_confidence` (if provided) is between 0.000 and 1.000
 - [ ] `cost_usd` (if provided) is a non-negative number with max 4 decimal places
 - [ ] `bridge_schemas_used` (if provided) is a valid TEXT[] array
@@ -189,7 +189,7 @@ interface Pass2ClinicalMetricsExtraction {
 ## Database Constraint Notes
 
 - **NO patient_id or event_id**: Uses profile_id to reference user_profiles(id)
-- **NOT NULL constraints**: profile_id, shell_file_id, processing_session_id, clinical_entities_enriched, schemas_populated, clinical_model_used, clinical_tokens_used, processing_time_ms
+- **NOT NULL constraints**: profile_id, shell_file_id, processing_session_id, clinical_entities_enriched, schemas_populated, clinical_model_used, processing_time_ms, processing_time_minutes (generated)
 - **Integer defaults**: manual_review_triggered_count defaults to 0, validation_failures defaults to 0
 - **TEXT[] arrays**: schemas_populated (NOT NULL), bridge_schemas_used (optional)
 - **NUMERIC precision**: average_clinical_confidence uses (4,3), cost_usd uses (8,4)
