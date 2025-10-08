@@ -346,10 +346,10 @@ export class Pass1EntityDetector {
           vision_processing: true,
           processing_time_seconds: processingTime,
           token_usage: {
-            prompt_tokens: response.usage?.prompt_tokens || 0,
-            completion_tokens: response.usage?.completion_tokens || 0,
-            total_tokens: response.usage?.total_tokens || 0,
-            image_tokens: this.estimateImageTokens(optimizedSize),
+            prompt_tokens: response.usage?.prompt_tokens || 0,      // Input (text + images combined)
+            completion_tokens: response.usage?.completion_tokens || 0,  // Output
+            total_tokens: response.usage?.total_tokens || 0,       // Sum
+            // REMOVED: image_tokens estimation (already included in prompt_tokens by OpenAI)
           },
           cost_estimate: this.calculateCost(response.usage, optimizedSize),
           confidence_metrics: {
@@ -450,10 +450,10 @@ export class Pass1EntityDetector {
         vision_processing: true,
         processing_time_seconds: processingTime,
         token_usage: {
-          prompt_tokens: response.usage?.prompt_tokens || 0,
-          completion_tokens: response.usage?.completion_tokens || 0,
-          total_tokens: response.usage?.total_tokens || 0,
-          image_tokens: this.estimateImageTokens(optimizedSize),
+          prompt_tokens: response.usage?.prompt_tokens || 0,      // Input (text + images combined)
+          completion_tokens: response.usage?.completion_tokens || 0,  // Output
+          total_tokens: response.usage?.total_tokens || 0,       // Sum
+          // REMOVED: image_tokens estimation (already included in prompt_tokens by OpenAI)
         },
         cost_estimate: this.calculateCost(response.usage, optimizedSize),
         confidence_metrics: rawResult.processing_metadata.confidence_metrics || {
@@ -524,8 +524,12 @@ export class Pass1EntityDetector {
   }
 
   /**
-   * Estimate image tokens based on file size
-   * Rough approximation: ~85 tokens per 1000 bytes for images
+   * DEPRECATED: Image token estimation (no longer used)
+   *
+   * OpenAI combines text and image tokens in prompt_tokens field - we don't need
+   * to estimate image tokens separately. This method kept for reference only.
+   *
+   * Previous logic: ~85 tokens per 1000 bytes for images
    */
   private estimateImageTokens(fileSizeBytes: number): number {
     return Math.ceil((fileSizeBytes / 1000) * 85);

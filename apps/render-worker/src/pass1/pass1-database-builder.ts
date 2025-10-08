@@ -255,9 +255,17 @@ function buildPass1EntityMetrics(
     ocr_agreement_average: aiResponse.cross_validation_results.ai_ocr_agreement_score,
     confidence_distribution: confidenceDistribution,
     entity_types_found: entityTypesFound,
+
+    // NEW: Token breakdown for accurate cost calculation
+    input_tokens: aiResponse.processing_metadata.token_usage.prompt_tokens,
+    output_tokens: aiResponse.processing_metadata.token_usage.completion_tokens,
+    total_tokens: aiResponse.processing_metadata.token_usage.total_tokens,
+
+    // DEPRECATED: Dual-write during migration period (remove in Phase 5)
     vision_tokens_used: aiResponse.processing_metadata.token_usage.total_tokens,
-    ocr_pages_processed: input.document_metadata.page_count,
     cost_usd: aiResponse.processing_metadata.cost_estimate,
+
+    ocr_pages_processed: input.document_metadata.page_count,
   };
 }
 

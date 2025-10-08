@@ -119,12 +119,28 @@
       "guidance": "PostgreSQL TEXT[] array. Entity type categories detected during Pass 1. Consider GIN index for analytics: CREATE INDEX idx_entity_types_found ON pass1_entity_metrics USING GIN(entity_types_found);"
     },
 
-    "vision_tokens_used": {
+    "input_tokens": {
       "type": "integer",
-      "description": "Tokens consumed by vision model",
+      "description": "Input tokens from OpenAI prompt_tokens (text + images combined)",
+      "required": false,
+      "examples": [1800, 2400, 1300],
+      "guidance": "INTEGER type. Input tokens (text + images) from OpenAI API prompt_tokens field. Used for accurate cost calculation (input tokens priced differently than output). Non-negative."
+    },
+
+    "output_tokens": {
+      "type": "integer",
+      "description": "Output tokens from OpenAI completion_tokens",
+      "required": false,
+      "examples": [700, 800, 500],
+      "guidance": "INTEGER type. Output tokens from OpenAI API completion_tokens field. Used for accurate cost calculation (output tokens typically 4x more expensive than input). Non-negative."
+    },
+
+    "total_tokens": {
+      "type": "integer",
+      "description": "Sum of input + output tokens from OpenAI total_tokens",
       "required": false,
       "examples": [2500, 3200, 1800],
-      "guidance": "INTEGER type. Sum of input + output tokens for vision AI. Used for cost calculation. Non-negative. Mirrors Pass 2's clinical_tokens_used field."
+      "guidance": "INTEGER type. Sum of input + output tokens from OpenAI API total_tokens field. Should equal input_tokens + output_tokens. Non-negative. Mirrors Pass 2's total_tokens field."
     },
 
     "ocr_pages_processed": {
@@ -133,16 +149,6 @@
       "required": false,
       "examples": [4, 2, 1],
       "guidance": "INTEGER type. Count of pages processed through OCR. Only populated if OCR was used. Non-negative."
-    },
-
-    "cost_usd": {
-      "type": "numeric",
-      "precision": 8,
-      "scale": 4,
-      "description": "Processing cost in USD",
-      "required": false,
-      "examples": [0.0075, 0.0096, 0.0036],
-      "guidance": "NUMERIC(8,4) - up to $9,999.9999 with 4 decimal places. Calculated from vision_tokens_used and model pricing. Non-negative. Consistent with Pass 2's cost_usd field."
     },
 
     "user_agent": {
@@ -179,8 +185,9 @@
           "low": 2
         },
         "entity_types_found": ["medication", "condition", "vital_sign", "observation"],
-        "vision_tokens_used": 2500,
-        "cost_usd": 0.0075
+        "input_tokens": 1800,
+        "output_tokens": 700,
+        "total_tokens": 2500
       }
     },
     {
@@ -200,9 +207,10 @@
           "low": 2
         },
         "entity_types_found": ["medication", "condition", "vital_sign", "observation", "allergy"],
-        "vision_tokens_used": 3200,
-        "ocr_pages_processed": 4,
-        "cost_usd": 0.0096
+        "input_tokens": 2400,
+        "output_tokens": 800,
+        "total_tokens": 3200,
+        "ocr_pages_processed": 4
       }
     },
     {
@@ -222,9 +230,10 @@
           "low": 2
         },
         "entity_types_found": ["medication", "condition"],
-        "vision_tokens_used": 1800,
-        "ocr_pages_processed": 2,
-        "cost_usd": 0.0036
+        "input_tokens": 1300,
+        "output_tokens": 500,
+        "total_tokens": 1800,
+        "ocr_pages_processed": 2
       }
     }
   ],
@@ -234,7 +243,7 @@
     "required_fields_strict": "All 6 required fields (profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, vision_model_used) must be provided.",
     "cross_pass_consistency": "Use consistent field names and precisions with Pass 2 and Pass 3 metrics tables for aggregation. processing_session_id is the PRIMARY join key.",
     "ocr_optional": "OCR fields (ocr_model_used, ocr_pages_processed) are optional. Vision-only processing may not populate these fields.",
-    "cost_calculation": "cost_usd calculated from vision_tokens_used × model_price_per_token. Precision allows costs up to $9,999.9999.",
+    "cost_calculation": "Cost calculated on-demand from token breakdown: (input_tokens × input_price_per_token) + (output_tokens × output_price_per_token). Output tokens typically 4x more expensive than input.",
     "quality_indicators": {
       "high_quality": "ocr_agreement_average >= 0.900 AND confidence_distribution.high >= 70% of entities_detected",
       "moderate_quality": "ocr_agreement_average 0.750-0.899 OR confidence_distribution.high >= 50% of entities_detected",
@@ -252,8 +261,8 @@
     },
     "cost_performance_consistency": {
       "processing_time_ms": "INTEGER - same across all passes",
-      "cost_usd": "NUMERIC(8,4) - same across all passes",
-      "tokens": "vision_tokens_used (Pass 1) vs clinical_tokens_used (Pass 2)"
+      "token_breakdown": "input_tokens, output_tokens, total_tokens - same across all passes",
+      "cost_calculation": "On-demand calculation from token breakdown and model pricing"
     },
     "summary_layer": "Designed for aggregation into ai_processing_summary materialized view per processing_session_id and per profile_id.",
     "analytics_indexes": "GIN index on entity_types_found enables efficient filtering: CREATE INDEX idx_entity_types_found ON pass1_entity_metrics USING GIN(entity_types_found);"
@@ -269,9 +278,10 @@
     "ocr_agreement_average": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
     "confidence_distribution": "If provided, must be valid JSONB object",
     "entity_types_found": "If provided, must be valid TEXT[] array",
-    "vision_tokens_used": "If provided, must be non-negative integer",
+    "input_tokens": "If provided, must be non-negative integer",
+    "output_tokens": "If provided, must be non-negative integer",
+    "total_tokens": "If provided, must be non-negative integer matching sum of input + output",
     "ocr_pages_processed": "If provided, must be non-negative integer",
-    "cost_usd": "If provided, must be non-negative number with max 4 decimal places",
     "ip_address": "If provided, must be valid IPv4 or IPv6 format"
   }
 }

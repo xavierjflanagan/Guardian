@@ -233,10 +233,13 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     confidence_distribution JSONB, -- { "high": 15, "medium": 8, "low": 2 }
     entity_types_found TEXT[], -- ['medication', 'condition', 'vital_sign']
 
+    -- Token Breakdown (for accurate cost calculation)
+    input_tokens INTEGER,       -- prompt_tokens from OpenAI API (text + images)
+    output_tokens INTEGER,      -- completion_tokens from OpenAI API
+    total_tokens INTEGER,       -- sum of input + output
+
     -- Cost and Performance
-    vision_tokens_used INTEGER,
     ocr_pages_processed INTEGER,
-    cost_usd NUMERIC(8,4),
 
     -- Metadata
     user_agent TEXT,
@@ -265,10 +268,13 @@ CREATE TABLE IF NOT EXISTS pass2_clinical_metrics (
     bridge_schemas_used TEXT[],
     schema_loading_time_ms INTEGER,
 
+    -- Token Breakdown (for accurate cost calculation)
+    input_tokens INTEGER,       -- prompt_tokens from OpenAI API
+    output_tokens INTEGER,      -- completion_tokens from OpenAI API
+    total_tokens INTEGER,       -- sum of input + output
+
     -- Cost and Performance
-    clinical_tokens_used INTEGER NOT NULL,
     processing_time_ms INTEGER NOT NULL,
-    cost_usd NUMERIC(8,4),
 
     -- Metadata
     user_agent TEXT,
@@ -294,10 +300,13 @@ CREATE TABLE IF NOT EXISTS pass3_narrative_metrics (
     clinical_relationships_found INTEGER,
     timeline_events_created INTEGER,
 
+    -- Token Breakdown (for accurate cost calculation)
+    input_tokens INTEGER,       -- prompt_tokens from OpenAI API
+    output_tokens INTEGER,      -- completion_tokens from OpenAI API
+    total_tokens INTEGER,       -- sum of input + output
+
     -- Cost and Performance
-    semantic_tokens_used INTEGER NOT NULL,
     processing_time_ms INTEGER NOT NULL,
-    cost_usd NUMERIC(8,4),
 
     -- Metadata
     user_agent TEXT,
