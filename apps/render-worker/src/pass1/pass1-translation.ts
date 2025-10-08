@@ -94,7 +94,7 @@ export function translateAIOutputToDatabase(
       pass1_model_used: sessionMetadata.model_used,
       pass1_vision_processing: sessionMetadata.vision_processing,
       pass1_token_usage: aiResponse.processing_metadata?.token_usage?.total_tokens || 0,
-      pass1_image_tokens: aiResponse.processing_metadata?.token_usage?.image_tokens || 0,
+      pass1_image_tokens: 0,  // DEPRECATED: Image tokens now included in prompt_tokens by OpenAI
       pass1_cost_estimate: aiResponse.processing_metadata?.cost_estimate || 0,
 
       // =========================================================================
