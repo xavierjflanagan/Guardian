@@ -118,6 +118,9 @@ export class Pass1EntityDetector {
         throw new Error(`Record validation failed: ${validation.errors.length} errors found`);
       }
 
+      // Yield to event loop after validation (allows heartbeat to fire)
+      await new Promise(resolve => setImmediate(resolve));
+
       // Step 6: Generate statistics
       const stats = generateRecordStatistics(entityRecords);
 
