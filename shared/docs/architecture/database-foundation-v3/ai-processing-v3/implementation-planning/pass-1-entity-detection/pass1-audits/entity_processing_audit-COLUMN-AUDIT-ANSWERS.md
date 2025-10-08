@@ -218,6 +218,77 @@ compliance_flags: aiResponse.profile_safety?.safety_flags || [],
 
 ---
 
+## 6. `pass1_token_usage`, `pass1_image_tokens`, `pass1_cost_estimate` - Redundant Session Data
+
+**Date Added:** 2025-10-08
+**Issue:** Three additional columns duplicating session-level metrics
+
+### Current Implementation:
+
+**CODE INJECTED** - NOT AI-generated
+
+```typescript
+// pass1-translation.ts lines 96-98
+pass1_token_usage: aiResponse.processing_metadata?.token_usage?.total_tokens || 0,
+pass1_image_tokens: 0,  // DEPRECATED: Image tokens now included in prompt_tokens by OpenAI
+pass1_cost_estimate: aiResponse.processing_metadata?.cost_estimate || 0,
+
+// Copied to EVERY entity (40 entities × 3 columns = 120 redundant fields)
+```
+
+### The Problem:
+
+**MASSIVE REDUNDANCY** - Same issue as `pass1_model_used` and `pass1_vision_processing`
+
+- All 40 entities have same `pass1_token_usage` value from session
+- All 40 entities have same `pass1_image_tokens = 0` (deprecated field)
+- All 40 entities have same `pass1_cost_estimate` from session
+- Already stored in `pass1_entity_metrics` table (single source of truth)
+
+### Database Dependency Check (2025-10-08):
+
+✅ **SAFE TO DROP** - No breaking dependencies found:
+- ❌ No views reference these columns
+- ❌ No foreign key constraints
+- ❌ No indexes on these columns
+- ❌ No database functions reference them
+
+### Code Usage:
+
+**Type Definitions:**
+- `apps/render-worker/src/pass1/pass1-types.ts` (lines 244-246)
+
+**Write Operations:**
+- `apps/render-worker/src/pass1/pass1-translation.ts` (lines 96-98)
+
+**Read Operations:**
+- No queries found reading these columns (data only written, never used)
+
+### Recommendation:
+
+❌ **REMOVE ALL THREE COLUMNS** from `entity_processing_audit`
+
+**Use JOIN when needed:**
+```sql
+SELECT
+  m.total_tokens,           -- Replaces pass1_token_usage
+  m.input_tokens,           -- New breakdown field
+  m.output_tokens,          -- New breakdown field
+  -- pass1_image_tokens deprecated (no replacement needed)
+  -- pass1_cost_estimate: Calculate on-demand from token breakdown
+  (m.input_tokens / 1000000.0 * 2.50) +
+  (m.output_tokens / 1000000.0 * 10.00) as cost_usd
+FROM entity_processing_audit e
+JOIN pass1_entity_metrics m ON m.shell_file_id = e.shell_file_id
+WHERE e.id = '...';
+```
+
+**Impact:** Saves 120 DB fields per 40-entity document (40 entities × 3 columns)
+
+**Combined with previous removals:** 200 fields saved per document (80 + 120)
+
+---
+
 ## Summary Table - Column Recommendations
 
 | Column | Source | Verdict | Reason |
@@ -228,8 +299,11 @@ compliance_flags: aiResponse.profile_safety?.safety_flags || [],
 | `location_context` | AI | ✅ KEEP | Human-readable spatial context |
 | `unique_marker` | AI | ✅ KEEP | Semantic field identifier (50% normalized labels) |
 | `processing_priority` | Backend | ✅ KEEP | Essential for Pass 2 routing |
-| `pass1_model_used` | Backend | ❌ REMOVE | Duplicated session data (use JOIN) |
-| `pass1_vision_processing` | Backend | ❌ REMOVE | Duplicated session data (use JOIN) |
+| `pass1_model_used` | Backend | ✅ REMOVED | Duplicated session data (use JOIN) |
+| `pass1_vision_processing` | Backend | ✅ REMOVED | Duplicated session data (use JOIN) |
+| `pass1_token_usage` | Backend | ❌ REMOVE | Duplicated session data (use JOIN) |
+| `pass1_image_tokens` | Backend | ❌ REMOVE | Deprecated field (always 0) |
+| `pass1_cost_estimate` | Backend | ❌ REMOVE | Duplicated session data (calculate on-demand) |
 | `validation_flags` | AI (unmapped) | ⚠️ FIX | Add extraction code |
 | `compliance_flags` | AI (unmapped) | ⚠️ FIX | Add extraction code |
 
@@ -239,28 +313,64 @@ compliance_flags: aiResponse.profile_safety?.safety_flags || [],
 
 ### Immediate Actions:
 
-1. **Remove Redundant Columns:**
+1. **Remove Redundant Columns (Migration Required):**
    ```sql
    ALTER TABLE entity_processing_audit
-     DROP COLUMN pass1_model_used,
-     DROP COLUMN pass1_vision_processing;
+     DROP COLUMN pass1_token_usage,
+     DROP COLUMN pass1_image_tokens,
+     DROP COLUMN pass1_cost_estimate;
    ```
 
-2. **Fix Flag Mapping:**
+2. **Update Code (Remove Writes to Dropped Columns):**
+   ```typescript
+   // apps/render-worker/src/pass1/pass1-translation.ts (lines 96-98)
+   // REMOVE these lines:
+   // pass1_token_usage: aiResponse.processing_metadata?.token_usage?.total_tokens || 0,
+   // pass1_image_tokens: 0,
+   // pass1_cost_estimate: aiResponse.processing_metadata?.cost_estimate || 0,
+   ```
+
+3. **Update Type Definitions:**
+   ```typescript
+   // apps/render-worker/src/pass1/pass1-types.ts (lines 244-246)
+   // REMOVE these fields from EntityAuditRecord:
+   // pass1_token_usage?: number;
+   // pass1_image_tokens?: number;
+   // pass1_cost_estimate?: number;
+   ```
+
+4. **Fix Flag Mapping:**
    ```typescript
    // Add to pass1-translation.ts around line 125:
    validation_flags: aiResponse.quality_assessment?.quality_flags || [],
    compliance_flags: aiResponse.profile_safety?.safety_flags || [],
    ```
 
-3. **Update Queries:**
-   - Replace `pass1_model_used` queries with JOIN to `pass1_entity_metrics`
+### Implementation Order:
+
+**SAFE MIGRATION STRATEGY** (avoid breaking changes):
+
+1. **Step 1:** Update code to stop writing to old columns ✅ Can deploy immediately
+2. **Step 2:** Deploy code changes (no breaking impact - columns still exist)
+3. **Step 3:** Wait 24-48 hours to verify no issues
+4. **Step 4:** Run migration to drop columns ✅ Safe after code deployed
+5. **Step 5:** Update type definitions (remove optional fields)
 
 ### Impact:
 
-- **Database:** Save 80 fields per 40-entity document
-- **Code:** Cleaner architecture (single source of truth)
+- **Database:** Save 120 fields per 40-entity document (3 columns × 40 entities)
+- **Combined with previous removals:** 200 total redundant fields eliminated
+- **Code:** Cleaner architecture (single source of truth in `pass1_entity_metrics`)
+- **Cost:** Calculate on-demand from accurate token breakdown (input/output split)
 - **Compliance:** Capture quality/safety flags for healthcare workflows
+
+### Migration Status:
+
+- ✅ `pass1_model_used` - **ALREADY REMOVED**
+- ✅ `pass1_vision_processing` - **ALREADY REMOVED**
+- ❌ `pass1_token_usage` - **PENDING REMOVAL**
+- ❌ `pass1_image_tokens` - **PENDING REMOVAL**
+- ❌ `pass1_cost_estimate` - **PENDING REMOVAL**
 
 ---
 

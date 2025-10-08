@@ -91,11 +91,11 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       // AI MODEL METADATA (From session + response with safety guards)
       // =========================================================================
-      // REMOVED: pass1_model_used (session-level data, use JOIN to pass1_entity_metrics)
-      // REMOVED: pass1_vision_processing (session-level data, use JOIN to pass1_entity_metrics)
-      pass1_token_usage: aiResponse.processing_metadata?.token_usage?.total_tokens || 0,
-      pass1_image_tokens: 0,  // DEPRECATED: Image tokens now included in prompt_tokens by OpenAI
-      pass1_cost_estimate: aiResponse.processing_metadata?.cost_estimate || 0,
+      // REMOVED (Migration 16): pass1_model_used (use JOIN to pass1_entity_metrics)
+      // REMOVED (Migration 16): pass1_vision_processing (use JOIN to pass1_entity_metrics)
+      // REMOVED (Migration 17): pass1_token_usage (use JOIN to pass1_entity_metrics.total_tokens)
+      // REMOVED (Migration 17): pass1_image_tokens (deprecated, always 0)
+      // REMOVED (Migration 17): pass1_cost_estimate (calculate on-demand from token breakdown)
 
       // =========================================================================
       // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards)

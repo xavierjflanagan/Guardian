@@ -199,13 +199,13 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit (
     processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
 
     -- AI Model and Performance Metadata (Session-level data via JOIN)
-    -- REMOVED: pass1_model_used (use JOIN to pass1_entity_metrics)
-    -- REMOVED: pass1_vision_processing (use JOIN to pass1_entity_metrics)
+    -- REMOVED (Migration 16): pass1_model_used (use JOIN to pass1_entity_metrics)
+    -- REMOVED (Migration 16): pass1_vision_processing (use JOIN to pass1_entity_metrics)
+    -- REMOVED (Migration 17): pass1_token_usage (use JOIN to pass1_entity_metrics.total_tokens)
+    -- REMOVED (Migration 17): pass1_image_tokens (deprecated, always 0)
+    -- REMOVED (Migration 17): pass1_cost_estimate (calculate on-demand from token breakdown)
     pass2_model_used TEXT,                 -- AI model used for enrichment (if applicable)
-    pass1_token_usage INTEGER,             -- Token consumption for Pass 1
-    pass1_image_tokens INTEGER,            -- Image tokens for vision models
     pass2_token_usage INTEGER,             -- Token consumption for Pass 2
-    pass1_cost_estimate NUMERIC(8,4),      -- Cost estimate for Pass 1 processing
     pass2_cost_estimate NUMERIC(8,4),      -- Cost estimate for Pass 2 processing
 
     -- DUAL-INPUT PROCESSING METADATA

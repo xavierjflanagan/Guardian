@@ -361,20 +361,35 @@ class V3Worker {
     }
     // Update job heartbeat
     async updateJobHeartbeat(jobId) {
-        const { error } = await this.supabase
-            .rpc('update_job_heartbeat', {
-            p_job_id: jobId,
-            p_worker_id: this.workerId,
-        });
-        if (error) {
-            console.error(`[${this.workerId}] Failed to update heartbeat:`, error);
+        try {
+            const { error } = await this.supabase
+                .rpc('update_job_heartbeat', {
+                p_job_id: jobId,
+                p_worker_id: this.workerId,
+            });
+            if (error) {
+                console.error(`[${this.workerId}] HEARTBEAT FAILED for job ${jobId}:`, error);
+            }
+            else {
+                if (config.environment.verbose) {
+                    console.log(`[${this.workerId}] Heartbeat updated for job ${jobId}`);
+                }
+            }
+        }
+        catch (err) {
+            console.error(`[${this.workerId}] HEARTBEAT EXCEPTION for job ${jobId}:`, err);
         }
     }
     // Start heartbeat for all active jobs
     startHeartbeat() {
+        console.log(`[${this.workerId}] Starting heartbeat interval (every ${config.worker.heartbeatIntervalMs}ms)`);
         this.heartbeatInterval = setInterval(async () => {
-            for (const jobId of this.activeJobs.keys()) {
-                await this.updateJobHeartbeat(jobId);
+            const activeJobCount = this.activeJobs.size;
+            if (activeJobCount > 0) {
+                console.log(`[${this.workerId}] Heartbeat tick: ${activeJobCount} active job(s)`);
+                for (const jobId of this.activeJobs.keys()) {
+                    await this.updateJobHeartbeat(jobId);
+                }
             }
         }, config.worker.heartbeatIntervalMs);
     }

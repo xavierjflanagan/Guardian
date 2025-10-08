@@ -2,24 +2,32 @@
 
 **Date:** 2025-10-07 (Updated: 2025-10-08)
 **Purpose:** Analyze consistency and variability across successful test runs with GPT-5-mini + gold standard prompt
-**Document:** Patient Health Summary (same file uploaded multiple times)
+**Document:** BP2025060246784 - first 2 page version V4.jpeg (same file uploaded 6 times)
 **Configuration:** Gold Standard prompt (348 lines) with constraint hardening (post Run 3 fix)
 
 ## Executive Summary
 
-**Overall Consistency: GOOD (86% entity count stability)**
+**Overall Consistency: GOOD (25% entity count variability on same document)**
 
+**All 6 Runs - Same Document (BP2025060246784):**
 - **Run 1:** 47 entities (97% OCR agreement, 97% confidence)
 - **Run 2:** 39 entities (96% OCR agreement, 98% confidence)
-- **Run 4:** 35 entities (98% OCR agreement, 97% confidence) - Post-fix validation
-- **Run 5:** 40 entities (98% OCR agreement, 97% confidence) - Extended validation
-- **Run 6:** 41 entities (99% OCR agreement, 95% confidence) - Token breakdown validation
-- **Variation:** 12 entities difference (25% variance across runs)
+- **Run 4:** 35 entities (98% OCR agreement, 97% confidence)
+- **Run 5:** 40 entities (98% OCR agreement, 97% confidence)
+- **Run 6:** 41 entities (99% OCR agreement, 95% confidence)
+- **Run 7:** 45 entities (96% OCR agreement, 96% confidence)
 
-**Critical Finding: Healthcare Context Variance**
-- **Runs 1 & 2:** 20 healthcare_context entities (100% consistent)
-- **Runs 4, 5 & 6:** 9-17 healthcare_context entities (intermediate pattern emerging)
-- **Pattern shift:** Three distinct patterns (20, 17, 9 entities)
+**Variability Metrics:**
+- **Entity Count Range:** 35-47 entities (25% variance)
+- **Average:** 41.2 entities
+- **Quality:** 96.7% avg confidence, 97.3% avg OCR agreement
+
+**Critical Finding: AI Variability on Identical Document**
+- Same document produces 35-47 entities depending on run
+- Healthcare context variance: 55% (9-20 entities)
+- Clinical events variance: 45% (11-21 entities)
+- Document structure variance: 46% (7-13 entities)
+- **Zero data loss** - all clinical information captured in every run
 
 **Clinical Data Reliability: 100%**
 - All immunization records detected in all runs
@@ -40,18 +48,21 @@
 1. `pass1_entity_metrics` - Session-level metrics and quality scores
 2. `entity_processing_audit` - Individual entity records with classifications
 
-**Session IDs:**
+**Session IDs (All Same Document - BP2025060246784):**
 - Run 1: `c33140db-8539-474c-bf54-46d66b6048bf` (2025-10-07 03:32:11 UTC)
 - Run 2: `5f455b06-3ff8-46d0-b320-c9bf469b9f80` (2025-10-07 03:55:01 UTC)
 - Run 4: `e4d3b340-e607-455d-9e85-6fa2c3961e2a` (2025-10-07 06:33:29 UTC)
 - Run 5: `394fe1a7-265e-486a-8042-e07e50dcfa2f` (2025-10-07 21:34:05 UTC)
 - Run 6: `2792287e-96ed-401c-8f2a-70039cde1db6` (2025-10-08 01:29:35 UTC) - Token breakdown migration validation
+- Run 7: `e1f045af-bc4d-4b1d-bcfb-c7c4ebaae5ef` (2025-10-08 04:12:53 UTC) - Variability validation
 
 **Note:** Run 3 failed with constraint violation (pre-fix) and is excluded from this analysis.
 
 ---
 
 ## Entity Count Summary
+
+**Same Document (BP2025060246784) - 6 Uploads:**
 
 | Run | Total | clinical_event | healthcare_context | document_structure | Timestamp |
 |-----|-------|----------------|-------------------|-------------------|-----------|
@@ -60,9 +71,12 @@
 | **Run 4** | **35** | 16 | **9** | 10 | 2025-10-07 06:33:29 |
 | **Run 5** | **40** | 21 | **9** | 10 | 2025-10-07 21:34:05 |
 | **Run 6** | **41** | 11 | **17** | 13 | 2025-10-08 01:29:35 |
-| **Average** | **40.4** | **15.4** | **15.0** | **10.0** | - |
+| **Run 7** | **45** | 14 | **18** | 13 | 2025-10-08 04:12:53 |
+| **Average** | **41.2** | **15.2** | **15.5** | **10.5** | - |
 | **Range** | 35-47 | 11-21 | 9-20 | 7-13 | - |
-| **Variance** | 26% | 48% | **55%** | 46% | - |
+| **Variance** | **25%** | **45%** | **55%** | **46%** | - |
+
+**Key Finding:** Uploading the same document 6 times produces 35-47 entities (25% variance), demonstrating AI non-determinism in entity boundary decisions.
 
 ---
 
@@ -177,13 +191,13 @@
 
 ### Confidence Scores (from pass1_entity_metrics)
 
-| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Run 6 | Average |
-|--------|-------|-------|-------|-------|-------|---------|
-| **Overall Confidence** | 97% | 98% | 97% | 97% | 95% | **96.8%** |
-| **OCR Agreement** | 97% | 96% | 98% | 98% | 99% | **97.6%** |
-| **High Confidence Entities** | 47 | 39 | 35 | 40 | 41 | 40.4 |
-| **Medium Confidence** | 0 | 0 | 0 | 0 | 0 | 0 |
-| **Low Confidence** | 0 | 0 | 0 | 0 | 0 | 0 |
+| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Run 6 | Run 7 | Average |
+|--------|-------|-------|-------|-------|-------|-------|---------|
+| **Overall Confidence** | 97% | 98% | 97% | 97% | 95% | 96% | **96.7%** |
+| **OCR Agreement** | 97% | 96% | 98% | 98% | 99% | 96% | **97.3%** |
+| **High Confidence Entities** | 47 | 39 | 35 | 40 | 41 | 45 | 41.2 |
+| **Medium Confidence** | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **Low Confidence** | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 **Quality Assessment: EXCELLENT**
 - All entities classified as "high confidence"
@@ -217,14 +231,14 @@
 
 ## Cost and Performance
 
-| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Run 6 | Average |
-|--------|-------|-------|-------|-------|-------|---------|
-| **Cost per Document** | $0.220 | $0.209 | $0.184 | $0.198 | $0.208 | **$0.204** |
-| **Processing Time** | N/A | N/A | N/A | N/A | 229s | ~4 minutes |
-| **Model** | gpt-5-mini | gpt-5-mini | gpt-5-mini | gpt-5-mini | gpt-5-mini | - |
-| **Input Tokens** | - | - | - | - | 5,942 | - |
-| **Output Tokens** | - | - | - | - | 17,967 | - |
-| **Total Tokens** | - | - | - | - | 23,909 | - |
+| Metric | Run 1 | Run 2 | Run 4 | Run 5 | Run 6 | Run 7 | Average |
+|--------|-------|-------|-------|-------|-------|-------|---------|
+| **Cost per Document** | $0.220 | $0.209 | $0.184 | $0.198 | $0.208 | $0.207 | **$0.204** |
+| **Processing Time** | N/A | N/A | N/A | N/A | 229s | 385s | ~5 minutes |
+| **Model** | gpt-5-mini | gpt-5-mini | gpt-5-mini | gpt-5-mini | gpt-5-mini | gpt-5-mini | - |
+| **Input Tokens** | - | - | - | - | 5,942 | 5,942 | 5,942 |
+| **Output Tokens** | - | - | - | - | 17,967 | 18,235 | 18,101 |
+| **Total Tokens** | - | - | - | - | 23,909 | 24,177 | 24,043 |
 
 **Cost Variance:** 16% range ($0.184-$0.220)
 - Likely correlated with entity count
@@ -464,7 +478,7 @@ Entity 1: "Name: Xavier Flanagan"
 
 **Last Updated:** 2025-10-08
 **Data Source:** Supabase database queries (pass1_entity_metrics, entity_processing_audit)
-**Analysis Status:** Complete - Based on 5 successful runs (Runs 1, 2, 4, 5, 6)
+**Analysis Status:** Complete - Based on 6 successful runs of same document
 **Production Readiness:** ✅ APPROVED
 
 ---
@@ -494,3 +508,70 @@ Entity 1: "Name: Xavier Flanagan"
 - No regression in quality metrics
 - Variability remains within acceptable ranges
 - Pass 2 must handle THREE granularity patterns (not two)
+
+---
+
+## Run 7 Addendum: Continued Variability Validation
+
+**Run 7 Significance:**
+- Sixth upload of same document (BP2025060246784)
+- Validates continued AI variability (Run 6 → Run 7)
+- Second run with token breakdown tracking (validates migration stability)
+- Most recent production test (2025-10-08)
+
+**Job Details:**
+- Job ID: `e8b37e4b-9844-44c0-ac95-4d07df4012bc`
+- Shell File ID: `3fef278a-04e0-4a2e-b5a7-f21cbd772a8f`
+- Processing Time: 385 seconds (6m 26s) - longer than Run 6 (229s)
+- Status: ✅ **COMPLETED**
+
+**Entity Breakdown:**
+- Total: 45 entities
+- clinical_event: 14 (allergy: 1, immunization: 12, medication: 1)
+- healthcare_context: 18 (patient_identifier: 8, healthcare_context_other: 6, facility_identifier: 4)
+- document_structure: 13 (form_structure: 9, header: 1, page_marker: 1, footer: 1, document_structure_other: 1)
+
+**Quality Metrics:**
+- OCR Agreement: 96% (excellent)
+- Overall Confidence: 96% (consistent with other runs)
+- All 45 entities high confidence (0 medium, 0 low)
+- Confidence distribution: {low: 0, high: 45, medium: 0}
+
+**Token Breakdown Validation:**
+- Input Tokens: 5,942 (same as Run 6 - same image size optimization)
+- Output Tokens: 18,235 (+268 from Run 6 due to 4 more entities)
+- Total Tokens: 24,177
+- Token math validated: 5,942 + 18,235 = 24,177 ✅
+- Cost: $0.207 (consistent with Run 6's $0.208)
+
+**Healthcare Context Pattern:**
+- Run 7 shows 18 healthcare_context entities
+- Further confirms spectrum hypothesis (not binary: 9, 17, 18, 20 across runs)
+- Consistent 8 patient_identifier entities ✅
+- Similar facility_identifier count to Run 1 (4 entities)
+
+**Key Findings:**
+1. ✅ **Consistent AI variability** - Run 6→7 shows +4 entities (9% change), within expected variance range
+2. ✅ **Token breakdown migration stable** - second successful run with accurate tracking
+3. ✅ **Quality metrics consistent** - 96% OCR agreement and confidence
+4. ✅ **Healthcare context variability continues** - 17→18 entities (+1 entity change)
+5. ✅ **Document structure stable** - 13 entities both runs (0% variance for these 2 runs)
+6. ⚠️ **Processing time variance** - 385s vs 229s (68% longer) - may indicate variable complexity in AI processing
+
+**Run 6 vs Run 7 Comparison:**
+
+| Category | Run 6 | Run 7 | Change | Note |
+|----------|-------|-------|--------|------|
+| **Total** | 41 | 45 | +4 entities | Within 25% overall variance |
+| clinical_event | 11 | 14 | +3 entities | Immunization splitting variance |
+| healthcare_context | 17 | 18 | +1 entity | Continued granularity spectrum |
+| document_structure | 13 | 13 | 0 entities | Stable for these 2 runs |
+
+**Production Validation:**
+- Variability continues within expected range (25% overall) ✅
+- Quality metrics maintained (96% across the board) ✅
+- Token breakdown accurate and consistent ✅
+- Cost per document stable (~$0.20-0.21) ✅
+- No constraint violations or errors ✅
+
+**This run confirms AI processing variability is normal and acceptable for production use.**
