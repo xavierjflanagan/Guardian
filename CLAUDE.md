@@ -189,7 +189,20 @@ Claude Code has access to **Render.com MCP** and **Supabase MCP** for backend in
 
 ## Database Migration Procedure
 
-All database schema changes follow a strict **two-touchpoint workflow** to maintain data integrity and audit trails:
+Exora V3 uses a **Supabase MCP-based migration system** instead of traditional Supabase CLI migrations. All database schema changes follow a strict **two-touchpoint workflow** to maintain data integrity and audit trails:
+
+### MCP-Based Migration System
+
+**How It Works:**
+1. Create migration script in `migration_history/` with proper template
+2. Execute via Supabase MCP using `mcp__supabase__apply_migration()`
+3. Update source of truth in `current_schema/*.sql` files
+4. Mark migration complete with checkboxes in migration header
+
+**Key Difference from Traditional Migrations:**
+- Migration SQL executes **directly to Supabase database** via MCP tools
+- No need to copy files to `supabase/migrations/` directory
+- `supabase/migrations/` is a legacy directory not used in V3 workflow
 
 ### Two-Touchpoint Workflow
 
@@ -201,7 +214,7 @@ All database schema changes follow a strict **two-touchpoint workflow** to maint
 
 **Touchpoint 2: Execute + Finalize (AI single response, after review approval)**
 1. Apply any feedback from human + second AI bot review
-2. Execute migration via `mcp__supabase__apply_migration()`
+2. Execute migration via `mcp__supabase__apply_migration()` (direct to database)
 3. Update source of truth: `current_schema/*.sql` files
 4. Update downstream files:
    - Bridge schemas (`bridge-schemas/source/*.md`)
@@ -215,6 +228,7 @@ All database schema changes follow a strict **two-touchpoint workflow** to maint
 - **Migration History:** `shared/docs/architecture/database-foundation-v3/migration_history/`
 - **Source of Truth Schemas:** `shared/docs/architecture/database-foundation-v3/current_schema/`
 - **Migration README:** See `migration_history/README.md` for complete procedure and template
+- **Legacy Directory (Not Used):** `supabase/migrations/` - See README.md in that directory for explanation
 
 ## Development Guidelines
 
