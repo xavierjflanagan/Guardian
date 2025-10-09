@@ -9,6 +9,8 @@ export { Pass1EntityDetector } from './Pass1EntityDetector';
 
 // Types
 export type {
+  // Job payload types
+  AIProcessingJobPayload,
   // Input/Output types
   Pass1Input,
   Pass1ProcessingResult,

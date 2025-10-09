@@ -1,7 +1,23 @@
-# GPT-5 Review Analysis & Action Plan
+# GPT-5 Review Analysis & Action Plan (ARCHIVED)
+
 **Date:** 2025-10-05
 **Context:** Review of V3 Pipeline implementation (Edge Functions, Render worker, CORS, Auth)
-**Status:** Investigation in progress
+**Status:** ARCHIVED - Replaced with clean consolidated version
+
+---
+
+**NOTICE:** This file has been archived due to messy iteration history.
+
+**New Fresh File:** [pass1-architectural-improvements.md](shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1-entity-detection/pass1-enhancements/pass1-architectural-improvements.md)
+
+The new file contains all action items from this document, reorganized with:
+- Clean structure without Q&A style investigation notes
+- Updated completion status (GPT-5-mini with 32K tokens)
+- Clear priority hierarchy (Critical → High → Medium)
+- Detailed implementation guides for critical improvements
+- Consolidated analysis sections
+
+**Archived:** 2025-10-09
 
 ---
 
@@ -1065,3 +1081,84 @@ CRITICAL: LIST HANDLING RULES (STRICT)
 **Status:** ✅ BATCH 1 COMPLETE - Deployed and ready for testing
 
 **Deployment:** 2025-10-06 01:19 UTC - All high-priority optimizations live on Render.com
+
+---
+
+## 14. Pass 1 Latency and Cost: Queue Delay Analysis and Optimizations (2025-10-09)
+
+### Summary
+
+Real-world runs showed a 2–4 minute gap between file upload and Pass 1 job start, even with an empty queue. The primary causes are pre-enqueue OCR time in the Edge Function and optional scheduled backpressure at enqueue. Worker poll cadence (5s) is negligible by comparison.
+
+### Where the time can go
+
+- Edge Function OCR before enqueue
+  - Current flow: upload → Edge Function runs Google Vision OCR → then enqueues `ai_processing` job.
+  - That OCR duration appears inside `job_payload.ocr_spatial_data.processing_time_ms` and often totals 120–240s.
+  - Impact: The job does not exist in the queue until OCR finishes, so “created → started” reflects pre-enqueue work.
+
+- Enqueue backpressure (scheduled_at deferral)
+  - `enqueue_job_v3` can push `scheduled_at` into the future when `api_rate_limits` indicates load (OpenAI endpoint).
+  - Effect: Even with no backlog, the job won’t be claimable until `scheduled_at <= now()`.
+
+- Worker polling and concurrency
+  - Poll interval is 5s by default and not sufficient to explain multi-minute gaps.
+  - Concurrency saturation would add delay only if many long jobs are in-flight (not the case here per test).
+
+### How to verify in Supabase
+
+Run this to attribute the delay for a specific file:
+
+```sql
+with j as (
+  select
+    id,
+    created_at,
+    scheduled_at,
+    started_at,
+    status,
+    (job_payload->>'shell_file_id')::uuid as shell_file_id,
+    (job_payload->'ocr_spatial_data'->>'processing_time_ms')::int as ocr_ms
+  from job_queue
+  where job_type = 'ai_processing'
+    and job_payload->>'shell_file_id' = 'YOUR_SHELL_FILE_ID'
+)
+select
+  id,
+  shell_file_id,
+  created_at,
+  scheduled_at,
+  started_at,
+  status,
+  make_interval(secs => coalesce(ocr_ms,0)/1000.0)                as ocr_duration,
+  (scheduled_at - created_at)                                      as backpressure_delay,
+  (started_at - greatest(created_at, scheduled_at))                as queue_wait_after_sched;
+```
+
+Interpretation:
+- `ocr_duration` ≈ 2–4 min → delay is pre-enqueue OCR time.
+- `backpressure_delay` > 0 → enqueue deferral via `scheduled_at`.
+- Large `queue_wait_after_sched` → worker saturation or transient outage.
+
+### Recommended actions
+
+1) Move OCR from Edge Function to Worker (already proposed in Section 1)
+- Enqueue immediately; have the worker perform OCR as step 1.
+- Benefit: Upload response becomes instant; job appears in queue right away.
+
+2) Downscale/compress images before OCR and before LLM
+- Cap width at ~1600px, JPEG ~75% quality to reduce OCR and LLM tokenization time.
+
+3) Tune or disable aggressive enqueue backpressure for low-traffic testing
+- Reduce `backpressure_delay_seconds` thresholds for the OpenAI endpoint in `api_rate_limits` while validating.
+
+4) Worker hygiene
+- Lower `POLL_INTERVAL_MS` to 1000ms for faster pickup; ensure safe concurrency.
+
+5) Preserve a single vision pass; parallelize text-only tasks if splitting features
+- Avoid double-paying for vision; run parallel text calls off a single OCR output when needed.
+
+### Expected impact
+
+- Latency: Remove 2–4 minutes of pre-enqueue time; typical pickup in seconds, end-to-end Pass 1 faster.
+- Cost: Image downscaling reduces input tokens and speeds OCR/LLM; backpressure tuning reduces idle time.

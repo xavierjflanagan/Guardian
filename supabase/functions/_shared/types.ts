@@ -22,14 +22,17 @@ export interface ShellFileRecord {
   updated_at: string;
 }
 
-// V3 Job Queue Types
+// V3 Job Queue Types (NEW: storage-based payload structure)
 export interface JobPayload {
   shell_file_id: string;
   patient_id: string;
-  file_path: string;
-  estimated_tokens?: number;
-  processing_priority?: number;
-  correlation_id?: string;
+  storage_path: string;        // Path to file in storage (renamed from file_path)
+  mime_type: string;           // File MIME type
+  file_size_bytes: number;     // File size in bytes
+  uploaded_filename: string;   // Original filename
+  correlation_id: string;      // Correlation ID for tracking
+  estimated_tokens?: number;   // Optional: for cost estimation
+  processing_priority?: number; // Optional: processing priority
 }
 
 export interface EnqueueJobResponse {

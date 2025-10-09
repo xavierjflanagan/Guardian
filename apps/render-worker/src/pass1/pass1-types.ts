@@ -69,6 +69,27 @@ export interface SpatialElement {
   confidence: number;
 }
 
+// =============================================================================
+// JOB PAYLOAD TYPES - NEW STORAGE-BASED STRUCTURE
+// =============================================================================
+
+// Job payload interface (NEW: storage-based, no embedded OCR)
+export interface AIProcessingJobPayload {
+  shell_file_id: string;
+  patient_id: string;
+  storage_path: string;        // Path to file in storage
+  mime_type: string;
+  file_size_bytes: number;     // Standardized naming
+  uploaded_filename: string;   
+  correlation_id: string;
+  // REMOVED: ocr_spatial_data (now generated in worker)
+  // REMOVED: raw_file.file_data (now downloaded in worker)
+}
+
+// =============================================================================
+// PASS 1 INPUT TYPES - INTERNAL PROCESSING STRUCTURE
+// =============================================================================
+
 export interface Pass1Input {
   shell_file_id: string;
   patient_id: string;
