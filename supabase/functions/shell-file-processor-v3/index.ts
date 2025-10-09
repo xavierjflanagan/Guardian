@@ -12,7 +12,7 @@
 // - track_shell_file_upload_usage(p_profile_id, p_shell_file_id, p_file_size_bytes, p_estimated_pages)
 // =============================================================================
 
-import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
+// REMOVED: encodeBase64 import no longer needed (OCR moved to worker)
 import { createServiceRoleClient, getEdgeFunctionEnv } from '../_shared/supabase-client.ts';
 import { handlePreflight, addCORSHeaders } from '../_shared/cors.ts';
 import {
@@ -33,9 +33,13 @@ import {
 } from '../_shared/types.ts';
 
 // =============================================================================
-// OCR INTEGRATION - Google Cloud Vision API
+// OCR INTEGRATION - MOVED TO WORKER FOR INSTANT UPLOAD RESPONSE
 // =============================================================================
+// OCR processing moved to worker to eliminate 2-4 minute upload delays
+// Worker downloads from storage and runs OCR in background
 
+/*
+// REMOVED: OCR processing now handled in worker
 interface OCRSpatialData {
   extracted_text: string;
   spatial_mapping: Array<{
@@ -53,9 +57,7 @@ interface OCRSpatialData {
   ocr_provider: string;
 }
 
-/**
- * Process document with Google Cloud Vision OCR
- */
+// REMOVED: OCR function moved to worker
 async function processWithGoogleVisionOCR(
   base64Data: string,
   mimeType: string
@@ -147,6 +149,7 @@ async function processWithGoogleVisionOCR(
     ocr_provider: 'google_cloud_vision',
   };
 }
+*/
 
 /**
  * Main Edge Function Handler
@@ -165,7 +168,7 @@ Deno.serve(async (request: Request) => {
     if (methodError) {
       return addCORSHeaders(
         createErrorResponse(methodError, 405, correlationId),
-        request.headers.get('origin')
+        request.headers.get('origin') || undefined
       );
     }
     
@@ -184,7 +187,7 @@ Deno.serve(async (request: Request) => {
           message: 'Invalid JSON in request body',
           correlation_id: correlationId,
         }, 400, correlationId),
-        request.headers.get('origin')
+        request.headers.get('origin') || undefined
       );
     }
     
@@ -196,7 +199,51 @@ Deno.serve(async (request: Request) => {
           ...validationError,
           correlation_id: correlationId,
         }, 400, correlationId),
-        request.headers.get('origin')
+        request.headers.get('origin') || undefined
+      );
+    }
+    
+    // Extract and verify JWT
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return addCORSHeaders(
+        createErrorResponse({ 
+          code: ErrorCode.UNAUTHORIZED, 
+          message: 'Missing authorization header', 
+          correlation_id: correlationId 
+        }, 401, correlationId),
+        request.headers.get('origin') || undefined
+      );
+    }
+    
+    const jwt = authHeader.slice('Bearer '.length);
+    const { data: authUser, error: authErr } = await supabase.auth.getUser(jwt);
+    if (authErr || !authUser?.user) {
+      return addCORSHeaders(
+        createErrorResponse({ 
+          code: ErrorCode.UNAUTHORIZED, 
+          message: 'Invalid authentication token', 
+          correlation_id: correlationId 
+        }, 401, correlationId),
+        request.headers.get('origin') || undefined
+      );
+    }
+
+    // Verify patient_id belongs to caller
+    const { data: hasAccess, error: accessErr } = await supabase
+      .rpc('has_profile_access', { 
+        p_user_id: authUser.user.id, 
+        p_profile_id: requestData.patient_id 
+      });
+      
+    if (accessErr || !hasAccess) {
+      return addCORSHeaders(
+        createErrorResponse({ 
+          code: ErrorCode.FORBIDDEN, 
+          message: 'Access denied to specified patient profile', 
+          correlation_id: correlationId 
+        }, 403, correlationId),
+        request.headers.get('origin') || undefined
       );
     }
     
@@ -330,7 +377,7 @@ async function processShellFileUpload(
   const { data: existingJob, error: jobCheckError } = await supabase
     .from('job_queue')
     .select('id, status')
-    .eq('job_type', 'shell_file_processing')
+    .eq('job_type', 'ai_processing')              // FIXED: Use correct job type
     .contains('job_payload', { shell_file_id: shellFileId })
     .in('status', ['pending', 'processing'])
     .single();
@@ -346,46 +393,17 @@ async function processShellFileUpload(
     jobId = existingJob.id;
     console.log(`[${correlationId}] Job already exists: ${jobId}`);
   } else {
-    // Step 3.5: Download file and run OCR
-    console.log(`[${correlationId}] Downloading file for OCR: ${data.file_path}`);
-    const { data: fileData, error: downloadError } = await supabase
-      .storage
-      .from('medical-docs')
-      .download(data.file_path);
-
-    if (downloadError || !fileData) {
-      throw new Error(`File download failed: ${downloadError?.message || 'No file data'}`);
-    }
-
-    // Convert file to base64 for OCR using Deno's efficient encoder
-    const arrayBuffer = await fileData.arrayBuffer();
-    const base64Data = encodeBase64(new Uint8Array(arrayBuffer));
-
-    console.log(`[${correlationId}] Running Google Cloud Vision OCR...`);
-    const ocrData = await processWithGoogleVisionOCR(base64Data, data.mime_type);
-    console.log(`[${correlationId}] OCR complete: ${ocrData.extracted_text.length} chars, ${ocrData.spatial_mapping.length} spatial elements`);
-
-    // Step 4: Enqueue Pass 1 entity detection job with OCR data
+    // Step 3: Enqueue Pass 1 entity detection job with storage reference (OCR moved to worker)
     const jobPayload = {
       shell_file_id: shellFileId,
       patient_id: data.patient_id,
-      processing_session_id: crypto.randomUUID(),
-      job_lane: 'ai_queue_simple', // Required for ai_processing job type
-      raw_file: {
-        file_data: base64Data,
-        file_type: data.mime_type,
-        filename: data.filename,
-        file_size: data.file_size_bytes,
-      },
-      ocr_spatial_data: ocrData,
-      document_metadata: {
-        filename: data.filename,
-        file_type: data.mime_type,
-        page_count: data.estimated_pages || 1,
-        patient_id: data.patient_id,
-        upload_timestamp: new Date().toISOString(),
-      },
-      correlation_id: correlationId,
+      storage_path: data.file_path,
+      mime_type: data.mime_type,
+      file_size_bytes: data.file_size_bytes,
+      uploaded_filename: data.filename,
+      correlation_id: correlationId
+      // NO ocr_spatial_data anymore - worker will load from storage
+      // NO raw_file.file_data anymore - worker downloads from storage
     };
 
     // Create Pass 1 entity detection job (ai_processing type)
@@ -397,6 +415,7 @@ async function processShellFileUpload(
         job_category: 'standard',
         priority: 5,
         p_scheduled_at: new Date().toISOString(),
+        p_job_lane: 'ai_queue_simple' // REQUIRED for ai_processing jobs
       });
       
     if (enqueueError) {

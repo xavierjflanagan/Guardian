@@ -19,7 +19,9 @@
 -- - Dual-lens user experience: Document-centric vs narrative-centric viewing with user preference persistence
 -- - Clinical decision support: Rule engine for AI-powered clinical insights and recommendations
 -- 
--- TABLES CREATED (10 tables):
+-- TABLES CREATED (11 tables):
+-- OCR Infrastructure:
+--   - ocr_artifacts
 -- AI Processing Core:
 --   - ai_processing_sessions, entity_processing_audit, profile_classification_audit
 -- Quality & Validation:
@@ -90,6 +92,108 @@ BEGIN
     
     RAISE NOTICE 'Dependencies verified: All required tables and functions exist';
 END $$;
+
+-- =============================================================================
+-- SECTION 0: OCR ARTIFACT PERSISTENCE
+-- =============================================================================
+-- Added 2025-10-10: OCR artifacts table for reusable OCR results
+-- Purpose: Index OCR results stored in Supabase Storage for reuse across retries and passes
+
+CREATE TABLE IF NOT EXISTS ocr_artifacts (
+    -- Primary key links to shell_files with CASCADE delete
+    shell_file_id UUID PRIMARY KEY REFERENCES shell_files(id) ON DELETE CASCADE,
+    
+    -- Storage path to manifest file
+    manifest_path TEXT NOT NULL,
+    
+    -- OCR provider for future flexibility
+    provider TEXT NOT NULL DEFAULT 'google_vision',
+    
+    -- Version tracking for OCR processing changes
+    artifact_version TEXT NOT NULL DEFAULT 'v1.2024.10',
+    
+    -- SHA256 of original file for integrity verification
+    file_checksum TEXT,
+    
+    -- SHA256 of OCR results for change detection
+    checksum TEXT NOT NULL,
+    
+    -- Page count for quick reference
+    pages INT NOT NULL CHECK (pages > 0),
+    
+    -- Total size of OCR artifacts in bytes
+    bytes BIGINT NOT NULL CHECK (bytes > 0),
+    
+    -- Timestamps for tracking
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_ocr_artifacts_created ON ocr_artifacts(created_at);
+CREATE INDEX IF NOT EXISTS idx_ocr_artifacts_provider ON ocr_artifacts(provider);
+
+-- Enable RLS
+ALTER TABLE ocr_artifacts ENABLE ROW LEVEL SECURITY;
+
+-- Service role: optional (service role bypasses RLS anyway). If you want it explicit:
+DO $ocr_policy_service$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ocr_artifacts' AND policyname = 'Service role full access') THEN
+        CREATE POLICY "Service role full access"
+          ON ocr_artifacts
+          FOR ALL
+          USING (
+            coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+          )
+          WITH CHECK (
+            coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+          );
+    END IF;
+END $ocr_policy_service$;
+
+-- End-user read access via profile access helper
+DO $ocr_policy_user$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ocr_artifacts' AND policyname = 'Users can read own OCR artifacts') THEN
+        CREATE POLICY "Users can read own OCR artifacts"
+          ON ocr_artifacts
+          FOR SELECT
+          USING (
+            has_profile_access(
+              auth.uid(),
+              (SELECT sf.patient_id FROM shell_files sf WHERE sf.id = ocr_artifacts.shell_file_id)
+            )
+          );
+    END IF;
+END $ocr_policy_user$;
+
+-- Add trigger for automatic updated_at maintenance
+DO $ocr_trigger$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.triggers WHERE event_object_table = 'ocr_artifacts' AND trigger_name = 'update_ocr_artifacts_updated_at') THEN
+        CREATE TRIGGER update_ocr_artifacts_updated_at
+          BEFORE UPDATE ON ocr_artifacts
+          FOR EACH ROW
+          EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $ocr_trigger$;
+
+-- Add constraint for manifest_path length (security hardening)
+DO $ocr_constraint$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'ocr_artifacts' AND constraint_name = 'ocr_manifest_path_len') THEN
+        ALTER TABLE ocr_artifacts
+          ADD CONSTRAINT ocr_manifest_path_len CHECK (char_length(manifest_path) BETWEEN 1 AND 2048);
+    END IF;
+END $ocr_constraint$;
+
+-- Add helpful comments
+COMMENT ON TABLE ocr_artifacts IS 'Index table for OCR artifact discovery and automatic cleanup via CASCADE. Links shell_files to their OCR processing results stored in Supabase Storage.';
+COMMENT ON COLUMN ocr_artifacts.shell_file_id IS 'Foreign key to shell_files table, CASCADE delete ensures cleanup';
+COMMENT ON COLUMN ocr_artifacts.manifest_path IS 'Path to manifest.json in medical-docs bucket';
+COMMENT ON COLUMN ocr_artifacts.provider IS 'OCR provider used (google_vision, aws_textract, etc.)';
+COMMENT ON COLUMN ocr_artifacts.artifact_version IS 'Version of OCR processing pipeline';
+COMMENT ON COLUMN ocr_artifacts.file_checksum IS 'SHA256 of original file for integrity verification';
+COMMENT ON COLUMN ocr_artifacts.checksum IS 'SHA256 of OCR results for change detection';
+COMMENT ON COLUMN ocr_artifacts.pages IS 'Number of pages processed';
+COMMENT ON COLUMN ocr_artifacts.bytes IS 'Total size of all OCR artifacts in bytes';
 
 -- =============================================================================
 -- SECTION 1: AI PROCESSING SESSION MANAGEMENT
