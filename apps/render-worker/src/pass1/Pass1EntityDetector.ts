@@ -41,7 +41,6 @@ import {
   Pass1DatabaseRecords,
 } from './pass1-database-builder';
 import { validateSchemaMapping } from './pass1-schema-mapping';
-import { downscaleImage } from '../utils/image-processing';
 
 // =============================================================================
 // PASS 1 ENTITY DETECTOR CLASS
@@ -256,7 +255,6 @@ export class Pass1EntityDetector {
 
     // Phase 2: Image already downscaled in worker - use directly
     const optimizedImageData = input.raw_file.file_data;
-    const optimizedSize = input.raw_file.file_size;
     const outputMimeType = input.raw_file.file_type;
     
     console.log(`[Pass1] Using pre-downscaled image for AI processing (Phase 2 optimization)`);
