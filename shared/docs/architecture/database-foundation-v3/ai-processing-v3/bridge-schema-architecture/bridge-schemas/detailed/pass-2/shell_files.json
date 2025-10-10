@@ -63,11 +63,13 @@
       "patient_id", "filename", "original_filename", "file_size_bytes", "mime_type", "storage_path",
       "file_type", "file_subtype", "confidence_score", "extracted_text", "ocr_confidence", "page_count",
       "processing_started_at", "processing_job_id", "processing_worker_id", "processing_priority",
-      "idempotency_key", "language_detected", "provider_name", "facility_name", "upload_context"
+      "idempotency_key", "language_detected", "provider_name", "facility_name", "upload_context",
+      "processed_image_path", "processed_image_checksum", "processed_image_mime"
     ],
     "pass3_ownership": [
       "ai_synthesized_summary", "narrative_count", "synthesis_completed_at"
-    ]
+    ],
+    "note": "Phase 2 optimization fields (processed_image_*) are written by Pass 1 worker, not modified by Pass 2"
   },
 
   "examples": [

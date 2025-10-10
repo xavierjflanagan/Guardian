@@ -30,6 +30,9 @@
     "provider_name": "string?",
     "facility_name": "string?",
     "upload_context": "string?",
+    "processed_image_path": "string? (Phase 2, CHECK 1-2048 chars)",
+    "processed_image_checksum": "string? (Phase 2, SHA256)",
+    "processed_image_mime": "string? (Phase 2)",
     "ai_synthesized_summary": "null (Pass 3 only)",
     "narrative_count": "0 (Pass 3 only)",
     "synthesis_completed_at": "null (Pass 3 only)"

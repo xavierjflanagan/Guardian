@@ -46,6 +46,7 @@ interface ShellFilesPass2UpdateExtraction {
   // file_type, file_subtype, confidence_score, extracted_text, ocr_confidence, page_count
   // processing_started_at, processing_job_id, processing_worker_id, processing_priority
   // idempotency_key, language_detected, provider_name, facility_name, upload_context
+  // processed_image_path, processed_image_checksum, processed_image_mime (Phase 2 optimization - Pass 1 writes)
 
   // PASS 3 WILL UPDATE THESE (NOT Pass 2)
   // ai_synthesized_summary, narrative_count, synthesis_completed_at

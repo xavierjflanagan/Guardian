@@ -239,6 +239,30 @@
       "guidance": "TEXT. User can provide context when uploading. Optional."
     },
 
+    "processed_image_path": {
+      "type": "string",
+      "description": "Phase 2: Storage path for downscaled image",
+      "required": false,
+      "examples": ["medical-docs/patient-uuid/processed/medical_record_20250101_123456_1600px.jpg"],
+      "guidance": "TEXT. Phase 2 optimization: path to downscaled image used for OCR and Pass 1+. CHECK constraint: 1-2048 characters."
+    },
+
+    "processed_image_checksum": {
+      "type": "string",
+      "description": "Phase 2: SHA256 checksum of processed image",
+      "required": false,
+      "examples": ["a3f5b9c2d1e4..."],
+      "guidance": "TEXT. SHA256 hash for idempotency - prevents redundant downscaling if image already processed."
+    },
+
+    "processed_image_mime": {
+      "type": "string",
+      "description": "Phase 2: MIME type of processed image",
+      "required": false,
+      "examples": ["image/jpeg", "image/png"],
+      "guidance": "TEXT. May differ from original mime_type (PNG→PNG, JPEG optimized, TIFF/PDF pass-through)."
+    },
+
     "ai_synthesized_summary": {
       "type": "string",
       "description": "Pass 3 field - intelligent overview (NOT Pass 1)",
