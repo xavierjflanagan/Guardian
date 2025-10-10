@@ -12,14 +12,14 @@
 --   [X] current_schema/03_clinical_core.sql (Line 152-155: Phase 2 columns added - 2025-10-10)
 --
 -- DOWNSTREAM UPDATES:
---   [ ] Bridge schemas updated: 6 shell_files bridge schema files need new columns
+--   [X] Bridge schemas updated: 6 shell_files bridge schema files need new columns (Commits 819ebf2, af49251 - 2025-10-10)
 --       - bridge-schemas/source/pass-1/pass-1-versions/shell_files.md
 --       - bridge-schemas/detailed/pass-1/shell_files.json
 --       - bridge-schemas/minimal/pass-1/shell_files.json
 --       - bridge-schemas/source/pass-2/pass-2-versions/shell_files.md
 --       - bridge-schemas/detailed/pass-2/shell_files.json
 --       - bridge-schemas/minimal/pass-2/shell_files.json
---   [ ] TypeScript types updated (not applicable - no frontend type changes)
+--   [X] TypeScript types updated (not applicable - no frontend type changes)
 -- ============================================================================
 
 BEGIN;
