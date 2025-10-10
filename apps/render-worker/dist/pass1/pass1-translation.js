@@ -173,6 +173,8 @@ function validateEntityRecord(record) {
             if (field === 'original_text' && !record[field]) {
                 record[field] = '[text not extracted]';
                 console.warn(`[Pass1] Missing original_text for entity ${record.entity_id}, using fallback`);
+                // Continue to next field since we've fixed this one
+                continue;
             }
             else {
                 errors.push(`Missing required field: ${field}`);
