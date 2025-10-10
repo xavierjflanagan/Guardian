@@ -1,23 +1,51 @@
 # Pass 1 Architectural Improvements & Action Plan
 
 **Date:** 2025-10-09 (Consolidated from ongoing analysis)
+**Last Updated:** 2025-10-10
 **Original Analysis Date:** 2025-10-05
 **GPT-5 Involvement:** Review suggestions from GPT-5 model informed architectural improvements
-**Status:** Action plan - Implementation pending
+**Status:** Phase 1 & 2 Complete - Security & Reliability Improvements Remaining
 
 ---
 
 ## Executive Summary
 
-The Pass 1 entity detection pipeline is functional but requires architectural improvements to address latency, cost, and reliability issues. Current implementation processes OCR in the Edge Function before enqueueing jobs, causing 2-4 minute upload delays. Base64-encoded files embedded in job payloads create database bloat and memory pressure. Security vulnerabilities exist around JWT validation, and external API calls lack retry logic.
+**Major Performance Optimizations: ✅ COMPLETED (2025-10-10)**
 
-This document consolidates all identified improvements with clear priorities, implementation details, and expected impact. Critical items (OCR relocation, image optimization, payload cleanup) will eliminate upload latency and reduce costs. High priority items (JWT validation, retry logic) address security and reliability gaps.
+The Pass 1 entity detection pipeline has undergone significant architectural improvements:
 
-Current system uses GPT-5-mini with 32K token output limit, processing documents successfully but requiring optimization for large multi-page files.
+**✅ Completed Critical Optimizations:**
+1. **Phase 1: OCR Transition** - Moved OCR from Edge Function to Worker
+   - Upload response: 2-4 minutes → **Instant** (<1 second)
+   - Non-blocking background processing
+   - OCR artifacts persisted for Pass 2/3 reuse
+
+2. **Phase 2: Image Downscaling** - Downscaling BEFORE OCR
+   - 14% faster overall processing
+   - 25-30% cost reduction per document
+   - Quality maintained (97% OCR, 94-95% AI confidence)
+
+3. **Base64 Payload Removal** - File references instead of embedded data
+   - 99.96% reduction in job payload size
+   - Faster database operations
+   - Reduced PII exposure
+
+**✅ Completed Security Improvements:**
+4. **JWT Validation** - Edge Function authentication
+   - JWT authentication required for all uploads
+   - `has_profile_access()` validates user access to patient_id
+   - Prevents unauthorized uploads to other users' profiles
+
+**🔴 Remaining High Priority Items:**
+- Retry logic for external APIs (reliability)
+- Structured logging standardization (observability)
+- Prompt optimization batch 2 (cost/performance)
+
+Current system uses GPT-5-mini with 32K token output limit, processing documents successfully with production-validated optimizations.
 
 ---
 
-## Critical Improvements (BLOCKING)
+## Critical Improvements (✅ COMPLETED)
 
 ### 1. Move OCR from Edge Function to Worker
 
@@ -240,7 +268,16 @@ async persistOCRArtefacts(
 }
 ```
 
-**Status:** Not implemented
+**Status:** ✅ COMPLETED (2025-10-10)
+
+**Implementation:** [Phase 1 OCR Transition Implementation](./phase1-ocr-transition-implementation.md)
+**Validation:** [Test 06 - OCR Transition Production Validation](../pass1-hypothesis-tests/test-06-ocr-transition-production-validation.md)
+
+**Production Results:**
+- ✅ Upload response time: 2-4 minutes → **Instant** (<1 second)
+- ✅ Background processing: Non-blocking to users
+- ✅ OCR artifacts persisted for Pass 2/3 reuse
+- ✅ Success rate: 100% across multiple validation runs
 
 ---
 
@@ -250,48 +287,26 @@ async persistOCRArtefacts(
 **Impact:** 50-70% reduction in token usage, faster processing, lower costs
 **Effort:** 1-2 hours
 
-**Current State:**
-Full-resolution images (often 3000x4000px+) sent directly to OpenAI Vision API, resulting in:
-- Massive token counts (vision tokens are expensive)
-- Slow API response times
-- Higher costs per document
-- Unnecessary detail for medical document entity detection
+**Status:** ✅ COMPLETED (2025-10-10)
 
-**Proposed Solution:**
-```typescript
-async function downscaleImage(
-  base64Data: string,
-  maxWidth: number = 1600,
-  quality: number = 75
-): Promise<string> {
-  const buffer = Buffer.from(base64Data, 'base64');
-  const resized = await sharp(buffer)
-    .resize(maxWidth, null, {
-      withoutEnlargement: true,
-      fit: 'inside'
-    })
-    .jpeg({ quality })
-    .toBuffer();
-  return resized.toString('base64');
-}
+**Implementation:** [Phase 2 Image Downscaling Implementation](./phase2-image-downscaling-implementation.md)
+**Validation:** [Test 07 - Phase 2 Image Downscaling Production Validation](../pass1-hypothesis-tests/test-07-phase2-image-downscaling-production-validation.md)
 
-// Usage in Pass1EntityDetector (before OpenAI call)
-const optimizedImage = await downscaleImage(input.raw_file.file_data);
-// Send optimizedImage to OpenAI instead of raw
-```
+**Production Results:**
+- ✅ **Performance:** 14% faster overall processing (7m42s → 6m38s)
+- ✅ **AI Processing:** 22% faster (3m47s → 2m57s)
+- ✅ **Cost Reduction:** 25-30% savings per document ($0.20 → $0.149-$0.173)
+- ✅ **OCR Quality:** 97% confidence maintained with downscaled images
+- ✅ **AI Quality:** 94-95% confidence (no degradation)
+- ✅ **Format Preservation:** JPEG→JPEG optimization working correctly
+- ✅ **Deterministic Processing:** Identical SHA256 checksums across runs
 
-**Expected Impact:**
-- 50-70% reduction in vision input tokens
-- 2-3x faster API response times
-- Proportional cost reduction
-- Medical text still perfectly readable at 1600px width
-- JPEG quality 75% maintains diagnostic clarity
-
-**Dependencies:**
-- Add `sharp` library to worker dependencies: `pnpm add sharp`
-- Ensure worker has sufficient memory for image processing
-
-**Status:** Not implemented
+**Architecture Implemented:**
+- Image downscaling BEFORE OCR (not after)
+- Format-preserving optimization (JPEG→JPEG, PNG→PNG)
+- SHA256 checksum for idempotent storage
+- Processed images stored for Pass 2+ reuse
+- Emergency bypass flag: `BYPASS_IMAGE_DOWNSCALING`
 
 ---
 
@@ -301,72 +316,25 @@ const optimizedImage = await downscaleImage(input.raw_file.file_data);
 **Impact:** Smaller job rows, faster DB operations, lower memory pressure
 **Effort:** 2-3 hours
 
-**Current Problem:**
-Raw files converted to base64 and embedded directly in `job_queue.job_payload` JSONB:
-- 1MB image → ~1.4MB base64 → stored in database row
-- Inflates job records to multi-megabyte size
-- Slow INSERT/SELECT operations
-- High memory usage in worker
-- Risks hitting PostgreSQL row size limits (1GB max)
-- PII exposure in database dumps/logs
+**Status:** ✅ COMPLETED (2025-10-10)
 
-**Proposed Solution:**
-Store only file reference, download on-demand in worker:
+**Combined with Phase 1 OCR Transition** - Job payload now stores only file references, not embedded base64 data.
 
-```typescript
-// Edge Function - Enqueue with reference
-const job = await supabase.rpc('enqueue_job_v3', {
-  p_job_type: 'ai_processing',
-  p_job_payload: {
-    shell_file_id: shellFileId,
-    patient_id: patientId,
-    storage_path: storagePath,        // Reference only
-    mime_type: file.type,
-    file_size: file.size,
-    checksum: await calculateChecksum(file)
-  }
-});
+**Implementation:** Part of [Phase 1 OCR Transition Implementation](./phase1-ocr-transition-implementation.md)
 
-// Worker - Download on-demand
-async processJob(job: Job) {
-  const { storage_path, checksum } = job.job_payload;
+**Production Results:**
+- ✅ Job payload size: ~1.4MB → ~500 bytes (99.96% reduction)
+- ✅ Faster database operations (INSERT/SELECT)
+- ✅ Lower memory usage in worker
+- ✅ Cleaner separation (storage layer vs job queue)
+- ✅ Reduced PII in database logs
+- ✅ File integrity verification with SHA256 checksums
 
-  // Download from storage
-  const { data, error } = await this.supabase.storage
-    .from('medical-docs')
-    .download(storage_path);
-
-  if (error) throw new Error(`File download failed: ${error.message}`);
-
-  // Verify integrity
-  const actualChecksum = await calculateChecksum(data);
-  if (actualChecksum !== checksum) {
-    throw new Error('File integrity check failed');
-  }
-
-  // Convert to base64 just-in-time
-  const base64 = data.toString('base64');
-
-  // Continue processing...
-}
-```
-
-**Benefits:**
-- Job payload size: ~1.4MB → ~500 bytes (99.96% reduction)
-- Faster database operations (INSERT/SELECT)
-- Lower memory usage in worker
-- Safer retries (file stored independently)
-- Cleaner separation (storage layer vs job queue)
-- Reduced PII in database logs
-- Enables on-demand image optimization
-
-**Implementation Requirements:**
-- Edge Function: Remove base64 conversion, enqueue storage_path only
-- Worker: Add storage download with checksum validation
-- Error handling: Graceful "file not found" scenarios
-- Verify worker service role has storage read permissions (already configured)
-
-**Status:** Not implemented
+**Architecture Implemented:**
+- Edge Function enqueues with `storage_path` reference only
+- Worker downloads on-demand from storage
+- Checksum verification prevents file tampering
+- Graceful error handling for missing files
 
 ---
 
@@ -378,64 +346,77 @@ async processJob(job: Job) {
 **Impact:** Prevents unauthorized file uploads for other users
 **Effort:** 2-3 hours
 
-**Current Security Flaw:**
-Edge Function uses service role client without verifying caller's JWT. Any request with valid `apikey` can upload files for any `patient_id`, bypassing user isolation.
+**Status:** ✅ COMPLETED (2025-10-10)
 
-**Attack Vector:**
-```bash
-# Attacker can upload malicious file for victim's patient_id
-curl -X POST https://your-project.supabase.co/functions/v1/shell-file-processor-v3 \
-  -H "apikey: ANON_KEY" \
-  -d '{"patient_id": "VICTIM_UUID", "file": "malicious_data"}'
-```
+**Implementation:** Already deployed in production Edge Function (`supabase/functions/shell-file-processor-v3/index.ts`)
 
-**Proposed Fix:**
+**Security Architecture Implemented:**
 ```typescript
-// Edge Function - Add JWT validation
-export async function handler(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader) {
-    return createErrorResponse({
-      code: 'UNAUTHORIZED',
-      message: 'Missing authorization header'
-    }, 401);
-  }
+// JWT validation in Edge Function (lines 206-248)
+const authHeader = request.headers.get('authorization');
+if (!authHeader?.startsWith('Bearer ')) {
+  return createErrorResponse({
+    code: ErrorCode.UNAUTHORIZED,
+    message: 'Missing authorization header',
+    correlation_id: correlationId
+  }, 401, correlationId);
+}
 
-  // Verify JWT and extract user
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+const jwt = authHeader.slice('Bearer '.length);
+const { data: authUser, error: authErr } = await supabase.auth.getUser(jwt);
+if (authErr || !authUser?.user) {
+  return createErrorResponse({
+    code: ErrorCode.UNAUTHORIZED,
+    message: 'Invalid authentication token',
+    correlation_id: correlationId
+  }, 401, correlationId);
+}
 
-  if (authError || !user) {
-    return createErrorResponse({
-      code: 'UNAUTHORIZED',
-      message: 'Invalid or expired token'
-    }, 401);
-  }
-
-  // Verify patient_id belongs to authenticated user
-  const { data: hasAccess } = await supabase.rpc('has_profile_access', {
-    p_user_id: user.id,
+// Verify patient_id belongs to caller using has_profile_access() RPC
+const { data: hasAccess, error: accessErr } = await supabase
+  .rpc('has_profile_access', {
+    p_user_id: authUser.user.id,
     p_profile_id: requestData.patient_id
   });
 
-  if (!hasAccess) {
-    return createErrorResponse({
-      code: 'FORBIDDEN',
-      message: 'Access denied to this patient profile'
-    }, 403);
-  }
-
-  // Continue processing (user is authorized)
+if (accessErr || !hasAccess) {
+  return createErrorResponse({
+    code: ErrorCode.FORBIDDEN,
+    message: 'Access denied to specified patient profile',
+    correlation_id: correlationId
+  }, 403, correlationId);
 }
 ```
 
-**Implementation Notes:**
-- Use `supabase.auth.getUser()` instead of `getSession()` (more secure)
-- Leverage existing `has_profile_access()` RLS function
-- Return appropriate HTTP status codes (401 vs 403)
-- Add correlation_id to auth error logs
+**Security Features:**
+- ✅ Uses `supabase.auth.getUser()` instead of `getSession()` (more secure)
+- ✅ Leverages existing `has_profile_access()` RLS function
+- ✅ Returns appropriate HTTP status codes (401 for auth failures, 403 for forbidden access)
+- ✅ Includes correlation_id in all error logs for tracing
+- ✅ Verifies JWT before processing any request
+- ✅ Prevents unauthorized file uploads for other users' patient_ids
 
-**Status:** Not implemented
+**Database Function:**
+```sql
+-- has_profile_access() function validates user can access profile
+CREATE OR REPLACE FUNCTION public.has_profile_access(p_user_id uuid, p_profile_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM user_profiles
+        WHERE id = p_profile_id
+        AND account_owner_id = p_user_id
+        AND archived = FALSE
+    );
+END;
+$function$
+```
+
+**Source of Truth Updated:** `current_functions/shell-file-processor-v3/index.ts` (2025-10-10)
 
 ---
 

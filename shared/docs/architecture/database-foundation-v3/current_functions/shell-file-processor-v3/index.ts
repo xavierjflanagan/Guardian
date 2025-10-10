@@ -3,7 +3,7 @@
 // =============================================================================
 // PURPOSE: Process document uploads with V3 job coordination and analytics
 // INTEGRATION: Uses shell_files table, enqueue_job_v3 RPC, usage tracking
-// SECURITY: Service role for system operations, proper patient_id validation
+// SECURITY: JWT authentication required, has_profile_access() RPC validates user access to patient_id
 // =============================================================================
 
 import { createServiceRoleClient, getEdgeFunctionEnv } from '../_shared/supabase-client.ts';
@@ -76,10 +76,54 @@ Deno.serve(async (request: Request) => {
         request.headers.get('origin')
       );
     }
-    
+
+    // Extract and verify JWT
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return addCORSHeaders(
+        createErrorResponse({
+          code: ErrorCode.UNAUTHORIZED,
+          message: 'Missing authorization header',
+          correlation_id: correlationId
+        }, 401, correlationId),
+        request.headers.get('origin') || undefined
+      );
+    }
+
+    const jwt = authHeader.slice('Bearer '.length);
+    const { data: authUser, error: authErr } = await supabase.auth.getUser(jwt);
+    if (authErr || !authUser?.user) {
+      return addCORSHeaders(
+        createErrorResponse({
+          code: ErrorCode.UNAUTHORIZED,
+          message: 'Invalid authentication token',
+          correlation_id: correlationId
+        }, 401, correlationId),
+        request.headers.get('origin') || undefined
+      );
+    }
+
+    // Verify patient_id belongs to caller
+    const { data: hasAccess, error: accessErr } = await supabase
+      .rpc('has_profile_access', {
+        p_user_id: authUser.user.id,
+        p_profile_id: requestData.patient_id
+      });
+
+    if (accessErr || !hasAccess) {
+      return addCORSHeaders(
+        createErrorResponse({
+          code: ErrorCode.FORBIDDEN,
+          message: 'Access denied to specified patient profile',
+          correlation_id: correlationId
+        }, 403, correlationId),
+        request.headers.get('origin') || undefined
+      );
+    }
+
     // Get or generate idempotency key
-    const idempotencyKey = getIdempotencyKey(request) || 
-                          requestData.idempotency_key || 
+    const idempotencyKey = getIdempotencyKey(request) ||
+                          requestData.idempotency_key ||
                           crypto.randomUUID();
     
     // Process the shell file upload
