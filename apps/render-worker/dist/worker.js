@@ -146,9 +146,9 @@ class V3Worker {
         if (config.openai.apiKey) {
             const pass1Config = {
                 openai_api_key: config.openai.apiKey,
-                model: 'gpt-4o', // PRODUCTION: GPT-4o for optimal accuracy
+                model: 'gpt-5-mini', // PRODUCTION: GPT-5-mini for optimal cost/performance
                 temperature: 0.1,
-                max_tokens: 16384, // Maximum supported by GPT-4o Vision model
+                max_tokens: 32000, // Safe limit for GPT-5-mini (supports up to 128k)
                 confidence_threshold: 0.7,
             };
             console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
