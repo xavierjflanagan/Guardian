@@ -489,7 +489,7 @@ class V3Worker {
     const pass1Input: Pass1Input = {
       shell_file_id: payload.shell_file_id,
       patient_id: payload.patient_id,
-      processing_session_id: `session_${payload.shell_file_id}_${Date.now()}`,
+      processing_session_id: crypto.randomUUID(),
       raw_file: {
         file_data: fileBuffer.toString('base64'),
         file_type: payload.mime_type,
