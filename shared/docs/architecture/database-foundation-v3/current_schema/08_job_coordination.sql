@@ -599,38 +599,49 @@ $$;
 
 -- 8b. Job management RPCs
 CREATE OR REPLACE FUNCTION enqueue_job_v3(
-    job_type text,           
+    job_type text,
     job_name text,
     job_payload jsonb,
-    job_category text default 'standard',
-    priority int default 5,
-    p_scheduled_at timestamptz default now()
-) RETURNS TABLE(job_id uuid, scheduled_at timestamptz)  -- IMPROVED: Return scheduled time for observability
+    job_category text,
+    priority integer,
+    p_scheduled_at timestamptz,
+    OUT job_id uuid,
+    OUT scheduled_at timestamptz
+)
+RETURNS RECORD
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
+SET search_path = public, pg_temp  -- Security: Prevent search_path injection
 AS $$
 DECLARE
-    job_id uuid;
     allowed_types text[] := ARRAY['shell_file_processing', 'ai_processing', 'data_migration', 'audit_cleanup', 
                                   'system_maintenance', 'notification_delivery', 'report_generation', 'backup_operation',
                                   'semantic_processing', 'consent_verification', 'provider_verification'];
-    p_job_lane text := job_payload->>'job_lane';
+    v_job_lane text;
     backpressure_delay INTEGER := 0;
     rate_limit_config RECORD;
 BEGIN
-    -- Two-column validation
     -- Validate job_type
     IF NOT (job_type = ANY(allowed_types)) THEN
         RAISE EXCEPTION 'Invalid job_type. Allowed: %', allowed_types;
     END IF;
     
+    -- Auto-assign job_lane based on job_type (fixes NULL lane issue)
+    v_job_lane := COALESCE(
+        job_payload->>'job_lane',  -- Check if explicitly provided in payload
+        CASE 
+            WHEN job_type = 'ai_processing' THEN 'ai_queue_simple'
+            WHEN job_type = 'shell_file_processing' THEN 'standard_queue'
+            ELSE NULL
+        END
+    );
+    
     -- Validate job_lane combinations
-    IF job_type = 'shell_file_processing' AND p_job_lane NOT IN ('fast_queue', 'standard_queue') THEN
+    IF job_type = 'shell_file_processing' AND v_job_lane NOT IN ('fast_queue', 'standard_queue') THEN
         RAISE EXCEPTION 'shell_file_processing requires job_lane: fast_queue or standard_queue';
-    ELSIF job_type = 'ai_processing' AND p_job_lane NOT IN ('ai_queue_simple', 'ai_queue_complex') THEN
+    ELSIF job_type = 'ai_processing' AND v_job_lane NOT IN ('ai_queue_simple', 'ai_queue_complex') THEN
         RAISE EXCEPTION 'ai_processing requires job_lane: ai_queue_simple or ai_queue_complex';
-    ELSIF job_type IN ('data_migration', 'audit_cleanup', 'system_maintenance', 'notification_delivery', 'report_generation', 'backup_operation', 'semantic_processing', 'consent_verification', 'provider_verification') AND p_job_lane IS NOT NULL THEN
+    ELSIF job_type IN ('data_migration', 'audit_cleanup', 'system_maintenance', 'notification_delivery', 'report_generation', 'backup_operation', 'semantic_processing', 'consent_verification', 'provider_verification') AND v_job_lane IS NOT NULL THEN
         RAISE EXCEPTION 'job_type % should not have job_lane', job_type;
     END IF;
     
@@ -658,24 +669,25 @@ BEGIN
         END IF;
     END IF;
     
-    -- Insert job with potential backpressure delay
+    -- Insert job with auto-assigned lane
     INSERT INTO job_queue (job_type, job_lane, job_name, job_payload, job_category, priority, scheduled_at)
-    VALUES (job_type, p_job_lane, job_name, job_payload, job_category, priority, p_scheduled_at)
+    VALUES (job_type, v_job_lane, job_name, job_payload, job_category, priority, p_scheduled_at)
     RETURNING id INTO job_id;
     
-    -- Correlation ID logging
+    -- Audit logging
     PERFORM log_audit_event(
         'job_queue',
         job_id::text,
         'INSERT',
         NULL,
-        jsonb_build_object('job_type', job_type, 'job_id', job_id, 'scheduled_at', p_scheduled_at),
-        'Job enqueued with correlation tracking',
+        jsonb_build_object('job_type', job_type, 'job_lane', v_job_lane, 'job_id', job_id, 'scheduled_at', p_scheduled_at),
+        'Job enqueued with auto-assigned lane',
         'system',
         NULL -- p_patient_id (NULL for system operations)
     );
     
-    RETURN QUERY SELECT job_id, p_scheduled_at;  -- FIXED: Return both job_id and scheduled time
+    scheduled_at := p_scheduled_at;
+    RETURN;
 END;
 $$;
 
