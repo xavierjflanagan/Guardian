@@ -254,28 +254,12 @@ export class Pass1EntityDetector {
       systemMessage = PASS1_SYSTEM_MESSAGE;
     }
 
-    // CRITICAL: Downscale images to reduce token usage (1600px max, 75% quality)
-    // Skip downscaling for PDFs (handle separately)
-    let optimizedImageData = input.raw_file.file_data;
-    let optimizedSize = input.raw_file.file_size;
-    let outputMimeType = input.raw_file.file_type;
-
-    const isImage = input.raw_file.file_type.startsWith('image/');
-    const isPDF = input.raw_file.file_type === 'application/pdf';
-
-    if (isImage) {
-      console.log(`[Pass1] Downscaling image before AI processing...`);
-      optimizedImageData = await downscaleImage(input.raw_file.file_data, 1600, 75);
-      optimizedSize = Buffer.from(optimizedImageData, 'base64').length;
-      outputMimeType = 'image/jpeg'; // Downscaled images are always JPEG
-      const tokenReduction = ((1 - optimizedSize / input.raw_file.file_size) * 100).toFixed(1);
-      console.log(`[Pass1] Image optimized: ${input.raw_file.file_size} → ${optimizedSize} bytes (${tokenReduction}% reduction)`);
-    } else if (isPDF) {
-      console.log(`[Pass1] PDF detected - using original (PDF-to-image conversion not yet implemented)`);
-      // TODO: Implement PDF-to-image conversion before downscaling
-    } else {
-      console.warn(`[Pass1] Unsupported file type for optimization: ${input.raw_file.file_type}`);
-    }
+    // Phase 2: Image already downscaled in worker - use directly
+    const optimizedImageData = input.raw_file.file_data;
+    const optimizedSize = input.raw_file.file_size;
+    const outputMimeType = input.raw_file.file_type;
+    
+    console.log(`[Pass1] Using pre-downscaled image for AI processing (Phase 2 optimization)`);
 
     // Call OpenAI with vision + text
     // Build request parameters based on model capabilities

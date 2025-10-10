@@ -34,6 +34,14 @@ interface OCRManifest {
   page_count: number;
   total_bytes: number;
   checksum: string;
+  // METADATA FOR REUSE: Store processed dimensions for unambiguous bbox normalization
+  processed_width_px?: number;   // Actual width used for normalization
+  processed_height_px?: number;  // Actual height used for normalization
+  processing_metadata?: {
+    downscaling_applied: boolean;
+    original_dimensions_available: boolean;
+    normalization_valid: boolean;
+  };
   pages: Array<{
     page_number: number;
     artifact_path: string;
@@ -70,6 +78,14 @@ export async function persistOCRArtifacts(
     page_count: ocrResult.pages.length,
     total_bytes: pageArtifacts.reduce((sum: number, p: any) => sum + p.bytes, 0),
     checksum: await calculateSHA256(Buffer.from(JSON.stringify(ocrResult))),
+    // CRITICAL: Store processed dimensions for unambiguous bbox normalization
+    processed_width_px: ocrResult.pages[0]?.size?.width_px || 0,
+    processed_height_px: ocrResult.pages[0]?.size?.height_px || 0,
+    processing_metadata: {
+      downscaling_applied: !!(ocrResult.pages[0]?.size?.width_px && ocrResult.pages[0]?.size?.height_px),
+      original_dimensions_available: true,
+      normalization_valid: !!(ocrResult.pages[0]?.size?.width_px && ocrResult.pages[0]?.size?.height_px)
+    },
     pages: pageArtifacts,
     created_at: new Date().toISOString()
   };
