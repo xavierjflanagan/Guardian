@@ -26,6 +26,14 @@ ocrResult, fileChecksum) {
         page_count: ocrResult.pages.length,
         total_bytes: pageArtifacts.reduce((sum, p) => sum + p.bytes, 0),
         checksum: await (0, checksum_1.calculateSHA256)(Buffer.from(JSON.stringify(ocrResult))),
+        // CRITICAL: Store processed dimensions for unambiguous bbox normalization
+        processed_width_px: ocrResult.pages[0]?.size?.width_px || 0,
+        processed_height_px: ocrResult.pages[0]?.size?.height_px || 0,
+        processing_metadata: {
+            downscaling_applied: !!(ocrResult.pages[0]?.size?.width_px && ocrResult.pages[0]?.size?.height_px),
+            original_dimensions_available: true,
+            normalization_valid: !!(ocrResult.pages[0]?.size?.width_px && ocrResult.pages[0]?.size?.height_px)
+        },
         pages: pageArtifacts,
         created_at: new Date().toISOString()
     };
