@@ -422,30 +422,11 @@ async function processShellFileUpload(
       throw new Error(`Job enqueue failed: ${enqueueError.message}`);
     }
     
-    // Debug logging to understand response shape
-    console.log(`[${correlationId}] RPC response:`, {
-      isArray: Array.isArray(jobResponse),
-      type: typeof jobResponse,
-      isNull: jobResponse === null,
-      isUndefined: jobResponse === undefined,
-      raw: JSON.stringify(jobResponse)
-    });
-    
-    // Check if response exists at all
-    if (!jobResponse) {
-      throw new Error('RPC call returned null/undefined response');
-    }
-    
     // Handle both array and object response formats
     const responseData = Array.isArray(jobResponse) ? jobResponse[0] : jobResponse;
     jobId = responseData?.job_id;
     
     if (!jobId) {
-      console.error(`[${correlationId}] Failed to extract job_id from response:`, {
-        response: jobResponse,
-        responseData: responseData,
-        keys: responseData ? Object.keys(responseData) : 'no-keys'
-      });
       throw new Error('Job enqueuing succeeded but no job_id returned');
     }
     
