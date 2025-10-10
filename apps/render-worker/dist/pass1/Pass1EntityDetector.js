@@ -308,7 +308,7 @@ class Pass1EntityDetector {
                 },
                 entities: rawResult.entities.map((e, idx) => ({
                     entity_id: `ent_${String(idx + 1).padStart(3, '0')}`,
-                    original_text: e.text || '',
+                    original_text: e.original_text || e.text || '[text not detected]',
                     classification: {
                         entity_category: e.category === 'clinical' ? 'clinical_event' : 'healthcare_context',
                         entity_subtype: e.category === 'clinical' ? 'clinical_other' : 'patient_identifier',
