@@ -148,7 +148,12 @@ CREATE TABLE IF NOT EXISTS shell_files (
     provider_name TEXT,
     facility_name TEXT,
     upload_context TEXT,
-    
+
+    -- Phase 2 Image Processing Optimization (Migration 21 - 2025-10-10)
+    processed_image_path TEXT CHECK (processed_image_path IS NULL OR char_length(processed_image_path) BETWEEN 1 AND 2048), -- Storage path for downscaled image
+    processed_image_checksum TEXT, -- SHA256 checksum for idempotency
+    processed_image_mime TEXT, -- MIME type of processed image
+
     -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
