@@ -204,7 +204,13 @@ export function validateEntityRecord(record: EntityAuditRecord): {
 
   for (const field of requiredStrings) {
     if (!record[field] || (typeof record[field] === 'string' && record[field].trim() === '')) {
-      errors.push(`Missing required field: ${field}`);
+      // Defensive fallback for original_text if missing
+      if (field === 'original_text' && !record[field]) {
+        record[field] = '[text not extracted]';
+        console.warn(`[Pass1] Missing original_text for entity ${record.entity_id}, using fallback`);
+      } else {
+        errors.push(`Missing required field: ${field}`);
+      }
     }
   }
 
