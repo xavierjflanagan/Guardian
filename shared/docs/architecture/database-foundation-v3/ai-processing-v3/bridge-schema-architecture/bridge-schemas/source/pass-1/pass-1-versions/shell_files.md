@@ -70,6 +70,11 @@ CREATE TABLE IF NOT EXISTS shell_files (
     facility_name TEXT,
     upload_context TEXT,
 
+    -- Phase 2 Image Processing Optimization (Pass 1 writes after downscaling)
+    processed_image_path TEXT,                -- Storage path for downscaled image
+    processed_image_checksum TEXT,            -- SHA256 checksum for idempotency
+    processed_image_mime TEXT,                -- MIME type of processed image
+
     -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -126,6 +131,11 @@ interface ShellFilesPass1CreateExtraction {
   provider_name?: string;                  // Provider name extracted from document
   facility_name?: string;                  // Facility name extracted from document
   upload_context?: string;                 // User-provided context about upload
+
+  // PHASE 2 IMAGE PROCESSING (Pass 1 writes after downscaling)
+  processed_image_path?: string;           // Storage path for downscaled image
+  processed_image_checksum?: string;       // SHA256 checksum for idempotency
+  processed_image_mime?: string;           // MIME type of processed image
 
   // PASS 3 FIELDS (NOT populated in Pass 1 - Pass 3 will UPDATE these)
   ai_synthesized_summary?: null;           // Pass 1 leaves null, Pass 3 updates
