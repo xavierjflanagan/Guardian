@@ -10,8 +10,9 @@
     "processing_error": "jsonb? (if failed, include pass=pass-2)"
   },
   "readonly": {
-    "pass1": "patient_id, filename, file_size_bytes, mime_type, storage_path, file_type, ocr_confidence, etc.",
-    "pass3": "ai_synthesized_summary, narrative_count, synthesis_completed_at"
+    "pass1": "patient_id, filename, file_size_bytes, mime_type, storage_path, file_type, ocr_confidence, processed_image_path, processed_image_checksum, processed_image_mime, etc.",
+    "pass3": "ai_synthesized_summary, narrative_count, synthesis_completed_at",
+    "note": "Phase 2 optimization fields (processed_image_*) written by Pass 1, not modified by Pass 2"
   },
   "example": {
     "status": "completed",
