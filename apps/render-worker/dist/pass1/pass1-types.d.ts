@@ -23,6 +23,15 @@ export interface SpatialElement {
     word_index: number;
     confidence: number;
 }
+export interface AIProcessingJobPayload {
+    shell_file_id: string;
+    patient_id: string;
+    storage_path: string;
+    mime_type: string;
+    file_size_bytes: number;
+    uploaded_filename: string;
+    correlation_id: string;
+}
 export interface Pass1Input {
     shell_file_id: string;
     patient_id: string;

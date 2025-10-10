@@ -13,6 +13,8 @@ const supabase_js_1 = require("@supabase/supabase-js");
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const pass1_1 = require("./pass1");
+const checksum_1 = require("./utils/checksum");
+const ocr_persistence_1 = require("./utils/ocr-persistence");
 // Load environment variables
 dotenv_1.default.config();
 // =============================================================================
@@ -46,6 +48,88 @@ const config = {
         verbose: process.env.VERBOSE === 'true',
     },
 };
+/**
+ * Process document with Google Cloud Vision OCR
+ * Moved from Edge Function to Worker for instant upload response
+ */
+async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unused but may be needed for future format-specific processing
+) {
+    const googleApiKey = process.env.GOOGLE_CLOUD_API_KEY;
+    if (!googleApiKey) {
+        throw new Error('GOOGLE_CLOUD_API_KEY not configured');
+    }
+    const startTime = Date.now();
+    // Call Google Cloud Vision API
+    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            requests: [{
+                    image: { content: base64Data },
+                    features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+                }],
+        }),
+    });
+    if (!response.ok) {
+        throw new Error(`Google Vision API failed: ${response.status} ${response.statusText}`);
+    }
+    const result = await response.json();
+    const annotation = result.responses?.[0]?.fullTextAnnotation;
+    if (!annotation) {
+        throw new Error('No text detected in document');
+    }
+    // Extract full text
+    const extractedText = annotation.text || '';
+    // Build spatial mapping from pages
+    const spatialMapping = [];
+    // Process pages and blocks
+    if (annotation.pages) {
+        for (const page of annotation.pages) {
+            if (page.blocks) {
+                for (const block of page.blocks) {
+                    if (block.paragraphs) {
+                        for (const paragraph of block.paragraphs) {
+                            if (paragraph.words) {
+                                for (const word of paragraph.words) {
+                                    const text = word.symbols?.map((s) => s.text).join('') || '';
+                                    if (text && word.boundingBox?.vertices?.length >= 4) {
+                                        const vertices = word.boundingBox.vertices;
+                                        const x = Math.min(...vertices.map((v) => v.x || 0));
+                                        const y = Math.min(...vertices.map((v) => v.y || 0));
+                                        const maxX = Math.max(...vertices.map((v) => v.x || 0));
+                                        const maxY = Math.max(...vertices.map((v) => v.y || 0));
+                                        spatialMapping.push({
+                                            text,
+                                            bounding_box: {
+                                                x,
+                                                y,
+                                                width: maxX - x,
+                                                height: maxY - y,
+                                            },
+                                            confidence: word.confidence || 0.85,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Calculate average confidence
+    const totalConfidence = spatialMapping.reduce((sum, item) => sum + item.confidence, 0);
+    const confidenceCount = spatialMapping.length;
+    const avgConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0.85;
+    const processingTime = Date.now() - startTime;
+    return {
+        extracted_text: extractedText,
+        spatial_mapping: spatialMapping,
+        ocr_confidence: avgConfidence,
+        processing_time_ms: processingTime,
+        ocr_provider: 'google_cloud_vision',
+    };
+}
 // =============================================================================
 // WORKER CLASS
 // =============================================================================
@@ -62,9 +146,9 @@ class V3Worker {
         if (config.openai.apiKey) {
             const pass1Config = {
                 openai_api_key: config.openai.apiKey,
-                model: 'gpt-5-mini', // TESTING: GPT-5-mini with minimal prompt (5x cheaper than GPT-4o)
+                model: 'gpt-4o', // PRODUCTION: GPT-4o for optimal accuracy
                 temperature: 0.1,
-                max_tokens: 32000, // Increased for full schema output (55 entities × ~300 tokens)
+                max_tokens: 16384, // Maximum supported by GPT-4o Vision model
                 confidence_threshold: 0.7,
             };
             console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
@@ -116,7 +200,7 @@ class V3Worker {
             .rpc('claim_next_job_v3', {
             p_worker_id: this.workerId, // FIXED: Correct parameter name (with p_ prefix)
             p_job_types: ['ai_processing'], // FIXED: Match Edge Function job type
-            p_job_lanes: null // Optional parameter
+            p_job_lanes: ['ai_queue_simple'] // FIXED: Match Edge Function job lane
         });
         // VERBOSE LOGGING: See what RPC actually returns
         console.log(`[${this.workerId}] RPC claim_next_job_v3 response:`, {
@@ -216,26 +300,119 @@ class V3Worker {
             message: 'Document processed successfully (simulation)',
         };
     }
-    // Process AI job
+    // Process AI job (NEW: storage-based payload structure)
     async processAIJob(job) {
         const payload = job.job_payload;
-        // Check if this is a Pass 1 entity detection job by payload structure
-        if (payload.raw_file && payload.ocr_spatial_data && payload.shell_file_id) {
-            console.log(`[${this.workerId}] Detected Pass 1 entity detection job (job_type='ai_processing')`);
-            return await this.processPass1EntityDetection(job);
+        // Validate storage-based payload structure
+        if (!payload.shell_file_id || !payload.storage_path || !payload.patient_id) {
+            throw new Error('Invalid AI job payload: missing required fields (shell_file_id, storage_path, patient_id)');
         }
-        // Check if this is a Pass 2 enrichment job (future)
-        if (payload.entity_id && payload.entity_type && payload.bridge_schemas) {
-            console.log(`[${this.workerId}] Detected Pass 2 enrichment job (not yet implemented)`);
-            throw new Error('Pass 2 enrichment not yet implemented');
+        console.log(`[${this.workerId}] Processing AI job for shell_file ${payload.shell_file_id}`);
+        console.log(`[${this.workerId}] - Storage path: ${payload.storage_path}`);
+        console.log(`[${this.workerId}] - File size: ${payload.file_size_bytes} bytes`);
+        console.log(`[${this.workerId}] - MIME type: ${payload.mime_type}`);
+        // NEW: Update shell_files with job tracking at start
+        await this.supabase
+            .from('shell_files')
+            .update({
+            status: 'processing',
+            processing_started_at: new Date().toISOString(),
+            processing_job_id: job.id,
+            processing_worker_id: this.workerId
+        })
+            .eq('id', payload.shell_file_id);
+        // NEW: Download file from storage
+        const { data: fileBlob, error: downloadError } = await this.supabase.storage
+            .from('medical-docs')
+            .download(payload.storage_path);
+        if (downloadError || !fileBlob) {
+            throw new Error(`Failed to download file from storage: ${downloadError?.message}`);
         }
-        // Unknown AI job type
-        console.warn(`[${this.workerId}] Unknown AI job payload structure - defaulting to simulation`);
-        await this.sleep(3000);
-        return {
-            status: 'completed',
-            message: 'AI processing completed (simulation)',
+        // NEW: Calculate checksum for integrity verification
+        const fileBuffer = Buffer.from(await fileBlob.arrayBuffer());
+        const fileChecksum = await (0, checksum_1.calculateSHA256)(fileBuffer);
+        console.log(`[${this.workerId}] File checksum: ${fileChecksum}`);
+        // NEW: Check for existing OCR artifacts (reuse if available)
+        let ocrResult = await (0, ocr_persistence_1.loadOCRArtifacts)(this.supabase, payload.shell_file_id);
+        if (ocrResult) {
+            console.log(`[${this.workerId}] Reusing existing OCR artifacts for shell_file ${payload.shell_file_id}`);
+        }
+        else {
+            // NEW: Run OCR processing (moved from Edge Function)
+            console.log(`[${this.workerId}] Running OCR processing for shell_file ${payload.shell_file_id}`);
+            const base64Data = fileBuffer.toString('base64');
+            const ocrSpatialData = await processWithGoogleVisionOCR(base64Data, payload.mime_type);
+            // Transform to expected OCR result format
+            ocrResult = {
+                pages: [{
+                        page_number: 1,
+                        size: { width_px: 1000, height_px: 1000 }, // Default values
+                        lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
+                            text: item.text,
+                            bbox: {
+                                x: item.bounding_box.x,
+                                y: item.bounding_box.y,
+                                w: item.bounding_box.width,
+                                h: item.bounding_box.height
+                            },
+                            bbox_norm: {
+                                x: item.bounding_box.x / 1000,
+                                y: item.bounding_box.y / 1000,
+                                w: item.bounding_box.width / 1000,
+                                h: item.bounding_box.height / 1000
+                            },
+                            confidence: item.confidence,
+                            reading_order: idx
+                        })),
+                        tables: [], // No table detection in current implementation
+                        provider: ocrSpatialData.ocr_provider,
+                        processing_time_ms: ocrSpatialData.processing_time_ms
+                    }]
+            };
+            // NEW: Persist OCR artifacts for future reuse
+            await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum);
+            console.log(`[${this.workerId}] OCR artifacts persisted for shell_file ${payload.shell_file_id}`);
+        }
+        // Build Pass1Input from storage-based payload + OCR result
+        const pass1Input = {
+            shell_file_id: payload.shell_file_id,
+            patient_id: payload.patient_id,
+            processing_session_id: `session_${payload.shell_file_id}_${Date.now()}`,
+            raw_file: {
+                file_data: fileBuffer.toString('base64'),
+                file_type: payload.mime_type,
+                filename: payload.uploaded_filename,
+                file_size: payload.file_size_bytes
+            },
+            ocr_spatial_data: {
+                extracted_text: ocrResult.pages.map((p) => p.lines.map((l) => l.text).join(' ')).join(' '),
+                spatial_mapping: ocrResult.pages.flatMap((page) => page.lines.map((line) => ({
+                    text: line.text,
+                    page_number: page.page_number,
+                    bounding_box: {
+                        x: line.bbox.x,
+                        y: line.bbox.y,
+                        width: line.bbox.w,
+                        height: line.bbox.h
+                    },
+                    line_number: line.reading_order,
+                    word_index: 0,
+                    confidence: line.confidence
+                }))),
+                ocr_confidence: ocrResult.pages[0]?.lines.reduce((sum, line) => sum + line.confidence, 0) / (ocrResult.pages[0]?.lines.length || 1) || 0.85,
+                processing_time_ms: ocrResult.pages[0]?.processing_time_ms || 0,
+                ocr_provider: ocrResult.pages[0]?.provider || 'google_vision'
+            },
+            document_metadata: {
+                filename: payload.uploaded_filename,
+                file_type: payload.mime_type,
+                page_count: ocrResult.pages.length,
+                upload_timestamp: new Date().toISOString()
+            }
         };
+        // Process with Pass 1 entity detection
+        console.log(`[${this.workerId}] Starting Pass 1 entity detection with storage-based input`);
+        return await this.processPass1EntityDetection({ ...job, job_payload: pass1Input });
     }
     // Process Pass 1 Entity Detection
     async processPass1EntityDetection(job) {
@@ -244,6 +421,9 @@ class V3Worker {
         }
         const payload = job.job_payload;
         console.log(`[${this.workerId}] Starting Pass 1 entity detection for shell_file ${payload.shell_file_id}`);
+        console.log(`[${this.workerId}] - Processing session: ${payload.processing_session_id}`);
+        console.log(`[${this.workerId}] - OCR extracted text length: ${payload.ocr_spatial_data.extracted_text.length}`);
+        console.log(`[${this.workerId}] - Spatial mapping elements: ${payload.ocr_spatial_data.spatial_mapping.length}`);
         // Run Pass 1 processing
         const result = await this.pass1Detector.processDocument(payload);
         if (!result.success) {
@@ -262,6 +442,14 @@ class V3Worker {
         console.log(`[${this.workerId}] - entity_processing_audit: ${result.records_created.entity_audit}`);
         console.log(`[${this.workerId}] - ai_confidence_scoring: ${result.records_created.confidence_scoring}`);
         console.log(`[${this.workerId}] - manual_review_queue: ${result.records_created.manual_review_queue}`);
+        // NEW: Update shell_files with completion tracking
+        await this.supabase
+            .from('shell_files')
+            .update({
+            status: 'pass1_complete',
+            processing_completed_at: new Date().toISOString()
+        })
+            .eq('id', payload.shell_file_id);
         return result;
     }
     // Insert Pass 1 records into all 7 database tables
