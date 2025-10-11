@@ -12,6 +12,8 @@
  */
 
 import OpenAI from 'openai';
+import { retryOpenAI } from '../utils/retry';
+import { createLogger, Logger } from '../utils/logger';
 import {
   Pass1Input,
   Pass1AIResponse,
@@ -29,8 +31,6 @@ import {
   MINIMAL_SYSTEM_MESSAGE,
 } from './pass1-prompts-minimal-test';
 
-// Check for verbose logging
-const VERBOSE = process.env.VERBOSE === 'true';
 import {
   translateAIOutputToDatabase,
   validateRecordBatch,
@@ -49,11 +49,18 @@ import { validateSchemaMapping } from './pass1-schema-mapping';
 export class Pass1EntityDetector {
   private openai: OpenAI;
   private config: Pass1Config;
+  private logger: Logger;
 
   constructor(config: Pass1Config) {
     this.config = config;
+    this.logger = createLogger({
+      context: 'pass1',
+    });
+
     this.openai = new OpenAI({
       apiKey: config.openai_api_key,
+      maxRetries: 0,  // CRITICAL: Disable SDK retries - retry logic handled by wrapper
+      timeout: 600000 // 10 minutes (same as before)
     });
 
     // Validate schema mappings on startup (fail-fast pattern)
@@ -94,20 +101,30 @@ export class Pass1EntityDetector {
       };
 
       // Step 3: Call AI for entity detection
-      console.log(`[Pass1] Calling ${this.config.model} for entity detection...`);
+      this.logger.info('Calling AI for entity detection', {
+        model: this.config.model,
+        shell_file_id: input.shell_file_id,
+      });
       const aiResponse = await this.callAIForEntityDetection(input);
 
       // DEBUG: Log what AI actually returned
-      console.log(`[Pass1] AI returned ${aiResponse.entities.length} entities`);
-      if (VERBOSE) {
-        console.log(`[Pass1] Entity categories:`, aiResponse.entities.map(e => e.classification.entity_category));
-        console.log(`[Pass1] Entity subtypes:`, aiResponse.entities.map(e => e.classification.entity_subtype));
-        // Only log first 3 entities to avoid blocking event loop
-        console.log(`[Pass1] Sample entities (first 3):`, JSON.stringify(aiResponse.entities.slice(0, 3), null, 2));
-      }
+      this.logger.info('AI entity detection completed', {
+        shell_file_id: input.shell_file_id,
+        entity_count: aiResponse.entities.length,
+      });
+
+      this.logger.debug('AI entity details', {
+        shell_file_id: input.shell_file_id,
+        categories: aiResponse.entities.map(e => e.classification.entity_category),
+        subtypes: aiResponse.entities.map(e => e.classification.entity_subtype),
+        sample_entities: JSON.stringify(aiResponse.entities.slice(0, 3)),
+      });
 
       // Step 4: Translate AI output to database format
-      console.log(`[Pass1] Translating ${aiResponse.entities.length} entities to database format...`);
+      this.logger.debug('Translating entities to database format', {
+        shell_file_id: input.shell_file_id,
+        entity_count: aiResponse.entities.length,
+      });
       const entityRecords = translateAIOutputToDatabase(aiResponse, sessionMetadata);
 
       // Yield to event loop after heavy translation (allows heartbeat to fire)
@@ -116,7 +133,12 @@ export class Pass1EntityDetector {
       // Step 5: Validate translated records
       const validation = validateRecordBatch(entityRecords);
       if (!validation.valid) {
-        console.error(`[Pass1] Validation failed for ${validation.invalidRecords} records:`, validation.errors);
+        this.logger.error('Record validation failed', new Error('Record validation failed'), {
+          shell_file_id: input.shell_file_id,
+          invalid_records: validation.invalidRecords,
+          error_count: validation.errors.length,
+          errors: validation.errors,
+        });
         throw new Error(`Record validation failed: ${validation.errors.length} errors found`);
       }
 
@@ -133,7 +155,11 @@ export class Pass1EntityDetector {
       const processingTimeMs = Date.now() - startTime;
       const processingTimeSec = processingTimeMs / 1000;
 
-      console.log(`[Pass1] Processing complete: ${stats.total_entities} entities in ${processingTimeSec.toFixed(2)}s`);
+      this.logger.info('Pass 1 processing complete', {
+        shell_file_id: input.shell_file_id,
+        total_entities: stats.total_entities,
+        processing_time_sec: processingTimeSec.toFixed(2),
+      });
 
       // Step 8: Build all database records (7 tables)
       const databaseRecords = buildPass1DatabaseRecords(
@@ -183,7 +209,10 @@ export class Pass1EntityDetector {
     } catch (error: any) {
       const processingTime = (Date.now() - startTime) / 1000;
 
-      console.error('[Pass1] Processing failed:', error);
+      this.logger.error('Pass 1 processing failed', error, {
+        shell_file_id: input.shell_file_id,
+        processing_time_sec: processingTime.toFixed(2),
+      });
 
       return {
         success: false,
@@ -245,7 +274,9 @@ export class Pass1EntityDetector {
     let systemMessage: string;
 
     if (useMinimalPrompt) {
-      console.log(`[Pass1] 🧪 EXPERIMENTAL: Using MINIMAL list-first prompt`);
+      this.logger.info('Using MINIMAL list-first prompt (experimental)', {
+        shell_file_id: input.shell_file_id,
+      });
       prompt = generateMinimalListPrompt(input);
       systemMessage = MINIMAL_SYSTEM_MESSAGE;
     } else {
@@ -256,8 +287,11 @@ export class Pass1EntityDetector {
     // Phase 2: Image already downscaled in worker - use directly
     const optimizedImageData = input.raw_file.file_data;
     const outputMimeType = input.raw_file.file_type;
-    
-    console.log(`[Pass1] Using pre-downscaled image for AI processing (Phase 2 optimization)`);
+
+    this.logger.debug('Using pre-downscaled image for AI processing (Phase 2 optimization)', {
+      shell_file_id: input.shell_file_id,
+      mime_type: outputMimeType,
+    });
 
     // Call OpenAI with vision + text
     // Build request parameters based on model capabilities
@@ -300,7 +334,9 @@ export class Pass1EntityDetector {
       requestParams.temperature = this.config.temperature;
     }
 
-    const response = await this.openai.chat.completions.create(requestParams);
+    const response = await retryOpenAI(async () => {
+      return await this.openai.chat.completions.create(requestParams);
+    });
 
     const processingTime = (Date.now() - startTime) / 1000;
 
@@ -324,13 +360,18 @@ export class Pass1EntityDetector {
 
     // Handle minimal prompt response (different format)
     if (useMinimalPrompt) {
-      console.log(`[Pass1] 🧪 MINIMAL PROMPT: AI returned ${rawResult.entities?.length || 0} entities`);
-      console.log(`[Pass1] 🧪 MINIMAL PROMPT: Total count reported: ${rawResult.total_count || 'N/A'}`);
+      this.logger.info('Minimal prompt response received', {
+        shell_file_id: input.shell_file_id,
+        entity_count: rawResult.entities?.length || 0,
+        total_count_reported: rawResult.total_count || 'N/A',
+      });
 
       // Log all entity texts for debugging
       if (rawResult.entities && Array.isArray(rawResult.entities)) {
-        console.log(`[Pass1] 🧪 MINIMAL PROMPT: Extracted entities:`,
-          rawResult.entities.map((e: any) => e.text).join(' | '));
+        this.logger.debug('Minimal prompt extracted entities', {
+          shell_file_id: input.shell_file_id,
+          entity_texts: rawResult.entities.map((e: any) => e.text).join(' | '),
+        });
       }
 
       // Transform minimal response to full format for compatibility
