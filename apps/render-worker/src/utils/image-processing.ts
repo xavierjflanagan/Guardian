@@ -5,25 +5,37 @@
  */
 
 import sharp from 'sharp';
+import { createLogger } from './logger';
 
 /**
  * Phase 2: Format-preserving downscaling with comprehensive format support
- * 
+ *
  * @param b64 - Base64 encoded image data
  * @param mime - MIME type of the image
  * @param maxWidth - Maximum width in pixels (default: 1600)
  * @param quality - Quality for lossy formats (default: 78)
+ * @param correlationId - Optional correlation ID for request tracing
  * @returns Processed image with dimensions and output MIME type
  */
 export async function downscaleImageBase64(
-  b64: string, 
-  mime: string, 
-  maxWidth = 1600, 
-  quality = 78
+  b64: string,
+  mime: string,
+  maxWidth = 1600,
+  quality = 78,
+  correlationId?: string
 ): Promise<{ b64: string; width: number; height: number; outMime: string }> {
+  const startTime = Date.now();
+  const logger = createLogger({
+    context: 'image-processing',
+    correlation_id: correlationId,
+  });
   // PDF handling - skip downscaling, let OCR handle directly
   if (mime === 'application/pdf') {
-    console.log('[ImageProcessing] PDF detected - skipping downscaling (OCR handles directly)');
+    logger.info('PDF detected - skipping downscaling (OCR handles directly)', {
+      mime,
+      decision: 'skip_downscaling',
+      reason: 'pdf_native_ocr',
+    });
     return { b64, width: 0, height: 0, outMime: mime };
   }
 
@@ -55,19 +67,36 @@ export async function downscaleImageBase64(
 
   // Guard against missing dimensions
   if (!meta.width || !meta.height) {
-    console.warn(`[ImageProcessing] Missing dimensions for ${mime}, skipping downscaling`);
+    logger.warn('Missing dimensions - skipping downscaling', {
+      mime,
+      decision: 'skip_downscaling',
+      reason: 'missing_dimensions',
+    });
     return { b64, width: 0, height: 0, outMime: mime };
   }
 
   // GUARDRAIL: Skip if not larger than target
   if (meta.width <= maxWidth) {
-    console.log(`[ImageProcessing] Image ${meta.width}px <= ${maxWidth}px target, skipping downscaling`);
+    logger.info('Image within target size - skipping downscaling', {
+      mime,
+      original_width_px: meta.width,
+      original_height_px: meta.height,
+      max_width_px: maxWidth,
+      decision: 'skip_downscaling',
+      reason: 'within_target_size',
+    });
     return { b64, width: meta.width, height: meta.height, outMime: mime };
   }
   
   // GUARDRAIL: Skip multi-page formats (let OCR handle natively)
   if (mime === 'image/tiff' || mime === 'application/pdf') {
-    console.log(`[ImageProcessing] Multi-page format ${mime}, skipping downscaling (OCR handles natively)`);
+    logger.info('Multi-page format - skipping downscaling (OCR handles natively)', {
+      mime,
+      original_width_px: meta.width,
+      original_height_px: meta.height,
+      decision: 'skip_downscaling',
+      reason: 'multi_page_format',
+    });
     return { b64, width: meta.width, height: meta.height, outMime: mime };
   }
 
@@ -78,6 +107,24 @@ export async function downscaleImageBase64(
         .jpeg({ quality, chromaSubsampling: '4:4:4', mozjpeg: true })
         .toBuffer();
       const outMeta = await sharp(out).metadata();
+      const duration_ms = Date.now() - startTime;
+      const originalSize = Buffer.byteLength(b64, 'base64');
+      const optimizedSize = out.length;
+      const sizeReduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
+
+      logger.info('Image downscaled successfully', {
+        mime,
+        original_width_px: meta.width,
+        original_height_px: meta.height,
+        output_width_px: outMeta.width || 0,
+        output_height_px: outMeta.height || 0,
+        original_size_bytes: originalSize,
+        optimized_size_bytes: optimizedSize,
+        size_reduction_pct: parseFloat(sizeReduction),
+        quality,
+        duration_ms,
+      });
+
       return { b64: out.toString('base64'), width: outMeta.width || 0, height: outMeta.height || 0, outMime: 'image/jpeg' };
     }
 
@@ -86,6 +133,23 @@ export async function downscaleImageBase64(
         .png({ compressionLevel: 9, palette: true })
         .toBuffer();
       const outMeta = await sharp(out).metadata();
+      const duration_ms = Date.now() - startTime;
+      const originalSize = Buffer.byteLength(b64, 'base64');
+      const optimizedSize = out.length;
+      const sizeReduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
+
+      logger.info('Image downscaled successfully', {
+        mime,
+        original_width_px: meta.width,
+        original_height_px: meta.height,
+        output_width_px: outMeta.width || 0,
+        output_height_px: outMeta.height || 0,
+        original_size_bytes: originalSize,
+        optimized_size_bytes: optimizedSize,
+        size_reduction_pct: parseFloat(sizeReduction),
+        duration_ms,
+      });
+
       return { b64: out.toString('base64'), width: outMeta.width || 0, height: outMeta.height || 0, outMime: 'image/png' };
     }
 
@@ -95,17 +159,42 @@ export async function downscaleImageBase64(
         .webp({ lossless: true })
         .toBuffer();
       const outMeta = await sharp(out).metadata();
+      const duration_ms = Date.now() - startTime;
+      const originalSize = Buffer.byteLength(b64, 'base64');
+      const optimizedSize = out.length;
+      const sizeReduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
+
+      logger.info('Image downscaled successfully', {
+        mime,
+        original_width_px: meta.width,
+        original_height_px: meta.height,
+        output_width_px: outMeta.width || 0,
+        output_height_px: outMeta.height || 0,
+        original_size_bytes: originalSize,
+        optimized_size_bytes: optimizedSize,
+        size_reduction_pct: parseFloat(sizeReduction),
+        duration_ms,
+      });
+
       return { b64: out.toString('base64'), width: outMeta.width || 0, height: outMeta.height || 0, outMime: 'image/webp' };
     }
 
     // NOTE: Multi-page TIFF handling moved to earlier guardrail check
 
     // Unknown format: skip processing
-    console.warn(`[ImageProcessing] Unknown format ${mime}, skipping downscaling`);
+    logger.warn('Unknown format - skipping downscaling', {
+      mime,
+      decision: 'skip_downscaling',
+      reason: 'unknown_format',
+    });
     return { b64, width: meta.width, height: meta.height, outMime: mime };
 
   } catch (error) {
-    console.error(`[ImageProcessing] Error processing ${mime}:`, error);
+    logger.error('Error processing image - falling back to original', error as Error, {
+      mime,
+      original_width_px: meta.width,
+      original_height_px: meta.height,
+    });
     // Fallback to original
     return { b64, width: meta.width || 0, height: meta.height || 0, outMime: mime };
   }
@@ -120,7 +209,13 @@ export async function downscaleImage(
   maxWidth: number = 1600,
   quality: number = 75
 ): Promise<string> {
-  console.warn('[ImageProcessing] Using legacy downscaleImage - consider upgrading to downscaleImageBase64');
+  const logger = createLogger({
+    context: 'image-processing',
+  });
+  logger.warn('Using legacy downscaleImage - consider upgrading to downscaleImageBase64', {
+    function: 'downscaleImage',
+    recommendation: 'use_downscaleImageBase64',
+  });
   const result = await downscaleImageBase64(base64Data, 'image/jpeg', maxWidth, quality);
   return result.b64;
 }
