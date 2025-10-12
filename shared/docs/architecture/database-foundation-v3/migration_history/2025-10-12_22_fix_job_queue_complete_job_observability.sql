@@ -40,6 +40,15 @@
 -- MIGRATION EXECUTED:
 --   [X] Applied to Supabase database on 2025-10-12 via mcp__supabase__apply_migration
 --   [X] Source of truth schema file updated with Migration 22 comments
+--   [X] Production validation completed via test-10 (2025-10-12)
+--   [X] Verified heartbeat_at cleared to NULL on completion
+--   [X] Verified actual_duration auto-calculated (6m 2s for job 8ff5b95c)
+--   [X] Verified audit logs include duration metrics
+--
+-- DEPLOYMENT STATUS:
+--   [X] Database migration deployed and validated (2025-10-12)
+--   [X] No code changes required (database-only change)
+--   [X] Confirmed backward compatible with existing worker code
 --
 -- RISK ASSESSMENT:
 --   - Risk Level: LOW (database-only change, function only called on successful completion)
