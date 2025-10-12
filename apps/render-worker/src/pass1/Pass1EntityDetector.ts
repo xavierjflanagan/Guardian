@@ -538,28 +538,74 @@ export class Pass1EntityDetector {
   // ===========================================================================
 
   /**
-   * Calculate cost for GPT-4o Vision processing
-   *
-   * GPT-4o Pricing (as of 2025):
-   * - Input: $2.50 per 1M tokens (includes image tokens from OpenAI)
-   * - Output: $10.00 per 1M tokens
+   * Model pricing configuration
+   * Source: OpenAI API pricing (as of 2025-10-12)
+   */
+  private static readonly MODEL_PRICING: Record<string, { input_per_1m: number; output_per_1m: number }> = {
+    'gpt-5-mini': {
+      input_per_1m: 0.25,   // $0.25 per 1M tokens
+      output_per_1m: 2.00,  // $2.00 per 1M tokens
+    },
+    'gpt-5': {
+      input_per_1m: 1.25,   // $1.25 per 1M tokens
+      output_per_1m: 10.00, // $10.00 per 1M tokens
+    },
+    'gpt-4o': {
+      input_per_1m: 2.50,   // $2.50 per 1M tokens
+      output_per_1m: 10.00, // $10.00 per 1M tokens
+    },
+    'gpt-4o-mini': {
+      input_per_1m: 0.15,   // $0.15 per 1M tokens
+      output_per_1m: 0.60,  // $0.60 per 1M tokens
+    },
+  };
+
+  /**
+   * Default pricing fallback (uses GPT-4o pricing)
+   */
+  private static readonly DEFAULT_PRICING = {
+    input_per_1m: 2.50,
+    output_per_1m: 10.00,
+  };
+
+  /**
+   * Calculate cost for OpenAI Vision processing with model-specific pricing
    *
    * Note: OpenAI's prompt_tokens already includes image tokens, so we don't
    * need to estimate or add them separately.
+   *
+   * @param usage - OpenAI usage object with token counts
+   * @returns Estimated cost in USD
    */
   private calculateCost(usage: any): number {
-    const GPT4O_PRICING = {
-      input_per_1m: 2.50,
-      output_per_1m: 10.00,
-    };
-
-    const promptTokens = usage?.prompt_tokens || 0;  // Already includes image tokens
+    const promptTokens = usage?.prompt_tokens || 0;      // Already includes image tokens
     const completionTokens = usage?.completion_tokens || 0;
 
-    const inputCost = (promptTokens / 1_000_000) * GPT4O_PRICING.input_per_1m;
-    const outputCost = (completionTokens / 1_000_000) * GPT4O_PRICING.output_per_1m;
+    const modelName = this.config.model;
+    const pricing = Pass1EntityDetector.MODEL_PRICING[modelName] || Pass1EntityDetector.DEFAULT_PRICING;
 
-    return inputCost + outputCost;
+    // Warn if using unknown model (helps catch configuration issues)
+    if (!Pass1EntityDetector.MODEL_PRICING[modelName]) {
+      this.logger.warn('Unknown model for cost calculation - using GPT-4o pricing as fallback', {
+        model: modelName,
+        fallback_pricing: Pass1EntityDetector.DEFAULT_PRICING,
+      });
+    }
+
+    const inputCost = (promptTokens / 1_000_000) * pricing.input_per_1m;
+    const outputCost = (completionTokens / 1_000_000) * pricing.output_per_1m;
+    const totalCost = inputCost + outputCost;
+
+    this.logger.debug('Cost calculation completed', {
+      model: modelName,
+      input_tokens: promptTokens,
+      output_tokens: completionTokens,
+      input_cost_usd: inputCost.toFixed(6),
+      output_cost_usd: outputCost.toFixed(6),
+      total_cost_usd: totalCost.toFixed(6),
+    });
+
+    return totalCost;
   }
 
   // ===========================================================================
