@@ -304,8 +304,6 @@ function validateUploadRequest(data: ShellFileUploadRequest): any {
     'image/png',
     'image/tiff',
     'text/plain',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
   
   if (!allowedTypes.includes(data.mime_type)) {

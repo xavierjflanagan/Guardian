@@ -30,16 +30,34 @@ The Pass 1 entity detection pipeline has undergone significant architectural imp
    - Faster database operations
    - Reduced PII exposure
 
-**✅ Completed Security Improvements:**
+**✅ Completed Security & Quality Improvements:**
 4. **JWT Validation** - Edge Function authentication
    - JWT authentication required for all uploads
    - `has_profile_access()` validates user access to patient_id
    - Prevents unauthorized uploads to other users' profiles
 
-**🔴 Remaining High Priority Items:**
-- Retry logic for external APIs (reliability)
-- Structured logging standardization (observability)
-- Prompt optimization batch 2 (cost/performance)
+5. **File Type Restrictions** - Removed unsupported Word document types
+   - Blocked `application/msword` and `.docx` uploads
+   - Only accepts formats supported by Google Vision OCR
+   - Clean rejection at upload time vs worker failure
+
+6. **Verbose Logging Control** - Production-ready logging
+   - RPC response logging gated behind `VERBOSE=true` env var
+   - Cleaner production logs without diagnostic noise
+   - Debug details available when needed
+
+**✅ All Critical Items Complete:**
+- ✅ Phase 1: OCR Transition (instant uploads)
+- ✅ Phase 2: Image Downscaling (25-30% cost reduction)
+- ✅ Base64 Payload Removal (99.96% size reduction)
+- ✅ JWT Validation (security)
+- ✅ File Type Restrictions (quality)
+- ✅ Verbose Logging Control (observability)
+- ✅ Retry Logic for External APIs (reliability)
+
+**✅ All Phase 1-2 Items Complete:**
+- ✅ Structured logging (Phase 4 implementation complete)
+- ✅ Prompt optimization batch 2 (Phase 5 implementation complete)
 
 Current system uses GPT-5-mini with 32K token output limit, processing documents successfully with production-validated optimizations.
 
@@ -426,90 +444,47 @@ $function$
 **Impact:** Prevents data loss from transient API failures
 **Effort:** 2-3 hours
 
-**Current Problem:**
-Worker calls external APIs (OpenAI, Google Vision, Supabase Storage) without retry logic. Transient failures (429 rate limits, 5xx errors, timeouts) cause job failures and data loss.
+**Status:** ✅ COMPLETED (2025-10-11)
 
-**Proposed Solution:**
-```typescript
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000,
-  operation: string = 'operation'
-): Promise<T> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      const isLastAttempt = i === maxRetries - 1;
+**Implementation:** [Phase 3 Retry Logic Implementation](./phase3-retry-logic-implementation.md)
 
-      // Don't retry on permanent errors
-      if (isNonRetryableError(error)) {
-        console.error(`[Retry] Non-retryable error in ${operation}:`, error);
-        throw error;
-      }
+**Production-Grade Features Implemented:**
+- ✅ Full jitter exponential backoff (AWS best practice)
+- ✅ Retry-After header support (RFC 7231)
+- ✅ Job rescheduling via `reschedule_job()` RPC for persistent transient failures
+- ✅ Structured JSON logging with correlation IDs
+- ✅ Error classification (retryable vs non-retryable)
+- ✅ Disabled OpenAI SDK retries (`maxRetries: 0`) to prevent 12x amplification
+- ✅ Environment-configurable retry parameters
+- ✅ Comprehensive unit test suite (18 tests passing)
 
-      if (isLastAttempt) {
-        console.error(`[Retry] Max retries (${maxRetries}) exceeded for ${operation}`);
-        throw error;
-      }
+**Integration Points (8 locations):**
+1. ✅ Google Vision OCR (worker.ts:108-131)
+2. ✅ OpenAI GPT API (Pass1EntityDetector.ts:306-308)
+3. ✅ Storage download for file (worker.ts:436-440)
+4. ✅ Storage upload for processed image (worker.ts:592-605)
+5. ✅ Storage upload for OCR pages (ocr-persistence.ts:99-117)
+6. ✅ Storage upload for OCR manifest (ocr-persistence.ts:121-139)
+7. ✅ Storage download for OCR manifest (ocr-persistence.ts:182-193)
+8. ✅ Storage download for OCR pages (ocr-persistence.ts:202-213)
 
-      // Exponential backoff: 1s, 2s, 4s, 8s...
-      const delay = baseDelay * Math.pow(2, i);
-      console.warn(`[Retry] ${operation} failed (attempt ${i + 1}/${maxRetries}), retrying in ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('Retry logic error - should never reach here');
-}
+**Retry Configurations:**
+- OpenAI: 3 retries, 2s base delay, 30s max backoff
+- Google Vision: 3 retries, 1s base delay, 15s max backoff
+- Storage operations: 3 retries, 1s base delay, 10s max backoff
 
-function isNonRetryableError(error: any): boolean {
-  // Don't retry on:
-  // - 400 Bad Request (invalid input)
-  // - 401 Unauthorized (invalid credentials)
-  // - 404 Not Found (resource doesn't exist)
-  const nonRetryableStatusCodes = [400, 401, 404];
-  return nonRetryableStatusCodes.includes(error.status);
-}
+**Benefits Delivered:**
+- ✅ Resilient to transient API failures (429, 5xx, network errors)
+- ✅ Automatic recovery from rate limits
+- ✅ Job rescheduling prevents permanent failures from transient issues
+- ✅ Better user experience (transparent retry recovery)
+- ✅ Production-ready observability with structured logs
+- ✅ No retry amplification from SDK built-in retries
 
-// Usage in Pass1EntityDetector
-const ocrResult = await retryWithBackoff(
-  () => processWithGoogleVisionOCR(base64Data, mimeType),
-  3,
-  1000,
-  'Google Vision OCR'
-);
-
-const pass1Result = await retryWithBackoff(
-  () => this.openai.chat.completions.create({ /* ... */ }),
-  3,
-  2000,
-  'OpenAI Pass 1 Detection'
-);
-
-const storageDownload = await retryWithBackoff(
-  () => supabase.storage.from('medical-docs').download(path),
-  3,
-  1000,
-  'Storage Download'
-);
-```
-
-**Retry Strategy:**
-- OpenAI: 3 retries, 2s base delay (handles rate limits, timeouts)
-- Google Vision: 3 retries, 1s base delay (handles transient failures)
-- Supabase Storage: 3 retries, 1s base delay (handles network issues)
-- Exponential backoff prevents API hammering
-- Skip retry on 4xx errors (permanent failures)
-
-**Benefits:**
-- Resilient to transient API failures
-- Automatic recovery from rate limits
-- Prevents data loss from network issues
-- Better user experience (fewer failed jobs)
-- Detailed retry logging for debugging
-
-**Status:** Not implemented
+**Files Created:**
+- `apps/render-worker/src/utils/retry.ts` (retry utility)
+- `apps/render-worker/src/utils/__tests__/retry.test.ts` (test suite)
+- `apps/render-worker/jest.config.js` (test configuration)
 
 ---
 
@@ -519,106 +494,95 @@ const storageDownload = await retryWithBackoff(
 
 **Priority:** MEDIUM (Observability)
 **Impact:** Easier debugging, performance monitoring, SLA tracking
-**Effort:** 2-3 hours
+**Effort:** 2-3 hours (actual: 8 hours for Phase 1 & 2)
 
-**Current State:**
-Inconsistent logging across Edge Function and Worker. Some logs include `correlation_id`, others don't. Timing information incomplete. Hard to trace request flow through entire pipeline.
+**Status:** ✅ COMPLETED (2025-10-11)
 
-**Proposed Standard:**
-```typescript
-interface StructuredLog {
-  timestamp: string;
-  level: 'info' | 'warn' | 'error';
-  correlation_id: string;
-  component: 'edge-function' | 'worker';
-  operation: string;
-  shell_file_id?: string;
-  job_id?: string;
-  patient_id?: string;
-  duration_ms?: number;
-  error_code?: string;
-  message: string;
-  metadata?: Record<string, any>;
-}
+**Implementation:** [Phase 4 Structured Logging Implementation](./phase4-structured-logging-implementation.md)
+**Validation:** [Test 08 - Phase 4 Structured Logging Production Validation](../pass1-hypothesis-tests/test-08-phase4-structured-logging-production-validation.md)
 
-function logStructured(log: StructuredLog) {
-  console.log(JSON.stringify({
-    ...log,
-    timestamp: new Date().toISOString()
-  }));
-}
+**Production Results:**
+- ✅ **JSON-only logs** in production (machine-parseable)
+- ✅ **Correlation ID end-to-end** tracing (worker → utilities)
+- ✅ **PII/PHI redaction** with `maskPatientId()` helper
+- ✅ **Duration tracking** for all operations (ms precision)
+- ✅ **Level-based logging** (DEBUG, INFO, WARN, ERROR)
+- ✅ **26/26 unit tests passing** (comprehensive coverage)
+- ✅ **Error handling guard** for rescheduled jobs
 
-// Usage examples
-logStructured({
-  level: 'info',
-  correlation_id: correlationId,
-  component: 'worker',
-  operation: 'ocr_processing',
-  shell_file_id: shellFileId,
-  duration_ms: Date.now() - startTime,
-  message: 'OCR completed successfully'
-});
+**Files Created:**
+- `apps/render-worker/src/utils/logger-types.ts` (shared schema)
+- `apps/render-worker/src/utils/logger.ts` (Node implementation)
+- `apps/render-worker/src/utils/__tests__/logger.test.ts` (test suite)
 
-logStructured({
-  level: 'error',
-  correlation_id: correlationId,
-  component: 'edge-function',
-  operation: 'file_upload',
-  patient_id: patientId,
-  error_code: 'FILE_TOO_LARGE',
-  message: 'File exceeds 50MB limit',
-  metadata: { file_size: file.size }
-});
-```
+**Files Migrated:**
+- `apps/render-worker/src/worker.ts` (48 console calls → structured logging)
+- `apps/render-worker/src/pass1/Pass1EntityDetector.ts` (14 console calls → structured logging)
+- `apps/render-worker/src/utils/ocr-persistence.ts` (7 console calls → structured logging)
+- `apps/render-worker/src/utils/image-processing.ts` (6 console calls → structured logging)
 
-**Key Requirements:**
-- Every log includes `correlation_id` (trace request through pipeline)
-- Include `shell_file_id` and `job_id` when available
-- Log operation start and completion with duration
-- Structured JSON format (parseable by log aggregators)
-- Consistent field names across components
+**Total Console Calls Replaced:** 75+ (across 4 files)
 
-**Status:** Partially implemented (correlation_id exists, needs standardization)
+**Phase 3 Remaining:** Edge Functions structured logging (future enhancement)
 
 ---
 
 ### 7. Prompt Optimization
 
 **Priority:** MEDIUM (Cost & Performance)
-**Impact:** 30-50% token reduction, faster processing, lower costs
-**Effort:** 2-4 hours
+**Impact:** ~6% token reduction, faster processing, lower costs
+**Effort:** 2-4 hours (actual: 1.5 hours)
 
-**Current State:**
-Pass 1 prompt is 348 lines with verbose instructions, redundant text, and uncompressed examples. Consumes unnecessary input tokens on every request.
+**Status:** ✅ COMPLETED (2025-10-12)
 
-**Optimizations to Apply:**
+**Implementation:** [Phase 5 Prompt Optimization Implementation](./phase5-prompt-optimization-implementation.md)
 
-**A. Remove Duplicate OCR Text**
-- Current: OCR text appears twice in prompt (lines 87 and 226-231)
-- Fix: Delete "DOCUMENT PROCESSING" section
+**Production Results:**
+- ✅ **Batch 1 COMPLETED** (2025-10-10): Model name passing, duplicate OCR text removal, low-confidence rule, metrics clarification
+- ✅ **Batch 2 COMPLETED** (2025-10-12):
+  - **REJECTED** Taxonomy compression (risk of quality degradation)
+  - **COMPLETED** Server-side truncation with `truncateTextField()` helper
+  - **COMPLETED** Prompt cleanup (simplified dual-input, compressed spatial instructions, reduced verbosity)
+- ✅ **Token savings:** ~50 tokens per document (~6% reduction)
+- ✅ **Cost savings:** ~$0.01 per document
+- ✅ **Zero production data loss risk** (production analysis: max 63 chars, limit 120)
+- ✅ **10/10 unit tests passing** (comprehensive test coverage)
+
+**Implemented Optimizations:**
+
+**A. Remove Duplicate OCR Text** ✅
+- Deleted redundant "DOCUMENT PROCESSING" section
 - Savings: ~100 tokens per request
 
-**B. Compress Taxonomy Examples**
-- Current: `vital_sign: Physiological measurements (BP: 140/90, temp: 98.6°F, pulse: 72 bpm)`
-- Proposed: `vital_sign: BP 140/90, temp 98.6°F, pulse 72bpm`
-- Savings: ~30% reduction in taxonomy section
+**B. Compress Taxonomy Examples** ❌
+- REJECTED: Risk of quality degradation outweighs token savings
+- User decision: Preserve clarity over compression
 
-**C. Add Low-Confidence Inclusion Rule**
-- Current: Prompt doesn't specify what to do with uncertain entities
-- Fix: Add "Always emit uncertain items; set requires_manual_review=true when confidence < 0.7"
+**C. Add Low-Confidence Inclusion Rule** ✅
+- Added: "Always emit uncertain items; set requires_manual_review=true when confidence < 0.7"
 - Impact: Prevents data loss from AI skipping low-confidence entities
 
-**D. Server-Side Truncation Enforcement**
-- Current: Prompt instructs 120-char limit but no code enforcement
-- Fix: Add truncation in `pass1-translation.ts` before database insert
+**D. Server-Side Truncation Enforcement** ✅
+- Added `truncateTextField()` in `pass1-translation.ts`
+- Truncates 4 fields to 120 chars: `ai_visual_interpretation`, `visual_formatting_context`, `ocr_reference_text`, `discrepancy_notes`
 - Benefit: Defense in depth (don't trust AI to enforce limits)
+- Validation: Production data max 63 chars, zero risk of data loss
 
-**E. Clarify Metrics Instructions**
-- Current: Says "for each list section" but response format has global metrics
-- Fix: Change to "Report overall list extraction metrics"
+**E. Clarify Metrics Instructions** ✅
+- Changed to "Report overall list extraction metrics"
 - Impact: Clearer instructions, less AI confusion
 
-**Status:** Batch 1 completed (model name passing, duplicate removal, low-confidence rule, metrics wording). Batch 2 pending (taxonomy compression, server-side truncation).
+**F. Prompt Cleanup** ✅
+- Simplified dual-input description: ~20 token savings
+- Compressed spatial mapping instructions: ~15 token savings
+- Reduced response format verbosity: ~15 token savings
+
+**Files Created:**
+- `apps/render-worker/src/pass1/__tests__/pass1-translation-truncation.test.ts` (10 tests)
+
+**Files Modified:**
+- `apps/render-worker/src/pass1/pass1-translation.ts` (truncation helper + 4 field applications)
+- `apps/render-worker/src/pass1/pass1-prompts.ts` (3 cleanup optimizations)
 
 ---
 

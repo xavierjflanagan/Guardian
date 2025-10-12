@@ -17,6 +17,34 @@ import {
 import { assignEntitySchemas, determineProcessingPriority } from './pass1-schema-mapping';
 
 // =============================================================================
+// TEXT FIELD TRUNCATION HELPER
+// =============================================================================
+
+/**
+ * Truncate text field to maximum length with ellipsis
+ *
+ * Phase 5 Optimization 2: Server-side truncation enforcement for defense in depth.
+ * The AI is instructed to keep these fields under 120 chars, but this provides
+ * a safety net in case AI behavior changes or different models are used.
+ *
+ * @param text - Text to truncate (can be null)
+ * @param maxLength - Maximum length (default 120)
+ * @returns Truncated text with ellipsis if needed, or null if input is null
+ */
+export function truncateTextField(text: string | null, maxLength: number = 120): string | null {
+  if (text === null || text === undefined) {
+    return null;
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  // Truncate and add ellipsis
+  return text.substring(0, maxLength - 3) + '...';
+}
+
+// =============================================================================
 // MAIN TRANSLATION FUNCTION
 // =============================================================================
 
@@ -98,27 +126,27 @@ export function translateAIOutputToDatabase(
       // REMOVED (Migration 17): pass1_cost_estimate (calculate on-demand from token breakdown)
 
       // =========================================================================
-      // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards)
+      // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards + TRUNCATION)
       // =========================================================================
-      ai_visual_interpretation: entity.visual_interpretation?.ai_sees || '',
-      visual_formatting_context: entity.visual_interpretation?.formatting_context || '',
+      ai_visual_interpretation: truncateTextField(entity.visual_interpretation?.ai_sees || '', 120),
+      visual_formatting_context: truncateTextField(entity.visual_interpretation?.formatting_context || '', 120),
       ai_visual_confidence: entity.visual_interpretation?.ai_confidence || 0,
       visual_quality_assessment: entity.visual_interpretation?.visual_quality || '',
 
       // =========================================================================
-      // OCR CROSS-REFERENCE DATA (FLATTENED with safety guards)
+      // OCR CROSS-REFERENCE DATA (FLATTENED with safety guards + TRUNCATION)
       // =========================================================================
-      ocr_reference_text: entity.ocr_cross_reference?.ocr_text || null,
+      ocr_reference_text: truncateTextField(entity.ocr_cross_reference?.ocr_text || null, 120),
       ocr_confidence: entity.ocr_cross_reference?.ocr_confidence || null,
       ocr_provider: sessionMetadata.ocr_provider,
       ai_ocr_agreement_score: entity.ocr_cross_reference?.ai_ocr_agreement || 0,
       spatial_mapping_source: entity.spatial_information?.spatial_source || 'none',
 
       // =========================================================================
-      // DISCREPANCY TRACKING (FLATTENED with safety guards)
+      // DISCREPANCY TRACKING (FLATTENED with safety guards + TRUNCATION)
       // =========================================================================
       discrepancy_type: entity.ocr_cross_reference?.discrepancy_type || null,
-      discrepancy_notes: entity.ocr_cross_reference?.discrepancy_notes || null,
+      discrepancy_notes: truncateTextField(entity.ocr_cross_reference?.discrepancy_notes || null, 120),
 
       // =========================================================================
       // QUALITY AND VALIDATION METADATA (FLATTENED with safety guards)
@@ -130,7 +158,7 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       // PROFILE SAFETY AND COMPLIANCE (From document-level assessment)
       // =========================================================================
-      profile_verification_confidence: aiResponse.profile_safety.patient_identity_confidence,
+      profile_verification_confidence: aiResponse.profile_safety?.patient_identity_confidence ?? 0,
       compliance_flags: aiResponse.profile_safety?.safety_flags || [],
 
       // =========================================================================
