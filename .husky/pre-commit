@@ -1,5 +1,10 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# Auto-update lockfile if package.json files have changed
+# Only run if any package.json files changed
+changed="$(git diff --cached --name-only | grep -E '(^|/)package\.json$' || true)"
+[ -z "$changed" ] && exit 0
+
+# Update lockfile and auto-stage it
 pnpm install --lockfile-only --ignore-scripts
+git add pnpm-lock.yaml

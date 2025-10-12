@@ -4,7 +4,7 @@
   "description": "V3 Background Job Processing Worker - Source of Truth",
   "main": "dist/worker.js",
   "scripts": {
-    "build": "npm install --include=dev && tsc --project ./tsconfig.json",
+    "build": "tsc --project ./tsconfig.json",
     "start": "node dist/worker.js",
     "dev": "tsx src/worker.ts",
     "test": "jest",
