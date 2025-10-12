@@ -35,4 +35,27 @@ start_time	end_time	start_time_iso	end_time_iso	project_id	num_model_requests	us
 1760140800	1760227200	2025-10-11T00:00:00+00:00	2025-10-12T00:00:00+00:00	proj_4BhNtYH0z7dWbBtzhibxa65W	2.0	user-dAU7Ud7OljwJvKfi4wQzWHyV	key_OYRZfEkH5R9CNgtY	gpt-5-mini-2025-08-07	FALSE	default	22688.0	33191.0	0.0	22688.0	22688.0	33191.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0
 ```
 
+## Cost per run (last 10 runs)
+
+Assumptions:
+- Same 1-page JPEG input per run
+- Pricing and formula above (gpt-5-mini)
+- Latest 10 runs are: 2 runs on 2025-10-11 and 8 of the 11 runs on 2025-10-10 (both `gpt-5-mini-2025-08-07`)
+
+Per-run token averages and cost:
+```tsv
+date	runs_counted	per_run_input_tokens	per_run_output_tokens	per_run_cached_input_tokens	per_run_cost_usd
+2025-10-11	2	11344.0	16595.5	0.0	0.036027
+2025-10-10	8 of 11	11344.0	14077.4545	0.0	0.0309909
+```
+
+Computation (per run):
+- input_cost = 0.25e-6 × per_run_input_tokens
+- output_cost = 2.00e-6 × per_run_output_tokens
+- total_cost = input_cost + output_cost
+
+Weighted average across last 10 runs:
+- (8 × 0.0309909 + 2 × 0.036027) ÷ 10 = $0.031998
+- Note: 2 × 0.036027 = $0.072054, matching the daily total for 2025-10-11 in the billing extract.
+
 
