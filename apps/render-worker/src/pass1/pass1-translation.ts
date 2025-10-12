@@ -107,7 +107,9 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       // PASS 1 PROCESSING RESULTS (Computed + Direct with safety guards)
       // =========================================================================
-      pass1_confidence: entity.classification?.confidence || 0,
+      pass1_confidence: typeof entity.classification?.confidence === 'number'
+        ? entity.classification.confidence
+        : 0,
       requires_schemas: requiredSchemas,
       processing_priority: priority,
 
@@ -130,7 +132,9 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       ai_visual_interpretation: truncateTextField(entity.visual_interpretation?.ai_sees || '', 120) || '[no visual interpretation]',
       visual_formatting_context: truncateTextField(entity.visual_interpretation?.formatting_context || '', 120) || '[no formatting context]',
-      ai_visual_confidence: entity.visual_interpretation?.ai_confidence || 0,
+      ai_visual_confidence: typeof entity.visual_interpretation?.ai_confidence === 'number'
+        ? entity.visual_interpretation.ai_confidence
+        : 0,
       visual_quality_assessment: entity.visual_interpretation?.visual_quality || '[unknown]',
 
       // =========================================================================
@@ -139,7 +143,9 @@ export function translateAIOutputToDatabase(
       ocr_reference_text: truncateTextField(entity.ocr_cross_reference?.ocr_text || null, 120),
       ocr_confidence: entity.ocr_cross_reference?.ocr_confidence || null,
       ocr_provider: sessionMetadata.ocr_provider,
-      ai_ocr_agreement_score: entity.ocr_cross_reference?.ai_ocr_agreement || 0,
+      ai_ocr_agreement_score: typeof entity.ocr_cross_reference?.ai_ocr_agreement === 'number'
+        ? entity.ocr_cross_reference.ai_ocr_agreement
+        : 0,
       spatial_mapping_source: entity.spatial_information?.spatial_source || 'none',
 
       // =========================================================================
@@ -152,7 +158,9 @@ export function translateAIOutputToDatabase(
       // QUALITY AND VALIDATION METADATA (FLATTENED with safety guards)
       // =========================================================================
       validation_flags: aiResponse.quality_assessment?.quality_flags || [],
-      cross_validation_score: entity.quality_indicators?.cross_validation_score || 0,
+      cross_validation_score: typeof entity.quality_indicators?.cross_validation_score === 'number'
+        ? entity.quality_indicators.cross_validation_score
+        : 0,
       manual_review_required: entity.quality_indicators?.requires_manual_review || false,
 
       // =========================================================================
