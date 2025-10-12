@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Auto-update lockfile if package.json files have changed
+pnpm install --lockfile-only --ignore-scripts
