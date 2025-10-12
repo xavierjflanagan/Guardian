@@ -232,6 +232,36 @@ Exora V3 uses a **Supabase MCP-based migration system** instead of traditional S
 
 ## Development Guidelines
 
+### CRITICAL: Package Dependency Changes Protocol
+
+**AUTOMATED SAFETY NET**: A pre-commit hook automatically updates `pnpm-lock.yaml` on every commit.
+
+When modifying any `package.json` file, the Git pre-commit hook will:
+1. Detect package.json changes
+2. Run `pnpm install --lockfile-only --ignore-scripts`
+3. Update the lockfile if needed
+4. Include the lockfile in your commit
+
+**Why This Matters:**
+- Frozen lockfile deployments (Render, Vercel) WILL FAIL if lockfile is out of sync
+- This has caused multiple production deployment failures
+- The pre-commit hook prevents this automatically
+
+**Manual Override (If Hook Fails):**
+If the pre-commit hook fails or you need to manually update:
+```bash
+pnpm install                    # Regenerate lockfile
+git add pnpm-lock.yaml          # Stage lockfile
+git add package.json            # Stage package.json
+git commit -m "Add dependency"  # Commit together
+```
+
+**For AI Assistants:**
+- The pre-commit hook handles lockfile updates automatically
+- You do NOT need to manually run `pnpm install` after editing package.json
+- The hook will update the lockfile before the commit completes
+- If you see frozen-lockfile errors in CI, the hook may have been bypassed
+
 ### UI/UX Standards
 - **NO EMOJIS**: Never use emojis in user-facing content (UI text, error messages, notifications, etc.) unless explicitly requested by the user
 - **NO EMOJIS IN DOCUMENTATION**: Never use emojis in documentation headers, sections, content, README files, architecture docs, technical specifications, or code comments

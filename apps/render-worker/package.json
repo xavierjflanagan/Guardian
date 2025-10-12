@@ -11,7 +11,8 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "deploy:staging": "cp -r ./* ../../../../../../../apps/render-worker/ && cd ../../../../../../../ && git add apps/render-worker && git commit -m 'Deploy worker to staging' && git push origin staging",
-    "deploy:production": "cp -r ./* ../../../../../../../apps/render-worker/ && cd ../../../../../../../ && git add apps/render-worker && git commit -m 'Deploy worker to production' && git push origin main"
+    "deploy:production": "cp -r ./* ../../../../../../../apps/render-worker/ && cd ../../../../../../../ && git add apps/render-worker && git commit -m 'Deploy worker to production' && git push origin main",
+    "prepare": "husky"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

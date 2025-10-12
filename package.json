@@ -15,7 +15,14 @@
     "type": "git",
     "url": "git+https://github.com/xavierjflanagan/Guardian.git"
   },
-  "keywords": ["healthcare", "medical-records", "patient-portal", "nextjs", "supabase", "monorepo"],
+  "keywords": [
+    "healthcare",
+    "medical-records",
+    "patient-portal",
+    "nextjs",
+    "supabase",
+    "monorepo"
+  ],
   "author": "Guardian Healthcare Platform",
   "license": "ISC",
   "bugs": {
@@ -29,6 +36,7 @@
   },
   "devDependencies": {
     "@turbo/gen": "^1.10.0",
+    "husky": "^9.1.7",
     "turbo": "^1.10.0"
   }
 }
