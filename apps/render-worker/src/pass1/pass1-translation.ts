@@ -45,6 +45,44 @@ export function truncateTextField(text: string | null, maxLength: number = 120):
 }
 
 // =============================================================================
+// ENTITY CATEGORY NORMALIZATION
+// =============================================================================
+
+/**
+ * Normalize entity_category to match database constraint
+ *
+ * AI sometimes returns variations:
+ * - "CLINICAL_EVENTS" (uppercase, plural) → "clinical_event"
+ * - "clinical_events" (lowercase, plural) → "clinical_event"
+ * - "DOCUMENT_STRUCTURE" → "document_structure"
+ * - "HEALTHCARE_CONTEXT" → "healthcare_context"
+ *
+ * Database constraint expects: 'clinical_event', 'healthcare_context', 'document_structure'
+ *
+ * @param category - Raw category string from AI (may have wrong case or plural)
+ * @returns Normalized category matching database constraint
+ */
+export function normalizeEntityCategory(category: string): 'clinical_event' | 'healthcare_context' | 'document_structure' {
+  // Convert to lowercase and remove any trailing 's' from plurals
+  const normalized = category.toLowerCase().replace(/s$/, '');
+
+  // Handle variations
+  if (normalized.includes('clinical')) {
+    return 'clinical_event';
+  }
+  if (normalized.includes('healthcare') || normalized.includes('context')) {
+    return 'healthcare_context';
+  }
+  if (normalized.includes('document') || normalized.includes('structure')) {
+    return 'document_structure';
+  }
+
+  // Fallback: try to match exactly (should not reach here if AI follows prompt)
+  console.warn(`[Pass1] Unknown entity_category "${category}", defaulting to document_structure`);
+  return 'document_structure';
+}
+
+// =============================================================================
 // MAIN TRANSLATION FUNCTION
 // =============================================================================
 
@@ -89,11 +127,11 @@ export function translateAIOutputToDatabase(
       processing_session_id: sessionMetadata.processing_session_id,
 
       // =========================================================================
-      // ENTITY IDENTITY (Direct mappings from AI)
+      // ENTITY IDENTITY (Direct mappings from AI with normalization)
       // =========================================================================
       entity_id: entity.entity_id,
       original_text: entity.original_text,
-      entity_category: entity.classification.entity_category,
+      entity_category: normalizeEntityCategory(entity.classification.entity_category),
       entity_subtype: entity.classification.entity_subtype,
 
       // =========================================================================
