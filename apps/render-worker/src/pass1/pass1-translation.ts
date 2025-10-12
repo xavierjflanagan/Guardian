@@ -128,8 +128,8 @@ export function translateAIOutputToDatabase(
       // =========================================================================
       // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards + TRUNCATION)
       // =========================================================================
-      ai_visual_interpretation: truncateTextField(entity.visual_interpretation?.ai_sees || '', 120),
-      visual_formatting_context: truncateTextField(entity.visual_interpretation?.formatting_context || '', 120),
+      ai_visual_interpretation: truncateTextField(entity.visual_interpretation?.ai_sees || '', 120) || '',
+      visual_formatting_context: truncateTextField(entity.visual_interpretation?.formatting_context || '', 120) || '',
       ai_visual_confidence: entity.visual_interpretation?.ai_confidence || 0,
       visual_quality_assessment: entity.visual_interpretation?.visual_quality || '',
 
