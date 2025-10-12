@@ -143,9 +143,14 @@ export function translateAIOutputToDatabase(
       ocr_reference_text: truncateTextField(entity.ocr_cross_reference?.ocr_text || null, 120),
       ocr_confidence: entity.ocr_cross_reference?.ocr_confidence || null,
       ocr_provider: sessionMetadata.ocr_provider,
-      ai_ocr_agreement_score: typeof entity.ocr_cross_reference?.ai_ocr_agreement === 'number'
-        ? entity.ocr_cross_reference.ai_ocr_agreement
-        : 0,
+      // FIX: AI returns boolean (true/false) but we need number (0.0-1.0)
+      // Convert: true -> 1.0, false -> 0.0, number -> use as-is, anything else -> 0
+      ai_ocr_agreement_score: (() => {
+        const val = entity.ocr_cross_reference?.ai_ocr_agreement;
+        if (typeof val === 'number') return val;
+        if (typeof val === 'boolean') return val ? 1.0 : 0.0;
+        return 0;
+      })(),
       spatial_mapping_source: entity.spatial_information?.spatial_source || 'none',
 
       // =========================================================================

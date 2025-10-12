@@ -146,7 +146,7 @@ export interface EntityDetectionResult {
   ocr_cross_reference: {
     ocr_text: string | null;
     ocr_confidence: number | null;
-    ai_ocr_agreement: number;
+    ai_ocr_agreement: number | boolean;  // AI returns boolean, we convert to number
     discrepancy_type: string | null;
     discrepancy_notes: string | null;
   };
