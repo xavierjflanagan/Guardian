@@ -848,34 +848,59 @@ CREATE OR REPLACE FUNCTION complete_job(
     p_job_id uuid,
     p_worker_id text,
     p_job_result jsonb default null
-) RETURNS BOOLEAN 
+) RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp  -- FIXED: Prevent search_path hijacking
 AS $$
+DECLARE
+    v_now timestamptz := NOW();        -- Migration 22: Single timestamp for consistency
+    v_rows int := 0;                   -- Migration 22: Explicit row count for RETURN value
+    v_actual_duration interval;        -- Migration 22: Capture calculated duration
 BEGIN
-    UPDATE job_queue SET
+    UPDATE job_queue
+    SET
         status = 'completed',
-        completed_at = NOW(),
+        completed_at = v_now,                    -- Migration 22: Use consistent timestamp
+        heartbeat_at = NULL,                     -- Migration 22: Clear heartbeat on completion
+        actual_duration = v_now - started_at,    -- Migration 22: Auto-calculate job duration
         job_result = p_job_result,
-        updated_at = NOW()
-    WHERE id = p_job_id 
-    AND worker_id = p_worker_id
-    AND status = 'processing'; -- FIXED: Prevent double-completion or completing non-active jobs
-    
-    -- Correlation ID audit logging
-    PERFORM log_audit_event(
-        'job_queue',
-        p_job_id::text,
-        'UPDATE',
-        NULL,
-        jsonb_build_object('status', 'completed', 'job_id', p_job_id, 'worker_id', p_worker_id),
-        'Job completed successfully',
-        'system',
-        NULL -- p_patient_id (NULL for system operations)
-    );
-    
-    RETURN FOUND;
+        updated_at = v_now                       -- Migration 22: Use consistent timestamp
+    WHERE id = p_job_id
+      AND worker_id = p_worker_id
+      AND status = 'processing'                  -- FIXED: Prevent double-completion or completing non-active jobs
+    RETURNING actual_duration INTO v_actual_duration;
+
+    -- Migration 22: Use explicit row count instead of FOUND (which would reflect PERFORM result)
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    IF v_rows = 0 THEN
+        RETURN FALSE; -- No matching in-progress job found
+    END IF;
+
+    -- Migration 22: Audit logging with exception handling for operational resilience
+    -- Healthcare note: Log failure as WARNING for compliance visibility
+    BEGIN
+        PERFORM log_audit_event(
+            'job_queue',
+            p_job_id::text,
+            'UPDATE',
+            NULL,
+            jsonb_build_object(
+                'status', 'completed',
+                'job_id', p_job_id,
+                'worker_id', p_worker_id,
+                'actual_duration_seconds', EXTRACT(EPOCH FROM v_actual_duration)  -- Migration 22: Include duration in audit log
+            ),
+            'Job completed successfully with duration tracking',
+            'system',
+            NULL -- p_patient_id (NULL for system operations)
+        );
+    EXCEPTION WHEN OTHERS THEN
+        -- Allow job completion even if audit logging fails, but ensure visibility
+        RAISE WARNING 'Audit logging failed in complete_job() for job %: %', p_job_id, SQLERRM;
+    END;
+
+    RETURN TRUE;
 END;
 $$;
 

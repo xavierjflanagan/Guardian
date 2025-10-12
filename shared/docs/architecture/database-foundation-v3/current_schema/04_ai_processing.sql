@@ -215,7 +215,8 @@ CREATE TABLE IF NOT EXISTS ai_processing_sessions (
     )),
     
     -- AI model configuration
-    ai_model_version TEXT NOT NULL DEFAULT 'v3',
+    -- MIGRATION 23 (2025-10-12): Renamed ai_model_version → ai_model_name (column stored model names, not versions)
+    ai_model_name TEXT NOT NULL DEFAULT 'v3',
     model_config JSONB DEFAULT '{}',
     processing_mode TEXT CHECK (processing_mode IN ('automated', 'human_guided', 'validation_only')),
     
@@ -707,7 +708,7 @@ BEGIN
     
     -- Create processing session
     INSERT INTO ai_processing_sessions (
-        patient_id, shell_file_id, session_type, ai_model_version
+        patient_id, shell_file_id, session_type, ai_model_name  -- MIGRATION 23: Renamed column
     ) VALUES (
         p_patient_id, p_shell_file_id, p_session_type, p_model_version
     ) RETURNING id INTO session_id;

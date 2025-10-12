@@ -64,7 +64,8 @@
     }
   },
 
-  "fields_not_modified_by_pass2": ["patient_id", "shell_file_id", "session_type", "ai_model_version", "model_config", "processing_mode", "total_steps", "processing_started_at", "max_retries"],
+  "fields_not_modified_by_pass2": ["patient_id", "shell_file_id", "session_type", "ai_model_name", "model_config", "processing_mode", "total_steps", "processing_started_at", "max_retries"],
+  "migration_notes": "MIGRATION 23 (2025-10-12): ai_model_version renamed to ai_model_name for semantic clarity",
 
   "examples": [
     {
