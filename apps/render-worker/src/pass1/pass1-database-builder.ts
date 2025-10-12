@@ -139,7 +139,7 @@ function buildAIProcessingSessionRecord(
     shell_file_id: input.shell_file_id,
     session_type: 'entity_extraction',
     session_status: 'completed',
-    ai_model_version: sessionMetadata.model_used,
+    ai_model_name: sessionMetadata.model_used,  // MIGRATION 23 (2025-10-12): Renamed from ai_model_version
     model_config: {
       temperature: 0.1,
       max_tokens: 4000,

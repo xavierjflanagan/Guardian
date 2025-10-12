@@ -307,7 +307,7 @@ export interface AIProcessingSessionRecord {
   shell_file_id: string;
   session_type: 'shell_file_processing' | 'entity_extraction';
   session_status: 'initiated' | 'processing' | 'completed' | 'failed';
-  ai_model_version: string;
+  ai_model_name: string;  // MIGRATION 23 (2025-10-12): Renamed from ai_model_version
   model_config: Record<string, any>;
   processing_mode: 'automated' | 'human_guided';
   workflow_step: 'entity_detection';
