@@ -1,9 +1,13 @@
 # Pass 1 Bridge Schema and AI Prompts
 
-**Status**: ✅ IMPLEMENTED - Prompts in Production Code
+**ARCHIVE STATUS:** This is a pre-implementation specification document created October 3, 2025, containing prompt templates, TypeScript code examples, and schema definitions. All of this content was subsequently implemented in production code and now exists in `apps/render-worker/src/pass1/` (pass1-prompts.ts, pass1-types.ts, Pass1EntityDetector.ts). This document creates duplication with actual production code, which is the true source of truth. Archived October 13, 2025 as historical reference. For current prompts, see pass1-prompts.ts in the worker codebase.
+
+---
+
+**Original Status**: ✅ IMPLEMENTED - Prompts in Production Code
 **Created**: 29 September 2025
 **Last Updated**: 3 October 2025
-**Implementation**: `apps/render-worker/src/pass1/pass1-prompts.ts` (334 lines)
+**Implementation**: `apps/render-worker/src/pass1/pass1-prompts.ts` (334 lines - NOTE: Actual production file is 12,618 bytes)
 
 ## Overview
 

@@ -1,9 +1,13 @@
 # Pass 1 Entity Detection Architecture
 
-**Status**: ✅ IMPLEMENTATION COMPLETE - Production Ready
+**ARCHIVE STATUS:** This is a pre-implementation planning document created October 3, 2025, before Pass 1 was coded. The actual production implementation now lives in `apps/render-worker/src/pass1/` (3,116 lines TypeScript, operational since October 2025). This document contains outdated cost estimates (100x too high), incorrect AI model claims (mentions Claude, not implemented), and stale implementation status. Archived October 13, 2025 as historical reference. For current Pass 1 architecture, see PASS-1-OVERVIEW.md.
+
+---
+
+**Original Status**: ✅ IMPLEMENTATION COMPLETE - Production Ready
 **Created**: 29 September 2025
 **Last Updated**: 3 October 2025
-**Implementation**: `apps/render-worker/src/pass1/` (2,395 lines TypeScript)
+**Implementation**: `apps/render-worker/src/pass1/` (2,395 lines TypeScript - NOTE: Actual is 3,116 lines)
 
 ## Overview
 

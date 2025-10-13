@@ -1,12 +1,14 @@
 # Pass 1 Optimization Recommendations
 
-**Date:** 2025-10-08
+**Original Date:** 2025-10-08
 **Analysis Scope:** All Pass 1 output columns, prompt efficiency, token optimization
 **Goal:** Reduce costs and improve efficiency without sacrificing quality
 
+**IMPLEMENTATION STATUS (2025-10-13):** Phase 1 COMPLETED via Migrations 16 & 17 (Oct 8-9, 2025). Removed 5 redundant columns from entity_processing_audit as recommended. Phase 2 (entity consolidation rules) DEFERRED pending further testing. Document provides historical context for optimization decisions made during Pass 1 implementation.
+
 ---
 
-## Executive Summary
+## Executive Summary (Historical Analysis - Oct 8, 2025)
 
 **Findings:**
 1. **Entity Splitting:** Reducing entity count from 43→37.5 saves 11% cost ($0.023/doc)
@@ -15,10 +17,12 @@
 4. **Prompt Bloat:** AI instructed to output fields that backend immediately discards
 
 **Projected Savings:**
-- Entity consolidation: **11% cost reduction** ($0.023/doc)
-- Remove duplicated columns: **~15% output token reduction**
-- Simplified prompt: **~5% input token reduction**
+- Entity consolidation: **11% cost reduction** ($0.023/doc) - DEFERRED
+- Remove duplicated columns: **~15% output token reduction** - ✅ COMPLETED (Migrations 16 & 17)
+- Simplified prompt: **~5% input token reduction** - DEFERRED
 - **Total estimated savings: 25-30% per document**
+
+**ACTUAL IMPLEMENTATION (Oct 2025):** Migrations 16 & 17 removed pass1_model_used, pass1_vision_processing, pass1_token_usage, pass1_image_tokens, pass1_cost_estimate as recommended in this document's Phase 1.
 
 ---
 

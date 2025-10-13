@@ -1,10 +1,10 @@
 /**
  * Pass 1 Entity Detector - Main Class
  * Created: 2025-10-03
- * Purpose: Core entity detection using GPT-4o Vision with dual-input processing
+ * Purpose: Core entity detection using GPT5-mini with dual-input processing
  *
  * This class:
- * 1. Calls OpenAI GPT-4o Vision with raw document image (PRIMARY)
+ * 1. Calls OpenAI GPT5-mini Vision with raw document image (PRIMARY)
  * 2. Provides OCR data for cross-validation (SECONDARY)
  * 3. Parses AI response with entity classification
  * 4. Translates to database format
@@ -259,7 +259,7 @@ export class Pass1EntityDetector {
   // ===========================================================================
 
   /**
-   * Call OpenAI GPT-4o Vision for entity detection
+   * Call OpenAI GPT5-mini for entity detection
    *
    * @param input - Pass 1 input with raw file and OCR data
    * @returns Parsed AI response

@@ -122,7 +122,7 @@ export interface Pass1Input {
 }
 
 // =============================================================================
-// AI OUTPUT TYPES (What GPT-4o Returns)
+// AI OUTPUT TYPES (What AI Model Returns)
 // =============================================================================
 
 export interface EntityDetectionResult {

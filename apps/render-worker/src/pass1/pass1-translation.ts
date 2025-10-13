@@ -96,7 +96,7 @@ export function normalizeEntityCategory(category: string): 'clinical_event' | 'h
  * 4. Sets processing priority
  * 5. Initializes Pass 2 status
  *
- * @param aiResponse - The complete response from GPT-4o Vision
+ * @param aiResponse - The complete response from GPT5-mini
  * @param sessionMetadata - Processing session context
  * @returns Array of database-ready records for entity_processing_audit table
  */

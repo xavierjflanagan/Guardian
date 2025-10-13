@@ -1,6 +1,10 @@
 # Pass 1 Worker Implementation Guide
 
-**Status**: ✅ IMPLEMENTATION COMPLETE - Worker Operational
+**ARCHIVE STATUS:** This is a pre-implementation guide created October 3, 2025, containing code examples for translation functions, worker integration, and database operations. All of this code was subsequently implemented in production files (pass1-translation.ts, pass1-schema-mapping.ts, pass1-database-builder.ts, worker.ts). This document creates duplication with actual production code, which is the true source of truth. Archived October 13, 2025 as historical reference. For current worker implementation, see apps/render-worker/src/ codebase.
+
+---
+
+**Original Status**: ✅ IMPLEMENTATION COMPLETE - Worker Operational
 **Created**: 30 September 2025
 **Last Updated**: 3 October 2025
 **Implementation**: `apps/render-worker/src/worker.ts` + `apps/render-worker/src/pass1/`
