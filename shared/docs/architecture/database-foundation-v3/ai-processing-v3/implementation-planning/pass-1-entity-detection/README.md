@@ -1,308 +1,260 @@
-# Pass 1 Entity Detection - Implementation Documentation
+# Pass 1 Entity Detection - Documentation Map
 
-**Last Updated:** 3 October 2025
-**Implementation Status:** ✅ COMPLETE - Production Ready
-**Location:** `apps/render-worker/src/pass1/`
-
----
-
-## Quick Reference
-
-**What is Pass 1?**
-Entity detection and classification using GPT-4o Vision + OCR cross-validation. First stage of V3 AI processing pipeline.
-
-**Current Status:**
-- ✅ Implementation complete (2,395 lines TypeScript)
-- ✅ All 7 database tables integrated
-- ✅ Worker integration complete
-- ✅ Build successful
-- ⏳ Testing pending
-
-**Implementation Date:** October 3, 2025
+**Last Updated:** October 13, 2025
+**Status:** ✅ OPERATIONAL
+**Source Code:** `apps/render-worker/src/pass1/` (3,116 lines TypeScript, 8 files)
 
 ---
 
-## Implementation Summary
+## Purpose of This Folder
 
-### Code Location
+This folder contains documentation for **Pass 1 Entity Detection**, the first stage of Exora's three-pass AI processing pipeline for medical documents.
+
+**This folder provides:**
+- **A)** Architectural overview for understanding Pass 1 in context of the 3-pass system
+- **B)** Historical tracking of changes, improvements, and iterative development
+- **C)** Current TODO items, audit findings, and remaining work
+
+---
+
+## Folder Structure
+
+### Current Documentation
+
+#### PASS-1-OVERVIEW.md (Start Here)
+Concise architectural overview of Pass 1 entity detection system.
+
+**When to read:** Need to understand what Pass 1 does, how it works, or load context for AI assistants
+
+**What it contains:**
+- What is Pass 1 and its role in the 3-pass pipeline
+- Three-Category Classification System (clinical/context/structure)
+- Processing flow (input → AI detection → translation → 7-table writes)
+- Production metrics (costs, performance, quality)
+- Key implementation files with links to actual code
+- Recent improvements (October 2025 enhancements)
+- Current TODO items
+
+**Key principle:** Links to production code, doesn't duplicate it. Code is source of truth.
+
+---
+
+### Audit & Improvement Tracking
+
+#### pass1-audits/
+Column-by-column database audits identifying issues and optimization opportunities.
+
+**When to read:** Need to see what database improvements have been made or what remains to be done
+
+**What it contains:**
+- [README.md](./pass1-audits/README.md) - Quick summary, critical work remaining
+- [pass1-audit-consolidated-fixes.md](./pass1-audits/pass1-audit-consolidated-fixes.md) - Master implementation plan with status tracking
+- `pass1-individual-table-audits/` - Deep-dive analysis of each database table
+
+**Status:** 6 of 8 tables complete, 2 critical tasks deferred until after Pass 2
+
+---
+
+#### pass1-enhancements/
+Worker and system enhancements (completed and future planned).
+
+**When to read:** Need to see what improvements have been deployed or are planned for future implementation.
+
+**What it contains:**
+- **`pass1-enhancements-completed/`** (9 documents):
+  - `pass1-worker-data-quality-enhancements.md` - 5 production improvements (October 2025)
+  - `pass1-TOKEN-BREAKDOWN-MIGRATION.md` - Token breakdown for cost accuracy
+  - `pass1-architectural-improvements.md` - Core architecture enhancements
+  - `pass1-cost-calculation-half-fix.md` - Cost calculation improvements
+  - `pass1-image-downscaling-implementation.md` - Image optimization for OCR
+  - `pass1-ocr-transition-to-worker-implementation.md` - OCR moved from Edge Function
+  - `pass1-prompt-optimization-implementation.md` - AI prompt improvements
+  - `pass1-retry-logic-implementation.md` - Network resilience
+  - `pass1-structured-logging-implementation.md` - Production logging
+- **`pass1-enhancements-future-planned/`** (4 planning documents):
+  - `file-format-optimization-roadmap-plan.md` - Future format support
+  - `pass1-performance-optimization-roadmap.plan.md` - Performance improvements
+  - `pass1_ocr_only_preparation_plan.md` - OCR-only processing mode
+  - `pass1_token_output_optimization.plan.md` - Token usage optimization
+
+**Status:** 9 completed enhancements documented, 4 future enhancements planned
+
+---
+
+#### pass1-hypothesis-tests-results/
+Production validation tests, cost reports, and migration verifications.
+
+**When to read:** Need to see actual test results, cost data, or migration validation
+
+**What it contains:**
+- [test-11-worker-data-quality-enhancements.md](./pass1-hypothesis-tests-results/test-11-worker-data-quality-enhancements.md) - 5 production improvements validated (October 2025)
+- [test-10-migration-22-23-database-schema-validation.md](./pass1-hypothesis-tests-results/test-10-migration-22-23-database-schema-validation.md) - Migration 22 & 23 production validation
+- [openai-usage-and-cost-report-2025-10-12.md](./pass1-hypothesis-tests-results/openai-usage-and-cost-report-2025-10-12.md) - Actual OpenAI usage and cost data
+- test-05 through test-09: Historical production validation baselines
+
+**Status:** 11 hypothesis tests completed, system validated in production
+
+---
+
+### Historical Archive
+
+#### archive/
+Pre-implementation planning documents (October 3, 2025) and code reviews.
+
+**When to read:** Need to understand the original design decisions or see historical context
+
+**What it contains:**
+- [PASS-1-ARCHITECTURE.md](./archive/PASS-1-ARCHITECTURE.md) - Original architectural planning (outdated costs/metrics)
+- [PASS-1-BRIDGE-SCHEMA-AND-PROMPTS.md](./archive/PASS-1-BRIDGE-SCHEMA-AND-PROMPTS.md) - Original prompt specifications (duplicates production code)
+- [PASS-1-WORKER-IMPLEMENTATION.md](./archive/PASS-1-WORKER-IMPLEMENTATION.md) - Original implementation guide (duplicates production code)
+- [CLAUDE-CODE-REVIEW-RESPONSE-2025-10-03.md](./archive/CLAUDE-CODE-REVIEW-RESPONSE-2025-10-03.md) - Independent verification of GPT-5 code review findings
+- [PASS-1-CODE-REVIEW-2025-10-03.md](./archive/PASS-1-CODE-REVIEW-2025-10-03.md) - Original GPT-5 code review (11 critical issues, all resolved)
+- [PASS1-OPTIMIZATION-RECOMMENDATIONS.md](./archive/PASS1-OPTIMIZATION-RECOMMENDATIONS.md) - Pre-implementation optimization analysis (led to Migrations 16-17)
+- [flag-extraction-non-issue.md](./archive/flag-extraction-non-issue.md) - Investigation showing flag extraction was already working (false positive)
+
+**Note:** These documents served their purpose during planning/implementation but are now superseded by production code. Archived October 13, 2025 for historical reference.
+
+---
+
+## Quick Start Paths
+
+### Path 1: Understand Pass 1 Quickly
+**Goal:** Load context about Pass 1 architecture and implementation
+
+1. Read [PASS-1-OVERVIEW.md](./PASS-1-OVERVIEW.md) - Architectural overview with code links
+2. Browse key files in `apps/render-worker/src/pass1/`:
+   - `Pass1EntityDetector.ts` - Main detection class
+   - `pass1-prompts.ts` - AI prompt templates
+   - `pass1-types.ts` - TypeScript interfaces
+
+---
+
+### Path 2: See What Needs to Be Done
+**Goal:** Understand current TODO items and remaining work
+
+1. Read [pass1-audits/README.md](./pass1-audits/README.md) - Quick summary
+2. Review critical work remaining:
+   - Profile classification implementation (deferred)
+   - ai_confidence_scoring rewrite (deferred)
+
+---
+
+### Path 3: See Implementation History
+**Goal:** Understand how Pass 1 evolved from planning to production
+
+1. Browse [archive/](./archive/) folder - Pre-implementation planning docs
+2. Read [archive/CLAUDE-CODE-REVIEW-RESPONSE-2025-10-03.md](./archive/CLAUDE-CODE-REVIEW-RESPONSE-2025-10-03.md) - Verification of 11 critical issues
+3. Review [pass1-enhancements/](./pass1-enhancements/) - 9 completed enhancements + 4 future plans
+4. Check [pass1-hypothesis-tests-results/](./pass1-hypothesis-tests-results/) - Validation test results (test-05 through test-11)
+
+---
+
+### Path 4: Deep Dive into Production Code
+**Goal:** Understand implementation details
+
+**TypeScript Source (Production Code):**
 ```
 apps/render-worker/src/pass1/
-├── Pass1EntityDetector.ts       (431 lines) - Main detection class
-├── pass1-types.ts               (471 lines) - TypeScript interfaces
-├── pass1-prompts.ts             (334 lines) - AI prompt templates
-├── pass1-schema-mapping.ts      (335 lines) - Entity → schema mappings
-├── pass1-translation.ts         (361 lines) - AI → database translation
-├── pass1-database-builder.ts    (388 lines) - Database record builder
-└── index.ts                     (75 lines)  - Public exports
+├── Pass1EntityDetector.ts       (24,665 bytes) - Main detection class
+├── pass1-types.ts               (14,746 bytes) - TypeScript interfaces
+├── pass1-prompts.ts             (12,618 bytes) - AI prompt templates (sent to GPT-5 Mini)
+├── pass1-schema-mapping.ts      (9,982 bytes)  - Entity → schema mappings
+├── pass1-translation.ts         (17,532 bytes) - AI → database translation
+├── pass1-database-builder.ts    (15,393 bytes) - 7-table record builder
+├── index.ts                     (1,659 bytes)  - Public exports (clean module interface)
+└── __tests__/                                  - Unit tests
 
-Total: 2,395 lines of TypeScript
+apps/render-worker/src/
+└── worker.ts                    (1,047 lines)  - Job coordination (claims jobs, runs OCR, calls Pass 1, writes to database)
+
+Total: 3,116 lines TypeScript (Pass 1 files)
 ```
 
-### Worker Integration
-```
-apps/render-worker/src/worker.ts
-├── Pass1EntityDetector initialization
-├── 'pass1_entity_detection' job type handler
-├── 7-table database insertion logic
-└── Error handling and logging
-```
+**Key distinction:**
+- **Files sent to AI:** `pass1-prompts.ts` (system message + classification prompt)
+- **AI response structure:** `pass1-types.ts` (AI must match this JSON format)
+- **Worker infrastructure:** `worker.ts` orchestrates pipeline, `index.ts` exports clean API
+
+**Time:** Variable (depends on depth of investigation)
 
 ---
 
-## Architecture Overview
+## Integration with 3-Pass AI Pipeline
 
-### Three-Category Classification System
+Pass 1 is the **first stage** of Exora's three-pass AI processing system:
 
-**1. Clinical Events** (Full Pass 2 enrichment)
-- vital_sign, lab_result, physical_finding, symptom
-- medication, procedure, immunization
-- diagnosis, allergy, healthcare_encounter
-- **Schemas:** patient_clinical_events, patient_observations, patient_interventions, etc.
+### Pass 1: Entity Detection (Operational - This Folder)
+- **Purpose:** Identify and classify every piece of information in medical documents
+- **Output:** Detected entities with categories, confidence scores, bridge-schema/medical-code requirements
+- **Status:** ✅ Production-ready, operational since October 2025
 
-**2. Healthcare Context** (Limited Pass 2 enrichment)
-- patient_identifier, provider_identifier, facility_identifier
-- appointment, referral, care_coordination
-- insurance_information, billing_code, authorization
-- **Schemas:** healthcare_encounters, user_profiles
+### Pass 2: Clinical Extraction (Designed, Not Implemented)
+- **Purpose:** Extract structured clinical data from Pass 1 entities
+- **Input:** Entities with `pass2_status = 'pending'` from Pass 1
+- **Output:** Populated clinical schemas (patient_clinical_events, patient_medications, etc.)
+- **Status:** Schema complete, implementation pending
+- **Location:** [../bridge-schema-architecture/bridge-schemas/source/pass-2/](../bridge-schema-architecture/bridge-schemas/source/pass-2/)
 
-**3. Document Structure** (Logging only - no Pass 2)
-- header, footer, logo, page_marker
-- signature_line, watermark, form_structure
-- **Schemas:** None (audit trail only)
+### Pass 3: Narrative Generation (Planned and designed but not published)
+- **Purpose:** Generate patient-friendly medical summaries
+- **Input:** Structured clinical data from Pass 2
+- **Output:** Natural language medical summaries
+- **Status:** Planning phase
 
-### Dual-Input Processing
-
-**PRIMARY INPUT:** Raw document image (base64) for GPT-4o Vision
-**SECONDARY INPUT:** OCR spatial data for cross-validation and coordinates
-
-**Benefits:**
-- Visual context interpretation (formatting, layout)
-- OCR spatial coordinates for click-to-zoom
-- Cross-validation between AI vision and OCR text
-- Discrepancy detection and quality scoring
-
-### Database Integration (7 Tables)
-
-**Pass 1 writes to:**
-1. `entity_processing_audit` - All detected entities with full metadata
-2. `ai_processing_sessions` - Session coordination across passes
-3. `shell_files` - Update with Pass 1 completion status
-4. `profile_classification_audit` - Patient safety and classification
-5. `pass1_entity_metrics` - Performance and quality metrics
-6. `ai_confidence_scoring` - Confidence scores for quality tracking
-7. `manual_review_queue` - Low-confidence entities flagged for review
-
-**Database record builder:** `pass1-database-builder.ts` exports `buildPass1DatabaseRecords()`
+**For complete V3 architecture:** See [V3_ARCHITECTURE_MASTER_GUIDE.md](../../../V3_ARCHITECTURE_MASTER_GUIDE.md)
 
 ---
 
-## Key Features
+## Key Metrics (October 2025)
 
-### Schema Mapping
-Each entity subtype maps to required database schemas for Pass 2:
-```typescript
-vital_sign    → ['patient_clinical_events', 'patient_observations', 'patient_vitals']
-medication    → ['patient_clinical_events', 'patient_interventions', 'patient_medications']
-diagnosis     → ['patient_clinical_events', 'patient_conditions']
-```
+**Production Performance:**
+- **Cost:** ~$0.032 USD per 1-page document (GPT-5 Mini pricing)
+- **Processing time:** 3-4 minutes (Pass 1 AI entity detection), 6-8 minutes total (end-to-end including OCR, database writes, and job coordination)
+- **Quality:** 92-95% average confidence, 95-100% AI-OCR agreement
+- **Cost savings:** 85-90% reduction vs AWS Textract ($2-3/document historically)
 
-### Processing Priority
-- **highest:** Safety-critical (allergies, medications, diagnoses)
-- **high:** Important clinical (vitals, labs, procedures)
-- **medium:** Supporting clinical (symptoms, findings)
-- **low:** Contextual (appointments, providers)
-- **logging_only:** Document structure
+**Implementation:**
+- **Code size:** 3,116 lines TypeScript across 8 files
+- **AI model:** GPT-5 Mini (gpt-5-mini-2025-08-07)
+- **OCR provider:** Google Cloud Vision
+- **Database tables:** Writes to 7 tables per document processed (excludes `job_queue` which is infrastructure managed by Edge Functions/RPCs)
 
-### Quality Indicators
-- Confidence scores (0.0-1.0)
-- AI-OCR agreement analysis
-- Discrepancy detection and tracking
-- Manual review flagging
-
----
-
-## Reference Documentation
-
-### Current Implementation Guides
-
-**PASS-1-ARCHITECTURE.md** (426 lines)
-- Comprehensive architectural overview
-- Processing flow and data structures
-- Quality assurance patterns
-- **Use for:** Understanding overall Pass 1 design
-
-**PASS-1-BRIDGE-SCHEMA-AND-PROMPTS.md** (878 lines)
-- Complete AI prompt templates
-- Input/output schema definitions
-- Entity classification taxonomy (all subtypes)
-- Validation and error recovery prompts
-- **Use for:** Understanding AI integration and prompt engineering
-
-**PASS-1-WORKER-IMPLEMENTATION.md** (685 lines)
-- Worker architecture and integration
-- Translation layer implementation
-- Error handling patterns
-- Render.com deployment guide
-- **Use for:** Understanding worker infrastructure and deployment
-
-### Archived Planning Documents
-
-**archive/01-planning.md** (127 lines)
-- Early conceptual planning (Sept 26, 2025)
-- Superseded by actual implementation
-- **Status:** Historical reference only
-
-**archive/PASS-1-DATABASE-CHANGES.md** (536 lines)
-- Database schema requirements and changes
-- Completed September 30, 2025
-- **Status:** Implementation complete, archived for reference
-
----
-
-## Pass 1 Processing Flow
-
-```
-1. Job Queue → Pass1Input
-   ├─ Raw File (base64 image/PDF)
-   ├─ OCR Spatial Data (Google Vision)
-   └─ Document Metadata
-
-2. Pass1EntityDetector.processDocument()
-   ├─ Validate input
-   ├─ Call GPT-4o Vision (dual-input prompt)
-   ├─ Parse AI response (JSON)
-   └─ Translate to database format
-
-3. Database Insertion (7 tables)
-   ├─ ai_processing_sessions (INSERT)
-   ├─ entity_processing_audit (INSERT bulk)
-   ├─ shell_files (UPDATE status)
-   ├─ profile_classification_audit (INSERT)
-   ├─ pass1_entity_metrics (INSERT)
-   ├─ ai_confidence_scoring (INSERT if flagged)
-   └─ manual_review_queue (INSERT if low confidence)
-
-4. Pass 2 Queue
-   └─ Entities with pass2_status = 'pending'
-```
-
----
-
-## Cost and Performance
-
-**AI Model:** GPT-4o Vision
-**Estimated Cost:** $0.015 - $0.05 per document
-**Processing Time:** 1-3 seconds per document
-**Token Usage:** 2,000-4,000 tokens typical
-
-**Cost Breakdown:**
-- Input tokens: $2.50 per 1M tokens
-- Output tokens: $10.00 per 1M tokens
-- Image tokens: ~$7.65 per 1M tokens (varies by size)
-
----
-
-## Testing Status
-
-**Implementation:** ✅ Complete
-**Unit Tests:** ⏳ Pending
-**Integration Tests:** ⏳ Pending
-**End-to-End Tests:** ⏳ Pending
-
-**Next Steps:**
-1. Create test suite with sample medical documents
-2. Test Pass 1 with real OpenAI API
-3. Verify database record creation across all 7 tables
-4. Validate entity classification accuracy
-5. Test dual-input cross-validation
-
----
-
-## Integration Points
-
-### Job Queue Integration
-```typescript
-// Job type: 'pass1_entity_detection'
-// Handled in apps/render-worker/src/worker.ts
-case 'pass1_entity_detection':
-  result = await this.processPass1EntityDetection(job);
-  break;
-```
-
-### Database Integration
-```typescript
-// Worker calls Pass1EntityDetector
-const result = await this.pass1Detector.processDocument(payload);
-
-// Get all database records (7 tables)
-const dbRecords = await this.pass1Detector.getAllDatabaseRecords(payload);
-
-// Insert into database
-await this.insertPass1DatabaseRecords(dbRecords, payload.shell_file_id);
-```
-
-### Pass 2 Handoff
-```typescript
-// Entities marked for Pass 2 enrichment
-pass2_status = 'pending'           // Ready for Pass 2
-requires_schemas = [...]           // Which schemas Pass 2 needs
-processing_priority = 'highest'    // Priority for Pass 2 queue
-```
+**For detailed metrics:** See [PASS-1-OVERVIEW.md](./PASS-1-OVERVIEW.md) Production Metrics section
 
 ---
 
 ## Environment Variables
 
+**Required for Pass 1 operation:**
 ```bash
-OPENAI_API_KEY=sk-...           # Required for GPT-4o Vision
+OPENAI_API_KEY=sk-...           # Required for GPT-5 Mini
+GOOGLE_CLOUD_API_KEY=AIzaSy...  # Required for Google Cloud Vision OCR
 SUPABASE_URL=https://...        # Required for database
 SUPABASE_SERVICE_ROLE_KEY=...  # Required for server-side operations
 ```
 
----
-
-## Known Limitations
-
-1. **File Size:** 10MB limit per document
-2. **Token Usage:** Max 4,000 completion tokens (configurable)
-3. **Supported Formats:** image/* and application/pdf only
-4. **Rate Limiting:** Subject to OpenAI API rate limits
-5. **OCR Dependency:** Requires pre-processed OCR data from Google Vision
+**For worker configuration:** See [Render.com Deployment Guide](../../../render-com-deployment-guide.md)
 
 ---
 
-## Future Enhancements
+## Related Documentation
 
-- [ ] Batch processing for multiple documents
-- [ ] Streaming responses for large documents
-- [ ] Model fallback (GPT-4o → GPT-4o-mini)
-- [ ] Custom confidence thresholds per entity type
-- [ ] Multi-page document handling optimization
-- [ ] Cost optimization strategies
+**V3 Architecture:**
+- [V3 Architecture Master Guide](../../../V3_ARCHITECTURE_MASTER_GUIDE.md) - Complete system overview
+- [Migration History](../../../migration_history/) - Database migration tracking
+- [Current Schema](../../../current_schema/) - Source of truth database schemas
 
----
+**Bridge Schema Architecture:**
+- [Bridge Schema README](../bridge-schema-architecture/README.md) - Overview of bridge schema system
+- [Pass 1 Bridge Schemas](../bridge-schema-architecture/bridge-schemas/source/pass-1/) - Pass 1 schema specifications
+- [Pass 2 Bridge Schemas](../bridge-schema-architecture/bridge-schemas/source/pass-2/) - Pass 2 schema specifications
 
-## Quick Start After Crash
-
-**If you need to understand Pass 1 quickly:**
-
-1. **Read this README** - Implementation status and file locations
-2. **Check code:** `apps/render-worker/src/pass1/` (2,395 lines TypeScript)
-3. **Key files:**
-   - `Pass1EntityDetector.ts` - Main class
-   - `pass1-database-builder.ts` - Database record creation
-   - Worker integration in `apps/render-worker/src/worker.ts`
-4. **Architecture details:** See `PASS-1-ARCHITECTURE.md`
-5. **Prompt templates:** See `PASS-1-BRIDGE-SCHEMA-AND-PROMPTS.md`
-
-**Key insights:**
-- Pass 1 does NOT send database schemas to AI
-- AI returns entity classifications only
-- TypeScript code builds 7 database records
-- Dual-input: Vision (primary) + OCR (cross-validation)
+**Worker Documentation:**
+- [Worker Architecture](../../../current_workers/WORKER_ARCHITECTURE.md) - Render.com worker overview
+- [Exora V3 Worker](../../../current_workers/exora-v3-worker/) - Worker implementation
 
 ---
 
-**Implementation Team:** Exora Health Pty Ltd
-**Implementation Date:** October 3, 2025
-**Version:** 1.0.0
+**Last Updated:** October 13, 2025
+**Maintained by:** Exora Health Pty Ltd
+**Status:** Active documentation for operational system

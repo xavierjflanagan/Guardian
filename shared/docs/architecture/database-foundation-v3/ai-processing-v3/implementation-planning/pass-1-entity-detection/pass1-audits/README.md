@@ -1,90 +1,95 @@
 # Pass 1 Table Audits
 
-**Purpose:** Column-by-column analysis of Pass 1 database tables for optimization, redundancy, and accuracy.
+**Purpose:** Column-by-column analysis of all Pass 1 database tables to identify issues, redundancies, and optimization opportunities.
+
+**Last Updated:** 2025-10-12
 
 ---
 
-## Audit Files
+## Quick Summary
 
-### [entity_processing_audit-COLUMN-AUDIT-ANSWERS.md](./entity_processing_audit-COLUMN-AUDIT-ANSWERS.md)
-**Table:** `entity_processing_audit` (main entity records)
+**Tables Audited:** 8 of 8 (100% complete)
+**Critical Issues Remaining:** 2 (profile_classification_audit, ai_confidence_scoring)
+**Medium Issues Remaining:** 4 (low-priority metadata extractions only)
+**Progress:** ~20% complete (6 migrations deployed, worker enhancements deployed)
 
-**Questions Answered:**
-1. Visual/spatial columns - Are they overlapping?
-2. `processing_priority` - AI generated or code inferred?
-3. Green chain link symbols - What do they mean?
-4. `pass1_model_used` & `pass1_vision_processing` - AI output or code injection?
-5. `validation_flags` & `compliance_flags` - Why empty?
-6. `original_text` vs `ai_visual_interpretation` - How do they differ?
-
-**Key Findings:**
-- ✅ All 5 visual/spatial columns serve distinct purposes (no redundancy)
-- ❌ Remove `pass1_model_used` and `pass1_vision_processing` (duplicated session data)
-- ⚠️ Fix mapping for `validation_flags` and `compliance_flags` (AI outputs them but code doesn't capture)
+**Primary Document:** See [pass1-audit-consolidated-fixes.md](./pass1-audit-consolidated-fixes.md) for complete implementation plan, status tracking, and recommended fixes.
 
 ---
 
-### [pass1_entity_metrics-COLUMN-AUDIT-ANSWERS.md](./pass1_entity_metrics-COLUMN-AUDIT-ANSWERS.md)
-**Table:** `pass1_entity_metrics` (session-level metrics)
+## Individual Table Audit Files
 
-**Questions Answered:**
-1. `processing_time_ms` - Why always 0?
-2. `confidence_distribution` - Purpose and value?
-3. `cost_usd` - Source and dynamic pricing options?
-4. `user_agent` & `ip_address` - Why NULL and original purpose?
+All individual table audits are located in the `pass1-individual-table-audits/` subfolder:
 
-**Key Findings:**
-- ❌ `processing_time_ms` timing bug (measures database building, not AI processing)
-- ✅ `confidence_distribution` valuable quality metric
-- ❌ Remove `cost_usd` (hardcoded pricing, calculate on-demand from tokens)
-- ✅ Keep `user_agent`/`ip_address` (healthcare compliance design, document NULL behavior)
-
----
-
-## Summary of Recommended Actions
-
-### Immediate Fixes:
-
-1. **Remove Redundant Columns:**
-   ```sql
-   ALTER TABLE entity_processing_audit
-     DROP COLUMN pass1_model_used,
-     DROP COLUMN pass1_vision_processing;
-
-   ALTER TABLE pass1_entity_metrics
-     DROP COLUMN cost_usd;
-   ```
-
-2. **Fix Timing Bug:**
-   ```typescript
-   // Move startTime to before AI call in Pass1EntityDetector
-   const startTime = Date.now();
-   const aiResponse = await this.callAI(...);
-   const processingTime = Date.now() - startTime;
-   ```
-
-3. **Fix Flag Mapping:**
-   ```typescript
-   // Add to pass1-translation.ts around line 125:
-   validation_flags: aiResponse.quality_assessment?.quality_flags || [],
-   compliance_flags: aiResponse.profile_safety?.safety_flags || [],
-   ```
-
-4. **Document NULL Fields:**
-   ```sql
-   COMMENT ON COLUMN pass1_entity_metrics.user_agent IS
-     'User agent of client that initiated processing (NULL for background jobs)';
-   COMMENT ON COLUMN pass1_entity_metrics.ip_address IS
-     'IP address of client that initiated processing (NULL for background jobs)';
-   ```
-
-### Optimization Impact:
-
-- **Database:** Save 80+ redundant fields per document
-- **Accuracy:** Fix timing to measure actual AI processing time
-- **Maintainability:** Remove hardcoded pricing (calculate from tokens on-demand)
-- **Compliance:** Document healthcare audit trail design intent
+| Table | Status | Critical | Medium | Low | Notes |
+|-------|--------|----------|--------|-----|-------|
+| [ai_confidence_scoring](./pass1-individual-table-audits/ai_confidence_scoring-COLUMN-AUDIT-ANSWERS.md) | ✅ Reviewed | 1 | 0 | 2 | Worker rewrite required (INSERT failing) |
+| [ai_processing_sessions](./pass1-individual-table-audits/ai_processing_sessions-COLUMN-AUDIT-ANSWERS.md) | ✅ Complete | 0 | 0 | 0 | Migration 23 deployed (ai_model_name rename) |
+| [entity_processing_audit](./pass1-individual-table-audits/entity_processing_audit-COLUMN-AUDIT-ANSWERS.md) | ✅ Complete | 0 | 0 | 0 | Migrations 16 & 17 deployed, flag extraction false positive |
+| [job_queue](./pass1-individual-table-audits/job_queue-COLUMN-AUDIT-ANSWERS.md) | ✅ Complete | 0 | 0 | 3 | Migration 22 deployed, worker_id config fixed |
+| [manual_review_queue](./pass1-individual-table-audits/manual_review_queue-COLUMN-AUDIT-ANSWERS.md) | ✅ Complete | 0 | 0 | 1 | Title generation logic deployed (test-11) |
+| [pass1_entity_metrics](./pass1-individual-table-audits/pass1_entity_metrics-COLUMN-AUDIT-ANSWERS.md) | ✅ Complete | 0 | 0 | 0 | Migration 15 deployed (token breakdown) |
+| [profile_classification_audit](./pass1-individual-table-audits/profile_classification_audit-COLUMN-AUDIT-ANSWERS.md) | 🚨 Critical | 2 | 5 | 2 | System not implemented (hardcoded placeholders) |
+| [shell_files](./pass1-individual-table-audits/shell_files-COLUMN-AUDIT-ANSWERS.md) | ✅ Complete | 0 | 0 | 5 | Job coordination validated (test-11) |
 
 ---
 
-**Last Updated:** 2025-10-08
+## Recent Completions (2025-10-12)
+
+- ✅ **Migration 22:** Job queue observability (heartbeat_at, actual_duration)
+- ✅ **Migration 23:** Renamed ai_model_version → ai_model_name
+- ✅ **Cost Calculation Fix:** Model-specific pricing (5.46× reduction)
+- ✅ **Worker Data Quality Enhancements:** 5 improvements deployed
+  - Enhancement 1: Worker ID configuration fixed
+  - Enhancement 2: Safety flags validated (working correctly)
+  - Enhancement 3: Job coordination links validated
+  - Enhancement 4: Manual review titles improved
+  - Enhancement 5: Duration calculations validated
+
+---
+
+## Critical Work Remaining
+
+### 1. Profile Classification Implementation (2-3 days)
+**File:** [profile_classification_audit-COLUMN-AUDIT-ANSWERS.md](./pass1-individual-table-audits/profile_classification_audit-COLUMN-AUDIT-ANSWERS.md)
+
+**Issue:** System hardcoded to 'self' profile type, no AI-powered classification
+- Add recommended_profile_id column
+- Implement actual profile matching logic
+- Create approve_profile_classification() RPC
+- Handle multi-child profile scenarios
+
+### 2. ai_confidence_scoring Rewrite (1-2 days)
+**File:** [ai_confidence_scoring-COLUMN-AUDIT-ANSWERS.md](./pass1-individual-table-audits/ai_confidence_scoring-COLUMN-AUDIT-ANSWERS.md)
+
+**Issue:** Worker INSERT failing due to schema mismatch
+- Rewrite buildAIConfidenceScoringRecords()
+- Fix field name mismatches (11 columns → 24 columns)
+- Implement helper functions (calculateOverallConfidence, etc.)
+
+---
+
+## File Organization
+
+```
+pass1-audits/
+├── README.md                              # This file
+├── pass1-audit-consolidated-fixes.md      # Master implementation plan
+└── pass1-individual-table-audits/         # Individual table audits
+    ├── ai_confidence_scoring-COLUMN-AUDIT-ANSWERS.md
+    ├── ai_processing_sessions-COLUMN-AUDIT-ANSWERS.md
+    ├── entity_processing_audit-COLUMN-AUDIT-ANSWERS.md
+    ├── job_queue-COLUMN-AUDIT-ANSWERS.md
+    ├── manual_review_queue-COLUMN-AUDIT-ANSWERS.md
+    ├── pass1_entity_metrics-COLUMN-AUDIT-ANSWERS.md
+    ├── profile_classification_audit-COLUMN-AUDIT-ANSWERS.md
+    └── shell_files-COLUMN-AUDIT-ANSWERS.md
+```
+
+---
+
+## Usage
+
+**For AI models:** Start with [pass1-audit-consolidated-fixes.md](./pass1-audit-consolidated-fixes.md) for complete context, status tracking, and implementation roadmap. Refer to individual table audit files only when detailed column-by-column analysis is needed.
+
+**For developers:** Review consolidated fixes document for actionable tasks. Individual audits provide deep-dive analysis and rationale for specific recommendations.
