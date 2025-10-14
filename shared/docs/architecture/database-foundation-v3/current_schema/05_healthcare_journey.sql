@@ -300,6 +300,11 @@ CREATE TABLE IF NOT EXISTS provider_access_log_2025_q3 PARTITION OF provider_acc
 CREATE TABLE IF NOT EXISTS provider_access_log_2025_q4 PARTITION OF provider_access_log
     FOR VALUES FROM ('2025-10-01') TO ('2026-01-01');
 
+-- Row Level Security (Migration 24 - 2025-10-14)
+-- Note: RLS is enabled and forced on the parent table, which applies to all partitions
+ALTER TABLE provider_access_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provider_access_log FORCE ROW LEVEL SECURITY;
+
 -- =============================================================================
 -- AUTOMATED PARTITION MANAGEMENT (CRITICAL FIX)
 -- =============================================================================

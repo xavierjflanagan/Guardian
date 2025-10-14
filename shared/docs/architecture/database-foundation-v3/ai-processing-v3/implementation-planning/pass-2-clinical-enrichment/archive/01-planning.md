@@ -11,8 +11,7 @@
 
 ### **Purpose: Structured Clinical Data Extraction**
 **Goal:** Convert classified entities into structured clinical data following the V3 database hub-and-spoke architecture
-**AI Model:** GPT-4 (accuracy-optimized for medical precision)
-**Cost Target:** ~$0.003-0.006 per document (70% reduction vs single comprehensive call)
+**AI Model:** GPT-5-mini (accuracy-optimized for medical precision) same as pass 1 for now..
 
 ### **Input (from Pass 1)**
 Pass 1 provides entity detection results with three categories:
