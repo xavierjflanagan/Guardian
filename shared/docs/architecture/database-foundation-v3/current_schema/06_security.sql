@@ -655,6 +655,52 @@ CREATE INDEX IF NOT EXISTS idx_user_consent_preferences_profile ON user_consent_
 CREATE INDEX IF NOT EXISTS idx_shell_files_patient_active ON shell_files(patient_id) WHERE status != 'archived';
 CREATE INDEX IF NOT EXISTS idx_clinical_narratives_patient_active ON clinical_narratives(patient_id, created_at DESC);
 
+-- =============================================================================
+-- MIGRATION 24 NOTE (2025-10-14): PostGIS System Table Exclusion
+-- =============================================================================
+-- NOTE: spatial_ref_sys table (PostGIS extension) cannot have RLS enabled
+-- due to insufficient permissions (table owned by PostGIS extension, not by us).
+-- This table contains geographic coordinate system reference data and is not
+-- patient-specific, so the security impact is minimal. The table remains
+-- accessible for geographic calculations required by the bounding box system.
+--
+-- Attempted to add policy: spatial_ref_sys_public_read (FOR SELECT TO authenticated, anon)
+-- Result: Permission denied - must be owner of table spatial_ref_sys
+-- Resolution: Left as-is without RLS (acceptable for public reference data)
+-- =============================================================================
+
+-- =============================================================================
+-- MIGRATION 25 NOTE (2025-10-15): Reference Table RLS Policies
+-- =============================================================================
+-- Medical code reference tables now have RLS enabled with permissive read policies.
+-- These tables contain no patient-specific data - only medical code definitions
+-- (SNOMED, LOINC, RxNorm, PBS, MBS, ICD-10-AM, etc.)
+--
+-- Tables protected:
+-- - universal_medical_codes: Global medical codes (rxnorm, snomed, loinc)
+-- - regional_medical_codes: Regional codes (pbs, mbs, icd10_am, etc.)
+-- - migration_08_backfill_audit: Service-only audit table (no policies)
+--
+-- Policies allow authenticated users to read reference data for clinical workflows
+-- =============================================================================
+
+-- Universal medical codes - permissive read policy for reference data
+DROP POLICY IF EXISTS universal_medical_codes_public_read ON universal_medical_codes;
+CREATE POLICY universal_medical_codes_public_read
+    ON universal_medical_codes FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Regional medical codes - permissive read policy for reference data
+DROP POLICY IF EXISTS regional_medical_codes_public_read ON regional_medical_codes;
+CREATE POLICY regional_medical_codes_public_read
+    ON regional_medical_codes FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Note: migration_08_backfill_audit has no policies (service-only table)
+-- Service role continues to work via BYPASSRLS attribute
+
 COMMIT;
 
 -- =============================================================================

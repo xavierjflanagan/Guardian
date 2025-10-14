@@ -242,6 +242,10 @@ BEGIN
     RAISE NOTICE 'Clinical narratives enhanced with vector embeddings and versioning support';
 END $$;
 
+-- Row Level Security (Migration 24 - 2025-10-14)
+ALTER TABLE clinical_narratives ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clinical_narratives FORCE ROW LEVEL SECURITY;
+
 -- NOTE: Clinical Narrative Linking System moved to Section 4B after all clinical tables are created
 
 -- =============================================================================
@@ -1254,6 +1258,10 @@ CREATE TABLE IF NOT EXISTS universal_medical_codes (
     UNIQUE(code_system, code_value)
 );
 
+-- Row Level Security (Migration 25 - 2025-10-15)
+ALTER TABLE universal_medical_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE universal_medical_codes FORCE ROW LEVEL SECURITY;
+
 -- Regional medical codes for country-specific systems
 CREATE TABLE IF NOT EXISTS regional_medical_codes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1283,6 +1291,10 @@ CREATE TABLE IF NOT EXISTS regional_medical_codes (
     -- Unique constraint
     UNIQUE(code_system, code_value, country_code)
 );
+
+-- Row Level Security (Migration 25 - 2025-10-15)
+ALTER TABLE regional_medical_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE regional_medical_codes FORCE ROW LEVEL SECURITY;
 
 -- Medical code assignments linking clinical entities to selected codes
 CREATE TABLE IF NOT EXISTS medical_code_assignments (
@@ -1967,6 +1979,10 @@ CREATE TABLE IF NOT EXISTS migration_08_backfill_audit (
     backfill_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     backfill_reason TEXT
 );
+
+-- Row Level Security (Migration 25 - 2025-10-15)
+ALTER TABLE migration_08_backfill_audit ENABLE ROW LEVEL SECURITY;
+ALTER TABLE migration_08_backfill_audit FORCE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- FRESH START BLUEPRINT: 03_clinical_core.sql COMPLETE

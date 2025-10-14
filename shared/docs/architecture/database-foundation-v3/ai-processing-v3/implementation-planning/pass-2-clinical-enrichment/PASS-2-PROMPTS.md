@@ -14,10 +14,9 @@ This document defines the complete AI prompt system for Pass 2 clinical enrichme
 
 ## Pass 2 Architecture Summary
 
-**Input:** Pass 1 entity detection results + document text + OCR spatial data
+**Input:** Pass 1 entity detection results + cached raw file (same downscaled image/file as that used in pass 1) +/- OCR text (tbc whether we will need/use ocr data in pass 2 input, and note the OCR-provided bbox spatial data will already be attached to the pass 1 entity output data)
 **Output:** Structured clinical data written to V3 database tables
-**Model:** GPT-4 (accuracy-optimized for medical data extraction)
-**Cost Target:** $0.003-0.006 per document
+**Model:** GPT5-mini (same as for pass 1, for now)
 
 **Extraction Priority:**
 1. **Step 0:** `healthcare_encounters` (visit context - ALWAYS FIRST)
@@ -26,6 +25,21 @@ This document defines the complete AI prompt system for Pass 2 clinical enrichme
 **Hub-and-Spoke Enforcement:**
 - Every clinical detail record MUST reference a `patient_clinical_events` parent via `event_id`
 - All events within same visit MUST reference the same `encounter_id`
+
+**Foreign Key Relationships:**
+
+The hub-and-spoke architecture uses semantic foreign key naming (e.g., `event_id`, `encounter_id`) rather than verbose table prefixes (e.g., `patient_clinical_events_id`). This follows standard SQL practice where the column name conveys meaning and the `REFERENCES` clause defines the relationship.
+
+1. **encounter_id** (Healthcare Context → Clinical Event)
+   - **Pattern**: `patient_clinical_events.encounter_id` REFERENCES `healthcare_encounters(id)`
+   - **Purpose**: Links a clinical event to its visit context (e.g., GP visit, hospital admission)
+   - **Constraint**: All events from the same visit share the same `encounter_id`
+
+2. **event_id** (Clinical Event → Clinical Details)
+   - **Pattern**: `[spoke_table].event_id` REFERENCES `patient_clinical_events(id)`
+   - **Purpose**: Links clinical detail records (observations, interventions) to their parent event
+   - **Applies to**: All 7 spoke tables (observations, interventions, vitals, conditions, allergies, medications, immunizations)
+   - **Constraint**: Every spoke record MUST have a valid `event_id` (NOT NULL constraint enforced)
 
 ---
 
@@ -648,11 +662,11 @@ Return the complete extraction as structured JSON.
 
 ## Next Steps
 
-1. **Complete bridge schema build** - Finish remaining 12 Pass 2 tables
+1. **Complete bridge schema build** - ???
 2. **Test prompts with sample documents** - Validate extraction accuracy
 3. **Refine confidence thresholds** - Tune based on real-world performance
 4. **Implement schema loader** - Dynamic tier selection
-5. **Build Step 1.5 integration** - Vector embedding code resolution
+5. **Build Pass 1.5 integration** - Vector embedding code resolution
 
 ---
 

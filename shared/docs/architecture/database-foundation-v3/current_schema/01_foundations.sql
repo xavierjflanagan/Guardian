@@ -142,7 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_changed_by ON audit_log(changed_by);
 
 CREATE TABLE IF NOT EXISTS user_account_archival (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    
+
     -- Enhanced Archival System (GPT-5 & Gemini recommended)
     archived_at TIMESTAMPTZ, -- When account archival occurred
     deletion_requested_at TIMESTAMPTZ, -- When user first requested deletion
@@ -167,6 +167,10 @@ CREATE TABLE IF NOT EXISTS user_account_archival (
 -- Index for archival queries
 CREATE INDEX IF NOT EXISTS idx_user_account_archival_archived_at ON user_account_archival(archived_at);
 CREATE INDEX IF NOT EXISTS idx_user_account_archival_recovery ON user_account_archival(recovery_expires_at) WHERE recovery_expires_at IS NOT NULL;
+
+-- Row Level Security (Migration 24 - 2025-10-14)
+ALTER TABLE user_account_archival ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_account_archival FORCE ROW LEVEL SECURITY;
 
 -- =============================================================================
 -- CRITICAL ENUM TYPES
