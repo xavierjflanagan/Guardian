@@ -2,6 +2,94 @@
 
 > This file is updated at the end of every coding session. It tracks daily/weekly progress, major changes, and next steps.
 
+## [2025-10-14] Work Session Summary
+- **Start Time:** [Full day session - AI processing architecture work]
+- **R&D Hours:** 7.5 hours
+- **Claude's Structured Summary:**
+  - **Key Accomplishments:**
+    - **Pass 1.5 Architecture Established**: Created complete folder structure and implementation plans for medical code embedding system bridging Pass 1 entity detection and Pass 2 clinical enrichment
+    - **Pass 2 Planning Documentation Complete**: Developed comprehensive core documents including PASS-2-OVERVIEW.md, README.md, and PASS-2-PROMPTS.md establishing foundation for clinical data extraction phase
+    - **Documentation Organization**: Structured Pass 2 implementation planning with dedicated folders for audits, enhancements, hypothesis tests, and archived materials
+    - **RLS Security Migration Prepared**: Created two migration scripts (Migrations 24 & 25) for enabling RLS on security-critical tables and reference tables
+  - **Impact & Decisions:** **Architectural Milestone**: Pass 1.5 intermediate phase designed to optimize Pass 2 performance through pre-computed medical code embeddings. **Strategic Planning**: Complete Pass 2 documentation framework established following proven Pass 1 methodology. **Security Enhancement**: Comprehensive RLS remediation addressing advisor findings from October 2025 security audit. **Documentation Decision**: Archived outdated planning materials while preserving new structured approach for Pass 2 implementation.
+- **Blockers:** None - Pass 1.5 and Pass 2 planning documentation complete, ready for implementation phase
+- **Next Session Focus:** Begin Pass 1.5 implementation (medical code embedding system) or continue Pass 2 detailed planning
+- **User's Verbatim Log:**
+  > Make a progress_log for yesterady 14th october (today is 15th october) where i worked 7.5 hours and primarily worked on setting up pass 1.5 and pass 2 folder structure and intiial implementation plans etc, creating all the core documents that we will follow.
+---
+
+## [2025-10-13] Work Session Summary
+- **Start Time:** [Full day session - Pass 1 validation and cleanup]
+- **R&D Hours:** 8.5 hours
+- **Claude's Structured Summary:**
+  - **Key Accomplishments:**
+    - **Pass 1 Entity Detection VALIDATED**: Completed comprehensive validation of all Pass 1 implementation, confirming operational status and production readiness
+    - **Pass 1 Documentation Cleanup**: Reorganized and tidied Pass 1 folder structure and files to reflect completed, validated state
+    - **Technical Debt Documented**: Identified two significant issues (profile classification component and confidence scoring) for deferral until post-Pass 2 implementation
+    - **Implementation Milestone**: Marked Pass 1 entity detection as complete except for two non-blocking enhancement issues
+  - **Impact & Decisions:** **Pass 1 Completion Milestone**: First phase of AI processing pipeline fully validated and operational on production. **Strategic Deferral**: Decided to defer profile classification and confidence scoring enhancements until after Pass 1.5 and Pass 2 completion, allowing forward progress on core pipeline. **Documentation Quality**: Pass 1 folder structure now reflects production-ready status with clear delineation of completed vs. deferred work. **Foundation Established**: Pass 1 validation provides solid foundation for Pass 1.5 and Pass 2 development.
+- **Blockers:** Two large issues deferred (profile classification component, confidence scoring) - non-blocking for Pass 1.5/2 progress
+- **Next Session Focus:** Begin Pass 1.5 and Pass 2 architecture planning and folder structure setup
+- **User's Verbatim Log:**
+  > also make one for the day before (13th) which was: 8.5 hours work - validating and finishing off all Pass1 related issues, tidied up pass 1 folder structure and files given its all now validated and completed - exept for profile classiication component and confidence scoring issue whihc are two large issues that can wait until after pass 1.5 adn pass 2.
+---
+
+## [2025-10-03 to 2025-10-12] Pass 1 Entity Detection - Implementation Sprint
+- **Duration:** 10 working days (October 3-12, 2025)
+- **Total R&D Hours:** ~85 hours (estimated 8-9 hours per day average)
+- **Phase Summary:** Complete implementation, testing, auditing, and production validation of Pass 1 Entity Detection system
+- **Claude's Structured Summary:**
+  - **Major Accomplishments:**
+    - **Pass 1 Core Implementation COMPLETE**: Built and deployed complete entity detection system using GPT-4o Vision and Google Cloud Vision OCR to production Render.com worker
+    - **Comprehensive Hypothesis Testing Framework**: Executed 11 production validation tests documenting model performance, cost optimization, and architectural improvements (tests 01-11 in `pass1-hypothesis-tests-results/`)
+    - **Table-by-Table Auditing Complete**: Conducted systematic audits of all 7 Pass 1 database tables (shell_files, ai_processing_sessions, entity_processing_audit, ai_confidence_scoring, manual_review_queue, pass1_entity_metrics, job_queue) with detailed column-level analysis
+    - **Database Migration Sequence**: Executed Migrations 14-23 implementing Pass 1 infrastructure, performance enhancements, observability improvements, and cost calculation fixes
+    - **Performance Optimization Phases**: Implemented image downscaling (Phase 2), OCR transition to worker (Phase 3), structured logging (Phase 4), prompt optimization, and architectural improvements
+    - **Production Cost Validation**: Achieved ~$15-30 per 1,000 documents processing cost (85-90% reduction from AWS Textract baseline)
+  - **Key Technical Achievements:**
+    - **Migration 14** (2025-10-06): Increased worker timeout for GPT-5 compatibility (`increase_worker_timeout_for_gpt5.sql`)
+    - **Migration 15** (2025-10-08): Added token breakdown tracking to metrics tables (`add_token_breakdown_to_metrics_tables.sql`)
+    - **Migration 16** (2025-10-08): Audit cleanup and comprehensive documentation (`audit_cleanup_and_documentation.sql`)
+    - **Migration 17** (2025-10-08): Removed redundant entity audit columns (`remove_redundant_entity_audit_columns.sql`)
+    - **Migration 18** (2025-10-08): Added processing time tracking in minutes (`add_processing_time_minutes.sql`)
+    - **Migration 19** (2025-10-10): Created OCR artifacts table for archival (`create_ocr_artifacts_table.sql`)
+    - **Migration 20** (2025-10-10): Fixed job lane auto-assignment logic (`fix_job_lane_auto_assignment.sql`)
+    - **Migration 21** (2025-10-10): Added Phase 2 image downscaling support (`add_phase2_image_downscaling_support.sql`)
+    - **Migration 22** (2025-10-12): Fixed job queue observability in complete_job RPC (`fix_job_queue_complete_job_observability.sql`)
+    - **Migration 23** (2025-10-12): Renamed ai_model_version to ai_model_name for clarity (`rename_ai_model_version_to_ai_model_name.sql`)
+  - **Testing & Validation Framework:**
+    - Test 01: Image downscaling impact analysis (Phase 2 validation)
+    - Test 02: Minimal prompt with GPT-4o baseline performance
+    - Test 03: GPT-5 Mini minimal prompt evaluation and variability analysis
+    - Test 04: GPT-5 Mini structured prompt optimization
+    - Test 05: Gold standard production validation and variability analysis
+    - Test 06: OCR transition production validation (Phase 3)
+    - Test 07: Phase 2 image downscaling production validation
+    - Test 08: Phase 4 structured logging production validation
+    - Test 09: AI response normalization fixes validation
+    - Test 10: Migrations 22 & 23 database schema validation
+    - Test 11: Worker data quality enhancements validation
+  - **Completed Enhancements:**
+    - Token breakdown tracking for cost transparency
+    - OCR transition from Edge Function to Render.com worker
+    - Image downscaling for cost optimization (Phase 2)
+    - Structured logging implementation (Phase 4)
+    - Prompt optimization for reduced token usage
+    - Architectural improvements (retry logic, error handling)
+    - Worker data quality enhancements
+    - Cost calculation fixes (model-specific pricing)
+  - **Impact & Decisions:** **Production Milestone**: Pass 1 entity detection system fully operational on production with proven cost efficiency and reliability. **Systematic Methodology**: Established comprehensive testing, auditing, and validation framework that will serve as template for Pass 2 and Pass 3. **Cost Achievement**: Validated 85-90% cost reduction compared to AWS Textract baseline while maintaining high accuracy. **Architecture Decision**: Three-pass pipeline design validated with Pass 1 as lightweight entity detection foundation. **Quality Assurance**: Table-by-table auditing revealed optimization opportunities and validated database schema design. **Documentation Excellence**: Complete implementation documentation in `shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1-entity-detection/` with archived planning materials, completed enhancements, audit findings, and hypothesis test results.
+- **Blockers Deferred:** Profile classification component and confidence scoring enhancements identified as large issues, strategically deferred until after Pass 1.5 and Pass 2
+- **Next Phase Focus:** Pass 1.5 medical code embedding system and Pass 2 clinical enrichment planning
+- **Key Documentation:**
+  - **Core Files**: `PASS-1-OVERVIEW.md`, `README.md` in pass-1-entity-detection folder
+  - **Audits**: `pass1-audits/` folder with individual table audits and consolidated fixes
+  - **Tests**: `pass1-hypothesis-tests-results/` folder with 11 production validation tests
+  - **Enhancements**: `pass1-enhancements/` folder documenting all completed and planned improvements
+  - **Archive**: `archive/` folder preserving original planning and architecture documents
+  - **Migrations**: Migration scripts 14-23 in `migration_history/` folder
+---
+
 ## [2025-10-02] Work Session Summary
 - **Start Time:** [Full day session - continued bridge schema work]
 - **R&D Hours:** 8.0 hours
