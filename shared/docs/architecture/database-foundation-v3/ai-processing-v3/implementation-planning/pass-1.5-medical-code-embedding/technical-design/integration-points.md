@@ -15,19 +15,66 @@
 **Required Fields:**
 ```typescript
 interface Pass15Input {
-  entity_id: UUID;              // For lineage tracking
-  entity_subcategory: string;   // 'medication', 'condition', 'observation', etc.
-  entity_text: string;          // Raw extracted text
-  normalized_entity: string;    // Cleaned/standardized text
-  patient_id: UUID;             // For Australian context detection
+  id: UUID;                              // entity_id (for lineage tracking)
+  entity_subtype: string;                 // 'medication', 'diagnosis', 'vital_sign', etc.
+  original_text: string;                  // AI-curated clean entity text
+  ai_visual_interpretation: string | null; // AI's contextual interpretation
+  visual_formatting_context: string | null; // Formatting context
+  patient_id: UUID;                       // For RLS and Australian context detection
+  entity_category: string;                // 'clinical_event', 'healthcare_context', 'document_structure'
 }
 ```
 
-**Embedding Text Strategy:**
-- Medications: Use `normalized_entity` (standardized dose format)
-- Conditions: Use `entity_text` (preserve clinical nuance)
-- Observations: Combine both for maximum context
-- Default: Concatenate both fields
+**Smart Entity-Type Strategy for Embedding Text:**
+```typescript
+function getEmbeddingText(entity: Pass15Input): string {
+  const subtype = entity.entity_subtype;
+
+  // Medications/Immunizations: Standardized format only
+  if (['medication', 'immunization'].includes(subtype)) {
+    return entity.original_text;
+  }
+
+  // Diagnoses/Conditions/Allergies: Maximum clinical context
+  if (['diagnosis', 'allergy', 'symptom'].includes(subtype)) {
+    // Prefer AI interpretation (often expands abbreviations)
+    if (entity.ai_visual_interpretation &&
+        entity.ai_visual_interpretation !== entity.original_text) {
+      return entity.ai_visual_interpretation;
+    }
+    return entity.original_text;
+  }
+
+  // Vital Signs/Labs: Need measurement type context
+  if (['vital_sign', 'lab_result', 'physical_finding'].includes(subtype)) {
+    const parts = [entity.original_text];
+    if (entity.visual_formatting_context &&
+        !entity.visual_formatting_context.includes('standard text')) {
+      parts.push(entity.visual_formatting_context);
+    }
+    return parts.join(' ').trim();
+  }
+
+  // Procedures: Use expanded descriptions when available
+  if (subtype === 'procedure') {
+    if (entity.ai_visual_interpretation &&
+        entity.ai_visual_interpretation.length > entity.original_text.length) {
+      return entity.ai_visual_interpretation;
+    }
+    return entity.original_text;
+  }
+
+  // Healthcare Context: Exact identifiers
+  if (['patient_identifier', 'provider_identifier', 'facility_identifier'].includes(subtype)) {
+    return entity.original_text;
+  }
+
+  // Default: original_text
+  return entity.original_text;
+}
+```
+
+**Rationale:** Different medical code systems expect different text formats. AI's dual-input model provides both standardized text and contextual interpretation.
 
 ---
 

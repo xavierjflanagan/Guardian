@@ -100,6 +100,92 @@ WHERE pass2_status = 'pending'
 
 ---
 
+## Pass 1.5 Integration (Batch Preparation)
+
+**Pass 1.5 medical code candidates are prepared BEFORE the Pass 2 AI call, similar to bridge schema loading.**
+
+### Batch Processing Flow with Pass 1.5
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Pass 2 Worker Starts                                        │
+│ 1. Fetch pending entities (40 entities from Pass 1)        │
+│ 2. Group by required schemas (e.g., 20 vital sign entities)│
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ For Each Batch Group (e.g., 20 vital sign entities):       │
+│                                                             │
+│ Step A: Prepare Bridge Schemas                             │
+│   - Load patient_vitals bridge schema (detailed/minimal)   │
+│   - Load patient_observations bridge schema                │
+│                                                             │
+│ Step B: Prepare Medical Code Candidates (PASS 1.5) ⭐      │
+│   FOR EACH entity in batch (parallel processing):          │
+│     1. Read entity from entity_processing_audit            │
+│     2. Select embedding text (Smart Entity-Type Strategy)  │
+│     3. Generate embedding via OpenAI API                   │
+│     4. Search universal_medical_codes (pgvector)           │
+│     5. Search regional_medical_codes (pgvector, AUS)       │
+│     6. Combine + rank + filter (5-20 candidates)           │
+│                                                             │
+│   RESULT: Map<entity_id, CodeCandidate[]>                  │
+│   {                                                         │
+│     entity1_id: [15 LOINC codes with similarity scores],  │
+│     entity2_id: [12 LOINC codes with similarity scores],  │
+│     ...                                                     │
+│   }                                                         │
+│                                                             │
+│   OPTIONALLY: Store in pass15_code_candidates table        │
+│   (for audit trail, debugging, AI training data)           │
+│                                                             │
+│ Step C: Single AI Call to Pass 2                           │
+│   INPUT: {                                                  │
+│     entities: [20 vital sign entities],                    │
+│     bridgeSchemas: {vitals, observations},                 │
+│     codeCandidates: {entity_id → [code candidates]}        │
+│   }                                                         │
+│   OUTPUT: {                                                 │
+│     entity1: {                                              │
+│       selected_code: "LOINC:85354-9",                      │
+│       structured_data: {...}                               │
+│     },                                                      │
+│     entity2: {...},                                         │
+│     ...                                                     │
+│   }                                                         │
+│                                                             │
+│ Step D: Write Results                                      │
+│   - Insert into patient_vitals (20 rows)                   │
+│   - Insert into medical_code_assignments (20 rows)         │
+│   - Update entity_processing_audit.pass2_status            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Pass 1.5 Worker Module
+
+```typescript
+// apps/render-worker/src/pass15/index.ts (isolated module)
+export async function retrieveCodeCandidatesForBatch(
+  entities: Entity[]
+): Promise<Map<UUID, CodeCandidate[]>> {
+  // All Pass 1.5 logic isolated in this module
+}
+
+// apps/render-worker/src/pass2/Pass2ClinicalEnricher.ts
+import { retrieveCodeCandidatesForBatch } from '../pass15';
+
+async function processPass2Batch(entities: Entity[]) {
+  const bridgeSchemas = loadBridgeSchemasForBatch(entities);
+  const codeCandidates = await retrieveCodeCandidatesForBatch(entities);  // Pass 1.5
+
+  const result = await pass2AI(entities, bridgeSchemas, codeCandidates);
+}
+```
+
+**See:** `../pass-1.5-medical-code-embedding/PASS-1.5-OVERVIEW.md` for complete Pass 1.5 architecture.
+
+---
+
 ## Processing Flow
 
 ### Stage 0: Encounter Extraction (FIRST)
