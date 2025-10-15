@@ -364,8 +364,83 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit (
          final_condition_id IS NULL AND final_allergy_id IS NULL AND final_vital_id IS NULL) OR
         -- Other categories should have at least one final link after Pass 2 completion
         (entity_category != 'document_structure')
-    )
+    ),
+
+    -- Migration 26 (2025-10-15): Unique constraint for Pass 1.5 composite FK
+    CONSTRAINT entity_processing_audit_id_patient_key UNIQUE (id, patient_id)
 );
+
+-- =============================================================================
+-- SECTION 2B: PASS 1.5 MEDICAL CODE CANDIDATE AUDIT (Migration 26)
+-- =============================================================================
+-- MANDATORY audit table for Pass 1.5 medical code candidate retrieval
+-- Healthcare compliance and AI accountability requirement
+
+CREATE TABLE IF NOT EXISTS pass15_code_candidates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_id UUID NOT NULL REFERENCES entity_processing_audit(id) ON DELETE CASCADE,
+    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+
+    -- What text was embedded for vector search
+    embedding_text TEXT NOT NULL,
+
+    -- Candidates retrieved from vector search
+    -- JSONB format: [{code_id, code_system, code_value, display_name, similarity_score}, ...]
+    universal_candidates JSONB NOT NULL DEFAULT '[]'::jsonb,
+    regional_candidates JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+    -- Metadata for performance monitoring and debugging
+    total_candidates_found INTEGER NOT NULL DEFAULT 0,
+    search_duration_ms INTEGER NOT NULL DEFAULT 0,
+
+    -- Audit trail timestamp
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- Composite foreign key for RLS (patient_id must match entity's patient_id)
+    CONSTRAINT fk_pass15_entity_patient
+        FOREIGN KEY (entity_id, patient_id)
+        REFERENCES entity_processing_audit(id, patient_id)
+);
+
+-- Pass 1.5 indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_pass15_entity ON pass15_code_candidates(entity_id);
+CREATE INDEX IF NOT EXISTS idx_pass15_patient ON pass15_code_candidates(patient_id);
+CREATE INDEX IF NOT EXISTS idx_pass15_created_at ON pass15_code_candidates(created_at DESC);
+
+-- Add table comment
+COMMENT ON TABLE pass15_code_candidates IS
+  'Audit trail for Pass 1.5 medical code candidate retrieval. Stores the shortlist of 10-20 candidates from vector search BEFORE AI selection. MANDATORY for healthcare compliance, AI accountability, and quality monitoring.';
+
+-- Add column comments
+COMMENT ON COLUMN pass15_code_candidates.embedding_text IS
+  'The text that was embedded for vector similarity search (after Smart Entity-Type Strategy selection).';
+COMMENT ON COLUMN pass15_code_candidates.universal_candidates IS
+  'JSONB array of universal medical code candidates (RxNorm, SNOMED, LOINC) with similarity scores.';
+COMMENT ON COLUMN pass15_code_candidates.regional_candidates IS
+  'JSONB array of regional medical code candidates (PBS, MBS, ICD-10-AM) with similarity scores.';
+COMMENT ON COLUMN pass15_code_candidates.total_candidates_found IS
+  'Total number of candidates found from vector search (before filtering).';
+COMMENT ON COLUMN pass15_code_candidates.search_duration_ms IS
+  'Duration of vector search in milliseconds (for performance monitoring).';
+
+-- Enable RLS on pass15_code_candidates table
+ALTER TABLE pass15_code_candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pass15_code_candidates FORCE ROW LEVEL SECURITY;  -- Force RLS even for table owner
+
+-- RLS Policy: Users can only see their own code candidates (via profile access)
+-- Service role bypasses RLS, so no explicit INSERT policy needed (more secure)
+DROP POLICY IF EXISTS pass15_code_candidates_select_policy ON pass15_code_candidates;
+CREATE POLICY pass15_code_candidates_select_policy ON pass15_code_candidates
+    FOR SELECT
+    TO authenticated
+    USING (
+        has_profile_access(auth.uid(), patient_id)
+        OR is_admin()
+    );
+
+-- RLS Policy: Users cannot insert, update, or delete (audit trail is immutable)
+-- Only service role (which bypasses RLS) can write to this table
+-- No INSERT/UPDATE/DELETE policies = complete immutability for users
 
 -- =============================================================================
 -- SECTION 3: PROFILE CLASSIFICATION & SAFETY (V2 Integration)

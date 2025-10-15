@@ -1249,6 +1249,12 @@ CREATE TABLE IF NOT EXISTS universal_medical_codes (
     search_text TEXT NOT NULL,
     synonyms TEXT[] DEFAULT ARRAY[]::TEXT[],
 
+    -- Versioning (Migration 26 - 2025-10-15)
+    library_version VARCHAR(20) DEFAULT 'v1.0',
+    valid_from DATE DEFAULT CURRENT_DATE,
+    valid_to DATE DEFAULT NULL,
+    superseded_by UUID REFERENCES universal_medical_codes(id),
+
     -- Quality metadata
     usage_frequency INTEGER DEFAULT 0,
     active BOOLEAN DEFAULT TRUE,
@@ -1282,6 +1288,12 @@ CREATE TABLE IF NOT EXISTS regional_medical_codes (
     -- Classification and search optimization
     entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy')),
     search_text TEXT NOT NULL,
+
+    -- Versioning (Migration 26 - 2025-10-15)
+    library_version VARCHAR(20) DEFAULT 'v1.0',
+    valid_from DATE DEFAULT CURRENT_DATE,
+    valid_to DATE DEFAULT NULL,
+    superseded_by UUID REFERENCES regional_medical_codes(id),
 
     -- Quality metadata
     usage_frequency INTEGER DEFAULT 0,

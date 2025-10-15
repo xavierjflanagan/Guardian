@@ -10,37 +10,69 @@
 
 ## Embedding Text Selection Strategy
 
-**Entity Type-Based Approach:**
+**Smart Entity-Type Approach:**
 
 ```typescript
-function getEmbeddingText(entity: Pass1Output): string {
-  switch (entity.entity_subcategory) {
-    case 'medication':
-      // Use normalized for standardized dose format
-      return entity.normalized_entity;
+interface Pass1EntityInput {
+  entity_subtype: string;
+  original_text: string;
+  ai_visual_interpretation: string | null;
+  visual_formatting_context: string | null;
+}
 
-    case 'condition':
-    case 'diagnosis':
-      // Use raw text to preserve clinical nuance
-      return entity.entity_text;
+function getEmbeddingText(entity: Pass1EntityInput): string {
+  const subtype = entity.entity_subtype;
 
-    case 'observation':
-    case 'vital_sign':
-    case 'lab_result':
-      // Combine both for maximum context
-      return `${entity.normalized_entity} ${entity.entity_text}`.trim();
-
-    default:
-      // Fallback: concatenate both
-      return `${entity.normalized_entity} ${entity.entity_text}`.trim();
+  // Medications/Immunizations: AI-cleaned, standardized format
+  if (['medication', 'immunization'].includes(subtype)) {
+    return entity.original_text;
   }
+
+  // Diagnoses/Conditions/Allergies: Prefer expanded clinical context
+  if (['diagnosis', 'allergy', 'symptom'].includes(subtype)) {
+    // Use AI interpretation if it provides additional context
+    if (entity.ai_visual_interpretation &&
+        entity.ai_visual_interpretation !== entity.original_text) {
+      return entity.ai_visual_interpretation;
+    }
+    return entity.original_text;
+  }
+
+  // Vital Signs/Labs/Findings: Add measurement context
+  if (['vital_sign', 'lab_result', 'physical_finding'].includes(subtype)) {
+    const parts = [entity.original_text];
+    // Add formatting context if meaningful (not generic "standard text")
+    if (entity.visual_formatting_context &&
+        !entity.visual_formatting_context.includes('standard text')) {
+      parts.push(entity.visual_formatting_context);
+    }
+    return parts.join(' ').trim();
+  }
+
+  // Procedures: Use expanded descriptions when available
+  if (subtype === 'procedure') {
+    if (entity.ai_visual_interpretation &&
+        entity.ai_visual_interpretation.length > entity.original_text.length) {
+      return entity.ai_visual_interpretation;
+    }
+    return entity.original_text;
+  }
+
+  // Healthcare Context Identifiers: Use exact text
+  if (['patient_identifier', 'provider_identifier', 'facility_identifier'].includes(subtype)) {
+    return entity.original_text;
+  }
+
+  // Safe default: original_text
+  return entity.original_text;
 }
 ```
 
 **Rationale:**
-- Medications benefit from standardization (dose format consistency)
-- Conditions need clinical nuance preserved (specific terminology)
-- Observations benefit from both contexts (measurement + clinical description)
+- **Medications:** RxNorm/PBS codes use standardized formats (AI's `original_text` already cleaned)
+- **Conditions:** SNOMED/ICD codes often match expanded descriptions better (AI's `ai_visual_interpretation` expands abbreviations like "T2DM" → "Type 2 Diabetes Mellitus")
+- **Vital Signs:** LOINC codes include measurement context (combining `original_text` + `visual_formatting_context` provides full picture)
+- **Leverages dual-input:** Pass 1 AI processes both raw image and OCR, giving us both clean text and contextual interpretation
 
 ---
 

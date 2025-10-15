@@ -1,9 +1,6 @@
 # Pass 1.5 Medical Code Embedding
-
 **Purpose:** Vector embedding system for medical code candidate retrieval
-
-**Status:** Planning Phase - Folder structure creation in progress
-
+**Status:** Planning Complete - Ready for implementation
 **Created:** 2025-10-14
 
 ---
@@ -117,7 +114,11 @@ Pass 2: Clinical Enrichment
 ## Critical Dependencies
 
 **Upstream:**
-- Pass 1 entity detection output: `entity_text` and `normalized_entity` from `entity_processing_audit` table
+- Pass 1 entity detection output from `entity_processing_audit` table:
+  - `original_text` - AI-curated clean entity text (primary input)
+  - `ai_visual_interpretation` - AI's contextual understanding (used for diagnoses/conditions)
+  - `visual_formatting_context` - Formatting context (used for vital signs/labs)
+  - `entity_subtype` - Entity classification for smart text selection strategy
 - Medical code databases (RxNorm, SNOMED, PBS, MBS)
 - OpenAI embedding API (text-embedding-3-small)
 
@@ -148,13 +149,13 @@ Pass 2: Clinical Enrichment
 
 ## Next Steps
 
-1. Create PASS-1.5-IMPLEMENTATION-PLAN.md with complete technical design
-2. Define database schema and migration strategy
+1. ✅ Create PASS-1.5-IMPLEMENTATION-PLAN.md with complete technical design
+2. Create database migration for versioning fields and pass15_code_candidates table
 3. Identify medical code data sources and acquisition plan
 4. Design worker integration with Pass 1 and Pass 2
 5. Build validation test suite
 
 ---
 
-**Last Updated:** 2025-10-14
-**Status:** Planning Phase
+**Last Updated:** 2025-10-15
+**Status:** Planning Complete - Ready for implementation
