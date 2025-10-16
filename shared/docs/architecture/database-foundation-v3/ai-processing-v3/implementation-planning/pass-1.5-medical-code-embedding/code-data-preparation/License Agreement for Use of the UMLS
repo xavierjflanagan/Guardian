@@ -1,0 +1,2082 @@
+License Agreement for Use of the UMLS® Metathesaurus®
+This Agreement is made by and between the National Library of Medicine, Department of Health and Human Services (hereinafter referred to as "NLM") and the LICENSEE.
+
+WHEREAS, the NLM was established by statute in order to assist the advancement of medical and related sciences, and to aid the dissemination and exchange of scientific and other information important to the progress of medicine and to the public health (section 465 of the Public Health Service Act, as amended (42 U.S.C. section 286)), and to carry out this purpose has been authorized to develop the Unified Medical Language System ® (UMLS) to facilitate the retrieval and integration of machine-readable biomedical information from disparate sources;
+
+WHEREAS, the NLM's UMLS project has produced the UMLS Metathesaurus, a machine-readable vocabulary knowledge source, that is useful in a variety of settings;
+
+WHEREAS, the LICENSEE is willing to use the UMLS Metathesaurus at its sole risk and at no expense to NLM, which will result in information useful to NLM, may provide immediate improvements in biomedical information transfer to segments of the biomedical community, and is consistent with NLM's statutory functions,
+
+NOW THEREFORE, it is mutually agreed as follows:
+
+The NLM hereby grants a nonexclusive, non-transferable right to LICENSEE to use the UMLS Metathesaurus and incorporate its content in any computer applications or systems designed to improve access to biomedical information of any type subject to the restrictions in other provisions of this Agreement. The names and addresses of licensees authorized to use the UMLS products are public information.
+
+No charges, usage fees, or royalties will be paid to NLM.
+
+LICENSEE is prohibited from distributing the UMLS Metathesaurus or subsets of it, including individual vocabulary sources within the Metathesaurus, except (a) as an integral part of computer applications developed by LICENSEE for a purpose other than redistribution of vocabulary sources contained in the UMLS Metathesaurus and (b) if permitted by paragraph 12 of this agreement.
+
+LICENSEE agrees to inform NLM prior to distributing any application(s) in which it is using the UMLS Metathesaurus and is encouraged to inform NLM of any difficulties encountered in using the UMLS Metathesaurus, and changes or enhancements to the UMLS Metathesaurus that would make it more useful to LICENSEE and its user groups.
+
+Within 30 days of the end of any calendar year in which LICENSEE makes use of the UMLS Metathesaurus, LICENSEE agrees to provide NLM with a brief report on the usefulness of the UMLS Metathesaurus in general and, if applicable, on the usefulness of CPT in the UMLS format in particular. LICENSEE is strongly encouraged to submit to NLM locally developed extensions to the UMLS Metathesaurus that are potentially useful to other UMLS users for consideration for potential inclusion in the UMLS Metathesaurus.
+
+NLM represents that the data provided under this Agreement were formatted with a reasonable standard of care, but makes no warranties express or implied, including no warranty of merchantability or fitness for particular purpose, regarding the accuracy or completeness of the data or that the machine-readable copy is error free. Therefore, LICENSEE agrees to hold NLM, the Government, and any organization contributing a vocabulary source to the UMLS Metathesaurus free from any liability resulting from errors in terminology or other data or on the machine-readable copy. NLM and such other organizations disclaim any liability for any consequences due to use, misuse, or interpretation of information contained or not contained in the UMLS Metathesaurus.
+
+NLM represents that its ability to continue to include certain vocabulary sources within the UMLS Metathesaurus is dependent on continuing contractual relations or agreements with the copyright holders for these vocabulary sources. Therefore, LICENSEE agrees to hold NLM and the individual copyright holder free from any liability resulting from the removal of any vocabulary source from future editions of the UMLS Metathesaurus.
+
+NLM reserves the right to change the type and format of its machine-readable data. NLM agrees to inform LICENSEE of any changes to the format of the UMLS Metathesaurus, EXCEPT the addition of entirely new data elements to the Metathesaurus, at least 90 days before the data are distributed.
+
+The presence in the UMLS Metathesaurus of vocabulary or data produced by organizations other than NLM does not imply any endorsement of the UMLS Metathesaurus by these organizations.
+
+LICENSEE shall acknowledge NLM as its source of the UMLS Metathesaurus, citing the year and version number, in a suitable and customary manner but may not in any way indicate or imply that NLM or any of the organizations whose vocabulary sources are included in the UMLS has endorsed LICENSEE or its products.
+
+Some of the Material in the UMLS Metathesaurus is from copyrighted sources. If LICENSEE uses any material from copyrighted sources from the UMLS Metathesaurus:
+
+a) the LICENSEE is required to display in full, prior to providing user access to the Metathesaurus or any of the vocabulary sources within the UMLS, the following wording in order that its users be made aware of these copyright constraints:
+
+"Some material in the UMLS Metathesaurus is from copyrighted sources of the respective copyright holders. Users of the UMLS Metathesaurus are solely responsible for compliance with any copyright, patent or trademark restrictions and are referred to the copyright, patent or trademark notices appearing in the original sources, all of which are hereby incorporated by reference.";
+
+to display a list of all of the vocabularies contained within the UMLS Metathesaurus that are used in the LICENSEE's application; and to indicate for each vocabulary any appropriate copyright notice and whether the entire contents are present or only a portion of it.
+
+b) the LICENSEE is prohibited from altering UMLS and other vocabulary source content contained within the UMLS Metathesaurus, but may include content from other sources in applications that also contain content from the UMLS Metathesaurus. The LICENSEE may not imply in any way that data from other sources is part of the UMLS Metathesaurus or of any of its vocabulary sources.
+
+c) the LICENSEE is required to include in its applications identifiers from the UMLS Metathesaurus such that the original source vocabularies for any data obtained from the UMLS Metathesaurus can be determined by reference to a complete version of the UMLS Metathesaurus.
+
+For material in the UMLS Metathesaurus obtained from some sources additional restrictions on LICENSEE's use may apply. The categories of additional restrictions are described below. The list of UMLS Metathesaurus Vocabulary Sources, which is part of this Agreement and is updated when each version of the Metathesaurus is released, indicates the category of additional restrictions, if any, that apply to each vocabulary source.
+
+LICENSEE should contact the copyright holder directly to discuss uses of a source vocabulary beyond those allowed under this license agreement. If LICENSEE or LICENSEE's end user has a separate agreement with the copyright holder for use of a UMLS Metathesaurus source vocabulary, LICENSEE or LICENSEE's end user may use vocabulary source content obtained from the UMLS Metathesaurus in accordance with the terms of the separate agreement.
+
+12. 1. Category 1:
+
+LICENSEE is prohibited from translating the vocabulary source into another language or from producing other derivative works based on this single vocabulary source.
+
+12. 2. Category 2:
+
+All category 1 restrictions AND
+
+LICENSEE is prohibited from using the vocabulary source in operational applications that create records or information containing data from the vocabulary source. Use for data creation research or product development is allowed.
+
+12. 3. Category 3:
+
+LICENSEE's right to use material from the source vocabulary is restricted to internal use at the LICENSEE's site(s) for research, product development, and statistical analysis only. Internal use includes use by employees, faculty, and students of a single institution at multiple sites. Notwithstanding the foregoing, use by students is limited to doing research under the direct supervision of faculty. Internal research, product development, and statistical analysis use expressly excludes: use of material from these copyrighted sources in routine patient data creation; incorporation of material from these copyrighted sources in any publicly accessible computer-based information system or public electronic bulletin board including the Internet; publishing or translating or creating derivative works from material from these copyrighted sources; selling, leasing, licensing, or otherwise making available material from these copyrighted works to any unauthorized party; and copying for any purpose except for back up or archival purposes.
+
+LICENSEE may be required to display special copyright, patent and/or trademark notices before displaying content from the vocabulary source. Applicable notices are included in the list of UMLS Metathesaurus Vocabulary sources, that is part of this Agreement.
+
+12. 4. Category 4:
+
+12.4.1. LICENSEE is prohibited from translating the vocabulary source into another language or from altering the vocabulary source content.
+
+12.4.2. LICENSEE's right to use the vocabulary source is restricted to use in the U.S. by LICENSEE's employees, contractors, faculty, students, clients, patients, or constituents within electronic systems or devices built, purchased, licensed, or used by LICENSEE for U.S. governmental purposes or for any health care, public health, research, educational, or statistical use in the U.S. Use by students is limited to research or educational activities under the direct supervision of faculty.
+
+12.4.3. LICENSEE has the right to distribute the vocabulary source in the U.S., but only in combination with other UMLS Metathesaurus content. Further, LICENSEE's right to distribute is restricted to:
+
+Electronic distribution to LICENSEE's direct U.S. affiliates, or to other U.S. entities that have signed the UMLS license, in order to facilitate use of the vocabulary for health care, public health, research, educational or statistical purposes in the U.S. only.
+
+LICENSEE must take reasonable precautions to prevent distribution of the vocabulary source to non-US entities.
+
+LICENSEE must include in its annual report a list of all U.S. affiliates or other U.S. entities to whom it has distributed content from the vocabulary source.
+
+Distribution of encoded patient level data sets or knowledge encoded in the vocabulary source by LICENSEE to any U.S. entity for use in the U.S. only.
+
+Inclusion of encoded records or content from the vocabulary source in: (1) free publicly accessible retrieval systems or (2) fee-based retrieval systems that are accessible within the U.S. only, provided that these systems do not permit users to copy or extract any significant portion of the vocabulary source.
+
+
+12.4.4. DEFINITIONS
+
+U.S. is defined as all U.S. states, territories, and the District of Columbia; any U.S. government facility or office, whether permanent or temporary, wherever located; and access to a system in any of these locations by U.S. government employees, designated representatives or contractors, wherever located, for U.S. government purposes.
+
+U.S. entity is defined as (i) for government entities, an agency or department of the U.S. Government, (ii) for corporations, as a corporation incorporated and operating in the U.S.; and (iii) for other entities as an entity organized under the laws of the U.S.
+
+LICENSEE shall take reasonable steps to ensure that anyone who has authorized access to data or vocabulary sources from the UMLS Metathesaurus under this Agreement complies with its provisions.
+
+LICENSEE and/or its end users shall be solely responsible for compliance with any copyright or other restrictions on vocabulary sources in the UMLS Metathesaurus; NLM assumes no responsibility or liability associated with the LICENSEE's (or any of the LICENSEE's users) use and/or reproduction of copyrighted material, patent or trademark violations. Anyone contemplating reproduction of all or any portion of the UMLS Metathesaurus or any of its vocabulary sources should consult legal counsel.
+
+The holder of a copyright in any vocabulary source shall be a third party beneficiary to this agreement and shall have a right to enforce the agreement against any LICENSEE that violates any provision pertaining to that copyright holder.
+
+This Agreement shall be effective until terminated by one of the parties upon 30 days written notice to the other party. LICENSEE's failure to abide by the terms of the Agreement shall be grounds for its termination. Neither the Government, its employees, or any vocabulary sources contained in the UMLS Metathesaurus shall be liable or responsible to LICENSEE in any manner whatsoever for damages of any nature whatsoever arising from the termination of this Agreement.
+
+In the event that any provision of this Agreement is determined to violate any law or is unenforceable, the remainder of the Agreement shall remain in full force and effect.
+Please send any issues or concerns to NLM Customer Service ( https://support.nlm.nih.gov/support/create-case/ ).
+
+APPENDIX 1
+Appendix to the License Agreement for Use of the UMLS ® Metathesaurus ®
+UMLS METATHESAURUS ® SOURCE VOCABULARIES - 2025AA Edition
+Appendix 1 is a listing of all sources within the current version of the Metathesaurus with an indication of any additional restrictions and notices that apply. Sources are listed in order according to the abbreviations used in the UMLS Metathesaurus files. All sources are subject to the general terms of the License for Use of the UMLS Metathesaurus. The Categories associated with each source are defined in the general license as follows:
+
+Category 0 general terms of the License apply with no additional restrictions
+Category 1 in addition to the general License terms, restrictions in Section 12.1 apply
+Category 2 in addition to the general License terms, restrictions in Section 12.2 apply
+Category 3 in addition to the general License terms, restrictions in Section 12.3 apply
+Category 4 in addition to the general License terms, restrictions in Section 12.4 apply
+Appendix 2 defines the terms of use of SNOMED CT. These terms take precedence over the general Metathesaurus license terms. Where an item is not addressed in Appendix 2 the general License terms apply.
+Additional Source Information: Each source includes a link to additional source information, created by NLM, describing its purpose, content and use. The complete list of source documentation is available at: http://www.nlm.nih.gov/research/umls/sourcereleasedocs/index.html . Additional documentation may also be available from the producers of the source. Contact information is provided for each source.
+
+Questions Regarding Additional Permissions or License Agreements: Questions about uses not covered by this Agreement, or other inquiries about individual sources, should be directed to the source contact.
+
+AIR93 - ;;;;AI/RHEUM;;;;;National Library of Medicine, Lister Hill Center;1993;;Bethesda, MD;;;;;;
+
+Contact: May Cheh;;Lister Hill National Center for Biomedical Communications, National Library of Medicine;Building 38A, Room 9E902;8600 Rockville Pike;Bethesda;MD;;20894;;; cheh@nlm.nih.gov ;
+
+Read more information about this source
+
+ALT2009 - ;;;;ABC Codes and Terminology;;;9th;Albuquerque, NM;ABC Coding Solutions - Alternative Link;2009;;;;;;ENG;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;ABC Coding Solutions - Alternative Link;6121 Indian School Road NE;Suite 131;Albuquerque;NM;United States;87110;1-877-621-5465;1-505-875-0002; Legal@ABCcodes.com ;
+
+Read more information about this source
+
+AOD2000 - ;;;;Alcohol and Other Drug Thesaurus: A Guide to Concepts and Terminology in Substance Abuse and Addiction;;;3rd. ed. [4 Volumes.];Bethesda, MD;National Institute on Alcohol Abuse and Alcoholism (NIAAA) and Center for Substance Abuse Prevention (CSAP);2000;;;;;;ENG;;
+
+Contact: Nancy Winstanley;;NIAAA Library c/o CSR Incorporated;2107 Wilson Blvd., Suite 1000;;Arlington;VA;;22201;703-741-7147;; e-mail: nwinstanley@csrincorporated.com ;;
+
+Read more information about this source
+
+AOT2003 - ;;;;Authorized Osteopathic Thesaurus;;;;Chevy Chase, MD;Educational Council of Osteopathic Principles of the American Association of Colleges of Osteopathic Medicine;2004;;;;; http://www.aacom.org/InfoFor/educators/Pages/thesaurus.aspx ;ENG;;
+
+Contact: ;;;;;Chevy Chase;MD;;;;;; http://www.aacom.org/InfoFor/educators/Pages/thesaurus.aspx
+
+Read more information about this source
+
+ATC_2025_02_10 (updated) - ;;WHO Collaborating Centre for Drug Statistics Methodology;;Anatomical Therapeutic Chemical (ATC) classification system;;;2022;Oslo, Norway;WHO Collaborating Centre for Drug Statistics Methodology;;;;;; http://www.whocc.no/copyright_disclaimer/ ;;;
+
+Contact: ;;WHO Collaborating Centre for Drug Statistics Methodology;Norwegian Institute of Public Health;P.O.Box 4404 Nydalen;Oslo;;Norway;0403;+47 21 07 81 60;+47 21 07 81 46; whocc@fhi.no ; http://www.whocc.no/copyright_disclaimer/
+
+Read more information about this source
+
+BI98 - Howard Goldberg, MD;;;;Beth Israel OMR Clinical Problem List Vocabulary;;;Version 1.0;Boston, MA;Beth Israel Deaconess Medical Center;1999;;;;;;ENG;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+Contact: Daniel Z. Sands, M.D., M.P.H.;Clinical Systems Integration Architect;Center for Clinical Computing,Beth Israel Deaconess Medical Center,Harvard University;330 Brookline Avenue;;Boston;MA;United States;02215;617-667-1510;810-592-0716; e-mail: dsands@bidmc.Harvard.edu ;
+
+Read more information about this source
+
+CCC2_5_2018 - ;;SabaCare,Inc.;;Clinical Care Classification (CCC) System;;;2.5;;;;January 10, 2018;;;;;ENG;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: Dr. Virginia K. Saba;CEO & President;SabaCare,Inc;;;Arlington;VA;United States;;703-521-6132;703-521-3866; vsaba@att.net ; http://www.sabacare.com/ ;
+
+Read more information about this source
+
+CCPSS99 - ;;;;Canonical Clincial Problem Statement System;;;Version 1.0;;;June 23, 1999;;;;;;ENG;Contact: sbrown@vumclib.mc.vanderbilt.edu ;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Permission will be freely given for any uses and applications containing CCPSS which are not for sale - i.e. those used internally or given to others without charge.
+
+Contact: Steven Brown, M.D.;Associate Professor, Biomedical Informatics;Eskind Biomedical Library, Vanderbilt University Medical Center;2209 Garland Ave;Room 442;Nashville;TN;United States;37232-8340;(615) 321-6335;; sbrown@vumclib.mc.vanderbilt.edu ;
+
+Read more information about this source
+
+CCS2005 - ;;Agency for Healthcare Research and Quality (AHRQ);;Clinical Classifications Software (CCS);;;;;;April 2005;;Rockville,MD;;; http://www.hcup-us.ahrq.gov/toolssoftware/ccs/ccs.jsp ;ENG;Phone: 301-594-1364.;
+
+Contact: Anne Elixhauser, Ph.D.;Senior Research Scientist;Agency for Healthcare Research and Quality;540 Gaither Road;;Rockville;MD;United States;20850;(301) 427-1411, 1-800-358-9295;(301) 594-1430; AElixhau@AHRQ.gov ;
+
+Read more information about this source
+
+CCSR_ICD10CM_2025 (updated) - ;;Healthcare Cost and Utilization Project (HCUP);;Clinical Classifications Software Refined for ICD-10-CM;;;;;Agency for Healthcare Research and Quality (AHRQ);;December 2024;Rockville, MD;;;;ENG;;
+
+Contact: ;;Agency for Healthcare Research and Quality;5600 Fishers Lane;Mail Stop 07N94A;Rockville;MD;United States;20857;1-866-290-HCUP;(301) 594-1430; hcup@ahrq.gov ;https://www.hcup-us.ahrq.gov/toolssoftware/ccsr/ccs_refined.jsp;
+
+Read more information about this source
+
+CCSR_ICD10PCS_2025 (updated) - ;;Healthcare Cost and Utilization Project (HCUP);;Clinical Classifications Software Refined for ICD-10-PCS;;;;;Agency for Healthcare Research and Quality (AHRQ);;December 2024;Rockville, MD;;;;ENG;;
+
+Contact: ;;Agency for Healthcare Research and Quality;5600 Fishers Lane;Mail Stop 07N94A;Rockville;MD;United States;20857;1-866-290-HCUP;(301) 594-1430; hcup@ahrq.gov ;https://www.hcup-us.ahrq.gov/toolssoftware/ccsr/ccs_refined.jsp;
+
+Read more information about this source
+
+CDCREC_1.2 - ;;CDC, National Center for Health Statistics;;Race & Ethnicity - CDC;;;;Atlanta, GA;;;December 27, 2017;;;;;;;
+
+Contact: ;;CDC, National Center for Health Statistics;1600 Clifton Road;Mailstop: E-62;Atlanta;GA;United States;30333;;;; http://www.cdc.gov/phin/resources/vocabulary/index.html ;
+
+Read more information about this source
+
+CDT2023 - ;;;;Code on Dental Procedures and Nomenclature;;;2023;Chicago, IL;American Dental Association;;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+For CDT the following special notice must be displayed:
+"For CDT only, copyright 2021 American Dental Association, all rights reserved."
+
+Contact: Debbie Labinger;Manager, Special Accounts Senior Manager, Special Accounts and Licensing Program;American Dental Association;211 East Chicago Ave.;;Chicago;IL;United States;60611-2678;312-440-7742;; LabingerD@ada.org ;https://www.ada.org/publications/CDT;
+
+Read more information about this source
+
+CHV2011_02 - ;;;;Consumer Health Vocabulary;;;;;;;2011;USA;;;;ENG;;
+
+Contact: Qing Zeng, PhD;;Biomedical Informatics Department, University of Utah;26 South 2000 East Room 5775 HSEB;;Salt Lake City;UT;USA; 84112;;; q.t.zeng@utah.edu ;
+
+Read more information about this source
+
+COSTAR_89-95 - ;;;;Computer-Stored Ambulatory Records (COSTAR);;;;Boston, MA;Massachusetts General Hospital;1989-1995;;;;;;ENG;;
+
+The UMLS Metathesaurus includes terms that were used frequently at 3 COSTAR sites in the years indicated and supplied to NLM by Massachusetts General Hospital.
+
+Contact: G.Octo Barnett, M.D.;;Laboratory of Computer Science Massachusetts General Hospital;50 Staniford Street, 5th Floor;;Boston;MA;United States;02114;(617) 726-3939;(617) 726-8481; e-mail: Barnett.Octo@mgh.harvard.edu ;
+
+Read more information about this source
+
+CPM2003 - ;;;;Medical Entities Dictionary (CPM);;;;New York (NY);Columbia Presbyterian Medical Center;2003;;;;;;ENG;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+The UMLS Metathesaurus includes a relatively small number of terms created at Columbia Presbyterian Medical Center for the MED, which also includes terms obtained from the UMLS Metathesaurus and other sources.
+
+Contact: George Hripcsak, M.D.;Professor and Chair;Department of Biomedical Informatics, Vanderbilt Clinic VC-5;Columbia University;622 W. 168th Street;New York ;New York;USA;10032;(212) 305-5780;(212) 305-3302; kripcsak@columbia.edu ;
+
+Read more information about this source
+
+CPT2025 (updated) - ;;;;Current Procedural Terminology (CPT);;;;;American Medical Association;;2025;Chicago, IL;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+The following special notice must be displayed:
+
+"CPT™ only Copyright 2021 American Medical Association. All rights Reserved. No fee schedules, basic unit, relative values or related listings are included in CPT™. AMA does not directly or indirectly practice medicine or dispense medical services. AMA assumes no liability for data contained herein.
+
+U.S. Government Rights
+
+This product includes CPT™ which is commercial technical data and/or computer data bases and/or commercial computer software and/or commercial computer software documentation, as applicable which were developed exclusively at private expense by the American Medical Association, 515 North State Street, Chicago, Illinois, 60610. U.S. Government rights to use, modify, reproduce, release, perform, display, or disclose these technical data and/or computer data bases and/or computer software and/or computer software documentation are subject to the limited rights restrictions of DFARS 252.227-7015(b)(2) (June 1995) and/or subject to the restrictions of DFARS 227.7202-1(a) (June 1995) and DFARS 227.7202-3(a) (June 1995), as applicable for U.S. Department of Defense procurements and the limited rights restrictions of FAR 52.227-14 (June 1987) and/or subject to the restricted rights provisions of FAR 52.227-14 (June 1987) and FAR 52.227-19 (June 1987), as applicable, and any applicable agency FAR Supplements, for non-Department of Defense Federal procurements."
+
+Contact: ;;American Medical Association;330 N. Wabash, Suite 39300;;Chicago;IL;United States;60611;(800) 621-8335;; Intellectual.PropertyServices@ama-assn.org ;https://www.ama-assn.org/practice-management/cpt-current-procedural-terminology;
+
+Read more information about this source
+
+CPT01SP - ;;;;Current Procedural Terminology (CPT), Spanish Translation;;;4th ed;Chicago (IL);American Medical Association;2000;;;;; http://www.ama-assn.org .;ESP;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Dorith Brown;;CPT Intellectual Property Services,American Medical Association;515 N. State Street;;Chicago;IL;United States;60610;;(312) 464-5762;;
+
+Read more information about this source
+
+CSP2006 - ;;;Computer Retrieval of Information on Scientific Projects (CRISP);;;;;Bethesda (MD);National Institutes of Health, Division of Research Grants, Research Documentation Section;2006;;;;;;;;
+
+Contact: Dorrette Finch;Director;Division of Research Documentation, ORA, OER, National Institutes of Health;6701 Rockledge Drive;;Bethesda;MD;;20892-7983;;; dw33v@nih.gov ;
+
+Read more information about this source
+
+CST95 - ;;;;Coding Symbols for Thesaurus of Adverse Reaction Terms (COSTART);;;5th ed;Rockville (MD);U.S. Food and Drug Administration, Center for Drug Evaluation and Research;1995;;;;;;;;
+
+COSTART has been superseded by the Medical Dictionary for Regulatory Activities (MedDRA) Terminology.
+
+Contact: ;;National Technical Information Service ;;;;;;;;;; http://www.ntis.gov/fcpc/cpn5580.htm
+
+Read more information about this source
+
+CVX_2024_12_18_25_03_03 (updated) - ;;National Center for Immunization and Respiratory Diseases;;CVX Code Set;;;;Atlanta, GA;;;December 18, 2024;;;;;;;
+
+Contact: ;;CDC, National Center for Immunization and Respiratory Diseases Immunization Information System Support Branch - Informatics;1600 Clifton Road;Mailstop: E-62;Atlanta;GA;United States;30333;;; iisinfo@cdc.gov ; http://www2a.cdc.gov/vaccines/iis/iisstandards/vaccines.asp?rpt=cvx ;
+
+Read more information about this source
+
+DDB00 - Malcolm Duncan;;;;Diseases Database 2000;;;;London (England);Medical Object Oriented Software Enterprises Ltd.;2000;May, 2000;;;; http://www.diseasesdatabase.com/ ;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Malcolm H. Duncan;;Medical Object Oriented Software Enterprises Ltd;Unit 36c Marryat Square;Fulham;London;;UK;SW6 6UA;44 (0)20 7381 4220 Mobile: 07710 483088;; mhduncan@compuserve.com ; http://www.diseasesdatabase.com/
+
+Read more information about this source
+
+DMDICD10_1995 - ;;;;Internationale Klassifikation der Krankheiten 10 [German translation of ICD10];;;;Germany;Deutsches Institut fuer Medizinische Dokumentation und Information;1998;;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: Dr. Michael Schopen;; Deutsches Institut fur Medizinische Dokumentation und Information (DIMDI);Postfach 420580, D-50899 ;;Koln;;Germany;;49-221-472-4252;49-221-41-1429; schopen@dimdi.de ;
+
+Read more information about this source
+
+DMDUMD_1996 - ;;;;Die Nomenklatur fuer Medizinprodukte UMDNS [German translation of UMDNS];;;;Germany;Deutsches Institut fuer Medizinische Dokumentation und Information;1996;;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: Dr. Michael Schopen;;Deutsches Institut fur Medizinische Dokumentation und Information (DIMDI);Postfach 420580, D-50899;;Koln;;Germany;;49-221-472-4252;49-221-41-1429; helpdesk@dimdi.de ;www.dimdi.de
+
+Read more information about this source
+
+DRUGBANK5.0_2025_02_06 (updated) - ;;;;DrugBank;;;5.0;;OMx Personal Health Analytics Inc.;;February 06, 2025;Edmonton, Alberta, Canada;;;;;Wishart DS, Knox C, Guo AC, Shrivastava S, Hassanali M, Stothard P, Chang Z, Woolsey J. DrugBank: a comprehensive resource for in silico drug discovery and exploration. Nucleic Acids Res. 2006 Jan 1 34(Database issue):D668-72.;
+
+Contact: ;;OMx Personal Health Analytics Inc.;301 - 10359 104 St.;;Edmonton;Alberta;Canada;T5J 1B9;312-440-7742;; support@omx.io ; http://www.drugbank.ca ;
+
+Read more information about this source
+
+DSM-5_2015 - ;;;;Diagnostic and Statistical Manual of Mental Disorders, Fifth Edition (DSM-5);;;5;Arlington, VA;American Psychiatric Association (APA);2013;2015;;;; http://www.dsm5.org/Pages/PermissionsPolicy.aspx ;;Reprinted with permission from the Diagnostic and Statistical Manual of Mental Disorders, Fifth Edition. Copyright 2013. American Psychiatric Association. All Rights Reserved. Unless authorized in writing by the APA, no part may be reproduced or used in a manner inconsistent with the APA's copyright. This prohibition applies to unauthorized uses or reproductions in any form. The American Psychiatric Association is not affiliated with and is not endorsing this product.;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;American Psychiatric Association;1000 Wilson Boulevard;Suite 1825;Arlington;VA;USA;22209-3901;703-907-7300;; apa@psych.org ; http://www.dsm5.org/ ;
+
+Read more information about this source
+
+DXP94 - ;;;;DXplain (An expert diagnosis program);;;;Boston (MA);Massachusetts General Hospital;1994;;;;;;;;
+
+Contact: G. Octo Barnett, M.D.;;Laboratory of Computer Science, Massachusetts General Hospital;50 Staniford Street;5th Floor;Boston;MA;;02114;(617) 726-3939;(617) 726-8481; Barnett.Octo@mgh.Harvard ;
+
+Read more information about this source
+
+FMA4_15 - Jose Leonardo V. Mejino Jr., M.D., Cornelius Rosse, M.D., DSc;;;;Foundation Model of Anatomy;;;v4.15.0;Department of Biological Structure, University of Washington;;;April 2019;;;;;;;
+
+Contact: Jose L. V Mejino Jr. MD;Senior Scientist, Project Director and Curator of FMA;Department of Biological Structure, University of Washington;1959 NE Pacific Street;Box 357420;Seattle;WA;United States;98195;206-543-7118;206-543-1524; fma@sig.biostr.washington.edu ; http://si.washington.edu/projects/fma ;
+
+Read more information about this source
+
+GO2024_03_28 - ;;;;Gene Ontology;;;;;Gene Ontology Consortium;;March 28, 2024;;;;;;;
+
+Contact: ;;Gene Ontology Consortium;;;;;;;;;https://github.com/geneontology/helpdesk/issues; http://www.geneontology.org/ ;
+
+Read more information about this source
+
+GS_2025_02_07 (updated) - ;;;;Gold Standard Drug Database;;;;302 Knights Run Ave, Suite 800, Tampa, FL 33602;Gold Standard;;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: RxNorm Customer Service;;U.S. National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;(888) FIND-NLM;; rxnorminfo@nlm.nih.gov ;https://www.nlm.nih.gov/research/umls/rxnorm/
+
+Read more information about this source
+
+HCDT2023 - ;;;;HCPCS Version of Current Dental Terminology;;;;Baltimore, MD;Centers for Medicare & Medicaid Services;2023;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Cynthia Hake;CMS HCPCS Workgroup Chair;Centers for Medicare & Medicaid Services (CMS);7500 Security Boulevard;;Baltimore;MD;United States;21244;1-410-786-3404;; hcpcs@cms.hhs.gov ;https://www.cms.gov/Medicare/Coding/MedHCPCSGenInfo/index.html;
+
+Read more information about this source
+
+HCPCS2025_04 (updated) - ;;;;Healthcare Common Procedure Coding System (HCPCS);;;;Baltimore, MD;Centers for Medicare & Medicaid Services;April 2025;;;;;;;;
+
+The American Medical Association's CPT™ codes in HCPCS have a Source Abbreviation of HCPT04. The American Dental Association's CDT codes in HCPCS have a Source Abbreviation of HCDT4.
+
+Contact: Cynthia Hake;CMS HCPCS Workgroup Chair;Centers for Medicare & Medicaid Services (CMS);7500 Security Boulevard;;Baltimore;MD;United States;21244;1-410-786-3404;; hcpcs@cms.hhs.gov ;https://www.cms.gov/Medicare/Coding/MedHCPCSGenInfo/index.html;
+
+Read more information about this source
+
+HCPT2025_04 (updated) - ;;;;Version of Physicians' Current Procedural Terminology (CPT) included in the Healthcare Common Procedure Coding System (HCPCS);;;;Baltimore, MD;Centers for Medicare & Medicaid Services;April 2025;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Cynthia Hake;CMS HCPCS Workgroup Chair;Centers for Medicare & Medicaid Services (CMS);7500 Security Boulevard;;Baltimore;MD;United States;21244;1-410-786-3404;; hcpcs@cms.hhs.gov ;https://www.cms.gov/Medicare/Coding/MedHCPCSGenInfo/index.html;
+
+Read more information about this source
+
+HGNC2024_04 - Gray KA, Yates B, Seal RL, Wright MW, Bruford EA;;HGNC Database;;The HUGO Gene Nomenclature Database;;;;European Bioinformatics Institute Wellcome Trust Genome Campus;;;April 2, 2024;United Kingdom;;;;;;
+
+Contact: Elspeth Bruford, PhD;Group Co-ordinator;HUGO Gene Nomenclature Committee (HGNC);European Bioinformatics Institute (EMBL-EBI);Wellcome Trust Genome Campus;Hinxton;Cambridge;United Kingdom;CB10 1SD;;+44 (0) 1223 494 468; hgnc@genenames.org ;https://www.genenames.org/;
+
+Read more information about this source
+
+HL7V2.5_2003_08_30 - Mark McDougall, Executive Director, Health Level Seven; 3300 Washtenaw Avenue, Suite 227, Ann Arbor, MI 48104-4250;;;Health Level Seven Vocabulary (HL7);;;;Ann Arbor (MI);;1998-2002;;;;;www.HL7.ORG;;;
+
+Contact: Health Level Seven;;;3300 Washtenaw Avenue,;Suite 227;Ann Arbor;MI;;48104-4250;(734)677-7777;(734)677-6622; HQ@HL7.ORG ;
+
+Read more information about this source
+
+HL7V3.0_2024_11 (updated) - ;;;;Health Level Seven (HL7) Vocabulary;;;;Ann Arbor, MI;;;November 17, 2024;;;; http://www.hl7.org/ ;;;
+
+Contact: Health Level Seven International;;;3300 Washtenaw Avenue;Suite 227;Ann Arbor;MI;USA;48104-4250;(734)677-7777;(734)677-6622; HQ@HL7.ORG ;;
+
+Read more information about this source
+
+HLREL_1998 - Dr. Henk Lamberts;;University of Amsterdam;;ICPC2E-ICD10 relationships from (HLREL);;;;;;1998;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Henk Lamberts;;University of Amsterdam;;;;;;;;; H.Lamberts@AMC.UVA.NL ;
+
+Read more information about this source
+
+HPO2024_12_12 (updated) - ;;;;The Human Phenotype Ontology (HPO);;;;;The Human Phenotype Ontology Consortium;;December 12, 2024;;;;;;;
+
+Contact: Dr. Peter N. Robinson;Professor of Computational Biology;The Jackson Laboratory for Genomic Medicine;10 Discovery Drive;;Farmington;CT;;06032;860.837.2095 t, 860.990.3130 m;; peter.robinson@jax.org ;https://hpo.jax.org/app/contact;
+
+Read more information about this source
+
+ICD10_1998 - ;;;;International Statistical Classification of Diseases and Related Health Problems (ICD-10);;;10th rev.;Geneva (Switzerland);World Health Organization;1998;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;Office of Publications, World Health Organization;1211 Geneva 27;;;;Switzerland;;;;;
+
+Read more information about this source
+
+ICD10_2016 - ;;;;International Statistical Classification of Diseases and Related Health Problems (ICD-10);;;Tenth Revision;Geneva, Switzerland;World Health Organization;2016;;;;;;ENG;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;Office of Publications;World Health Organization;;;Geneva;;Switzerland;1211 Geneva 27;;; bookorders@who.int ; http://www.who.int/about/en/ ;
+
+Read more information about this source
+
+ICD10AE_1998 - ;;;;International Statistical Classification of Diseases and Related Health Problems (ICD-10): Americanized Version.;;;10th rev.;Geneva (Switzerland);World Health Organization;1998;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;Office of Publications, World Health Organization;1211 Geneva 27;;;;Switzerland;;;;;
+
+Read more information about this source
+
+ICD10AM_2000 - ;;National Centre for Classification in Health, University of Sydney, Faculty of Health Sciences;;International Statistical Classification of Diseases and Related Health Problems, 10th Revision, Australian Modification;;;2nd Edition;;;January 2000;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;National Centre for Classification in Health, University of Sydney, Faculty of Health Sciences;PO Box 170;;Lidcombe;NSW;Australia;1825;+61 2 9351 9461;; D.Truran@cchs.usyd.edu.au ;
+
+Read more information about this source
+
+ICD10AMAE_2000 - ;;;;International Statistical Classification of Diseases and Related Health Problems, Australian Modification (ICD-10-AM), Americanized English Equivalents;;;;Bethesda (MD);National Library of Medicine;2000;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;National Centre for Classification in Health University of Sydney Faculty of Health Sciences;PO Box 170;;Lidcombe;NSW;Australia;1825;+61 2 9351 9461;;;
+
+Read more information about this source
+
+ICD10CM_2025 - ;;National Center for Health Statistics (NCHS), under authorization by the World Health Organization;;ICD-10-CM: International Classification of Diseases, Tenth Revision, Clinical Modification;;;;United States;;2025;;;;;;;;
+
+CATEGORY 4 RESTRICTIONS APPLY to U.S. UMLS USERS
+
+CATEGORY 3 RESTRICTIONS APPLY to Non-U.S. UMLS USERS
+
+Contact: Monica Leonard;;National Center for Health Statistics;3311 Toledo Road;;Hyattsville;MD;United States;20782;1-800-232-4636;; zgf7@cdc.gov ;https://www.cdc.gov/nchs/icd/icd-10-cm/;
+
+Read more information about this source
+
+ICD10DUT_200403 - Hirs, W., H.W. Becker, C. van Boven, S.K. Oskam, I.M. Okkes, H. Lamberts;;;;ICD-10, Dutch Translation;;;;Amsterdam;Department of General Practice, Academic Medical Center/University of Amsterdam, Dutch College of General Practitioners (NHG);March 2004;200403;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICD10PCS_2025 - ;;Centers for Medicare and Medicaid Services;;International Classification of Diseases, 10th Revision, Procedure Coding System;;;;Baltimore, MD;;2025;;;;;;;;
+
+Contact: Pat Brooks;Senior Technical Advisor;Center for Medicare and Medicaid Services;7500 Security Blvd. C4-08-06;;Baltimore;MD;United States;21244;;; patricia.brooks2@cms.hhs.gov ;https://www.cms.gov/Medicare/Coding/ICD10/index.html;
+
+Read more information about this source
+
+ICD9CM_2014 - ;;National Center for Health Statistics (NCHS);;ICD-9-CM: International Classification of Diseases, Ninth Revision, Clinical Modification;;;FY 2014 Medicare Addendum;United States;;October 1, 2013;;Baltimore, MD;;;;;;
+
+NLM has generated fully specified titles for ICD-9-CM codes in cases in which the official ICD- 9-CM titles consist of extensions to higher levels in the ICD-9-CM hierarchy. The fully specified names were produced with reasonable care, but have not yet been reviewed and approved by the producers of ICD-9-CM.
+
+Contact: Patricia Brooks;Contact for Procedures;Health Care Financing Administration;Centers for Medicare & Medicaid Services;7500 Security Boulevard;Baltimore;MD;United States;21244;;; pbrooks@hcfa.gov ; http://www.cms.hhs.gov/
+
+Read more information about this source
+
+ICD9CM_2005 - ICD-9-CM [computer file]: international classification of diseases, ninth revision, clinical modification. Version 22. Baltimore, MD: U.S. Department of Health and Human Services, Centers for Medicare & Medicaid Services, effective October 1, 2004.
+
+NLM has generated fully specified titles for ICD-9-CM codes in cases in which the official ICD- 9-CM titles consist of extensions to higher levels in the ICD-9-CM hierarchy. The fully specified names were produced with reasonable care, but have not yet been reviewed and approved by the producers of ICD-9-CM.
+
+Contact: Contact for Diseases: Donna Pickett, National Center for Health Statistics; e-mail: dfp4@cdc.gov ; Contact for Procedures: Patricia Brooks, Health Care Financing Administration; e-mail: pbrooks@hcfa.gov ;
+
+Read more information about this source
+
+ICF_2008_12_19 - ;;World Health Organization;;International Classification of Functioning, Disability and Health;;;;Geneva, Switzerland;World Health Organization;2008;12/19/2008;;;; http://www.who.int/classification/icf ;;;
+
+CATEGORY 4 RESTRICTIONS APPLY to U.S. UMLS USERS
+
+CATEGORY 3 RESTRICTIONS APPLY to Non-U.S. UMLS USERS
+
+Contact: Nenad Kostanjsek;Technical Officer, Classification, Terminology and Standards (CTS), Department of Health Statistics and Informatics (HSI);World Health Organization;20, Avenue Appia;;CH-1211 Geneva 27;;Switzerland;;+41.22.791.3242;+41.22.791.4894; kostanjsekn@who.int ; http://www.who.int/classification/icf ;
+
+Read more information about this source
+
+ICF-CY_2008 - ;;World Health Organization;;International Classification of Functioning, Disability and Health for Children and Youth;;;;Geneva, Switzerland;World Health Organization;2008;;;;; http://www.who.int/classification/icf ;;;
+
+CATEGORY 4 RESTRICTIONS APPLY to U.S. UMLS USERS
+
+CATEGORY 3 RESTRICTIONS APPLY to Non-U.S. UMLS USERS
+
+Contact: Nenad Kostanjsek;Technical Officer, Classification, Terminology and Standards (CTS), Department of Health Statistics and Informatics (HSI);World Health Organization;20, Avenue Appia;;CH-1211 Geneva 27;;Switzerland;;+41.22.791.3242;+41.22.791.4894; kostanjsekn@who.int ; http://www.who.int/classification/icf
+
+Read more information about this source
+
+ICNP_2022 - ;;International Council of Nurses;;International Classification for Nursing Practice (ICNP);;;2022;Geneva, Switzerland;International Council of Nurses;2022;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Asta Steinunn Thoroddsen;;;;;;;;;;; icnp@icn.ch ;https://www.icn.ch/what-we-do/projects/ehealth-icnp;
+
+Read more information about this source
+
+ICPC93 - ;;;;The International Classification of Primary Care (ICPC);;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+This year, the Metathesaurus has also included translations of ICPC93 in the following languages:
+
+Basque (ICPCBAQ_1993),
+Danish (ICPCDAN_1993),
+Dutch (ICPCDUT_1993),
+Finnish (ICPCFIN_1993),
+French (ICPCFRE_1993),
+German (ICPCGER_1993),
+Hebrew (ICPCHEB_1993),
+Hungarian (ICPCHUN_1993),
+Italian (ICPCITA_1993),
+Norwegian (ICPCNOR_1993),
+Portuguese (ICPCPOR_1993),
+Spanish (ICPCSPA_1993), and
+Swedish (ICPCSWE_1993).
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPC2EDUT_200203 - Hirs, W., H.W. Becker, C. van Boven, S.K. Oskam, I.M. Okkes, H. Lamberts.;;;;International Classification of Primary Care 2E: 2nd ed. electronic. Dutch Translation;;;2nd ed. ;Amsterdam;Department of General Practice, Academic Medical Center/University of Amsterdam, Dutch College of General Practitioners (NHG);March 2002;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPC2EENG_200203 - ;;Classification Committee of the World Organization of National Colleges, Academies and Academic Associations of General Practitioners/Family Physicians (WONCA), known more briefly as the World Organization of Family Doctors;Henk Lamberts and Inge Hofmans-Okkes;International Classification of Primary Care;;;2nd ed.;;World Organization of Family Doctors;2002;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPC2ICD10DUT_200412 - ;;Classification Committee of the World Organization of National Colleges, Academies and Academic Associations of General Practitioners/Family Physicians (WONCA), known more briefly as the World Organization of Family Doctors;Henk Lamberts and Inge Hofmans-Okkes;International Classification of Primary Care, Dutch Translation;;;2nd ed.;;World Organization of Family Doctors;2002;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPC2ICD10ENG_200412 - ;;Classification Committee of the World Organization of National Colleges, Academies and Academic Associations of General Practitioners/Family Physicians (WONCA), known more briefly as the World Organization of Family Doctors;Henk Lamberts and Inge Hofmans-Okkes;International Classification of Primary Care;;;2nd ed;;World Organization of Family Doctors;2002;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPC2P_2005 - ;;;;ICPC-2 PLUS;;;;Sydney;Family Medicine Research Centre, University of Sydney;December 2005;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: A/Prof Helena Britt;Director, Family Medicine Research Centre, Acacia House, Westmead Hospital;;PO Box 533;;Wentworthville;NSW;Australia;2145;+61 2 9845 8150;+612 9845 8155; fmrc@fmrc.org.au ; http://www.fmrc.org.au/
+
+Read more information about this source
+
+ICPCBAQ_1993 - ;;;;The International Classification of Primary Care (ICPC). Basque Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCDAN_1993 - ;;;;The International Classification of Primary Care (ICPC). Danish Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCDUT_1993 - ;;;;The International Classification of Primary Care (ICPC). Dutch Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCFIN_1993 - ;;;;The International Classification of Primary Care (ICPC). Finnish Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support; ;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCFRE_1993 - ;;;;The International Classification of Primary Care (ICPC). French Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCGER_1993 - ;;;;The International Classification of Primary Care (ICPC). German Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCHEB_1993 - ;;;;The International Classification of Primary Care (ICPC). Hebrew Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCHUN_1993 - ;;;;The International Classification of Primary Care (ICPC). Hungarian Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCITA_1993 - ;;;;The International Classification of Primary Care (ICPC). Italian Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCNOR_1993 - ;;;;The International Classification of Primary Care (ICPC). Norwegian Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCPOR_1993 - ;;;;The International Classification of Primary Care (ICPC). Portuguese Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCSPA_1993 - ;;;;The International Classification of Primary Care (ICPC). Spanish Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+ICPCSWE_1993 - ;;;;The International Classification of Primary Care (ICPC). Swedish Translation.;;;;Denmark;World Organisation of Family Doctors;1993;;;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+JABL99 - ;;;;Online Congenital Multiple Anomaly/Mental Retardation Syndromes;;;;;;1999;;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: UMLS Support;;National Library of Medicine;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+KCD5_2008 - ;;;;Korean Standard Classification of Disease Version 5;;;;Seoul, Korea;;2008;2008;Seoul, Korea;;;;KOR;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Bo-Young Jung;;Korea Centers for Disease Control and Prevention;;;;;Korea;;+82-2-3481-6791;+82-2-532-3820; happiness630@hanmail.net ;
+
+Read more information about this source
+
+LCH90 - ;;;;Library of Congress Subject Headings;;;12th ed.;Washington (DC);Library of Congress;1989;;;;;;;;
+
+There are later editions of this source that are not reflected in the UMLS Metathesaurus. This source has considerable non-biomedical content and will never be included in the Metathesaurus in its entirety.
+
+Contact: ;;;;;;;;;;;; http://www.lcweb.loc.gov
+
+Read more information about this source
+
+LCH_NW_2013 - ;;Northwestern University Library;;Library of Congress Subject Headings, Northwestern University subset;;;;Evanston, IL;;;2013;;;;;;;
+
+Contact: Gary L. Strawn;Authorities Librarian;Northwestern University Library;1970 Campus Drive;;Evanston;IL;United States;60208-2300;(847)491-2788;(847)491-8306; mrsmith@northwestern.edu ;https://galter.northwestern.edu/About%20us/northwestern-university-libraries-lcsh-mesh-mapping-project;
+
+Read more information about this source
+
+LNC280 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC);;;Version 2.80;Indianapolis (IN);;February 26, 2025;;;;;;;;
+
+The following special notice must be displayed:
+
+"This product includes all, or a portion of, or is derived from content from LOINC that is subject to a license from Regenstrief Institute, Inc. Your use of LOINC content also is subject to this license, a copy of which is available https://loinc.org/license/ . The current complete LOINC distribution is available for download at http://loinc.org . The LOINC Table and LOINC codes are copyright © 1995-2020, Regenstrief Institute, Inc. and the Logical Observation Identifiers Names and Codes (LOINC) Committee. The LOINC Table, LOINC Table Core, LOINC Panels and Forms File, LOINC Answer File, LOINC Part File, LOINC Group File, LOINC Document Ontology File, LOINC Hierarchies, LOINC Linguistic Variants File, LOINC/RSNA Radiology Playbook, LOINC/IEEE Medical Device Code Mapping Table, LOINC Display Name File, LOINC Consumer Name File, and LOINC Change Snapshot File are copyright © 1995-2020, Regenstrief Institute, Inc. All rights reserved. THE LOINC TABLE (IN ALL FORMATS), LOINC TABLE CORE, LOINC PANELS AND FORMS FILE, LOINC ANSWER FILE, LOINC PART FILE, LOINC GROUP FILE, LOINC DOCUMENT ONTOLOGY FILE, LOINC HIERARCHIES, LOINC LINGUISTIC VARIANTS FILE, LOINC/RSNA RADIOLOGY PLAYBOOK, LOINC/IEEE MEDICAL DEVICE CODE MAPPING TABLE, LOINC DISPLAY NAME FILE, LOINC CONSUMER NAME FILE, AND LOINC CHANGE SNAPSHOT FILE ARE PROVIDED "AS IS." ANY EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. LOINC® is a registered United States trademark of Regenstrief Institute, Inc. A small portion of LOINC content may include content (e.g., survey instruments) that is subject to copyrights owned by third parties. Such content has been mapped to LOINC terms under applicable copyright and terms of use. Notice of such third-party copyright and license terms would need to be included if such content is included."
+
+The LOINC/RSNA Radiology Playbook and the LOINC Part File contain content from RadLex® ( http://www.radlex.org ), copyright © 2005-2019, The Radiological Society of North America, Inc., available at no cost under the license at http://www.rsna.org/uploadedFiles/RSNA/Content/Informatics/RadLex_License_Agreement_and_Terms_of_Use_V2_Final.pdf .
+
+The LOINC/IEEE Medical Device Code Mapping Table contains content from IEEE ( http://ieee.org ), copyright © 2019 IEEE.
+
+This product includes all or a portion of the UCUM table, UCUM codes, and UCUM definitions or is derived from it, subject to a license from Regenstrief Institute, Inc. and The UCUM Organization. Your use of the UCUM table, UCUM codes, UCUM definitions also is subject to this license, a copy of which is available at http://unitsofmeasure.org . The current complete UCUM table, UCUM Specification are available for download at http://unitsofmeasure.org . The UCUM table and UCUM codes are copyright © 1995-2020, Regenstrief Institute, Inc. and the Unified Codes for Units of Measures (UCUM) Organization. All rights reserved. THE UCUM TABLE (IN ALL FORMATS), UCUM DEFINITIONS, AND SPECIFICATION ARE PROVIDED "AS IS." ANY EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street;;Indianapolis;IN;United States;46202;(317) 274-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-DE-AT_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), German, Austria Edition;;;Version 2.79;Austria;ELGA;February 18, 2025;;;;;;German;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-DE-DE_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), German, Germany Edition;;;Version 2.79;Germany;Institute for Medical Documentation and Information (DIMDI);February 18, 2025;;;;;;German;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-EL-GR_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Greek, Greece Edition;;;Version 2.79;Greece;Efstratia Kontaxi, MD, MSc, and Evripidis Stefanidis, MD, with technical support from Panagiotis Kontaxis, Diploma of Electrical and Computer Engineering.;February 18, 2025;;;;;;Greek;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-ES-AR_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Spanish, Argentina Edition;;;Version 2.79;Argentina;Conceptum Medical Terminology Center;February 18, 2025;;;;;;Spanish;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-ES-ES_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Spanish, Spain Edition;;;Version 2.79;Spain;The Clinical Laboratory Committee of SERVICIO EXTREMENO DE SALUD, with the support of BITAC MAP.;February 18, 2025;;;;;;Spanish;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-ES-MX_279 (updated) - ;;The Regenstrief Institute, Inc.;Manuel Aragones;Logical Observation Identifier Names and Codes (LOINC), Spanish, Mexico Edition;;;Version 2.79;Mexico;Deep Dive Data Science;February 18, 2025;;;;;;Spanish;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-ET-EE_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Estonian, Estonia Edition;;;Version 2.79;Estonia;Estonian E-Health Foundation;February 18, 2025;;;;;;Estonian;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-FR-BE_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), French, Belgium Edition;;;Version 2.79;Belgium;Jean M. Prevost, MD, Biopathology;February 18, 2025;;;;;;French;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-FR-CA_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), French, Canada Edition;;;Version 2.79;Canada;Canada Health Infoway Inc.;February 18, 2025;;;;;;French;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-FR-FR_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), French, France Edition;;;Version 2.79;France;ASIP Sante (Agence des systemes d'information partages de de sante);February 18, 2025;;;;;;French;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-IT-IT_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Italian, Italy Edition;;;Version 2.79;Italy;Consiglio Nazionale delle Ricerche;February 18, 2025;;;;;;Italian;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-KO-KR_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Korean, Korea Edition;;;Version 2.79;Republic of Korea;Korean Ministry for Health, Welfare, and Family Affairs;February 18, 2025;;;;;;Korean;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-NL-NL_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Dutch, Netherlands Edition;;;Version 2.79;Netherlands;NVKC, Dutch Society for Clinical Chemistry and Laboratory Medicine, The Netherlands;February 18, 2025;;;;;;Dutch;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-PL-PL_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Polish, Poland Edition;;;Version 2.79;Poland;Polish Society of Laboratory Diagnostics;February 18, 2025;;;;;;Polish;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-PT-BR_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Portuguese, Brazil Edition;;;Version 2.79;Brazil;HL7 Brazil Institute;February 18, 2025;;;;;;Portuguese;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-RU-RU_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Russian, Russia Edition;;;Version 2.79;Russia;Yaroslavl State Medical Academy;February 18, 2025;;;;;;Russian;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-TR-TR_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Turkish, Turkey Edition;;;Version 2.79;Turkey;LOINC Turkish Translation Group and the Turkish Ministry of Health;February 18, 2025;;;;;;Turkish;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-UK-UA_279 (updated) - ;;The Regenstrief Institute, Inc.;;Logical Observation Identifier Names and Codes (LOINC), Ukrainian, Ukraine Edition;;;Version 2.79;;Valentyna Lemish MD and Oleksandr Kyzoviy (TerraLab IT, LLC) in cooperation with CO "100% LIFE" and Strimco LLC;February 18, 2025;;;;;;Ukrainian;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+LNC-ZH-CN_279 (updated) - ;;The Regenstrief Institute, Inc., Inc.;;Logical Observation Identifier Names and Codes (LOINC), Chinese, China Edition;;;Version 2.79;China;Lin Zhang, a LOINC volunteer from China;February 18, 2025;;;;;;Chinese;;
+
+Contact: LOINC c/o Regenstrief Institute;;The Regenstrief Institute, Inc;1101 West 10th Street, Indianapolis, IN 46202;;Indianapolis;IN;United States;46202;(317) 279-9000;; loinc@loinc.org ;https://loinc.org/;
+
+Read more information about this source
+
+MCM92 - ;;;;Glossary of Methodologic Terms for Clinical Epidemiologic Studies of Human Disorders;;;;Canada;McMaster University;1992;;;;;;;;
+
+Contact: R. Brian Haynes, M.D., Ph.D.;; Clinical Epidemiology & Biostatistics and Medicine, Faculty of Health Sciences, McMaster University;1200 Main Street;Room 2C10B;West Hamilton;Ontario ;Canada ;L8N 3Z5;(905) 525-9140;; bhaynes@mcmaster.ca ;
+
+Read more information about this source
+
+MDR27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA);;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;12975 Worldgate Drive;;Herndon;VA;United States;20170-6008;1-571-508-1491;; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRARA27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Arabic Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRBPO27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Brazilian Portuguese Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRCZE27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Czech Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRDUT27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Dutch Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDREST27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Estonian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRFIN27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Finnish Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRFRE27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), French Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRGER27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), German Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRGRE27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Greek Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRHRV27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Croatian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRHUN27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Hungarian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRISL27_1 (new) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Icelandic Edition;;;Version 27.1;;MedDRA MSSO;;October 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRITA27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Italian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRJPN27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Japanese Edition;;;Version 27.1, Japanese Edition;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA Japanese Maintenance Organization (JMO);Nagai Kinenkan 3F;2-12-15 Shibuya, Shibuya-ku;Tokyo;;Japan;150-0002;+81-3-3400-5608;+81-3-3400-5609; info.jmo@pmrj.jp ; http://www.pmrj.jp/jmo/php/indexe.php ;
+
+Read more information about this source
+
+MDRKOR27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Korean Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRLAV27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Latvian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRLIT27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Lithuanian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRPOL27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Polish Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRPOR27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Portuguese Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRRUS27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Russian Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRSPA27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Spanish Edition;;;Version 27.1, Spanish Edition;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MDRSWE27_1 (updated) - ;;;;Medical Dictionary for Regulatory Activities Terminology (MedDRA), Swedish Edition;;;Version 27.1;;MedDRA MSSO;;September 2024;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;MedDRA MSSO;7575 Colshire Drive;;McLean;Virginia;United States;22102;1-877-258-8280(Toll free international),1-703-556-2950(Direct);1-703-556-1744; mssohelp@meddra.org ;https://www.meddra.org/;
+
+Read more information about this source
+
+MEDCIN3_2024_12_20 (updated) - ;;Medicomp Systems;;MEDCIN;;;;Chantilly, VA;Medicomp Systems;;December 20, 2024;Chantilly, VA;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: David Lareau;Chief Executive Officer;Medicomp Systems;14500 Avion Parkway, Suite 175;;Chantilly;VA;United States;20151;703-803-8080;703-803-8235; info@medicomp.com ;https://www.medicomp.com;
+
+Read more information about this source
+
+MEDLINEPLUS_20241107 (updated) - ;;;;MedlinePlus Health Topics;;;;;National Library of Medicine;;November 7, 2024;Bethesda, MD;;;;;;
+
+Contact: ;;National Library of Medicine;8600 Rockville Pike;Bldg.38;Bethesda;MD;United States;20894;(888) 346-3656;(301) 402-1384; custserv@nlm.nih.gov ;https://www.nlm.nih.gov/medlineplus/xml.html;
+
+Read more information about this source
+
+MEDLINEPLUS_SPA_20241107 (updated) - ;;;;MedlinePlus Spanish Health Topics;;;;;National Library of Medicine;;November 7, 2024;Bethesda, MD;;;;;;
+
+Contact: ;;National Library of Medicine;8600 Rockville Pike;Bldg.38;Bethesda;MD;United States;20894;(888) 346-3656;(301) 402-1384;;https://www.nlm.nih.gov/medlineplus/xml.html;
+
+Read more information about this source
+
+MED-RT_2025_03_03 (updated) - ;;;;Medication Reference Terminology (MED-RT);;;;;U.S. Department of Veterans Affairs, Veterans Health Administration;;March 3, 2025;;;;;;;
+
+Contact: John Kilbourne;Physician, Clinical Information and Terminology;Veterans Health Administration, Knowledge Based Systems (KBS);Clinical Informatics and Data Management Office (CIDMO);10A7, VHA;;;United States;;;; John.Kilbourne@va.gov ;;
+
+Read more information about this source
+
+MMSL_2025_02_01 (updated) - ;;;;Medisource Lexicon;;;February 01, 2025;Denver, CO;Multum Information Services, Inc.;;;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: ;;Multum Information Services;3200 Cherry Creek South Drive, Suite 300;;Denver;CO;United States;80209;888-633-4772 x1420;;; http://www.multum.com/
+
+Read more information about this source
+
+MMX_2025_02_07 (updated) - ;;;;Micromedex RED BOOK;;;February 07, 2025;;;;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;Micromedex;100 Phoenix Drive;;Ann Arbor;MI;United States;48108;(844) 637.2848;; info@mdx.com ;https://www.merative.com/documents/brief/micromedex-redbook-brochure
+
+Read more information about this source
+
+MSH2025_2025_02_03 (updated) - ;;;;Medical Subject Headings (MeSH);;;2025;;U.S. National Library of Medicine;;February 3, 2025;Bethesda, MD;;;;;;
+
+This source has been translated into many languages. To date, eight of the translations have been incorporated into the UMLS Metathesaurus.
+
+Contact: ;;National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;(888) FIND-NLM;;;https://www.nlm.nih.gov/mesh;
+
+Read more information about this source
+
+MSH2015_2014_09_08 - ;;;;Medical Subject Headings (MeSH);;;2015;;U.S. National Library of Medicine;2015;;Bethesda, MD;;;;;;;;
+
+This source has been translated into many languages. To date, eight of the translations have been incorporated into the UMLS Metathesaurus.
+
+Contact: John Kilbourne, M.D.;Head, MeSH Section;National Library of Medicine;6701 Democracy Boulevard,;Suite 202;Bethesda;MD;United States;20894;(301)-496-1495;(301)-402-2002; kilbourj@mail.nih.gov ; http://www.nlm.nih.gov/mesh ;
+
+Read more information about this source
+
+MSHCZE2025 (updated) - ;;Dept. of Bibliography, National Library of Medicine;;Czech translation of the Medical Subject Headings;;;;Prague, Czech Republic;;;2025;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Marie Votipkova;;Dept. of Bibliography, National Library of Medicine;Sokolska 54;;Prague;;Czech Republic;;;; votipkov@nlk.cz ;https://www.nlk.cz;
+
+Read more information about this source
+
+MSHDUT2005 - ;;;;Nederlandse vertaling van MeSH [Dutch translation of MeSH);;;;;Nederlands Tijdschrift voor Geneeskunde [Dutch Journal of Medicine];;2005;Amsterdam, The Netherlands;;;;DUT;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: A.J.P.M.Overbeke;;;;;;;;;(20)-662-0150;; overbeke@ntvg.nl ;
+
+Read more information about this source
+
+MSHFIN2008 - ;;;;Finnish Translations of Medical Subject Headings (MeSH);;;;Finnish Medical Society Duodecim;;;2008;Helsinki, Finland;;;;FIN;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Dr. Peter Nyberg;;Finnish Medical Network;Fennomed Oy;Makelankatu 2 A;Helsinki;Puh;Finland;00500;(09)-393-091;(09)-3930-807; peter.nyberg@sll.fimnet.fi ; http://www.fimnet.fi
+
+Read more information about this source
+
+MSHFRE2025 (updated) - ;;;;Thesaurus Biomedical Francais/Anglais [French translation of the Medical Subject Headings];;;2025;;Institut National de la Sante et Recherche Medicale;;;Paris, France;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Sylvie Lemercier;;Inserm, Departement Information Scientifique et Communication;Immeuble Kadence;86 rue Regnault;Paris;;France;75013;;; sylvie.lemercier@inserm.fr ;https://www.inserm.fr/;
+
+Read more information about this source
+
+MSHGER2024 - ;;;;German translation of Medical Subject Headings (MeSH);;;;Cologne, Germany;ZB MED - Information Centre for Life Sciences;;2024;;;;;;;
+
+Contact: Dietrich Rebholz;;ZB MED - Information Centre for Life Sciences;Gleueler Strasse 60;;Koln;;Germany;50931;(49)-221-478-71 00;; rebholz@zbmed.de ;https://www.zbmed.de/;
+
+Read more information about this source
+
+MSHITA2019 - ;;;;Italian translation of Medical Subject Headings;;;;Rome, Italy;Istituto Superiore di Sanita, Settore Documentazione;;2019;Rome(Italy);;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Dr. Maurella Della Seta;Direttore;Istituto Superiore di Sanita;229 Viale Regina Elena;;Rome;;Italy;00161;39-06-49903277;39-06-49387117; maurella.dellaseta@iss.it ; http://www.iss.it ;
+
+Read more information about this source
+
+MSHJPN2014 - Igaku-Chuo-Zasshi.;;NPO Japan Medical Abstracts Society (JAMAS);;JAMAS Japanese Medical Thesaurus (JJMT);;;;Tokyo, Japan;;;2015;;;;;Japanese;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Yosuke Seyama;;Japan Medical Abstracts Society;2-5-18, Takaido-Higashi, Suginami-ku;;;Tokyo;Japan;168-0072;;; seyama@jamas.or.jp ;
+
+Read more information about this source
+
+MSHLAV2012 - ;;;;Latvian translation of the Medical Subject Headings;;;;;Medical Library of Latvia;;2012;Riga (Latvia);;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Velta Poznaka;Director;Medical Library of Latvia;;;;;;;+371 67373646;+371 67373642; Velta.Poznaka@lmb.gov.lv ;
+
+Read more information about this source
+
+MSHNOR2019 - Sigrun Espelien Aasen;;;;Norwegian translation of the Medical Subject Headings (MeSH);;;;Oslo, Norway;;;2019;Oslo, Norway;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Sigrun Espelien Aasen;Retired Research librarian/Senior adviser;Division for health services, Norwegian Institute of Public Health;Hovseterveien 52 B;N-0768;Oslo;;Norway;;+47 976 70 819;; sigrunespelien@gmail.com ;;
+
+Read more information about this source
+
+MSHPOL2025 (updated) - ;;;;Polish Translation of the Medical Subject Headings;;;2025;;Central Medical Library;;;Warsaw, Poland;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Dorota Ubysz;;Central Medical Library;Department of Medical Information Center;22, Chocimska Str. 00-791;Warsaw;;Poland;;+48 22 849 78 51;; d.ubysz@gbl.waw.pl ; http://www.gbl.waw.pl ;
+
+Read more information about this source
+
+MSHPOR2025 (updated) - ;;BIREME/PAHO/WHO;;Descritores em Ciencias da Saude [Portuguese translation of Medical Subject Headings];;;;;Centro Latino-Americano e do Caribe de Informacao em Ciencias da Saude;;2025;Sao Paulo (Brasil);;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Dr. Ana Cristina Espindola Campos;;TCS AFI BIREME PAHO WHO;Centro Latinoamericano y del Caribe de Informacion en Ciencias de la Salud;Rua Vergueiro, 1759 - 12. andar;Sao Paulo;SP;Brasil;04101-000;;; camposan@paho.org ;;
+
+Read more information about this source
+
+MSHRUS2025 (updated) - ;;;;Russian Translation of the Medical Subject Headings;;;2025;;State Central Scientific Medical Library;;;Moscow, Russia;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Vladimir V'yugin;;The State Central Scientific Medical Library;30, Krasikova St.;;Moscow;;Russia;117418;;; vyugin2@mail.ru ;;
+
+Read more information about this source
+
+MSHSCR2019 - ;;;;Croatian translation of the Medical Subject Headings (MeSH);;;;Zagreb, Croatia;University of Zagreb School of Medicine - Central Medical Library;;2019;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Lea Skoric;;University of Zagreb School of Medicine - Central Medical Library;Salata 3;;Zagreb;;Croatia;10000;+385-1-4566936;; lea.skoric@mef.hr ; http://smk.mef.unizg.hr/ ;
+
+Read more information about this source
+
+MSHSPA2025 (updated) - ;;BIREME/PAHO/WHO;;Descritores en Ciencias de la Salud [Spanish translation of the Medical Subject Headings];;;;;Centro Latino-Americano e do Caribe de Informacao em Ciencias da Saude;;2025;Sao Paulo (Brasil);;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Dr. Ana Cristina Espindola Campos;;TCS AFI BIREME PAHO WHO;Centro Latinoamericano y del Caribe de Informacion en Ciencias de la Salud;Rua Vergueiro, 1759 - 12. andar;Sao Paulo;SP;Brasil;04101-000; camposan@paho.org ;;;;
+
+Read more information about this source
+
+MSHSWE2021 - ;;;;Swedish Translation of Medical Subject Headings;;;;;Universitetsbiblioteket, Karolinska Institutet;;2021;Stockholm, Sweden;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;Universitetsbiblioteket, Karolinska Institutet;Fe 200 (Berzelius vag 7B), SE-171 77;;Stockholm;;Sweden;;;; ub@ki.se ;https://kib.ki.se;
+
+Read more information about this source
+
+MTH - ;;;;UMLS Metathesaurus;;;;Bethesda, MD;National Library of Medicine;;;;;;;;;
+
+Concept names with this source abbreviation were created by NLM to facilitate creation of the UMLS Metathesaurus. There are relatively few of them.
+
+Contact: UMLS Support;;;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+MTHCMSFRF_2020_25_03_03 (updated) - ;;;;Metathesaurus Forms of CMS Formulary Reference File;;;2020;Bethesda, MD;National Library Of Medicine;;;;;;;;;;;
+
+Contact: RxNorm Customer Service;;U.S. National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;(888) FIND-NLM;; rxnorminfo@nlm.nih.gov ;https://www.nlm.nih.gov/research/umls/rxnorm/
+
+Read more information about this source
+
+MTHICD9_2014 - ;;;;Metathesaurus additional entry terms for ICD-9-CM [computer file]: International Classification of Diseases, Ninth Revision, Clinical Modification;;;;National Library of Medicine;;October 1, 2013;;Bethesda, MD;;;;;;
+
+Contact: UMLS Support;;National Library of Medicine;8600 Rockville Pike;;Bethesda;Maryland;United States;20894;;; custserv@nlm.gov ;
+
+Read more information about this source
+
+MTHICPC2EAE_200203 - Henk Lamberts and Inge Hofmans-Okkes;;Classification Committee of the World Organization of National Colleges, Academies and Academic Associations of General Practitioners/Family Physicians (WONCA), known more briefly as the World Organization of Family Doctors;;International Classification of Primary Care 2nd Edition, Electronic, 2E, American English Equivalents;;;;Amsterdam;World Organization of Family Doctors;2002;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Concept names with this source abbreviation were created by NLM to provide contextual information for ICPC2E terms.
+
+Contact: Prof. Dr. H.Lamberts and Inge M. Okkes;;Department of Family Practice, Division Clinical Methods & Public Health, Academic Medical Center/University of Amsterdam;Meibergdreef 15 (Room J2-213), 1105 AZ;;Amsterdam;;The Netherlands;;31 20 566 4711;;;
+
+Read more information about this source
+
+MTHICPC2ICD10AE_0412 - Henk Lamberts and Inge Hofmans-Okkes;;Classification Committee of the World Organization of National Colleges, Academies and Academic Associations of General Practitioners/Family Physicians (WONCA), known more briefly as the World Organization of Family Doctors;;International Classification of Primary Care, American English Equivalents;;;;;World Organization of Family Doctors;2002;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Prof. Dr. H. Lamberts and Inge M. Okkes, PhD;;Department of Family Practice, Division of Clinical Methods & Public Health, Academic Medical Center/University of Amsterdam;Meibergdreef 15 (Room J2-213);1105 AZ;Amsterdam;;The Netherlands;;31 20 566 4711;;;
+
+Read more information about this source
+
+MTHMST2001 - ;;;;Metathesaurus Version of Minimal Standard Terminology Digestive Endoscopy;;;;Bethesda, MD;National Library of Medicine;2001;;;;;;;;
+
+Contact: UMLS Support;;;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+MTHMSTFRE_2001 - ;;;;Metathesaurus Version of Minimal Standard Terminology Digestive Endoscopy, French Translation;;;;Bethesda, MD;National Library of Medicine;2001;;;;;;;NOTE: Users must also obtain rights to use the parent source.;
+
+* NOTE: Now a CATEGORY 0.
+
+Contact: UMLS Support;;;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+MTHMSTITA_2001 - ;;;;Metathesaurus Version of Minimal Standard Terminology Digestive Endoscopy, Italian Translation;;;;Bethesda, MD;National Library of Medicine;2001;;;;;;;;
+
+* NOTE: Now a CATEGORY 0.
+
+Contact: UMLS Support;;;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+MTHSPL_2025_02_22 (updated) - ;;;;Metathesaurus Forms of the FDA Structured Product Labels;;;2025_02_22;Bethesda, MD;National Library of Medicine;;;;;;;;;
+
+Contact: RxNorm Customer Service;;U.S. National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;(888) FIND-NLM;; rxnorminfo@nlm.nih.gov ;https://www.nlm.nih.gov/research/umls/rxnorm/
+
+Read more information about this source
+
+MVX2025_02_11 (updated) - ;;National Center for Immunization and Respiratory Diseases;;Manufacturers of Vaccines;;;;Atlanta, GA;;;February 11, 2025;;;;;;;
+
+Contact: ;;CDC, National Center for Immunization and Respiratory Diseases Immunization Information System Support Branch - Informatics;1600 Clifton Road;Mailstop: E-62;Atlanta;GA;United States;30333;;; iisinfo@cdc.gov ;https://www2a.cdc.gov/vaccines/iis/iisstandards/vaccines.asp?rpt=mvx;
+
+Read more information about this source
+
+NANDA-I_2018-2020 - Sparks Ralph, Sheila, Craft-Rosenberg, Martha, Herdman, T. Heather, Lavin, Mary Ann, editors.;;;;NANDA International, Inc. Nursing Diagnoses: Definitions and Classification 2018-2020;;;Tenth;Oxford;Wiley Blackwell;2014;;;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Isabel Rollings;Digital Licensing Manager;John Wiley & Sons Ltd, Rights Department;The Atrium, Southern Gate;;Chichester;;England;P019 8SQ;0044 (0)1243 770646;; nanda@wiley.com ; http://www.nanda.org/nanda-international-taxonomy-licensing.html ;
+
+Read more information about this source
+
+NCBI2024_10_23 (updated) - ;;;;NCBI Taxonomy;;;;National Institutes of Health, National Library of Medicine, National Center for Biotechnology Information;;;October 23, 2024;Bethesda, MD;;;;;;
+
+Contact: ;;National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;;; info@ncbi.nlm.nih.gov ;https://www.ncbi.nlm.nih.gov/Taxonomy;
+
+Read more information about this source
+
+NCI2024_10D (updated) - ;;National Cancer Institute, National Institutes of Health;;NCI Thesaurus;;;24.10d;;National Cancer Institute;;October 28, 2024;Bethesda, MD;;;;;;
+
+Subset only.
+
+Contact: Enterprise Vocabulary Services (EVS);;National Cancer Institute;;;;;;;240-276-5541, 1-888-478-4423 (toll free);; ncicbiit@mail.nih.gov ;https://cbiit.cancer.gov/application-support;
+
+Read more information about this source
+
+NCISEER_1999 - ;;;;NCI Surveillance, Epidemiology, and End Results (SEER) conversions between ICD-9-CM and ICD-10 neoplasm codes;;;;Bethesda, MD;National Cancer Institute;June 1999;;;;;https://seer.cancer.gov/;;Phone: 301-496-8510.;
+
+Contact: ;;National Cancer Institute;;;Bethesda;MD;;;301-496-8510;;;
+
+Read more information about this source
+
+NDDF_2025_02_05 (updated) - ;;;;FDB MedKnowledge (formerly NDDF Plus);;;February 05, 2025;South San Francisco, CA;First Databank;;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;First Databank Customer Support;701 Gateway Blvd, Suite 600;;South San Francisco;CA;United States;94080;800-633-3453;; cs@fdbhealth.com ;
+
+Read more information about this source
+
+NEU2023_06_02 - ;;;;NeuroNames, BrainInfo (1991-present);;;;;National Primate Research Center, University of Washington;;June 2, 2023;;;; http://www.braininfo.org ;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Douglas M. Bowden, MD;Professor of Psychiatry and Behavioral Sciences;Department of Psychiatry & Behavioral Sciences, University of Washington School of Medicine;UW Department of Psychiatry & Behavioral Sciences;1959 NE Pacific Street;Seattle;WA;United States;98195;;; dmbowden@u.washington.edu ; http://braininfo.rprc.washington.edu/copyright.aspx ;
+
+Read more information about this source
+
+NIC8 - ;;Elsevier Inc.;;Nursing Interventions Classification (NIC) (8th edition);;;8th ed.;St. Louis, MO;;2023;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Bonita Allen;Education Solutions Consultant, Inside Sales, Special Markets, Elsevier Nursing and Health Education;Elsevier Licensing Department;1600 JFK Blvd. Suite 1800;;Philadelphia;PA;;19103;;; b.allen.1@elsevier.com ;www.us.elsevierhealth.com;
+
+Read more information about this source
+
+NOC7 - ;;Elsevier Inc.;;Nursing Outcomes Classifications (NOC) 7th Edition;;;7th ed.;St. Louis, MO;;2023;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Bonita Allen;Education Solutions Consultant, Inside Sales, Special Markets, Elsevier Nursing and Health Education;Elsevier Licensing Department;1600 JFK Blvd. Suite 1800;;Philadelphia;PA;;19103;;; b.allen.1@elsevier.com ;www.us.elsevierhealth.com;
+
+Read more information about this source
+
+NUCCHCPT_25.0 (updated) - ;;National Uniform Claim Committee;;National Uniform Claim Committee - Health Care Provider Taxonomy;;;;;American Medical Association;;January 1, 2025;Chicago, IL;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Nancy Spector;Chair, National Uniform Claim Committee;AMA, Coding and HIT Advocacy;119 Cherry Hill Rd, Suite 330;;Parsippany;NJ;United States;07054;(973)263-9898 ext 204;; nancy.spector@ama-assn.org ;https://www.nucc.org/index.php/code-sets-mainmenu-41/provider-taxonomy-mainmenu-40;
+
+Read more information about this source
+
+OMIM2025_02_05 (updated) - ;;McKusick-Nathans Institute of Genetic Medicine, Johns Hopkins University (Baltimore, MD);;Online Mendelian Inheritance in Man (OMIM);;;;Baltimore, MD;McKusick-Nathans Institute of Genetic Medicine, Johns Hopkins University;;February 5, 2025;;;;;;;
+
+Contact: ;;Johns Hopkins University;;;Baltimore;MD;;;;; JHTT-Communications@jhmi.edu ;https://www.omim.org/help/copyright;
+
+Read more information about this source
+
+OMS2005 - Martin, Karen S.;;;;The Omaha System: A Key to Practice, Documentation, and Information Management;;;2nd;Omaha, NE;Health Connections Press;2005;;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: Karen S. Martin, RN, MSN, FAAN;Health Care Consultant;Martin Associates;5711 N. 167th Ave. Circle;;Omaha;Nebraska;United States;68116;1-402-333-1962;; martinks0007@gmail.com ; http://www.omahasystem.org
+
+Read more information about this source
+
+ORPHANET_2024_07 - ;;French Institute of Health and Medical Research (INSERM);;Orphanet Nomenclature;;;;Paris, France;;;July 2024;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: Charlotte Rodwell;;Partnerships, Business Development and Strategic Communications;Inserm US14 - Orphanet;Plateforme Maladies Rares, 96 rue Didiot;Paris;;France;75014;+33 (0) 156538150;; data.orphanet@inserm.fr ;www.orpha.net, www.orphadata.com;
+
+Read more information about this source
+
+PCDS97 - Ozbolt, Judy Grace;;;;Patient Data Care Set (PCDS);;;Version 4.0; Nashville, TN;;1998;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Judy Ozbolt;;;Vanderbilt School of Nursing 400-C Godchaux Hall;;Nashville;TN;;37240-0008;(615)343-3291;; judy.ozbolt@mcmail.vanderbilt.edu ;
+
+Read more information about this source
+
+PDQ_2018_10_27 - ;;;;Physician Data Query;;;;;National Cancer Institute;;October 27, 2018;;;;;;;
+
+Contact: ;;National Cancer Institute;;;;;;;;;;https://www.cancer.gov/publications/pdq;
+
+Read more information about this source
+
+PNDS_2025 (updated) - ;;AORN;;Perioperative Nursing Data Set;;;;Denver, CO;AORN, Inc.;;January 2025;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Janice Kelly MS, RN-BC;;AORN Syntegrity Inc.;2170 S Parker Rd Suite 400;;Denver;CO;United States;80231;800-755-2676;; syntegrityteam@aorn.org ;;
+
+Read more information about this source
+
+PPAC98 - ;;;;Pharmacy Practice Activity Classification (PPAC);;;Version 1;Washington (DC);American Pharmaceutical Association;1998;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Scott Antall;;American Pharmaceutical Association - Academy of Pharmaceutical Research and Science;2215 Constitution Avenue NW;;Washington;DC;;20037-2985;;; ssa@mail.aphanet.org ;
+
+Read more information about this source
+
+PSY2004 - ;;American Psychological Association;Lisa A. Gallagher;Thesaurus of psychological index terms;;;10th ed., 30th anniversary, 1974-2004;Washington, DC;American Psychological Association;2005;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Lisa A. Gallagher;;American Psychological Association;750 First Street, NE;;Washington;DC ;;20002-4242;202-336-5726;; LGallagher@apa.org ;
+
+Read more information about this source
+
+QMR96 - ;;;;Quick Medical Reference (QMR);;;;San Bruno (CA);First DataBank;1997;;;;;;;;
+
+Contact: ;;Quick Medical Reference, First Databank;1111 Bayhill Drive;;San Bruno;CA;;94066;;;;
+
+Read more information about this source
+
+RAM99 - Dr. Randolph A. Miller;;;;QMR clinically related terms;;;;;;1999;;;;;;;;
+
+Contact: Dr. Randolph A. Miller;Chair;Dept. of Biomedical Informatics, Vanderbilt University;436 Eskind Biomedical Library;2209 Garland Ave.;Nashville;TN;;37232-8340;;; randolph.a.miller@vanderbilt.edu ;
+
+Read more information about this source
+
+RCD99 - ;.;;;Clinical Terms Version 3 (CTV3) (Read Codes) (Q199);;;;;National Health Service National Coding and Classification Centre; March, 1999;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;NHS Information Authority Loughborough;;Woodgate;Loughborough;Leicestershire ;;LE11 2TG;+44 (0) 1509 211611;; helpdesk3@nhsccc.exec.nhs.uk ;
+
+Read more information about this source
+
+RCDAE_1999 - ;;;;American English equivalent of the Clinical Terms ;;;Version 3 (Q1, 1999);Bethesda (MD);National Library of Medicine, UMLS project;1999;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;;;;;;;;;;;
+
+Read more information about this source
+
+RCDSA_1999 - ;;;;American English equivalent of synthesized terms from the Clinical Terms ;;;Version 3 (Q1, 1999);Bethesda (MD);National Library of Medicine, UMLS project;1999;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;NHS Information Authority Loughborough;Woodgate;;Loughborough;Leicestershire ;;LE11 2TG;;+44 (0) 1509 211611; helpdesk3@nhsccc.exec.nhs.uk ;
+
+Read more information about this source
+
+RCDSY_1999 - ;;;;Synthesized Read terms (without initial bracketed letters) of the Clinical Terms;;;Version 3 (Q1, 1999);Bethesda (MD);National Library of Medicine, UMLS project;1999;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: ;;NHS Information Authority Loughborough;Woodgate;;Loughborough;Leicestershire ;;LE11 2TG;;+44 (0) 1509 211611; helpdesk3@nhsccc.exec.nhs.uk ;
+
+Read more information about this source
+
+RXNORM_20AA_250303F (updated) - ;;;;RxNorm;;;META2020AA Full Update 2025_03_03;Bethesda, MD;National Library of Medicine;;;;;;;;;
+
+This release contains concepts created by the National Library of Medicine which express the meaning of a drug name in a normalized form. These concepts relate the names of orderable medications to a dose form and the components of those medications. For further discussion, see the article at:
+
+http://umlsinfo.nlm.nih.gov/RxNorm.html
+
+Contact: RxNorm Customer Service;;U.S. National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;(888) FIND-NLM;; rxnorminfo@nlm.nih.gov ;https://www.nlm.nih.gov/research/umls/rxnorm/
+
+Read more information about this source
+
+SCTSPA_2024_09_30 (updated) - ;;SNOMED International;;SNOMED CT Spanish Edition;;;Spanish Language Edition;London, United Kingdom;;;September 30, 2024;;;;;;;
+
+TERMS IN APPENDIX 2 OF UMLS LICENSE APPLY.
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+Contact: UMLS Support, National Library of Medicine; e-mail: NLM SNOMED CT Support
+
+NLM is a Charter Member of the IHTSDO on behalf of the U.S.
+
+Contact: ;NLM is a Charter Member of SNOMED International on behalf of the U.S.;National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;1-888-FIND-NLM (1-888-346-3656);;https://support.nlm.nih.gov/support/create-case/;;
+
+Read more information about this source
+
+SNM2 - ;;;Cote, Roger A.;Systematized Nomenclature of Medicine;;;2nd ed.;Skokie (IL);College of American Pathologists;1982;;;;;;;;
+
+TERMS IN APPENDIX 2 OF UMLS LICENSE APPLY.
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+Contact: UMLS Support, National Library of Medicine; e-mail: NLM SNOMED CT Support
+
+NLM is a Charter Member of the IHTSDO on behalf of the U.S.
+
+Contact: Jill Rosenthal/Naomi Siebert;;College of American Pathologists;325 Waukegan Road;;Northfield;IL;;60093-2750;;(847)832-8335; jnrs@cap.org ;
+
+Read more information about this source
+
+SNMI98 - Cote, Roger A.;;College of American Pathologists;;Systematized Nomenclature of Human and Veterinary Medicine: SNOMED International;;;Version 3.5;Schaumburg (IL);American Veterinary Medical Association;1998;;;;;;;;
+
+TERMS IN APPENDIX 2 OF UMLS LICENSE APPLY.
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+Contact: UMLS Support, National Library of Medicine; e-mail: NLM SNOMED CT Support
+
+NLM is a Charter Member of the IHTSDO on behalf of the U.S.
+
+Contact: Jill Rosenthal/Naomi Siebert;;College of American Pathologists;325 Waukegan Road;;Northfield;IL;;60093-2750;;(847)832-8335; jnrs@cap.org ;
+
+Read more information about this source
+
+SNOMEDCT_US_2025_03_01 (updated) - ;;SNOMED International;;US Edition of SNOMED CT;;;;London, United Kingdom;SNOMED International;;March 1, 2025;;;;;;;
+
+TERMS IN APPENDIX 2 OF UMLS LICENSE APPLY.
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+Contact: UMLS Support, National Library of Medicine; e-mail: NLM SNOMED CT Support
+
+NLM is a Charter Member of the IHTSDO on behalf of the U.S.
+
+Contact: NLM Customer service;NLM is a Charter Member of SNOMED International on behalf of the U.S.;National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;1-888-FIND-NLM (1-888-346-3656);;https://support.nlm.nih.gov/support/create-case/;;
+
+Read more information about this source
+
+SNOMEDCT_US_2024_09_01 - ;;SNOMED International;;US Edition of SNOMED CT;;;;London, United Kingdom;SNOMED International;;September 1, 2024;;;;;;;
+
+TERMS IN APPENDIX 2 OF UMLS LICENSE APPLY.
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+Contact: UMLS Support, National Library of Medicine; e-mail: NLM SNOMED CT Support
+
+NLM is a Charter Member of the IHTSDO on behalf of the U.S.
+
+Contact: NLM Customer service;NLM is a Charter Member of SNOMED International on behalf of the U.S.;National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;1-888-FIND-NLM (1-888-346-3656);;https://support.nlm.nih.gov/support/create-case/;;
+
+Read more information about this source
+
+SNOMEDCT_VET_2025_01_01 (updated) - ;;Veterinary Terminology Services Laboratory (VTSL), Virginia Maryland Regional College of Veterinary Medicine;;Veterinary Extension to SNOMED CT;;;;Blacksburg, VA;Veterinary Terminology Services Laboratory (VTSL);;January 2025;;;;https://vtsl.vetmed.vt.edu/;;;
+
+TERMS IN APPENDIX 2 OF UMLS LICENSE APPLY.
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+Contact: UMLS Support, National Library of Medicine; e-mail: NLM SNOMED CT Support
+
+NLM is a Charter Member of the IHTSDO on behalf of the U.S.
+
+Contact: ;NLM is a Charter Member of the SNOMED International on behalf of the U.S.;National Library of Medicine;8600 Rockville Pike;;Bethesda;MD;United States;20894;(888)FIND-NLM;;https://support.nlm.nih.gov/support/create-case/;;
+
+Read more information about this source
+
+SOP9.2 - ;;National Association of Health Data Organizations (NAHDO);;Source of Payment Typology;;;Version 9.2;;National Association of Health Data Organizations (NAHDO);;December, 2020;;;;;;;
+
+Contact: Barbara Rudolph;;National Association of Health Data Organizations (NAHDO);;;;;;;;; Barbara.Rudolph@wisc.edu ;https://www.nahdo.org/node/1043;
+
+Read more information about this source
+
+SPN2003 - ;;;;Standard Product Nomenclature (SPN);;;;Rockville, (MD); U.S. Food and Drug Administration;2003;;;;;;;;
+
+Contact: ;;;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+SRC - ;;;;UMLS Metathesaurus Source Terminologies;;;;Bethesda, MD;National Library of Medicine;;;;;;;;;
+
+Contact: UMLS Support;;;;;;;;;;; custserv@nlm.nih.gov ;
+
+Read more information about this source
+
+TKMT2011 - ;;;;Traditional Korean Medical Terms;;;;;;;2011;Korea;;;;KOR;;
+
+Contact: Jinhyun Kim;Researcher/O.M.D;Information Research Center, TKM Information Research Division, Korea Institute of Oriental Medicine;483 Expo-ro, Yuseong-gu;;Daejeon;;Korea;305-811;+82-42-868-9565, +82-10-2237-2378;+82-42-861-9421; kjh970203@kiom.re.kr ;
+
+Read more information about this source
+
+ULT93 - Bell, Douglas;;;;Ultrasound Structured Attribute Reporting (UltraSTAR);;;;Boston (MA);Brigham & Womens Hospital;1993;;;;;;;;
+
+CATEGORY 3 RESTRICTIONS APPLY
+
+Contact: Robert Greenes, M.D., Ph.D.;;Brigham & Womens Hospital;Department of Radiology;75 Francis Street;Boston ;MA;;02115;(617) 732-6281;; greenes@harvard.edu ;
+
+Read more information about this source
+
+UMD2023 - ;;ECRI Institute;;Universal Medical Device Nomenclature System;;;2023;Plymouth Meeting, PA;;;;;;;;;;
+
+CATEGORY 1 RESTRICTIONS APPLY
+
+Contact: Christina Minner;Manager, UMDNS;ECRI;5200 Butler Pike;;Plymouth Meeting;Pennsylvania;United States;19462-1298;;; umdns@ecri.org ;https://www.ecri.org/solutions/umdns;
+
+Read more information about this source
+
+USP_2025_01_30 (updated) - ;;;;USP Compendial Nomenclature;;;January, 2025;;United States Pharmacopeia;January, 2025;;;;;;;;
+
+Contact: Jeffrey Shick; Director Translational Informatics;United States Pharmacopeia;12601 Twinbrook Parkway;;Rockville;MD;US;20852-1790;1-800-227-8772;; HealthcareQuality@usp.org ; http://www.usp.org/health-quality-safety
+
+Read more information about this source
+
+USPMG_2023 - ;;;;USP Medicare Model Guidelines;;;Version 9;;United States Pharmacopeia;September 29, 2023;;;;;;;;
+
+Contact: ;;United States Pharmacopeia;12601 Twinbrook Parkway;;Rockville;MD;US;20852-1790;1-800-227-8772;; ModelGuidelines@usp.org ;https://www.usp.org/health-quality-safety/usp-medicare-model-guidelines;
+
+Read more information about this source
+
+UWDA173 - Jose Mejino, M.D.;;;;University of Washington Digital Anatomist, (UWDA);;;Version 1.7.3;Seattle (WA);University of Washington;March, 2003;;;;;;;;
+
+Contact: Jose Mejino, M.D.;;University of Washington Digital Anatomist Symbolic Knowledge Base, University of Washington Digital Anatomist Information System, Structural Informatics Group;Department of Biological Structure;;Seattle;WA;;98195;;; onard@biostr.washington.edu ;
+
+Read more information about this source
+
+VANDF_2025_01_31 (updated) - ;;;;Veterans Health Administration National Drug File;;;January 31, 2025;Washington, DC;U.S. Department of Veterans Affairs;;;;;;;;;
+
+* NOTE: Now a CATEGORY 0.
+
+Contact: Michael Lincoln, M.D.;;U.S. Department of Veterans Affairs, Veterans Health Administration;;;Washington;DC;United States;;;; michael.lincoln@med.va.gov ; http://www.pbm.va.gov/default.aspx
+
+Read more information about this source
+
+WHO97 - ;;;;WHO Adverse Drug Reaction Terminology (WHOART);;;;Uppsala (Sweden);WHO Collaborating Centre for International Drug Monitoring;1997;;;;;;;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+The Metathesaurus includes translations of WHO97 in:
+
+French (WHOFRE_1997),
+German (WHOGER_1997),
+Portuguese (WHOPOR_1997), and
+Spanish (WHOSPA_1997).
+
+Contact: ;;WHO Collaborating Centre for International Drug Monitoring;Stora Target 3;S-753 20;Uppsala;;Sweden;;;+46-18-656080;;
+
+Read more information about this source
+
+WHOFRE_1997 - ;;;;WHO Adverse Drug Reaction Terminology (WHOART). French Translation.;;;;Uppsala (Sweden);WHO Collaborating Centre for International Drug Monitoring;1997;;;;;;;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+Contact: ;;WHO Collaborating Centre for International Drug Monitoring;Stora Target 3;S-753 20;Uppsala;;Sweden;;;+46-18-656080;;
+
+Read more information about this source
+
+WHOGER_1997 - ;;;;WHO Adverse Drug Reaction Terminology (WHOART). German Translation.;;;;Uppsala (Sweden);WHO Collaborating Centre for International Drug Monitoring;1997;;;;;;;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+Contact: ;;WHO Collaborating Centre for International Drug Monitoring;Stora Target 3;S-753 20;Uppsala;;Sweden;;;+46-18-656080;;
+
+Read more information about this source
+
+WHOPOR_1997 - ;;;;WHO Adverse Drug Reaction Terminology (WHOART). Portuguese Translation.;;;;Uppsala (Sweden);WHO Collaborating Centre for International Drug Monitoring;1997;;;;;;;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+Contact: ;;WHO Collaborating Centre for International Drug Monitoring;Stora Target 3;S-753 20;Uppsala;;Sweden;;;+46-18-656080;;
+
+Read more information about this source
+
+WHOSPA_1997 - ;;;;WHO Adverse Drug Reaction Terminology (WHOART). Spanish Translation.;;;;Uppsala (Sweden);WHO Collaborating Centre for International Drug Monitoring;1997;;;;;;;;
+
+CATEGORY 2 RESTRICTIONS APPLY
+
+Contact: ;;WHO Collaborating Centre for International Drug Monitoring;Stora Target 3;S-753 20;Uppsala;;Sweden;;;+46-18-656080;;
+
+Read more information about this source
+
+
+APPENDIX 2
+SNOMED CT® AFFILIATE LICENSE AGREEMENT
+IMPORTANT NOTICE – PLEASE READ THE FOLLOWING CAREFULLY
+
+This is a License Agreement between (1) The International Health Terminology Standards Development Organisation, (trading as SNOMED International) , a private company limited by guarantee and established under the laws of England (registered number 09915820), with its registered office at One Kingdom Street, Paddington Central, London, W2 6BD (the " Licensor "), and (2) the person or organization to which the International Release of SNOMED CT (whether on its own or as part of a Member's National Release of SNOMED CT) is distributed or otherwise made available (the " Licensee ").
+
+By downloading, accessing or using any part of the International Release of SNOMED CT or a Member's National Release of SNOMED CT, or exercising any rights granted under this License Agreement, the Licensee agrees to be bound by the terms of this License Agreement.
+
+License Fees and other conditions and restrictions apply to the use of the International Release of SNOMED CT in a Non-Member Territory, and to the deployment, distribution and licensing of Licensee Products within a Non-Member Territory. In this regard the Licensee's attention is drawn in particular to clause 7 (License Fees) and clause 9 (Use in Member Territories and Non-Member Territories) .
+
+1. DEFINED TERMS AND INTERPRETATION
+
+1.1 In this License Agreement, terms defined in Appendix A ( Defined Terms ) have the meanings set out in that Appendix.
+
+1.2 In the event of any conflict or inconsistency between the English language version and any other language version of this License Agreement, the English language version shall take precedence.
+
+2. GRANT OF LICENSE
+
+2.1 The Licensor grants the Licensee, subject to the terms of this License Agreement, a perpetual (subject to revocation in accordance with clause 5 ), worldwide, non- exclusive, non-transferable license for the term of this License Agreement to:
+
+2.1.1 use, and permit the Licensee's officers, employees, agents and contractors to use, the International Release;
+
+2.1.2 create Extensions and Derivatives from the International Release and use and modify those Extensions and Derivatives;
+
+2.1.3 incorporate the International Release into Licensee Products, and distribute Licensee Products under a sub-license in accordance with clause 2.1.5 ;
+
+2.1.4 modify the manner of formatting of the copy of the SNOMED CT Core distributed to the Licensee as part of the International Release or as part of a Member's National Release; and
+
+2.1.5 subject to clause 5.8 , grant sub-licenses of the International Release to End Users to the extent necessary for the End Users to use the Licensee Products.
+
+2.2 The Licensee may only use the International Release, and must ensure that its officers, employees, agents and contractors only use the International Release:
+
+2.2.1 for the Licensee's internal business purposes (including the creation by the Licensee of Extensions, Derivatives and other Licensee Products along with the licensing and distribution by the Licensee of the Licensee Products);
+
+2.2.2 in the development and operation of the Licensee's information systems;
+
+2.2.3 for the Licensee's research purposes;
+
+2.2.4 in the Licensee's systems (including browsers and data analysis systems) made available to the general public for accessing and/or retrieving any part of the International Release and/or data encoded using the foregoing, provided that users of those systems are not able to extract any substantial portion of SNOMED CT and provided further that no fee is charged for access to those systems except where access is incidental to the provision of training or consulting services; and/or
+
+2.2.5 to transmit to third parties messages that contain patient information encoded using SNOMED CT, provided that the SNOMED CT Content contained within those messages consists solely of SNOMED CT Identifiers and descriptions of SNOMED CT concepts.
+
+2.3 The Licensee is only permitted under this License Agreement to create Extensions from the International Release and to create Derivatives from the International Release and from those Extensions. The Licensee may only create an Extension or a Derivative from any Member's Extension pursuant to a license agreement with that Member in respect of the Member's National Release.
+
+2.4 The Licensee is not permitted to translate any part of the International Release into any other human language without the prior written consent of the Licensor.
+
+2.5 Each sub-license granted by the Licensee under clause 2.1.5 must:
+
+2.5.1 not grant the End User any greater rights in respect of the International Release than the Licensee itself has under this License Agreement;
+
+2.5.2 not permit the End User to do any act or thing in respect of the International Release that the Licensee is prohibited from doing under this License Agreement;
+
+2.5.3 not permit the End User to sub-license or transfer any of its rights under the sub-license (unless the End User is also an Affiliate, in which case that Affiliate shall be entitled to sub-license further its rights under the sub- license with the Licensee, subject to the same restrictions as apply to sub- licensing the International Release under the Affiliate's license agreement with the Licensor);
+
+2.5.4 terminate automatically upon termination of this License Agreement;
+
+2.5.5 provide that the End User may apply directly to the Licensor upon receiving notice that the sub-license will terminate in accordance with clause 2.5.4,
+
+and that the Licensor may in such circumstances (but shall not be obliged to):
+
+(a) grant the End User a license in respect of the International Release for a limited period in order to enable the End User to continue to use the Licensee Products that are subject to the sub-license during that period; or
+
+(b) give the End User an assurance or undertaking that for a limited period the Licensor will not seek to prevent the End User from using the Licensee Products; and
+
+2.5.6 permit the Licensee to disclose the terms of the sub-license to the Licensor in accordance with clauses 7 and 8 .
+
+2.6 If the Licensee becomes aware of any material error or change or correction needed in the International Release, the Licensee agrees to advise the Licensor promptly of such error, change or correction by following the Licensor's procedures for change notification that the Licensor prescribes by Regulations and notifies to the Licensee from time to time.
+
+2.7 The Licensee shall implement reasonable measures to ensure that the International Release (and any part of it) cannot be accessed or downloaded from the Licensees systems except by authorised users, and shall comply with the security measures that the Licensor prescribes by Regulations and notifies to the Licensee from time to time.
+
+3. EXTENSIONS AND DERIVATIVES
+
+3.1 The Licensee may not create any Standards-Based Extension or any Standards Based Derivative unless it has first been issued with a Namespace Identifier by or on behalf of the Licensor.
+
+3.2 The Licensee may request that the Licensor issue it with a Namespace Identifier, and the Licensor shall not unreasonably refuse to do so taking into account amongst other things quality assurance, governance processes, Standards and Regulations.
+
+3.3 The Licensee shall ensure that all Standards-Based Extensions and Standards Based Derivatives that the Licensee creates under this License Agreement are created in accordance with, and comply with, all applicable Standards (including, without limitation, as to the use of Namespace Identifiers).
+
+3.4 Subject to clauses 3.5 and 3.6 , the Licensee shall own all Intellectual Property Rights in all Extensions and Derivatives that the Licensee creates under this License Agreement. The Licensee may not assign or otherwise transfer those Intellectual Property Rights to any other person unless (i) that person is an Affiliate and, in the case of Standards-Based Extensions or Standards-Based Derivatives, has a Namespace Identifier; and (ii) the transfer is notified in writing to the Licensor within thirty (30) days after the transfer.
+
+3.5 The Licensee shall, if requested by the Licensor, transfer to the Licensor or a Member nominated by the Licensor all of its Intellectual Property Rights in such Standards-Based Extensions (or parts thereof) as the Licensor may specify.
+
+3.6 The parties may agree from time to time that the Licensee shall transfer to the Licensor (or a Member nominated by the Licensor), the Licensee's Intellectual Property Rights in one or more Standards-Based Derivatives.
+
+3.7 Upon the transfer to the Licensor, or to a Member, of the Intellectual Property Rights in one or more Standards-Based Extension (or part thereof) or Standards-Based Derivatives in accordance with clauses 3.5 or 3.6 :
+
+3.7.1 responsibility for the maintenance and distribution of that Extension (or part thereof) or Derivative shall also transfer from the Licensee to the Licensor or the Member (as the case may be); and
+
+3.7.2 the Licensor hereby grants a license back to the Licensee from the Licensor or will procure from the Member a license back to the Licensee (as the case may be) of that Extension (or part thereof) or Derivative, on the same terms as apply to the International Release under clause 2 of this License Agreement, until that Extension (or part thereof) or Derivative becomes part of the International Release or the Member's National Release (as the case may be).
+
+4. MODIFICATIONS TO THE INTERNATIONAL RELEASE
+
+4.1 Subject to clause 2.1.4 , the Licensee may not modify any part of the SNOMED CT Core distributed as part of the International Release or as part of a Member's National Release.
+
+4.2 Subject to any express and specific statement to the contrary in the documentation distributed as part of the International Release, the Licensee may not modify any of the documentation (including Specifications) or software (unless provided in source code form) distributed as part of the International Release.
+
+4.3 The Licensee may, by written notice, request the Licensor to modify the SNOMED CT Core. Upon receipt of such written notice, the Licensor shall consult with the Licensee and shall give due consideration as to whether the proposed modification should be made based on the Licensor's editorial guidelines and policies. Following due consideration of the matter, including consideration of any information presented by the Licensee, the Licensor shall inform the Licensee whether the proposed modification shall be made and if the Licensor agrees that the proposed modification should be made, the Licensor shall give a non-binding indication of when, reasonably and in good faith, it anticipates that the proposed modification will be made. If the Licensee would like the content of the proposed modification to be developed more quickly than the Licensor has indicated, the Licensee may itself undertake or procure the undertaking of the development of the content of the proposed modification (outside of any existing Licensor's support services contract). On receipt of the developed content of the proposed modification, the Licensor will then give due consideration as to whether the developed content meets the Licensor's quality assurance, other governance processes, Standards and Regulations. If the developed content meets the Licensor's quality assurance, other governance processes, Standards and Regulations then the Licensor shall incorporate the modification into the SNOMED CT Core according to its schedule which will give due consideration as to when the proposed modification shall be incorporated into the SNOMED CT Core, taking into account other proposals for the modification of the SNOMED CT Core and the work required to include the proposed modification in the SNOMED CT Core.
+
+5. TERM AND TERMINATION
+
+5.1 This License Agreement shall commence on the date on which it comes into effect in accordance with the notice at the beginning of this License Agreement, and shall continue until terminated in accordance with this clause 5 .
+
+5.2 Either party may terminate this License Agreement if the other party commits a material breach of any of its obligations under this License Agreement (which, in the case of the Licensee, shall include, without limitation, any failure to pay License Fees when due under clause 7 ) in accordance with the following procedure:
+
+5.2.1 the party seeking to terminate the License Agreement (the " Terminating Party ") shall serve an escalation notice (the " Escalation Notice ") on the other party (the " Defaulting Party ") requiring the Defaulting Party to nominate a member of its senior management team to meet with a member of the Terminating Party's senior management team to seek to resolve in good faith the matter giving rise to the service of the escalation notice.
+
+5.2.2 The representatives of the parties identified in accordance with clause 5.2.1 shall meet in good faith to seek to resolve the matter. If they are unable to resolve the matter within 45 days of the date of the Escalation Notice the Terminating Party may serve a formal breach notice (the " Breach Notice ") on the Defaulting Party requiring it to remedy the breach within 90 days.
+
+5.2.3 If the Defaulting Party does not remedy the breach within 90 days of the date of the Breach Notice the Terminating Party may terminate the License Agreement by giving 180 days' written notice to the Defaulting Party (the " Termination Notice ").
+
+5.3 Neither party may terminate this License Agreement except in accordance with this clause 5 .
+
+5.4 The Licensee may terminate this License Agreement by giving up to twelve (12) months' prior written notice to the Licensor.
+
+5.5 Upon termination of this License Agreement in accordance with this clause 5 , all licenses granted under this License Agreement shall automatically and immediately be revoked, except as provided in clause 5.13.
+
+5.6 The Licensee shall, by no later than forty five (45) days after termination of this License Agreement for any reason, remove all copies of the International Release from its computer systems and destroy all copies of electronic, paper copy and other media containing or representing any part of the International Release, except for any copies of the International Release used solely for purposes of the Licensee exercising its rights under clause 5.13. The Licensee shall, if requested by the Licensor, certify in writing to the Licensor that the Licensee has complied with its obligations under this clause 5.6 .
+
+5.7 The Licensee shall, as soon as reasonably practicable following either party giving a Termination Notice for any reason, and in any event by no later than ninety (90) days after such Termination Notice is given, give written notice of such termination to each End User that the Licensee reasonably believes to be a current user of a Licensee Product and to each Member in each Member Territory in which the Licensee has distributed or licensed any Licensee Product.
+
+5.8 The Licensee may not grant any new sub-license under clause 2.1.5 after either party has given notice under clauses 5.2 or 5.4 .
+
+5.9 The Licensor shall be entitled to publicize the termination of this License Agreement to such persons (including Members, other Affiliates of the Licensor and End Users) and in such manner as it sees fit.
+
+5.10 Clauses 5.6, 5.7, 5.8, 5.9, 5.11, 5.12, 5.13, 7, 8 and 10 to 14 inclusive shall survive termination of this License Agreement.
+
+5.11 The Licensee shall, by no later than thirty (30) days after termination of this License Agreement for any reason, submit a statement of account in accordance with clause 7.3 in respect of all periods that have not previously been covered by a statement of account under that clause.
+
+5.12 Any termination of this License Agreement, for any reason, is without prejudice to the accrued liabilities of each party as at the date of termination (including, without limitation, any liability of the Licensee to pay License Fees that has accrued as at the date of termination), or to the Licensee's obligation to pay License Fees arising from the statement of account submitted under clause 5.11 .
+
+5.13 The Licensee may, following termination of this License Agreement, continue to use the most recent version of the International Release as at the date of termination (such version, the Final Permitted Version ), solely for purposes of reading records created prior to the date of termination and encoded using the Final Permitted Version or a prior version of the International Release. The Licensee has no right under this clause 5.13: (a) to create any record encoded using any version of the International Release; (b) to modify any SNOMED CT Content in any record encoded using any version of the International Release; or (c) in respect of any version of the International Release subsequent to the Final Permitted Version.
+
+6. NEW VERSIONS AND CHANGES TO LICENSE TERMS
+
+6.1 The Licensor shall notify the Licensee when each new version of the International Release is made available and there shall be a mechanism for the Licensee to access or obtain copies of the new version of the International Release. The Licensee shall be liable for any reasonable distribution charge, if applicable, established by the Licensor for each copy of the new version of the International Release.
+
+6.2 Within one-hundred and eighty (180) days after the Licensor has notified the Licensee of the release of a new version of the International Release, the Licensee must upgrade the version of the International Release in its own systems and in the Licensee Products to that new version (or alternatively, if a subsequent version of the International Release is or has been released during the 180-day period, to that subsequent version at the Licensee's option).
+
+6.3 The Licensor may vary the terms of this License Agreement by giving written notice to the Licensee. Any such variation shall take effect not less than ninety (90) days after the notice is given, as specified in the notice. If the Licensee does not wish this License Agreement to continue subject to the variation, the Licensee may terminate this License Agreement in accordance with clause 5.4 , and if the Licensee gives notice of such termination before the variation takes effect then the variation shall not apply as between the Licensor and the Licensee.
+
+6.4 The College of American Pathologists, as originator of Intellectual Property Rights in the International Release, shall as a licensee have a specific [exception] to the Licensor's rights in clause 6.3 in specific circumstances and for a specific fixed term period to be agreed with the Licensor, and the terms of such special [ exemption] shall be deemed part of such licensee's Affiliate License Terms. The Licensor will publish the terms of the special exemption with the Articles.
+
+7. LICENSE FEES
+
+7.1 The Licensee shall pay the License Fees to the Licensor in respect of the Licensee's activities in Non-Member Territories. The License Fees shall be payable annually in arrear.
+
+7.2 All License Fees and other amounts payable to the Licensor under this License Agreement are exclusive of value added tax and any other tax of a similar nature, which shall be payable by the Licensee at the prevailing rate in addition to those amounts.
+
+7.3 The Licensee shall, at least once in each calendar year, submit a statement of account to the Licensor in such manner and form as the Licensor may prescribe from time to time, setting out the Licensee's activities in Non-Member Territories since the end of the period covered by the previous statement of account submitted under this clause 7.3 (or, in the case of the first statement of account under this clause 7.3 , since the date on which this License Agreement became effective), and the Licensee's calculation of the License Fees and other amounts payable to the Licensor in respect of that period. Each such statement of account shall include, without limitation, a list of all license agreements in respect of Licensee Products that were in force during the period covered by the statement of account and, in relation to each such license agreement, the dates on which: (a) that license agreement was entered into or otherwise became effective; (b) the Licensee Product was first provided or made available to the licensee under that license agreement; and (c) the International Release (or any part of it) was first made available to the licensee under that license agreement.
+
+7.4 The Licensee shall provide the Licensor with such information as the Licensor may reasonably request for the purpose of verifying any statement of account submitted to the Licensor under clause 7.3 .
+
+7.5 The Licensor shall, following receipt of a statement of account from the Licensee under clause 7.3 , submit an invoice to the Licensee setting out the License Fees and other amounts payable by the Licensee in respect of the period to which the statement of account relates. The Licensee shall pay to the Licensor all amounts set out on each invoice submitted under this clause 7.5 within thirty (30) days of receipt of that invoice. The Licensee shall make payment under this clause 7.5 by wire transfer or by such other means as the Licensor may make available to the Licensee from time to time.
+
+7.6 Interest shall accrue on any outstanding License Fees and other amounts at the rate of the lesser of (a) 500 basis points above the European Inter-Bank Offer Rate (EURIBOR), calculated daily from the date on which payment was due and compounding at the end of each calendar month or (b) the maximum amount allowed under applicable law.
+
+8. PROTECTION OF THE LICENSOR'S INTELLECTUAL PROPERTY
+
+8.1 Nothing in this License Agreement transfers to the Licensee any right, title or interest in or to the Intellectual Property Rights in the International Release or any part of it, or grants the Licensee any license in respect of the International Release or any part of it except as expressly set out in clause 2 .
+
+8.2 The Licensee shall not:
+
+8.2.1 use any trademark or service mark (or any registrations thereof) other than the Licensor's trademarks, in any name that includes the word "SNOMED" or that is confusingly similar to SNOMED CT or any other similar trademark;
+
+8.2.2 apply for any trade mark or service mark (or any registrations thereof) in any name that includes the word "SNOMED", or that is confusingly similar to SNOMED, SNOMED CT or any other similar trade mark;
+
+8.2.3 abbreviate the marks SNOMED or SNOMED CT; or
+
+8.2.4 do anything with respect to the foregoing trade marks that damages or could reasonably be deemed to reflect adversely on the Licensor or such trade marks.
+
+8.3 The Licensee shall:
+
+8.3.1 include the following notice on all media on which the Licensee Products are distributed and on the documentary form of each sub-license granted by the Licensee under clause 2.1.5 :
+
+"This material includes SNOMED Clinical Terms® (SNOMED CT®) which is used by permission of the International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO."
+
+8.3.2 specify in all media on which any Licensee Product is distributed the version and date of the International Release contained in the Licensee Product.
+
+8.4 The Licensee shall be entitled to use the "SNOMED" and "SNOMED CT" trade marks only on the Licensee Products distributed and modified in accordance with this License Agreement and any services relating thereto but not otherwise and subject to the trade mark utilization Regulation developed by the Licensor and published by the Licensor from time to time. All use by the Licensee of the "SNOMED" and "SNOMED CT" trade marks, and all goodwill resulting from that use, shall inure to the Licensor's benefit.
+
+8.5 The Licensee shall maintain quality standards with respect to modifying, supplementing, marketing and distributing the Licensee Products, and any services relating thereto, that are in accordance with applicable law and are at least as stringent as the Regulations developed by the Licensor and published by the Licensor from time to time.
+
+8.6 Upon reasonable written notice from the Licensor, the Licensee shall provide the Licensor with such information, documentation and materials (including software) as are reasonably necessary to enable the Licensor to ascertain the Licensee's compliance with its obligations under this License Agreement. In the absence of circumstances giving the Licensor reasonable grounds to suspect a breach of this License Agreement, the Licensor may not give notice under this clause 8.6 more frequently than once per year.
+
+8.7 If any use of the International Release (including without limitation use through a Licensee Product) is reasonably determined by the Licensor to be below the standards of quality required under this License Agreement, the Licensor shall notify the Licensee of such deficiency in writing. Upon receipt of such notice, the Licensee shall take all necessary steps to correct such deficiency (including such steps as the Licensor may reasonably specify).
+
+8.8 The Licensee shall maintain a complete, accurate and up-to-date register of all sub- licenses granted by the Licensee under clause 2.1.5 , and shall make that register available for inspection during normal business hours by the Licensor and its representatives upon the Licensor giving not less than fourteen (14) days' prior written notice. The register maintained by the Licensee under this clause 8.8 shall at a minimum contain the following information in respect of each sub-license: the name and registered office of the sub-licensee; the Licensee Product subject to the sub-license; and the version of the International Release included in that Licensee Product. This will enable the Licensor to:
+
+(a) verify that the Licensee has complied with this License Agreement when entering into sublicences with End Users; and/or
+
+(b) offer support to End Users on termination of this License Agreement.
+
+In the absence of circumstances giving the Licensor reasonable grounds to suspect a breach of this License Agreement, the Licensor may not give notice under this clause 8.8 more frequently than once per year.
+
+9. USE IN MEMBER TERRITORIES AND NON-MEMBER TERRITORIES
+
+9.1 The Licensee may only exercise its rights under this License Agreement in a Member Territory in accordance with such conditions as the Member for that Member Territory may prescribe from time to time.
+
+9.2 Conditions prescribed by a Member under clause 9.1 may:
+
+9.2.1 include, without limitation, a requirement that the Licensee notify the Member before exercising its rights under this License Agreement in that Member's territory and a requirement that the Licensee enter into a license agreement with the Member in respect of that Member's National Release; and
+
+9.2.2 relate to the International Release, the Member's National Release or any part of either of them.
+
+9.3 The Licensee shall notify the Licensor (and, if the Licensee's registered office or principal place of business is situated in a Member Territory, shall also notify the Member for that Member Territory) in writing before exercising its rights under this License Agreement in any Non-Member Territory in respect of which the Licensee has not previously given notice under this clause 9.3 . The notice shall be in such form and manner as the Licensor may prescribe from time to time, and shall include such information about the Licensee's current and proposed activities in that Non- Member Territory as the Licensor may require (but the Licensor may require only the same kinds of information as it requires to be provided by new Affiliates proposing to use, license or deploy the International Release or Licensee Products in Non-Member Territories).
+
+9.4 In any case where the Licensee gives notice to a Member in accordance with clause 9.3 , the Licensee consents to that Member providing the content of that notice to the Licensor.
+
+9.5 For purposes of this clause 9 , the Licensee exercises its rights under this License Agreement in any Member Territory or Non-Member Territory if, without limitation, it:
+
+9.5.1 performs any act permitted by this License Agreement in that Member Territory or Non-Member Territory (as the case may be);
+
+9.5.2 deploys the International Release (or any part of it) or any Licensee Product in that Member Territory or Non-Member Territory (as the case may be); or
+
+9.5.3 distributes or licenses a Licensee Product for use in, or to any person who is situated in, that Member Territory or Non-Member Territory (as the case may be).
+
+10 AFFILIATE STATUS
+
+10.1 During the term of this License Agreement the Licensee shall be an Affiliate.
+
+11. REPRESENTATIONS AND WARRANTIES
+
+11.1 To the extent permitted by law, the Licensor excludes all representations, warranties and conditions that would otherwise be implied by law in this License Agreement (including, without limitation, all implied warranties of quality or fitness for a particular purpose).
+
+11.2 Without limiting clause 11.1 , the Licensor does not represent or warrant that the International Release or any part of it will satisfy any of the Licensee's requirements, operate in combinations selected by the Licensee or be free from defects or errors.
+
+12. LIMITATION OF LIABILITY
+
+12.1 The Licensor shall not be liable to the Licensee or to any other person, whether in contract, tort (including negligence), misrepresentation, breach of statutory duty or otherwise, for any of the following arising under or in connection with this License Agreement (including, without limitation, in respect of the Licensee's use of or inability to use the International Release or any part of it):
+
+12.1.1 indirect or consequential loss;
+
+12.1.2 special or punitive damages;
+
+12.1.3 loss of profits, loss of savings and loss of revenue;
+
+12.1.4 loss of business, loss of reputation and loss of goodwill; and
+
+12.1.5 loss of data.
+
+12.2 Neither the Licensor nor any Member shall be liable to the Licensee or any other person for any failure by the Licensor or the Member (as the case may be) to maintain or distribute any Extension (or part thereof) or Derivative transferred to the Licensor or the Member (as the case may be) in accordance with clauses 3.4 or 3.5 .
+
+12.3 The liability of the Licensor arising in any year under or in connection with this License Agreement, whether in contract, tort (including negligence), misrepresentation, breach of statutory duty or otherwise, shall not in any event exceed the License Fees paid by the Licensee in respect of that year.
+
+12.4 Nothing in this License Agreement excludes or limits the liability of either party for:
+
+12.4.1 fraud (including fraudulent misrepresentation);
+
+12.4.2 death or personal injury caused by the negligence of that party;
+
+12.4.3 any breach of its obligations implied by section 12 of the Sale of Goods Act 1979; or
+
+12.4.4 any other liability that by law cannot validly be excluded or limited (but only to the extent that the liability cannot validly be excluded or limited).
+
+13. ASSIGNMENT
+
+13.1 The Licensee may not assign, novate or otherwise transfer any of its rights or obligations under this License Agreement to any person without the prior written consent of the Licensor, not to be unreasonably withheld.
+
+13.2 The Licensor may transfer all of its rights and obligations under this License Agreement to any person to whom the Licensor transfers the Intellectual Property Rights in respect of which the licenses under this License Agreement are granted.
+
+14. GENERAL PROVISIONS
+
+14.1 This License Agreement contains the entire agreement between the parties relating to the subject matter of this License Agreement, supersedes all previous agreements between the Parties relating to that subject matter and sets out the entirety of the Licensee's rights in respect of the International Release.
+
+14.2 Each party acknowledges that, in entering into this License Agreement, it has not relied on any representation, warranty, collateral contract or other assurance made by or on behalf of the other party before the date of this License Agreement.
+
+14.3 Except as provided in clause 6.3 , this License Agreement may not be varied except in writing signed by both parties and expressed to vary this License Agreement.
+
+14.4 Nothing in this License Agreement shall give either party the ability to act or incur obligations or liability on behalf of the other party or constitutes a joint venture, agency, partnership or employment relationship between the parties.
+
+14.5 If any term of this License Agreement is or becomes illegal, invalid or unenforceable in any jurisdiction, that shall not affect the legality, validity or enforceability in that jurisdiction of any other term of this License Agreement, or the legality, validity or enforceability in any other jurisdiction of that or any other term of this License Agreement.
+
+14.6 The Licensee agrees that the Licensor may appoint third parties to process personal data provided by the Licensee to the Licensor under or in connection with this License Agreement (including without limitation payment details provided in connection with the payment of License Fees). In connection with any such appointment, personal data provided by the Licensee may be transferred to, and processed in, a country outside the United Kingdom. The laws governing the processing of personal data may be less stringent in such a country than in the United Kingdom and the country in which the Licensee is based.
+
+15. GOVERNING LAW AND JURISDICTION
+
+15.1 This License Agreement shall be governed by, and construed in accordance with, English law.
+
+15.2 The English courts shall have exclusive jurisdiction to settle any dispute arising out of or in connection with this License Agreement (including a dispute regarding its existence, validity or termination).
+
+15.3 Clause 15.2 is for the benefit of the Licensor only. As a result, the Licensor shall not be prevented from taking proceedings relating to any dispute in any other courts with jurisdiction. To the extent permitted by law, the Licensor may take concurrent proceedings in any number of jurisdictions.
+
+
+Appendix A
+
+Defined Terms
+
+In this License Agreement, the following defined terms have the following meanings:
+
+Term	
+Meaning
+
+Affiliate	
+an affiliate of the Licensor in accordance with the Licensors Articles of Association;
+
+Cross-Map	
+a work consisting of (i) SNOMED CT Content and (ii) content of another nomenclature, classification or knowledge structure, together with a set of relationships between (i) and (ii);
+
+Data Processing System	
+a computer system that is used to analyze or create records or other data that is encoded using SNOMED CT;
+
+Derivative	
+a work consisting of
+
+SNOMED CT Content, from the SNOMED CT CORE or an Extension; together with
+either (i) additional properties and/ or information about such SNOMED CT content; and/ or ( ii) any set of relationships between that SNOMED CT Content and content of other nomenclature, classification or knowledge structure, and includes a Cross-Map and a Sub-Set;
+End User	
+a third party user of a Licensee Product;
+
+Extension	
+a work consisting of SNOMED CT Content alone that is supplementary to the SNOMED CT Core and that depends on the SNOMED CT Core;
+
+Hospital	
+a health care body or organisation providing secondary and/ or tertiary care;
+
+Intellectual Property Rights	
+patents, trade marks, service marks, copyright (including rights in computer software), moral rights, database rights, rights in designs, trade secrets, know-how and other intellectual property rights, in each case whether registered or unregistered and including applications for registration, and all rights or forms of protection having equivalent or similar effect in any jurisdiction;
+
+International Release	
+the release produced and distributed by or on behalf of the Licensor, consisting of the SNOMED CT Core, the Specifications and the Licensors Derivatives and other documents and software;
+
+License Fees	
+the license fees set out in Appendix B (License Fees in Non- Member Territories);
+
+Licensee Products	
+products distributed or licensed by the Licensee that (1) include or interoperate with the International Release (or any part of i t) and/ or any Extensions or Derivatives created by the Licensee under this License Agreement, or (2) read or write records or other data that is encoded using SNOMED CT;
+
+Member	
+a member of the Licensor;
+
+Member Territory	
+a territory that is represented by a Member ( as published by the Licensor from time to time);
+
+Namespace Identifier	
+a code or that part of a code that identifies the organization responsible for creating and maintaining a Standards-Based Extension or a Standards-Based Derivative and is used as an element of SNOMED CT Identifiers;
+
+National Release	
+in respect of each Member, the release produced and distributed by the Member, consisting of the International Release, the Members Extensions, the Members Derivatives and other documents and software;
+
+Non- Member Territory	
+a territory that is not a Member Territory;
+
+Practice	
+a single department of a Hospital ( subject to paragraph 2. 2 of Appendix B); order
+any health care body or organisation that provides principally primary care, including without limitation a pharmacy, an opticians facility, a physiotherapy centre, a general medical practice or a family medical practice;
+Qualifying Research Project	
+a discrete research project that meets all of the following criteria:
+
+it is supported by a formal proposal that has been peer reviewed;
+it has been ethically approved in accordance with the prevailing legislation, regulations and guidelines in effect in the relevant territory;
+it is conducted within a definite timeframe;
+the results of the research are offered for publication in peer-reviewed public journals and are provided to the Licensor free of charge prior to publication;
+Regulations	
+regulations made by the Licensor;
+
+Relationship	
+a relationship, of a kind defined by the Licensor in Specifications, between concepts ( which may be, without limitation, a hierarchical or an associative relationship) or between a concept and a description;
+
+SNOMED CT	
+the concept-based work of clinical nomenclature and classification with multiple hierarchies and semantic definitions known as SNOMED Clinical Terms (SNOM ED CT);
+
+SNOMED CT Content	
+terminological content, consisting of concepts, descriptions and Relationships, each of which is identified using a SNOMED CT Identifier;
+
+SNOMED CT Core	
+the SNOMED CT Content that is controlled, maintained and distributed by the Licensor from time to time;
+
+SNOMED CT Identifier	
+a code, of a kind defined by the Licensor in Specifications, for identifying concepts, descriptions and Relationships;
+
+Specification	
+specifications promulgated by the Licensor for products and processing relating to SNOMED CT, including specifications of the internal logic of SNOMED CT, editorial policies, guidelines and characteristics;
+
+Sponsored Territory	
+a Non- Member Territory that has been recognized and designated by the Licensor as a sponsored territory (as published on the Licensors web site, www. snomed. org);
+
+Standard	
+a Specification that is formally adopted by the Licensor and published by the Licensor ( including by posting a copy of the Specification on a website maintained by the Licensor);
+
+Standards- Based	
+in respect of an Extension or a Derivative, an Extension or Derivative the creation of which is the subject of one or more Standards; and
+
+Sub- Set	
+a sub-set of SNOMED CT Content that is grouped together for one or more purposes.
+
+
+Appendix B
+
+License Fees in Non-Member Territories
+
+1. Introduction
+
+1.1 This Appendix B sets out the license fees payable by the Licensee in respect of its activities in Non-Member Territories.
+
+1.2 The license fees set out in this Appendix B do not apply in respect of the Licensee's activities in any Non-Member Territory if that Non-Member Territory is a Sponsored Territory or was a Sponsored Territory at the time when the Licensee's activities in that Non-Member Territory were carried out.
+
+1.3 The Licensor may, in its sole discretion, waive the Licensee's obligation to pay any or all of the license fees set out in this Appendix B if the Licensor considers that the Licensee's activities in any Non-Member Territory are in support of charitable or humanitarian causes in that Non-Member Territory. Any waiver by the Licensor under this paragraph 1.3 may be revoked by the Licensor at any time, shall be without prejudice to any of the Licensor's other rights and remedies under this License Agreement and shall not relieve the Licensee of any of its other obligations under this License Agreement.
+
+1.4 Beginning in 2015, license fees payable by the Licensee in respect of its activities in Non-Member Territories for each financial year shall be adjusted by the same percentage as the General Assembly of the Licensor agrees to adjust the Aggregate Annual Fee (as defined in the Licensor's Articles of Association) relative to the Aggregate Annual Fee in the previous year.
+
+1.5 For purposes of this Appendix B, but subject to paragraph 1.6, if a Hospital or a Practice is located on multiple physical sites, each such site shall be treated as a separate Hospital or Practice (as the case may be), and license fees shall be payable in respect of each such separate Hospital or Practice.
+
+1.6 The Licensor may, in its sole discretion, agree to treat multiple sites on which a Hospital or a Practice is located as a single site for purposes of this Appendix B.
+
+1.7 Notwithstanding anything else in this Appendix B, the deployment, distribution or licensing of any software that operates on a mobile device of any kind (including without limitation a mobile phone or tablet device), or any software or service that is accessed via the internet and enables users to extract or download any substantial portion of SNOMED CT, shall be treated as falling within paragraph 4 of this Appendix B (and not within paragraph 2).
+
+1.8 The Licensee's obligation to pay license fees in respect of any deployment of the International Release or any Licensee Product is not dependent on that deployment of the International Release or Licensee Product being used in a live or production environment.The Licensor may, in its sole discretion, waive the Licensees obligation to pay any or all of the license fees set out in this Appendix B in respect of any deployment of the International Release or Licensee Product in a non-production environment (such as a development or test environment).
+
+1.9 In any case where the Licensee is exempt from the requirement to pay license fees by reason of a Licensee Product or a Data Processing System being used exclusively in connection with a Qualifying Research Project, the Licensee shall report to the Licensor on the progress of that Qualifying Research Project in such manner as the Licensor may reasonably require. The Licensor may revoke the Licensee's exemption for Qualifying Research Projects provided in this Appendix B if the Licensee fails to comply with this paragraph 1.9.
+
+2. Data Processing Systems
+
+2.1 The Licensee shall pay the following fees in respect of each Hospital or Practice in a Non-Member Territory in or to which the Licensee:
+
+(a) deploys the International Release (or any part of it) or any Licensee Product that contains the International Release (or any part of it) in a Data Processing System, unless that Data Processing System is used exclusively in connection with a Qualifying Research Project; or
+
+(b) deploys, distributes or licenses a Licensee Product that is or includes a Data Processing System, unless that Licensee Product is used exclusively in connection with a Qualifying Research Project.
+
+Fee Band	Fee
+Hospital in Band A Territory	US$ 1,954 per annum baseline fee adjusted as per paragraph 1.4
+Hospital in Band B Territory	US$ 1,303 per annum baseline fee adjusted as per paragraph 1.4
+Hospital in Band C Territory	US$ 652 per annum baseline fee adjusted as per paragraph 1.4
+Practice in Band A, B or C Territory	US$ 652 per annum baseline fee adjusted as per paragraph 1.4
+Hospital or Practice in Low Income Band	US $0 per annum baseline fee, adjusted as per paragraph 1.4
+Hospital or Practice in other territory	As per paragraph 5.2.
+
+2.2 The total fees payable by the Licensee in respect of a number of Practices that are departments of a single Hospital shall not exceed the fee applicable to the Hospital itself. For purposes of this Appendix B, a Practice is treated as a department of a Hospital only if: (a) it is located on the premises of that Hospital; and (b) it is funded solely by that Hospital. In any case where either or both of the conditions in the preceding sentence are not met in respect of any Practice, fees shall be payable in respect of that Practice in addition to any fees that are payable in respect of any Hospital.
+
+3. [Not Used]
+
+4. Other Activities
+
+4.1 The Licensee shall notify the Licensor in writing before deploying the International Release (or any part of it) or deploying, distributing or licensing any Licensee Product (in each case, other than exclusively in connection with Qualifying Research Projects) in, for use in, or to any person situated in, any Non-Member Territory in a manner that does not fall within paragraph 2 of this Appendix B, explaining the Licensee's proposed activities.
+
+4.2 Upon receiving notice from the Licensee under this paragraph 4, the Licensor may request, and the Licensee shall provide, such additional information in relation to the Licensee's proposed activities as the Licensor considers reasonably necessary to determine an appropriate license and reasonable fee in respect of the Licensee's proposed activities.
+
+4.3 The Licensee shall be liable to pay such license fees as the Licensor may determine in accordance with this paragraph 4.
+
+5. Non-Member Territory Bandings
+
+5.1 The allocation of a Non-Member Territory into Band A, Band B, Band C, or Low Income Band shall be as determined by the Licensor (based on the Non-Member Territory's relative Gross National Income (GNI) or other measure adopted by the Licensor) and published by the Licensor on its web site.
+
+5.2 The Licensee shall notify the Licensor in writing before carrying out any activity of a kind described in paragraph 2 of this Appendix B in a Non-Member Territory that has not been allocated by the Licensor under paragraph 5.1. Upon receiving notice from the Licensee under this paragraph 5.2, the Licensor shall allocate the Non-Member Territory as described in paragraph 5.1.
+
+Accept and Continue
+Connect with NLM
+
+TwitterFacebookYou Tube
+National Library of Medicine
+8600 Rockville Pike
+Bethesda, MD 20894
+
+HHS Vulnerability Disclosure
+Web Policies
+FOIA
+
+NLM Support Center
+Accessibility
+Careers
+
+NLM | NIH | HHS | USA.gov
