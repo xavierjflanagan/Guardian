@@ -554,34 +554,55 @@ CREATE INDEX idx_pass15_patient ON pass15_code_candidates(patient_id);
 - [X] Update current_schema/*.sql files (03_clinical_core.sql, 04_ai_processing.sql)
 - [X] Verify pgvector extension installed and indexes created (v0.8.0, IVFFlat indexes active)
 
-### Phase 2: Data Acquisition
-- [ ] Download RxNorm data from NIH
-- [ ] Download SNOMED-CT data (requires membership)
-- [ ] Download LOINC data from Regenstrief Institute
-- [ ] Download PBS data from Australian Government
-- [ ] Download MBS data from Australian Government
-- [ ] Acquire ICD-10-AM license and data
+### Phase 2: Data Acquisition ⏳ IN PROGRESS (2025-10-15)
+- [X] Create data acquisition guide (DATA-ACQUISITION-GUIDE.md)
+- [X] Create directory structure (data/medical-codes/{system}/raw + processed)
+- [X] USER: Register for UMLS account (awaiting approval, 1-2 business days)
+- [ ] USER: Download RxNorm data from NIH (after UMLS approval)
+- [ ] USER: Download SNOMED-CT data (after UMLS approval)
+- [ ] USER: Download LOINC data (after UMLS approval)
+- [X] USER: Download PBS data from Australian Government (32 CSV files, 7.6 MB items.csv)
+- [X] USER: Save PBS CSV files to data/medical-codes/pbs/raw/
+- [X] USER: Download MBS data from Australian Government (XML format, Nov 2025 update)
+- [X] USER: Save MBS XML to data/medical-codes/mbs/raw/
+- [ ] USER: (Optional) Research IHACPA ICD-10-AM license (~$100 AUD)
+
+**STATUS UPDATE (2025-10-15 EOD):**
+- PBS and MBS data acquired and organized ✅
+- UMLS account registration submitted, awaiting approval ⏳
+- Ready to begin PBS/MBS parser implementation while waiting for UMLS
 
 ### Phase 3: Data Preparation
-- [ ] Parse RxNorm into standardized format
-- [ ] Parse SNOMED-CT into standardized format
-- [ ] Parse LOINC into standardized format
-- [ ] Parse PBS into standardized format
-- [ ] Parse MBS into standardized format
-- [ ] Parse ICD-10-AM into standardized format
-- [ ] Generate search text with synonyms and brand names
-- [ ] Assign entity types to each code
+- [X] Design parsing strategy (PARSING-STRATEGY.md)
+- [ ] Implement RxNorm parser (parse-rxnorm.ts)
+- [ ] Implement SNOMED-CT parser (parse-snomed.ts)
+- [ ] Implement LOINC parser (parse-loinc.ts)
+- [ ] Implement PBS parser (parse-pbs.ts)
+- [ ] Implement MBS parser (parse-mbs.ts)
+- [ ] Implement ICD-10-AM parser (parse-icd10am.ts)
+- [ ] Parse all code systems to standardized JSON
+- [ ] Validate parsed output (record counts, schema compliance)
 
 ### Phase 4: Embedding Generation
+- [X] Create embedding generation script (generate-embeddings.ts)
+- [X] Create embedding generation guide (EMBEDDING-GENERATION-GUIDE.md)
 - [ ] Set up OpenAI API key in environment
-- [ ] Create batch embedding generation script
-- [ ] Generate embeddings for universal codes (200,000)
-- [ ] Generate embeddings for regional codes (28,000)
-- [ ] Insert into database with library_version='v1.0'
-- [ ] Verify pgvector indexes created
-- [ ] Run validation tests on embeddings
+- [ ] Generate embeddings for universal codes (200,000 codes, ~$0.20)
+- [ ] Generate embeddings for regional codes (28,000 codes, ~$0.03)
+- [ ] Validate embedding dimensions (1536)
+- [ ] Verify all codes have embeddings
 
-### Phase 5: Worker Implementation
+### Phase 5: Database Population
+- [X] Create database population script (populate-database.ts)
+- [X] Create database population guide (DATABASE-POPULATION-GUIDE.md)
+- [ ] Set up Supabase environment variables
+- [ ] Run dry run test (--dry-run flag)
+- [ ] Populate universal_medical_codes table
+- [ ] Populate regional_medical_codes table
+- [ ] Verify pgvector indexes active
+- [ ] Run validation queries (record counts, embeddings)
+
+### Phase 6: Worker Implementation
 - [ ] Create apps/render-worker/src/pass15/ directory
 - [ ] Implement getEmbeddingText() function (Smart Entity-Type Strategy)
 - [ ] Implement generateEmbedding() function (OpenAI API)
@@ -591,14 +612,14 @@ CREATE INDEX idx_pass15_patient ON pass15_code_candidates(patient_id);
 - [ ] Implement error handling and fallbacks
 - [ ] Add logging and monitoring
 
-### Phase 6: Pass 2 Integration
+### Phase 7: Pass 2 Integration
 - [ ] Update Pass 2 worker to import Pass 1.5 module
 - [ ] Implement batch preparation pattern (Step B)
 - [ ] Update Pass 2 AI prompts to include code candidates
 - [ ] Implement code_resolution_log writes (Step D)
 - [ ] Test end-to-end flow (Pass 1 → 1.5 → Pass 2)
 
-### Phase 7: Validation and Testing
+### Phase 8: Validation and Testing
 - [ ] Create validation test suite
 - [ ] Test embedding quality (expected code matches)
 - [ ] Test vector search performance (<100ms p95)
@@ -606,7 +627,7 @@ CREATE INDEX idx_pass15_patient ON pass15_code_candidates(patient_id);
 - [ ] Test caching effectiveness (>70% hit rate)
 - [ ] Test error handling and fallbacks
 
-### Phase 8: Deployment
+### Phase 9: Deployment
 - [ ] Deploy database migrations to production
 - [ ] Populate medical code libraries (run embedding script)
 - [ ] Deploy updated Pass 2 worker to Render.com
