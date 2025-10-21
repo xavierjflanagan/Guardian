@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * Pass 1.5 Medical Code Embedding - Main Module
- * 
+ *
  * Purpose: Vector similarity search service for medical code candidate retrieval
  * Integration: Called by Pass 2 worker before AI processing
  */

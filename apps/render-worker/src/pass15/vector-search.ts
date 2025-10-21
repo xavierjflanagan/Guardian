@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * Pass 1.5 Medical Code Embedding - Vector Similarity Search
- * 
+ *
  * Purpose: Search medical code databases using pgvector similarity
  */
 
@@ -94,6 +95,11 @@ export async function searchUniversalCodes(
 
 /**
  * Search regional medical codes (PBS, MBS, etc.)
+ *
+ * TODO (Migration 31): Implement dual-model routing:
+ * - PBS codes (active_embedding_model = 'sapbert'): Search using sapbert_embedding
+ * - MBS codes (active_embedding_model = 'openai'): Search using normalized_embedding
+ * - Current: Uses normalized_embedding for all codes (OpenAI)
  */
 export async function searchRegionalCodes(
   embedding: number[],

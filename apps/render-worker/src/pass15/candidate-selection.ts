@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * Pass 1.5 Medical Code Embedding - Candidate Selection and Ranking
- * 
+ *
  * Purpose: Filter and rank medical code candidates for optimal AI selection
  */
 

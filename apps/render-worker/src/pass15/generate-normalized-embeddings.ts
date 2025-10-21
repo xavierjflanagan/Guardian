@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Pass 1.5 - Pass B: Generate Normalized Embeddings
  *

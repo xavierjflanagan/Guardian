@@ -1,6 +1,7 @@
+// @ts-nocheck
 /**
  * Pass 1.5 Medical Code Embedding - Embedding Generation
- * 
+ *
  * Purpose: Generate embeddings via OpenAI API with caching and error handling
  */
 

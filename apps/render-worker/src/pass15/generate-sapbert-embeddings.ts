@@ -4,13 +4,18 @@
  * Uses HuggingFace Inference API to generate medical-specific embeddings
  * for all regional medical codes.
  *
- * SapBERT provides 23.9 points better differentiation vs OpenAI for medications.
+ * Based on Experiment 2 findings:
+ * - SapBERT provides 17.3pp better differentiation vs OpenAI for medications
+ * - Normalized text strategy outperforms ingredient-only by 5.4pp
  *
  * Strategy:
- * - Extract ingredient-only from display names (proven 8.6% improvement)
- * - Use HuggingFace API (free tier, ~1000 requests/hour)
- * - Store in new column: sapbert_ingredient_embedding
+ * - Use normalized_embedding_text column (includes dosage + form context)
+ * - SapBERT model: cambridgeltl/SapBERT-from-PubMedBERT-fulltext
+ * - HuggingFace API (free tier, ~1000 requests/hour)
+ * - Store in column: sapbert_embedding (768 dimensions)
  * - Resume-safe: skips codes that already have SapBERT embeddings
+ *
+ * Reference: pass1.5-testing/experiment-2/COMPREHENSIVE_ANALYSIS.md
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -66,6 +71,9 @@ interface MedicalCode {
   display_name: string;
   normalized_embedding_text: string;
   entity_type: string;
+  sapbert_embedding?: number[];  // Migration 31: SapBERT vector (768d)
+  sapbert_embedding_generated_at?: string;  // Migration 31: Generation timestamp
+  active_embedding_model?: string;  // Migration 31: 'openai' | 'sapbert'
 }
 
 interface Stats {
@@ -77,34 +85,6 @@ interface Stats {
   startTime: number;
   apiCalls: number;
   rateLimitHits: number;
-}
-
-/**
- * Extract ingredient-only from display name
- * (Same logic as proven in test-ingredient-only-embeddings.ts)
- */
-function extractIngredient(displayName: string): string {
-  let ingredient = displayName;
-
-  // Remove dose patterns
-  ingredient = ingredient.replace(/\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|micrograms?|milligrams?)(?:\s*-\s*\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|micrograms?|milligrams?))?/gi, '');
-
-  // Remove form patterns
-  ingredient = ingredient.replace(/\b(tablet|capsule|injection|syrup|cream|ointment|oral liquid|suppository|pessary|powder|solution|suspension)\b/gi, '');
-
-  // Remove "containing", "with", etc.
-  ingredient = ingredient.replace(/\b(containing|with)\b/gi, '');
-
-  // Remove salt forms
-  ingredient = ingredient.replace(/\(as [^)]+\)/gi, '');
-
-  // Remove brand names in parentheses
-  ingredient = ingredient.replace(/\([^)]+\)/g, '');
-
-  // Clean up
-  ingredient = ingredient.replace(/\s+/g, ' ').trim().toLowerCase();
-
-  return ingredient;
 }
 
 /**
@@ -164,7 +144,7 @@ async function generateSapBERTEmbedding(
       return null;
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     // HuggingFace returns array of embeddings
     if (Array.isArray(data) && data.length > 0) {
@@ -202,10 +182,11 @@ async function fetchCodesToEmbed(limit?: number): Promise<MedicalCode[]> {
     let query = supabase
       .from('regional_medical_codes')
       .select('id, code_system, code_value, display_name, normalized_embedding_text, entity_type')
+      .eq('code_system', 'pbs')                      // PBS medications only (Migration 31: SapBERT for medications)
+      .eq('country_code', 'AUS')                     // Australian PBS codes
       .not('normalized_embedding_text', 'is', null)  // Must have normalized text
       .neq('normalized_embedding_text', '')          // Skip empty strings
-      .is('sapbert_ingredient_embedding', null)      // But no SapBERT embedding yet
-      .order('code_system', { ascending: true })
+      .is('sapbert_embedding', null)                 // But no SapBERT embedding yet (Migration 31 column)
       .order('code_value', { ascending: true })
       .range(from, to);
 
@@ -266,10 +247,7 @@ async function processCodes(codes: MedicalCode[], stats: Stats): Promise<void> {
       stats.skipped += (batch.length - validBatch.length);
     }
 
-    // Extract ingredients for each code
-    const ingredients = validBatch.map(code => extractIngredient(code.display_name));
-
-    console.log(`Generating SapBERT embeddings for ${validBatch.length} ingredients...`);
+    console.log(`Generating SapBERT embeddings for ${validBatch.length} codes (normalized text strategy)...`);
 
     // Generate embeddings one by one (HuggingFace API doesn't support batching well)
     let batchSucceeded = 0;
@@ -277,13 +255,15 @@ async function processCodes(codes: MedicalCode[], stats: Stats): Promise<void> {
 
     for (let j = 0; j < validBatch.length; j++) {
       const code = validBatch[j];
-      const ingredient = ingredients[j];
 
-      if (!ingredient || ingredient.trim().length === 0) {
-        console.log(`⚠️ Empty ingredient for ${code.code_value}, using display name`);
+      // Use normalized_embedding_text (Experiment 2: 5.4pp better than ingredient-only)
+      const textToEmbed = code.normalized_embedding_text;
+
+      if (!textToEmbed || textToEmbed.trim().length === 0) {
+        console.log(`⚠️ Empty normalized text for ${code.code_value}, skipping`);
+        stats.skipped++;
+        continue;
       }
-
-      const textToEmbed = ingredient || code.display_name.toLowerCase();
 
       // Generate embedding
       const embedding = await generateSapBERTEmbedding(textToEmbed, stats);
@@ -306,10 +286,13 @@ async function processCodes(codes: MedicalCode[], stats: Stats): Promise<void> {
       // Convert to PostgreSQL vector format
       const vectorString = `[${embedding.join(',')}]`;
 
-      // Update database
+      // Update database (Migration 31: sapbert_embedding + timestamp)
       const { error } = await supabase
         .from('regional_medical_codes')
-        .update({ sapbert_ingredient_embedding: vectorString })
+        .update({
+          sapbert_embedding: vectorString,
+          sapbert_embedding_generated_at: new Date().toISOString()
+        })
         .eq('id', code.id);
 
       if (error) {
@@ -378,7 +361,8 @@ async function main() {
   console.log('='.repeat(80));
   console.log('Model: cambridgeltl/SapBERT-from-PubMedBERT-fulltext');
   console.log('Dimensions: 768');
-  console.log('Strategy: Ingredient-only embeddings (proven 8.6% + 23.9% improvement)');
+  console.log('Strategy: Normalized text (Experiment 2: 17.3pp better than OpenAI for medications)');
+  console.log('Source: normalized_embedding_text column');
   console.log('='.repeat(80));
   console.log('');
 

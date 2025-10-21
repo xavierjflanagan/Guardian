@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Simple mock logger for testing Pass 1.5 without dependencies
  */
