@@ -1,10 +1,14 @@
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcode the env vars to avoid loading issues
-const OPENAI_API_KEY = 'OPENAI_API_KEY_REMOVED';
-const SUPABASE_URL = 'https://napoydbbuvbpyciwjdci.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = 'SUPABASE_SERVICE_ROLE_KEY_REMOVED';
+// Load from environment instead of hardcoding secrets
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing required env vars: OPENAI_API_KEY, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+}
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

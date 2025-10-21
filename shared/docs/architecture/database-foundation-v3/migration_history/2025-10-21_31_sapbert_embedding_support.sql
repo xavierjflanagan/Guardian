@@ -23,6 +23,10 @@
 --   - Procedures (MBS): Continue using OpenAI embeddings (1536 dimensions)
 --   - Enables: Easy rollback, A/B testing, API failure fallback
 --
+-- IMPORTANT: CREATE INDEX CONCURRENTLY cannot run inside a transaction block.
+--            If your migration runner wraps DDL in transactions, split the index
+--            creation into a separate migration or run manually.
+--
 -- SOURCE OF TRUTH SCHEMA UPDATED:
 --   [ ] current_schema/03_clinical_core.sql (Line 1346-1350: Add SapBERT columns)
 --
@@ -32,14 +36,20 @@
 -- ============================================================================
 
 -- ============================================================================
+-- STEP 0: Ensure pgvector extension exists
+-- ============================================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- ============================================================================
 -- STEP 1: Add SapBERT embedding column to regional_medical_codes
 -- ============================================================================
 
 -- SapBERT uses 768 dimensions (vs OpenAI 1536)
-ALTER TABLE regional_medical_codes
+ALTER TABLE public.regional_medical_codes
 ADD COLUMN IF NOT EXISTS sapbert_embedding VECTOR(768);
 
-COMMENT ON COLUMN regional_medical_codes.sapbert_embedding IS
+COMMENT ON COLUMN public.regional_medical_codes.sapbert_embedding IS
 'SapBERT embeddings (768d) for medical entity linking. Used for PBS medications based on Experiment 2 showing 17.3pp better differentiation than OpenAI. Model: cambridgeltl/SapBERT-from-PubMedBERT-fulltext';
 
 -- ============================================================================
@@ -47,14 +57,14 @@ COMMENT ON COLUMN regional_medical_codes.sapbert_embedding IS
 -- ============================================================================
 
 -- Track when SapBERT embeddings were generated
-ALTER TABLE regional_medical_codes
+ALTER TABLE public.regional_medical_codes
 ADD COLUMN IF NOT EXISTS sapbert_embedding_generated_at TIMESTAMPTZ;
 
-COMMENT ON COLUMN regional_medical_codes.sapbert_embedding_generated_at IS
+COMMENT ON COLUMN public.regional_medical_codes.sapbert_embedding_generated_at IS
 'Timestamp of SapBERT embedding generation for cache invalidation and regeneration tracking';
 
 -- Track which embedding model is active for each code (routing logic)
-ALTER TABLE regional_medical_codes
+ALTER TABLE public.regional_medical_codes
 ADD COLUMN IF NOT EXISTS active_embedding_model VARCHAR(20) DEFAULT 'openai';
 
 -- Add check constraint for active_embedding_model
@@ -64,13 +74,13 @@ BEGIN
     SELECT 1 FROM pg_constraint
     WHERE conname = 'regional_medical_codes_active_embedding_model_check'
   ) THEN
-    ALTER TABLE regional_medical_codes
+    ALTER TABLE public.regional_medical_codes
     ADD CONSTRAINT regional_medical_codes_active_embedding_model_check
     CHECK (active_embedding_model IN ('openai', 'sapbert'));
   END IF;
 END $$;
 
-COMMENT ON COLUMN regional_medical_codes.active_embedding_model IS
+COMMENT ON COLUMN public.regional_medical_codes.active_embedding_model IS
 'Active embedding model for search routing: openai (procedures/default) or sapbert (medications). Enables dual-model strategy and easy rollback.';
 
 -- ============================================================================
@@ -78,30 +88,33 @@ COMMENT ON COLUMN regional_medical_codes.active_embedding_model IS
 -- ============================================================================
 
 -- Index only PBS medications to optimize for SapBERT search performance
--- Uses IVFFlat for vector cosine similarity (same as existing indexes)
-CREATE INDEX IF NOT EXISTS idx_regional_medical_codes_sapbert_embedding_pbs
-ON regional_medical_codes
+-- Uses IVFFlat for vector cosine similarity with 100 lists for recall/speed balance
+-- CONCURRENTLY avoids write locks (cannot run in transaction; may need separate execution)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_regional_medical_codes_sapbert_embedding_pbs
+ON public.regional_medical_codes
 USING ivfflat (sapbert_embedding vector_cosine_ops)
+WITH (lists = 100)
 WHERE code_system = 'pbs' AND country_code = 'AUS';
 
 COMMENT ON INDEX idx_regional_medical_codes_sapbert_embedding_pbs IS
-'IVFFlat index for SapBERT vector search on PBS medications only (14K codes). Optimizes Pass 1.5 medication matching with 768-dimensional embeddings.';
+'IVFFlat index for SapBERT vector search on PBS medications only (~14K AUS codes). Optimizes Pass 1.5 medication matching with 768-dimensional embeddings. Tuned with 100 lists for recall/speed balance.';
 
 -- ============================================================================
 -- STEP 4: Set active_embedding_model for PBS medications
 -- ============================================================================
 
--- Mark all PBS medications to use SapBERT embeddings
--- Procedures (MBS) remain on OpenAI (default)
-UPDATE regional_medical_codes
+-- Mark Australian PBS medications to use SapBERT embeddings
+-- Procedures (MBS) and non-AUS codes remain on OpenAI (default)
+-- Aligned with index predicate for consistency
+UPDATE public.regional_medical_codes
 SET active_embedding_model = 'sapbert'
-WHERE code_system = 'pbs';
+WHERE code_system = 'pbs' AND country_code = 'AUS';
 
 -- ============================================================================
 -- STEP 5: Create performance tracking table
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS embedding_performance_metrics (
+CREATE TABLE IF NOT EXISTS public.embedding_performance_metrics (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Model identification
@@ -117,11 +130,11 @@ CREATE TABLE IF NOT EXISTS embedding_performance_metrics (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-COMMENT ON TABLE embedding_performance_metrics IS
+COMMENT ON TABLE public.embedding_performance_metrics IS
 'Performance tracking for embedding generation across different models and code systems. Used for optimization, capacity planning, and cost analysis.';
 
 -- Enable RLS for security
-ALTER TABLE embedding_performance_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.embedding_performance_metrics ENABLE ROW LEVEL SECURITY;
 
 -- Service role only policy (metrics are internal system data)
 DO $$
@@ -132,7 +145,7 @@ BEGIN
     AND policyname = 'Service role full access'
   ) THEN
     CREATE POLICY "Service role full access"
-    ON embedding_performance_metrics
+    ON public.embedding_performance_metrics
     FOR ALL
     TO service_role
     USING (true)
@@ -164,17 +177,17 @@ SELECT
   COUNT(sapbert_embedding) as sapbert_count,
   COUNT(embedding) as openai_count,
   COUNT(normalized_embedding) as normalized_count
-FROM regional_medical_codes
+FROM public.regional_medical_codes
 WHERE country_code = 'AUS'
 GROUP BY code_system, active_embedding_model
 ORDER BY code_system;
 
--- Expected output:
+-- Expected output structure:
 -- code_system | active_embedding_model | count | sapbert_count | openai_count | normalized_count
--- mbs         | openai                 | 6001  | 0             | 6001         | 6001
--- pbs         | sapbert                | 14382 | 0             | 14382        | 14382
+-- mbs         | openai                 | ~6K   | 0             | ~6K          | ~6K
+-- pbs         | sapbert                | ~14K  | 0             | ~14K         | ~14K
 --
--- Note: sapbert_count will be 0 until batch processing runs
+-- Note: sapbert_count will be 0 until batch processing runs. Actual counts may vary.
 
 -- Verify performance metrics table
 SELECT COUNT(*) as table_exists
@@ -187,20 +200,20 @@ WHERE table_name = 'embedding_performance_metrics';
 
 /*
 -- Rollback Step 1: Remove SapBERT columns
-ALTER TABLE regional_medical_codes
+ALTER TABLE public.regional_medical_codes
 DROP COLUMN IF EXISTS sapbert_embedding CASCADE;
 
-ALTER TABLE regional_medical_codes
+ALTER TABLE public.regional_medical_codes
 DROP COLUMN IF EXISTS sapbert_embedding_generated_at CASCADE;
 
-ALTER TABLE regional_medical_codes
+ALTER TABLE public.regional_medical_codes
 DROP COLUMN IF EXISTS active_embedding_model CASCADE;
 
--- Rollback Step 2: Drop index
-DROP INDEX IF EXISTS idx_regional_medical_codes_sapbert_embedding_pbs;
+-- Rollback Step 2: Drop index (use CONCURRENTLY to avoid locks)
+DROP INDEX CONCURRENTLY IF EXISTS public.idx_regional_medical_codes_sapbert_embedding_pbs;
 
 -- Rollback Step 3: Drop performance metrics table
-DROP TABLE IF EXISTS embedding_performance_metrics CASCADE;
+DROP TABLE IF EXISTS public.embedding_performance_metrics CASCADE;
 */
 
 -- ============================================================================
@@ -209,7 +222,15 @@ DROP TABLE IF EXISTS embedding_performance_metrics CASCADE;
 
 -- 1. Execute batch processing script to generate SapBERT embeddings:
 --    npx tsx apps/render-worker/src/pass15/batch-generate-sapbert-embeddings.ts
---    Expected duration: ~72 seconds for 14,382 PBS medications
+--
+--    Expected duration (HuggingFace Inference API):
+--      - 14,382 PBS medications
+--      - Batch size: 100 medications per batch
+--      - ~500ms per batch (API latency)
+--      - Total batches: 144
+--      - Estimated time: 5-10 minutes
+--      - Note: Includes retry logic and progress tracking
+--      - Script is crash-safe and resumable
 --
 -- 2. Deploy updated worker code:
 --    - pass15-embedding-service.ts (SapBERT integration)
@@ -218,6 +239,6 @@ DROP TABLE IF EXISTS embedding_performance_metrics CASCADE;
 -- 3. Update search_regional_codes RPC function for model-aware routing
 --
 -- 4. Monitor performance metrics:
---    SELECT * FROM embedding_performance_metrics ORDER BY created_at DESC;
+--    SELECT * FROM public.embedding_performance_metrics ORDER BY created_at DESC;
 --
 -- 5. Validate search quality improvement (target: +9.1% better differentiation)
