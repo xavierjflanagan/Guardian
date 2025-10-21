@@ -92,6 +92,25 @@
       "guidance": "Extract from vector search candidate selection. Must be from verified code database."
     },
 
+    "universal_grouping_code": {
+      "type": "string",
+      "max_length": 50,
+      "description": "Optional grouping identifier for universal codes",
+      "required": false,
+      "examples": [
+        "73211009",
+        "HBA1C",
+        "N02BE01"
+      ],
+      "usage_patterns": {
+        "conditions": "SNOMED parent concepts (e.g., '73211009' = Diabetes mellitus parent for '44054006' = Type 2 diabetes)",
+        "lab_tests": "LOINC categories (e.g., 'HBA1C' = Glycated hemoglobin group for '33747-0' = Hemoglobin A1c)",
+        "medications": "Drug classes or ingredient groupings (e.g., 'N02BE01' = Analgesics for specific medications)",
+        "null_when": "No hierarchical relationship exists or grouping not beneficial"
+      },
+      "guidance": "Two-tier system: Store both granular code + optional grouping. NULL when hierarchical organization not needed."
+    },
+
     "universal_display": {
       "type": "text",
       "description": "Human-readable description of the universal code",
@@ -146,9 +165,29 @@
       "examples": [
         "8254K",
         "23",
-        "COVID-19-PFIZER"
+        "COVID-19-PFIZER",
+        "10001J_14023_31078_31081_31083"
       ],
       "guidance": "Extract from vector search candidate selection. Regional codes provide local healthcare system context."
+    },
+
+    "regional_grouping_code": {
+      "type": "string",
+      "max_length": 50,
+      "description": "Optional grouping identifier for regional codes",
+      "required": false,
+      "examples": [
+        "10001J",
+        "Category 5",
+        "23"
+      ],
+      "usage_patterns": {
+        "medications_pbs": "PBS codes for brand grouping (e.g., '10001J' groups brand variants like '10001J_14023_31078_31081_31083')",
+        "procedures_mbs": "MBS categories (e.g., 'Category 5' = Diagnostic imaging for specific procedures)",
+        "conditions_icd": "ICD chapter codes for diagnosis grouping",
+        "null_when": "No regional grouping system exists or grouping not applicable"
+      },
+      "guidance": "Two-tier system: Enables brand preservation in medications while supporting optional deduplication via grouping."
     },
 
     "regional_display": {
@@ -320,8 +359,9 @@
         "universal_display": "Lisinopril 10 MG Oral Tablet",
         "universal_confidence": 0.95,
         "regional_code_system": "PBS",
-        "regional_code": "8254K",
-        "regional_display": "Lisinopril tablets 10 mg",
+        "regional_code": "10001J_14023_31078_31081_31083",
+        "regional_grouping_code": "10001J",
+        "regional_display": "Rifaximin Tablet 550 mg (Xifaxan brand)",
         "regional_confidence": 0.90,
         "regional_country_code": "AUS",
         "assigned_by_system": "vector_ai",
@@ -410,12 +450,51 @@
         "assignment_confidence": 0.75,
         "clinical_context": "Multiple formulation options available, selected based on document context"
       }
+    },
+    {
+      "description": "Two-tier system: PBS medication with brand preservation and grouping",
+      "extraction": {
+        "entity_table": "patient_medications",
+        "entity_id": "uuid-of-medication-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "RxNorm",
+        "universal_code": "1596450",
+        "universal_display": "Rifaximin 550 MG Oral Tablet",
+        "universal_confidence": 0.94,
+        "regional_code_system": "PBS",
+        "regional_code": "10001J_14023_31078_31081_31083",
+        "regional_grouping_code": "10001J",
+        "regional_display": "Rifaximin Tablet 550 mg (Xifaxan brand)",
+        "regional_confidence": 0.92,
+        "regional_country_code": "AUS",
+        "assigned_by_system": "vector_ai",
+        "requires_review": false,
+        "assignment_confidence": 0.93,
+        "clinical_context": "Brand-specific assignment preserves exact medication variant while enabling optional grouping"
+      }
+    },
+    {
+      "description": "Two-tier system: Condition with SNOMED hierarchy",
+      "extraction": {
+        "entity_table": "patient_conditions",
+        "entity_id": "uuid-of-condition-record",
+        "patient_id": "uuid-from-context",
+        "universal_code_system": "SNOMED",
+        "universal_code": "44054006",
+        "universal_grouping_code": "73211009",
+        "universal_display": "Type 2 diabetes mellitus",
+        "universal_confidence": 0.96,
+        "assigned_by_system": "vector_ai",
+        "requires_review": false,
+        "clinical_context": "Hierarchical coding: specific condition with parent concept for family history tracking"
+      }
     }
   ],
 
   "extraction_guidelines": {
     "vector_search_process": "AI receives 10-20 pre-verified candidate codes from pgvector similarity search. AI selects most appropriate code FROM THIS LIMITED LIST ONLY - never generates codes freely.",
     "parallel_assignment": "Universal and regional codes are assigned in parallel (not hierarchical). Both can exist, or only one, or neither (fallback).",
+    "two_tier_system": "Each code type (universal/regional) supports optional grouping_code for hierarchical organization. Store both granular + grouping identifiers when beneficial.",
     "confidence_thresholds": "≥0.80 auto-accept, 0.60-0.79 needs review, <0.60 use fallback. This ensures safe code assignments.",
     "fallback_strategy": "When confidence < 0.60 or no suitable candidates, use fallback_identifier. This enables conservative deduplication.",
     "entity_generic_design": "One table supports 9 entity types. UNIQUE constraint ensures one code assignment per entity.",

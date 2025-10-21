@@ -1,0 +1,328 @@
+{
+  "medications": [
+    {
+      "entity_name": "Amoxicillin",
+      "code_system": "pbs",
+      "code_value": "11947T_8485_152_1529_57087",
+      "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+      "entity_type": "medication",
+      "group": "Penicillins"
+    },
+    {
+      "entity_name": "Flucloxacillin",
+      "code_system": "pbs",
+      "code_value": "10788T_7013_317_2138_55350",
+      "display_name": "Flucloxacillin Capsule 500 mg (as sodium monohydrate)",
+      "entity_type": "medication",
+      "group": "Penicillins"
+    },
+    {
+      "entity_name": "Dicloxacillin",
+      "code_system": "pbs",
+      "code_value": "10790X_11505_974_4596_13745",
+      "display_name": "Dicloxacillin Capsule 500 mg (as sodium)",
+      "entity_type": "medication",
+      "group": "Penicillins"
+    },
+    {
+      "entity_name": "Cefalexin",
+      "code_system": "pbs",
+      "code_value": "10778G_7347_205_1783_13255",
+      "display_name": "Cefalexin Capsule 500 mg (as monohydrate)",
+      "entity_type": "medication",
+      "group": "Penicillins"
+    },
+    {
+      "entity_name": "Atorvastatin",
+      "code_system": "pbs",
+      "code_value": "8214H_11522_1005_4727_14072",
+      "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+      "entity_type": "medication",
+      "group": "Statins"
+    },
+    {
+      "entity_name": "Simvastatin",
+      "code_system": "pbs",
+      "code_value": "13373W_11972_555_3048_10137",
+      "display_name": "Simvastatin Tablet 20 mg",
+      "entity_type": "medication",
+      "group": "Statins"
+    },
+    {
+      "entity_name": "Rosuvastatin",
+      "code_system": "pbs",
+      "code_value": "10201X_15315_34257_34261_56436",
+      "display_name": "ezetimibe (&) rosuvastatin Pack containing 30 tablets ezetimibe 10 mg and 30 tablets rosuvastatin 20 mg (as calcium)",
+      "entity_type": "medication",
+      "group": "Statins"
+    },
+    {
+      "entity_name": "Pravastatin",
+      "code_system": "pbs",
+      "code_value": "8197K_9438_839_3978_51721",
+      "display_name": "Pravastatin Tablet containing pravastatin sodium 40 mg",
+      "entity_type": "medication",
+      "group": "Statins"
+    },
+    {
+      "entity_name": "Perindopril",
+      "code_system": "pbs",
+      "code_value": "8704D_7249_15561_15513_6735",
+      "display_name": "Perindopril Tablet containing perindopril erbumine 8 mg",
+      "entity_type": "medication",
+      "group": "ACE Inhibitors"
+    },
+    {
+      "entity_name": "Ramipril",
+      "code_system": "pbs",
+      "code_value": "13430W_9350_791_3799_11658",
+      "display_name": "Ramipril Capsule 10 mg",
+      "entity_type": "medication",
+      "group": "ACE Inhibitors"
+    },
+    {
+      "entity_name": "Enalapril",
+      "code_system": "pbs",
+      "code_value": "13401H_9794_292_2051_7623",
+      "display_name": "Enalapril Tablet containing enalapril maleate 20 mg",
+      "entity_type": "medication",
+      "group": "ACE Inhibitors"
+    },
+    {
+      "entity_name": "Paclitaxel",
+      "code_system": "pbs",
+      "code_value": "10150F_10927_1326_5782_7044",
+      "display_name": "nanoparticle albumin-bound paclitaxel Powder for I.V. injection containing 100 mg paclitaxel",
+      "entity_type": "medication",
+      "group": "Chemotherapy"
+    },
+    {
+      "entity_name": "Docetaxel",
+      "code_system": "pbs",
+      "code_value": "10148D_10053_954_4531_13614",
+      "display_name": "Docetaxel Solution concentrate for I.V. infusion 80 mg in 8 mL",
+      "entity_type": "medication",
+      "group": "Chemotherapy"
+    },
+    {
+      "entity_name": "Carboplatin",
+      "code_system": "pbs",
+      "code_value": "4309T_6938_200_1754_42590",
+      "display_name": "Carboplatin Solution for I.V. injection 450 mg in 45 mL",
+      "entity_type": "medication",
+      "group": "Chemotherapy"
+    },
+    {
+      "entity_name": "Aspirin",
+      "code_system": "pbs",
+      "code_value": "104L____",
+      "display_name": "Aspirin null",
+      "entity_type": "medication",
+      "group": "Analgesics/Antiplatelets"
+    },
+    {
+      "entity_name": "Clopidogrel",
+      "code_system": "pbs",
+      "code_value": "8358X_9321_1072_15684_57097",
+      "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+      "entity_type": "medication",
+      "group": "Analgesics/Antiplatelets"
+    },
+    {
+      "entity_name": "Paracetamol",
+      "code_system": "pbs",
+      "code_value": "5196L_7030_485_2862_52187",
+      "display_name": "Paracetamol Tablet 500 mg",
+      "entity_type": "medication",
+      "group": "Analgesics/Antiplatelets"
+    },
+    {
+      "entity_name": "Metformin",
+      "code_system": "pbs",
+      "code_value": "13847T_10840_415_2566_35401",
+      "display_name": "Metformin Tablet (extended release) containing metformin hydrochloride 1 g",
+      "entity_type": "medication",
+      "group": "Other common"
+    },
+    {
+      "entity_name": "Metoprolol",
+      "code_system": "pbs",
+      "code_value": "1324Q_8430_432_2632_58670",
+      "display_name": "METOPROLOL TARTRATE Tablet containing metoprolol tartrate 50 mg",
+      "entity_type": "medication",
+      "group": "Other common"
+    },
+    {
+      "entity_name": "Omeprazole",
+      "code_system": "pbs",
+      "code_value": "10295W_14149_1147_31322_31324",
+      "display_name": "Esomeprazole Capsule (enteric) 20 mg (as magnesium)",
+      "entity_type": "medication",
+      "group": "Other common"
+    }
+  ],
+  "procedures": [
+    {
+      "entity_name": "chest",
+      "code_system": "mbs",
+      "code_value": "20474",
+      "display_name": "Initiation of the management of anaesthesia for radical procedures on chest wall (H) (13 basic units)",
+      "entity_type": "procedure",
+      "group": "X-rays"
+    },
+    {
+      "entity_name": "spine",
+      "code_system": "mbs",
+      "code_value": "58103",
+      "display_name": "Spine—thoracic (R)",
+      "entity_type": "procedure",
+      "group": "X-rays"
+    },
+    {
+      "entity_name": "abdomen",
+      "code_system": "mbs",
+      "code_value": "20704",
+      "display_name": "Initiation of the management of anaesthesia for microvascular free tissue flap surgery involving the anterior or posterior upper abdomen (H) (10 basic units)",
+      "entity_type": "procedure",
+      "group": "X-rays"
+    },
+    {
+      "entity_name": "computed tomography",
+      "code_system": "mbs",
+      "code_value": "35414",
+      "display_name": "Mechanical thrombectomy, in a patient with a diagnosis of acute ischaemic stroke caused by occlusion of a large vessel of the anterior cerebral circulation, including intra-operative imaging and aftercare, if: (a) the diagnosis is confirmed by an appropriate imaging modality such as computed tomography, magnetic resonance imaging or angiography; and (b) the service is performed by a specialist or consultant physician with appropriate training that is recognised by the Conjoint Committee for Reco",
+      "entity_type": "procedure",
+      "group": "Advanced imaging"
+    },
+    {
+      "entity_name": "magnetic resonance",
+      "code_system": "mbs",
+      "code_value": "35414",
+      "display_name": "Mechanical thrombectomy, in a patient with a diagnosis of acute ischaemic stroke caused by occlusion of a large vessel of the anterior cerebral circulation, including intra-operative imaging and aftercare, if: (a) the diagnosis is confirmed by an appropriate imaging modality such as computed tomography, magnetic resonance imaging or angiography; and (b) the service is performed by a specialist or consultant physician with appropriate training that is recognised by the Conjoint Committee for Reco",
+      "entity_type": "procedure",
+      "group": "Advanced imaging"
+    },
+    {
+      "entity_name": "ultrasound",
+      "code_system": "mbs",
+      "code_value": "13815",
+      "display_name": "Central vein catheterisation, including under ultrasound guidance where clinically appropriate, by percutaneous or open exposure other than a service to which item 13318 applies (H) (Anaes.)",
+      "entity_type": "procedure",
+      "group": "Advanced imaging"
+    },
+    {
+      "entity_name": "mammography",
+      "code_system": "mbs",
+      "code_value": "31506",
+      "display_name": "BREAST, ABNORMALITY detected by mammography or ultrasound where guidewire or other localisation procedure is performed, excision biopsy of (Anaes.) (Assist.)",
+      "entity_type": "procedure",
+      "group": "Advanced imaging"
+    },
+    {
+      "entity_name": "liver biopsy",
+      "code_system": "mbs",
+      "code_value": "20702",
+      "display_name": "INITIATION OF MANAGEMENT OF ANAESTHESIA for percutaneous liver biopsy (4 basic units)",
+      "entity_type": "procedure",
+      "group": "Biopsies"
+    },
+    {
+      "entity_name": "bone marrow biopsy",
+      "code_system": "mbs",
+      "code_value": "20440",
+      "display_name": "INITIATION OF MANAGEMENT OF ANAESTHESIA for percutaneous bone marrow biopsy of the sternum or iliac crest (4 basic units)",
+      "entity_type": "procedure",
+      "group": "Biopsies"
+    },
+    {
+      "entity_name": "lung needle biopsy",
+      "code_system": "mbs",
+      "code_value": "38812",
+      "display_name": "PERCUTANEOUS NEEDLE BIOPSY of lung (Anaes.)",
+      "entity_type": "procedure",
+      "group": "Biopsies"
+    },
+    {
+      "entity_name": "colonoscopy",
+      "code_system": "mbs",
+      "code_value": "32084",
+      "display_name": "Sigmoidoscopy or colonoscopy up to the hepatic flexure, with or without biopsy, other than a service associated with a service to which any of items 32222 to 32228 or 32230 applies (H) (Anaes.)",
+      "entity_type": "procedure",
+      "group": "Endoscopy"
+    },
+    {
+      "entity_name": "gastroscopy",
+      "code_system": "mbs",
+      "code_value": "31456",
+      "display_name": "GASTROSCOPY and insertion of nasogastric or nasoenteral feeding tube, where blind insertion of the feeding tube has failed or is inappropriate due to the patient's medical condition (Anaes.)",
+      "entity_type": "procedure",
+      "group": "Endoscopy"
+    },
+    {
+      "entity_name": "bronchoscopy",
+      "code_system": "mbs",
+      "code_value": "38419",
+      "display_name": "Bronchoscopy, as an independent procedure (H) (Anaes.)",
+      "entity_type": "procedure",
+      "group": "Endoscopy"
+    },
+    {
+      "entity_name": "knee replacement",
+      "code_system": "mbs",
+      "code_value": "21402",
+      "display_name": "Initiation of the management of anaesthesia for knee replacement (H) (7 basic units)",
+      "entity_type": "procedure",
+      "group": "Surgery"
+    },
+    {
+      "entity_name": "hip replacement",
+      "code_system": "mbs",
+      "code_value": "21216",
+      "display_name": "Initiation of the management of anaesthesia for bilateral total hip replacement (H) (14 basic units)",
+      "entity_type": "procedure",
+      "group": "Surgery"
+    },
+    {
+      "entity_name": "arthroscopy",
+      "code_system": "mbs",
+      "code_value": "49118",
+      "display_name": "ELBOW, diagnostic arthroscopy of, including biopsy and lavage, not being a service associated with any other arthroscopic procedure of the elbow (H) (Anaes.) (Assist.)",
+      "entity_type": "procedure",
+      "group": "Surgery"
+    },
+    {
+      "entity_name": "excision",
+      "code_system": "mbs",
+      "code_value": "49309",
+      "display_name": "Arthrectomy or excision arthroplasty (Girdlestone) of hip, other than a service performed: (a) for the purpose of implant removal; or (b) as stage 1 of a 2-stage procedure (H) (Anaes.) (Assist.)",
+      "entity_type": "procedure",
+      "group": "Surgery"
+    },
+    {
+      "entity_name": "electrocardiography",
+      "code_system": "mbs",
+      "code_value": "11720",
+      "display_name": "IMPLANTED PACEMAKER TESTING, with patient attendance, following detection of abnormality by remote monitoring involving electrocardiography, measurement of rate, width and amplitude of stimulus including reprogramming when required, not being a service associated with a service to which item 11721 applies.",
+      "entity_type": "procedure",
+      "group": "Diagnostics"
+    },
+    {
+      "entity_name": "spirometry",
+      "code_system": "mbs",
+      "code_value": "11512",
+      "display_name": "Measurement of spirometry: (a) that includes continuous measurement of the relationship between flow and volume during expiration or during expiration and inspiration, performed before and after inhalation of a bronchodilator; and (b) that is performed with a respiratory scientist in continuous attendance; and (c) that is performed in a respiratory laboratory equipped to perform complex lung function tests; and (d) that is performed under the supervision of a specialist or consultant physician w",
+      "entity_type": "procedure",
+      "group": "Diagnostics"
+    },
+    {
+      "entity_name": "blood",
+      "code_system": "mbs",
+      "code_value": "92715",
+      "display_name": "Video attendance for the provision of services related to blood borne viruses, sexual or reproductive health by a general practitioner of not more than 5 minutes if the attendance includes any of the following that are clinically relevant: (a) taking a short patient history; (b) arranging any necessary investigation; (c) implementing a management plan; (d) providing appropriate preventive health care Note: Consultations related to assisted reproductive technology and antenatal care are outside t",
+      "entity_type": "procedure",
+      "group": "Diagnostics"
+    }
+  ],
+  "total": 40,
+  "timestamp": "2025-10-20T22:30:48.171Z"
+}

@@ -1,0 +1,156 @@
+[
+  {
+    "code_system": "pbs",
+    "code_value": "10001J",
+    "display_name": "Rifaximin Tablet 550 mg",
+    "entity_type": "medication",
+    "search_text": "Rifaximin Tablet 550 mg Xifaxan",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "Xifaxan",
+      "li_form": "Tablet 550 mg",
+      "schedule_form": "rifaximin 550 mg tablet, 56",
+      "manner_of_administration": "ORAL",
+      "moa_preferred_term": "Oral",
+      "program_code": "GE",
+      "manufacturer_code": "NE",
+      "pack_size": "56",
+      "number_of_repeats": "5",
+      "caution_indicator": false,
+      "note_indicator": true
+    }
+  },
+  {
+    "code_system": "pbs",
+    "code_value": "10003L",
+    "display_name": "Dabrafenib Capsule 75 mg (as mesilate)",
+    "entity_type": "medication",
+    "search_text": "Dabrafenib Capsule 75 mg (as mesilate) Tafinlar",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "Tafinlar",
+      "li_form": "Capsule 75 mg (as mesilate)",
+      "schedule_form": "dabrafenib 75 mg capsule, 120",
+      "manner_of_administration": "ORAL",
+      "moa_preferred_term": "Oral",
+      "program_code": "GE",
+      "manufacturer_code": "NV",
+      "pack_size": "120",
+      "number_of_repeats": "5",
+      "caution_indicator": false,
+      "note_indicator": true
+    }
+  },
+  {
+    "code_system": "pbs",
+    "code_value": "10004M",
+    "display_name": "Sunitinib Capsule 12.5 mg",
+    "entity_type": "medication",
+    "search_text": "Sunitinib Capsule 12.5 mg Sunitinib Sandoz",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "Sunitinib Sandoz",
+      "li_form": "Capsule 12.5 mg",
+      "schedule_form": "sunitinib 12.5 mg capsule, 28",
+      "manner_of_administration": "ORAL",
+      "moa_preferred_term": "Oral",
+      "program_code": "GE",
+      "manufacturer_code": "SZ",
+      "pack_size": "28",
+      "number_of_repeats": "2",
+      "caution_indicator": false,
+      "note_indicator": true
+    }
+  },
+  {
+    "code_system": "pbs",
+    "code_value": "10005N",
+    "display_name": "Olmesartan + amlodipine + hydrochlorothiazide Tablet containing olmesartan medoxomil 20 mg with amlodipine 5 mg (as besilate) and hydrochlorothiazide 12.5 mg",
+    "entity_type": "medication",
+    "search_text": "Olmesartan + amlodipine + hydrochlorothiazide Tablet containing olmesartan medoxomil 20 mg with amlodipine 5 mg (as besilate) and hydrochlorothiazide 12.5 mg Sevikar HCT 20/5/12.5",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "Sevikar HCT 20/5/12.5",
+      "li_form": "Tablet containing olmesartan medoxomil 20 mg with amlodipine 5 mg (as besilate) and hydrochlorothiazide 12.5 mg",
+      "schedule_form": "olmesartan medoxomil 20 mg + amlodipine 5 mg + hydrochlorothiazide 12.5 mg tablet, 30",
+      "manner_of_administration": "ORAL",
+      "moa_preferred_term": "Oral",
+      "program_code": "GE",
+      "manufacturer_code": "AF",
+      "pack_size": "30",
+      "number_of_repeats": "5",
+      "caution_indicator": false,
+      "note_indicator": false
+    }
+  },
+  {
+    "code_system": "pbs",
+    "code_value": "10007Q",
+    "display_name": "fluticasone propionate + formoterol Pressurised inhalation containing fluticasone propionate 125 micrograms with formoterol fumarate dihydrate 5 micrograms per dose, 120 doses",
+    "entity_type": "medication",
+    "search_text": "fluticasone propionate + formoterol Pressurised inhalation containing fluticasone propionate 125 micrograms with formoterol fumarate dihydrate 5 micrograms per dose, 120 doses flutiform 125/5",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "flutiform 125/5",
+      "li_form": "Pressurised inhalation containing fluticasone propionate 125 micrograms with formoterol fumarate dihydrate 5 micrograms per dose, 120 doses",
+      "schedule_form": "fluticasone propionate 125 microgram/actuation + formoterol fumarate dihydrate 5 microgram/actuation inhalation, 120 actuations",
+      "manner_of_administration": "INHALATION_BY_MOUTH",
+      "moa_preferred_term": "Inhalation by mouth",
+      "program_code": "GE",
+      "manufacturer_code": "MF",
+      "pack_size": "1",
+      "number_of_repeats": "5",
+      "caution_indicator": false,
+      "note_indicator": true
+    }
+  },
+  {
+    "code_system": "pbs",
+    "code_value": "10008R",
+    "display_name": "fluticasone propionate + formoterol Pressurised inhalation containing fluticasone propionate 250 micrograms with formoterol fumarate dihydrate 10 micrograms per dose, 120 doses",
+    "entity_type": "medication",
+    "search_text": "fluticasone propionate + formoterol Pressurised inhalation containing fluticasone propionate 250 micrograms with formoterol fumarate dihydrate 10 micrograms per dose, 120 doses flutiform 250/10",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "flutiform 250/10",
+      "li_form": "Pressurised inhalation containing fluticasone propionate 250 micrograms with formoterol fumarate dihydrate 10 micrograms per dose, 120 doses",
+      "schedule_form": "fluticasone propionate 250 microgram/actuation + formoterol fumarate dihydrate 10 microgram/actuation inhalation, 120 actuations",
+      "manner_of_administration": "INHALATION_BY_MOUTH",
+      "moa_preferred_term": "Inhalation by mouth",
+      "program_code": "GE",
+      "manufacturer_code": "MF",
+      "pack_size": "1",
+      "number_of_repeats": "5",
+      "caution_indicator": false,
+      "note_indicator": true
+    }
+  },
+  {
+    "code_system": "pbs",
+    "code_value": "10009T",
+    "display_name": "Sunitinib Capsule 12.5 mg",
+    "entity_type": "medication",
+    "search_text": "Sunitinib Capsule 12.5 mg Sunitinib Sandoz",
+    "library_version": "v2025Q4",
+    "country_code": "AUS",
+    "region_specific_data": {
+      "brand_name": "Sunitinib Sandoz",
+      "li_form": "Capsule 12.5 mg",
+      "schedule_form": "sunitinib 12.5 mg capsule, 28",
+      "manner_of_administration": "ORAL",
+      "moa_preferred_term": "Oral",
+      "program_code": "GE",
+      "manufacturer_code": "SZ",
+      "pack_size": "28",
+      "number_of_repeats": "5",
+      "caution_indicator": false,
+      "note_indicator": true
+    }
+  }
+]

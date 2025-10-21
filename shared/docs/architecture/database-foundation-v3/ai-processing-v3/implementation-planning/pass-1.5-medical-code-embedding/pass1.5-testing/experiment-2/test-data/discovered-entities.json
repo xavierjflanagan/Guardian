@@ -1,0 +1,217 @@
+{
+  "medications": [
+    {
+      "search": "Amoxicillin",
+      "code_value": "8254K_11531_153_1545_8847",
+      "display_name": "Amoxicillin + clavulanic acid Tablet containing 875 mg amoxicillin (as trihydrate) with 125 mg clavulanic acid (as potassium clavulanate)",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Dicloxacillin",
+      "code_value": "10790X_11505_974_4596_13745",
+      "display_name": "Dicloxacillin Capsule 500 mg (as sodium)",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Flucloxacillin",
+      "code_value": "10788T_7013_317_2138_55350",
+      "display_name": "Flucloxacillin Capsule 500 mg (as sodium monohydrate)",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Cefalexin",
+      "code_value": "10778G_7347_205_1783_13255",
+      "display_name": "Cefalexin Capsule 500 mg (as monohydrate)",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Metformin",
+      "code_value": "10035E_13946_30819_30829_30831",
+      "display_name": "Alogliptin + metformin Tablet containing 12.5 mg alogliptin (as benzoate) with 1 g metformin hydrochloride",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Metoprolol",
+      "code_value": "1324Q_8430_432_2632_58670",
+      "display_name": "METOPROLOL TARTRATE Tablet containing metoprolol tartrate 50 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Atorvastatin",
+      "code_value": "10376D_15073_34665_34685_34692",
+      "display_name": "Ezetimibe + atorvastatin Tablet 10 mg-80 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Simvastatin",
+      "code_value": "8882L_7926_1229_5510_58555",
+      "display_name": "Ezetimibe + simvastatin Tablet 10 mg-80 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Rosuvastatin",
+      "code_value": "10201X_15315_34257_34261_56436",
+      "display_name": "ezetimibe (&) rosuvastatin Pack containing 30 tablets ezetimibe 10 mg and 30 tablets rosuvastatin 20 mg (as calcium)",
+      "entity_type": "medication"
+    },
+    {
+      "search": "clavulanic acid",
+      "code_value": "8254K_11531_153_1545_8847",
+      "display_name": "Amoxicillin + clavulanic acid Tablet containing 875 mg amoxicillin (as trihydrate) with 125 mg clavulanic acid (as potassium clavulanate)",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Paclitaxel",
+      "code_value": "10150F_10927_1326_5782_7044",
+      "display_name": "nanoparticle albumin-bound paclitaxel Powder for I.V. injection containing 100 mg paclitaxel",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Docetaxel",
+      "code_value": "10148D_10053_954_4531_13614",
+      "display_name": "Docetaxel Solution concentrate for I.V. infusion 80 mg in 8 mL",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Carboplatin",
+      "code_value": "4309T_6938_200_1754_42590",
+      "display_name": "Carboplatin Solution for I.V. injection 450 mg in 45 mL",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Perindopril",
+      "code_value": "8449Q_8010_1101_5100_14817",
+      "display_name": "Perindopril + indapamide Tablet containing perindopril erbumine 4 mg with indapamide hemihydrate 1.25 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Lisinopril",
+      "code_value": "13402J_9919_790_3795_11594",
+      "display_name": "Lisinopril Tablet 20 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Ramipril",
+      "code_value": "13430W_9350_791_3799_11658",
+      "display_name": "Ramipril Capsule 10 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Paracetamol",
+      "code_value": "5196L_7030_485_2862_52187",
+      "display_name": "Paracetamol Tablet 500 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Ibuprofen",
+      "code_value": "5368M_12263_368_2342_43551",
+      "display_name": "Ibuprofen Tablet 400 mg",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Aspirin",
+      "code_value": "104L____",
+      "display_name": "Aspirin null",
+      "entity_type": "medication"
+    },
+    {
+      "search": "Clopidogrel",
+      "code_value": "8358X_9321_1072_15684_57097",
+      "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+      "entity_type": "medication"
+    }
+  ],
+  "procedures": [
+    {
+      "search": "chest",
+      "code_value": "20474",
+      "display_name": "Initiation of the management of anaesthesia for radical procedures on chest wall (H) (13 basic units)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "x-ray",
+      "code_value": "57541",
+      "display_name": "Fee for a service rendered using first eligible x-ray procedure carried out during attendance at a residential aged care facility, where the service has been requested by a medical practitioner or a participating nurse practitioner who has attended the patient in person and the request identifies one or more of the following indications: the patient has experienced a fall and one or more of the following items apply to the service 57509, 57515, 57521, 57527, 57703, 57709, 57712, 57715, 58521, 58",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "spine",
+      "code_value": "58103",
+      "display_name": "Spine—thoracic (R)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "biopsy",
+      "code_value": "49118",
+      "display_name": "ELBOW, diagnostic arthroscopy of, including biopsy and lavage, not being a service associated with any other arthroscopic procedure of the elbow (H) (Anaes.) (Assist.)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "liver biopsy",
+      "code_value": "20702",
+      "display_name": "INITIATION OF MANAGEMENT OF ANAESTHESIA for percutaneous liver biopsy (4 basic units)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "replacement",
+      "code_value": "49715",
+      "display_name": "Total replacement of ankle, with prosthetic replacement of ankle joint, including any of the following (if performed): (a) capsulotomy; (b) joint release; (c) synovectomy; (d) removal of osteophytes at joint (H) (Anaes.) (Assist.)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "excision",
+      "code_value": "49309",
+      "display_name": "Arthrectomy or excision arthroplasty (Girdlestone) of hip, other than a service performed: (a) for the purpose of implant removal; or (b) as stage 1 of a 2-stage procedure (H) (Anaes.) (Assist.)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "electrocardiography",
+      "code_value": "11720",
+      "display_name": "IMPLANTED PACEMAKER TESTING, with patient attendance, following detection of abnormality by remote monitoring involving electrocardiography, measurement of rate, width and amplitude of stimulus including reprogramming when required, not being a service associated with a service to which item 11721 applies.",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "spirometry",
+      "code_value": "11512",
+      "display_name": "Measurement of spirometry: (a) that includes continuous measurement of the relationship between flow and volume during expiration or during expiration and inspiration, performed before and after inhalation of a bronchodilator; and (b) that is performed with a respiratory scientist in continuous attendance; and (c) that is performed in a respiratory laboratory equipped to perform complex lung function tests; and (d) that is performed under the supervision of a specialist or consultant physician w",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "blood",
+      "code_value": "92715",
+      "display_name": "Video attendance for the provision of services related to blood borne viruses, sexual or reproductive health by a general practitioner of not more than 5 minutes if the attendance includes any of the following that are clinically relevant: (a) taking a short patient history; (b) arranging any necessary investigation; (c) implementing a management plan; (d) providing appropriate preventive health care Note: Consultations related to assisted reproductive technology and antenatal care are outside t",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "colonoscopy",
+      "code_value": "32084",
+      "display_name": "Sigmoidoscopy or colonoscopy up to the hepatic flexure, with or without biopsy, other than a service associated with a service to which any of items 32222 to 32228 or 32230 applies (H) (Anaes.)",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "endoscopy",
+      "code_value": "11820",
+      "display_name": "Capsule endoscopy to investigate an episode of obscure gastrointestinal bleeding, using a capsule endoscopy device (including administration of the capsule, associated endoscopy procedure if required for placement, imaging, image reading and interpretation, and all attendances for providing the service on the day the capsule is administered) if: (a) the service is provided to a patient who: (i) has overt gastrointestinal bleeding; or (ii) has gastrointestinal bleeding that is recurrent or persis",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "computed tomography",
+      "code_value": "35414",
+      "display_name": "Mechanical thrombectomy, in a patient with a diagnosis of acute ischaemic stroke caused by occlusion of a large vessel of the anterior cerebral circulation, including intra-operative imaging and aftercare, if: (a) the diagnosis is confirmed by an appropriate imaging modality such as computed tomography, magnetic resonance imaging or angiography; and (b) the service is performed by a specialist or consultant physician with appropriate training that is recognised by the Conjoint Committee for Reco",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "ultrasound",
+      "code_value": "13202",
+      "display_name": "Assisted reproductive technologies superovulated treatment cycle that is cancelled before oocyte retrieval, involving the use of drugs to induce superovulation and including quantitative estimation of hormones and ultrasound examinations, but excluding artificial insemination, transfer of frozen embryos or donated embryos or ova or a service to which item 13200, 13201, 13203 or 13218 applies, being services rendered during one treatment cycle",
+      "entity_type": "procedure"
+    },
+    {
+      "search": "mammography",
+      "code_value": "31506",
+      "display_name": "BREAST, ABNORMALITY detected by mammography or ultrasound where guidewire or other localisation procedure is performed, excision biopsy of (Anaes.) (Assist.)",
+      "entity_type": "procedure"
+    }
+  ],
+  "timestamp": "2025-10-20T22:23:21.815Z"
+}

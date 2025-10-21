@@ -10,10 +10,12 @@
     "patient_id": "uuid (from context)",
     "universal_code_system": "string(20)? (SNOMED|ICD-10|LOINC|RxNorm|CVX|CPT|ATC)",
     "universal_code": "string(50)?",
+    "universal_grouping_code": "string(50)? (two-tier: optional grouping)",
     "universal_display": "text?",
     "universal_confidence": "numeric(3,2) 0.00-1.00?",
     "regional_code_system": "string(20)? (PBS|MBS|ACIR|ICD-10-CM|NDC|HCPCS)",
     "regional_code": "string(50)?",
+    "regional_grouping_code": "string(50)? (two-tier: optional grouping)",
     "regional_display": "text?",
     "regional_confidence": "numeric(3,2) 0.00-1.00?",
     "regional_country_code": "char(3)? (ISO 3166-1 alpha-3: AUS, USA, GBR, etc.)",
@@ -39,6 +41,12 @@
     "acceptable": "Only universal OR only regional",
     "safe": "Neither - use fallback_identifier"
   },
+  "two_tier_system": {
+    "description": "Each code type supports optional grouping_code",
+    "medications": "granular code (brand-specific) + grouping_code (generic)",
+    "conditions": "specific code + parent concept",
+    "usage": "Store both when hierarchical organization beneficial, NULL when not"
+  },
   "code_system_by_entity": {
     "patient_medications": "RxNorm (universal), PBS/NDC (regional)",
     "patient_conditions": "SNOMED/ICD-10 (universal), ICD-10-CM (regional)",
@@ -55,8 +63,9 @@
     "universal_display": "Lisinopril 10 MG Oral Tablet",
     "universal_confidence": 0.95,
     "regional_code_system": "PBS",
-    "regional_code": "8254K",
-    "regional_display": "Lisinopril tablets 10 mg",
+    "regional_code": "10001J_14023_31078_31081_31083",
+    "regional_grouping_code": "10001J",
+    "regional_display": "Rifaximin Tablet 550 mg (Xifaxan brand)",
     "regional_confidence": 0.90,
     "regional_country_code": "AUS",
     "assigned_by_system": "vector_ai",

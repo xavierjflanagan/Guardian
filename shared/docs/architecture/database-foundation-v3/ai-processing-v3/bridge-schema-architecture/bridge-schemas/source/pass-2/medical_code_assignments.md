@@ -1,10 +1,10 @@
 # medical_code_assignments Bridge Schema (Source) - Pass 2
 
-**Status:** ✅ Recreated from database source of truth (GPT-5 reviewed)
-**Database Source:** /current_schema/03_clinical_core.sql (lines 1226-1272)
+**Status:** ✅ Updated for two-tier identifier system (Migration 27 - 2025-10-17)
+**Database Source:** /current_schema/03_clinical_core.sql (lines 1312-1370)
 **Temporal Columns:** NOT on this table (medical_code_assignments not in temporal tables list)
-**Last Updated:** 30 September 2025
-**Priority:** CRITICAL - Generic entity-to-medical-code assignment table
+**Last Updated:** 17 October 2025
+**Priority:** CRITICAL - Generic entity-to-medical-code assignment table with two-tier support
 **Processing Stage:** Step 1.5 (Between Pass 1 extraction and Pass 2 clinical enrichment)
 
 ## Database Table Structure
@@ -25,12 +25,14 @@ CREATE TABLE IF NOT EXISTS medical_code_assignments (
     -- Universal code assignment (parallel strategy)
     universal_code_system VARCHAR(20),
     universal_code VARCHAR(50),
+    universal_grouping_code VARCHAR(50),  -- Two-tier system: optional grouping identifier
     universal_display TEXT,
     universal_confidence DECIMAL(3,2) CHECK (universal_confidence >= 0.0 AND universal_confidence <= 1.0),
 
     -- Regional code assignment (parallel strategy)
     regional_code_system VARCHAR(20),
     regional_code VARCHAR(50),
+    regional_grouping_code VARCHAR(50),   -- Two-tier system: optional grouping identifier
     regional_display TEXT,
     regional_confidence DECIMAL(3,2) CHECK (regional_confidence >= 0.0 AND regional_confidence <= 1.0),
     regional_country_code CHAR(3),
@@ -58,6 +60,37 @@ CREATE TABLE IF NOT EXISTS medical_code_assignments (
     CONSTRAINT unique_entity_assignment UNIQUE (entity_table, entity_id)
 );
 ```
+
+## Two-Tier Identifier System (NEW: Migration 27)
+
+**Enhanced code storage strategy supporting hierarchical medical code organization:**
+
+### Field Mapping Strategy
+| Purpose | Universal Codes | Regional Codes |
+|---------|----------------|----------------|
+| **Granular ID** | `universal_code` | `regional_code` |
+| **Grouping ID** | `universal_grouping_code` | `regional_grouping_code` |
+
+### Usage Patterns by Entity Type
+
+**Medications (PBS Example):**
+- `regional_code`: `"10001J_14023_31078_31081_31083"` (brand-specific li_item_id)
+- `regional_grouping_code`: `"10001J"` (PBS code for optional deduplication)
+- **Benefit**: Brand preservation + cross-referencing capability
+
+**Conditions (SNOMED Hierarchy):**
+- `universal_code`: `"44054006"` (Type 2 diabetes mellitus)
+- `universal_grouping_code`: `"73211009"` (Diabetes mellitus parent)
+- **Benefit**: Condition grouping, family history tracking
+
+**Lab Tests (LOINC Categories):**
+- `universal_code`: `"33747-0"` (Hemoglobin A1c)
+- `universal_grouping_code`: `"HBA1C"` (Glycated hemoglobin category)
+- **Benefit**: Test grouping, trending analysis
+
+**When to Use Grouping Codes:**
+- **NULL**: When no hierarchical relationship exists or needed
+- **Populated**: When brand preservation, categorization, or deduplication beneficial
 
 ## Medical Code Resolution Process (Step 1.5)
 

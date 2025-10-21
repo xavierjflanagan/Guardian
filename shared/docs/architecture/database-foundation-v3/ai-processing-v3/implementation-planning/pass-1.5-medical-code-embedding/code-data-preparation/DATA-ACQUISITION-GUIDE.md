@@ -103,36 +103,48 @@ Loinc_X.XX/
 
 ### Data Source: Australian Government Department of Health
 
-**Step 1: Visit PBS Website**
+**⚠️ Format Update (2025-10-15):** PBS has migrated from XML to CSV API format.
+
+**Step 1: Visit PBS API Website**
 - URL: https://www.pbs.gov.au/info/industry/useful-resources
-- Alternative: https://www.pbs.gov.au/info/industry/listing/elements/xml-feed
+- Direct API: https://api.pbs.gov.au/
 
-**Step 2: Download PBS XML Feed**
-1. Navigate to "PBS XML Files" section
-2. Download: **PBS Schedule XML** (monthly release)
-3. Expected file: `pbs-xml-YYYY-MM.zip` (~10 MB)
-4. Extract to: `data/medical-codes/pbs/`
+**Step 2: Download PBS CSV API Files**
+1. Navigate to "PBS API CSV Files" section
+2. Download: **PBS API CSV ZIP** (monthly release)
+3. Expected file: `2025-10-01-PBS-API-CSV-files.zip` (~10 MB)
+4. Extract to: `data/medical-codes/pbs/raw/`
 
-**XML Structure:**
-```xml
-<schedule>
-  <drug-list>
-    <drug>
-      <pbs-code>12345A</pbs-code>
-      <drug-name>Atorvastatin 20mg tablets</drug-name>
-      <brand-name>Lipitor</brand-name>
-      <restriction>Unrestricted</restriction>
-      <authority-required>false</authority-required>
-    </drug>
-  </drug-list>
-</schedule>
+**Key CSV Files in ZIP:**
+```
+2025-10-01-PBS-API-CSV-files/
+├── tables_as_csv/
+│   ├── items.csv              # PRIMARY: All PBS items with brand details
+│   ├── amt-items.csv          # AMT mappings
+│   ├── organisations.csv      # Manufacturers  
+│   ├── restrictions.csv       # Restriction text
+│   ├── prescribers.csv        # Prescriber requirements
+│   └── atc-codes.csv          # ATC classification
+└── documentation/
+    └── PBS_API_CSV_Guide.pdf  # Field descriptions
 ```
 
-**Alternative: PBS Website Scraping**
-If XML feed is unavailable:
-1. Visit: http://www.pbs.gov.au/browse/medicine-listing
-2. Download individual schedules (General, Authority, PBS/RPBS)
-3. Parse HTML tables (more complex, not recommended)
+**Primary CSV Structure (items.csv):**
+```csv
+li_item_id,drug_name,li_drug_name,li_form,schedule_form,brand_name,program_code,pbs_code,
+benefit_type_code,caution_indicator,note_indicator,manner_of_administration,
+moa_preferred_term,maximum_prescribable_pack,maximum_quantity_units,number_of_repeats,
+organisation_id,manufacturer_code,pack_size,pricing_quantity,...
+```
+
+**Sample Record:**
+```csv
+"10001J_14023_31078_31081_31083","Rifaximin","Rifaximin","Tablet 550 mg",
+"rifaximin 550 mg tablet, 56","Xifaxan","GE","10001J","A","N","Y","ORAL",...
+```
+
+**Legacy XML Format (Deprecated):**
+The old XML feed may still be available but is no longer updated. Use CSV API for current data.
 
 ---
 

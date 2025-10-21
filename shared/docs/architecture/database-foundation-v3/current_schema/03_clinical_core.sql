@@ -1231,6 +1231,35 @@ FROM patient_immunizations WHERE is_current = TRUE;
 -- SECTION 4D: MEDICAL CODE RESOLUTION SYSTEM (FROM MIGRATION 04)
 -- =============================================================================
 -- Added after successful deployment of migration 04 - medical code resolution
+-- Migration 28 (2025-10-17): Added embedding_batches table + clinical metadata
+
+-- Embedding batch tracking table (efficient model tracking) - Migration 28
+CREATE TABLE IF NOT EXISTS embedding_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Model identification
+    embedding_model VARCHAR(50) NOT NULL,
+    embedding_dimensions INTEGER NOT NULL,
+    api_version VARCHAR(20) NOT NULL,
+    
+    -- Batch context
+    code_system VARCHAR(20) NOT NULL,
+    library_version VARCHAR(20) NOT NULL,
+    total_codes INTEGER NOT NULL,
+    
+    -- Processing metadata (with safety constraints)
+    processing_cost_usd DECIMAL(8,4) CHECK (processing_cost_usd >= 0),
+    processing_time_minutes INTEGER CHECK (processing_time_minutes >= 0),
+    
+    -- Audit
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Ensure unique combinations
+    UNIQUE(code_system, library_version, embedding_model)
+);
+
+COMMENT ON TABLE embedding_batches IS 
+'Efficient tracking of embedding generation batches. One record per batch instead of duplicating model info across all medical codes. Enables model consistency validation and cost tracking.';
 
 -- Universal medical codes with vector embeddings for global interoperability
 CREATE TABLE IF NOT EXISTS universal_medical_codes (
@@ -1259,6 +1288,15 @@ CREATE TABLE IF NOT EXISTS universal_medical_codes (
     usage_frequency INTEGER DEFAULT 0,
     active BOOLEAN DEFAULT TRUE,
     last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Migration 28 (2025-10-17): Embedding tracking and clinical metadata
+    embedding_batch_id UUID REFERENCES embedding_batches(id),
+    clinical_specificity VARCHAR(20) CHECK (clinical_specificity IN ('highly_specific', 'moderately_specific', 'general', 'broad_category')),
+    typical_setting VARCHAR(30) CHECK (typical_setting IN ('primary_care', 'specialist', 'hospital', 'emergency', 'any')),
+
+    -- Migration 30 (2025-10-20): Normalized embeddings for Pass 1.5 search optimization
+    normalized_embedding_text TEXT,
+    normalized_embedding VECTOR(1536),
 
     -- Unique constraint
     UNIQUE(code_system, code_value)
@@ -1300,6 +1338,15 @@ CREATE TABLE IF NOT EXISTS regional_medical_codes (
     active BOOLEAN DEFAULT TRUE,
     last_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
+    -- Migration 28 (2025-10-17): Embedding tracking and clinical metadata
+    embedding_batch_id UUID REFERENCES embedding_batches(id),
+    clinical_specificity VARCHAR(20) CHECK (clinical_specificity IN ('highly_specific', 'moderately_specific', 'general', 'broad_category')),
+    typical_setting VARCHAR(30) CHECK (typical_setting IN ('primary_care', 'specialist', 'hospital', 'emergency', 'any')),
+
+    -- Migration 30 (2025-10-20): Normalized embeddings for Pass 1.5 search optimization
+    normalized_embedding_text TEXT,
+    normalized_embedding VECTOR(1536),
+
     -- Unique constraint
     UNIQUE(code_system, code_value, country_code)
 );
@@ -1324,12 +1371,14 @@ CREATE TABLE IF NOT EXISTS medical_code_assignments (
     -- Universal code assignment (parallel strategy)
     universal_code_system VARCHAR(20),
     universal_code VARCHAR(50),
+    universal_grouping_code VARCHAR(50),  -- Two-tier system: optional grouping identifier
     universal_display TEXT,
     universal_confidence DECIMAL(3,2) CHECK (universal_confidence >= 0.0 AND universal_confidence <= 1.0),
 
     -- Regional code assignment (parallel strategy)
     regional_code_system VARCHAR(20),
     regional_code VARCHAR(50),
+    regional_grouping_code VARCHAR(50),   -- Two-tier system: optional grouping identifier
     regional_display TEXT,
     regional_confidence DECIMAL(3,2) CHECK (regional_confidence >= 0.0 AND regional_confidence <= 1.0),
     regional_country_code CHAR(3),
@@ -1356,6 +1405,22 @@ CREATE TABLE IF NOT EXISTS medical_code_assignments (
     -- Performance constraint
     CONSTRAINT unique_entity_assignment UNIQUE (entity_table, entity_id)
 );
+
+-- Medical code assignment indexes for performance
+CREATE INDEX IF NOT EXISTS idx_assignments_entity ON medical_code_assignments (entity_table, entity_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_patient ON medical_code_assignments (patient_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_universal ON medical_code_assignments (universal_code_system, universal_code);
+CREATE INDEX IF NOT EXISTS idx_assignments_regional ON medical_code_assignments (regional_code_system, regional_code, regional_country_code);
+CREATE INDEX IF NOT EXISTS idx_assignments_universal_grouping ON medical_code_assignments (universal_code_system, universal_grouping_code) WHERE universal_grouping_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_assignments_regional_grouping ON medical_code_assignments (regional_code_system, regional_grouping_code, regional_country_code) WHERE regional_grouping_code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_assignments_review ON medical_code_assignments (requires_review) WHERE requires_review = TRUE;
+CREATE INDEX IF NOT EXISTS idx_assignments_fallback ON medical_code_assignments (fallback_identifier) WHERE fallback_identifier IS NOT NULL;
+
+-- Migration 28 (2025-10-17): Embedding tracking and clinical metadata indexes
+CREATE INDEX IF NOT EXISTS idx_embedding_batches_lookup ON embedding_batches (code_system, library_version, embedding_model);
+CREATE INDEX IF NOT EXISTS idx_regional_codes_batch ON regional_medical_codes (embedding_batch_id) WHERE embedding_batch_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_universal_codes_batch ON universal_medical_codes (embedding_batch_id) WHERE embedding_batch_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_regional_clinical_context ON regional_medical_codes (clinical_specificity, typical_setting) WHERE clinical_specificity IS NOT NULL;
 
 -- Code resolution processing log
 CREATE TABLE IF NOT EXISTS code_resolution_log (
@@ -1904,7 +1969,7 @@ CREATE OR REPLACE FUNCTION search_regional_codes(
     entity_type_filter VARCHAR(20) DEFAULT NULL,
     country_code_filter CHAR(3) DEFAULT 'AUS',
     max_results INTEGER DEFAULT 10,
-    min_similarity REAL DEFAULT 0.7
+    min_similarity REAL DEFAULT 0.3
 ) RETURNS TABLE (
     code_system VARCHAR(20),
     code_value VARCHAR(50),
@@ -1935,7 +2000,7 @@ BEGIN
     ORDER BY rmc.embedding <=> query_embedding
     LIMIT max_results;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- Query assigned medical codes with RLS enforcement
 CREATE OR REPLACE FUNCTION get_entity_medical_codes(

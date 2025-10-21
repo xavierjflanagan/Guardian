@@ -1,0 +1,640 @@
+================================================================================
+EXPERIMENT 2: COMPREHENSIVE MEDICAL EMBEDDING MODEL COMPARISON
+================================================================================
+
+Experiment directory: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2
+
+PHASE 1: DATA COLLECTION
+--------------------------------------------------------------------------------
+
+Fetching 20 medications from database...
+  ✓ Amoxicillin: Amoxicillin Capsule 500 mg (as trihydrate)...
+  ✓ Flucloxacillin: Flucloxacillin Capsule 500 mg (as sodium monohydrate)...
+  ✓ Dicloxacillin: Dicloxacillin Capsule 500 mg (as sodium)...
+  ✓ Cefalexin: Cefalexin Capsule 500 mg (as monohydrate)...
+  ✓ Atorvastatin: Atorvastatin Tablet 20 mg (as calcium)...
+  ✓ Simvastatin: Simvastatin Tablet 20 mg...
+  ✓ Rosuvastatin: ezetimibe (&) rosuvastatin Pack containing 30 tablets ezetim...
+  ✓ Pravastatin: Pravastatin Tablet containing pravastatin sodium 40 mg...
+  ✓ Perindopril: Perindopril Tablet containing perindopril erbumine 8 mg...
+  ✓ Ramipril: Ramipril Capsule 10 mg...
+  ✓ Enalapril: Enalapril Tablet containing enalapril maleate 20 mg...
+  ✓ Paclitaxel: nanoparticle albumin-bound paclitaxel Powder for I.V. inject...
+  ✓ Docetaxel: Docetaxel Solution concentrate for I.V. infusion 80 mg in 8 ...
+  ✓ Carboplatin: Carboplatin Solution for I.V. injection 450 mg in 45 mL...
+  ✓ Aspirin: Aspirin null...
+  ✓ Clopidogrel: Clopidogrel Tablet 75 mg (as hydrogen sulfate)...
+  ✓ Paracetamol: Paracetamol Tablet 500 mg...
+  ✓ Metformin: Metformin Tablet (extended release) containing metformin hyd...
+  ✓ Metoprolol: METOPROLOL TARTRATE Tablet containing metoprolol tartrate 50...
+  ✓ Omeprazole: Esomeprazole Capsule (enteric) 20 mg (as magnesium)...
+
+Fetched 20/20 medications
+
+Fetching 20 procedures from database...
+  ✓ chest: Initiation of the management of anaesthesia for radical proc...
+  ✓ spine: Spine—thoracic (R)...
+  ✓ abdomen: Initiation of the management of anaesthesia for microvascula...
+  ✓ computed tomography: Mechanical thrombectomy, in a patient with a diagnosis of ac...
+  ✓ magnetic resonance: Mechanical thrombectomy, in a patient with a diagnosis of ac...
+  ✓ ultrasound: Central vein catheterisation, including under ultrasound gui...
+  ✓ mammography: BREAST, ABNORMALITY detected by mammography or ultrasound wh...
+  ✓ liver biopsy: INITIATION OF MANAGEMENT OF ANAESTHESIA for percutaneous liv...
+  ✓ bone marrow biopsy: INITIATION OF MANAGEMENT OF ANAESTHESIA for percutaneous bon...
+  ✓ lung needle biopsy: PERCUTANEOUS NEEDLE BIOPSY of lung (Anaes.)...
+  ✓ colonoscopy: Sigmoidoscopy or colonoscopy up to the hepatic flexure, with...
+  ✓ gastroscopy: GASTROSCOPY and insertion of nasogastric or nasoenteral feed...
+  ✓ bronchoscopy: Bronchoscopy, as an independent procedure (H) (Anaes.)...
+  ✓ knee replacement: Initiation of the management of anaesthesia for knee replace...
+  ✓ hip replacement: Initiation of the management of anaesthesia for bilateral to...
+  ✓ arthroscopy: ELBOW, diagnostic arthroscopy of, including biopsy and lavag...
+  ✓ excision: Arthrectomy or excision arthroplasty (Girdlestone) of hip, o...
+  ✓ electrocardiography: IMPLANTED PACEMAKER TESTING, with patient attendance, follow...
+  ✓ spirometry: Measurement of spirometry: (a) that includes continuous meas...
+  ✓ blood: Video attendance for the provision of services related to bl...
+
+Fetched 20/20 procedures
+
+✓ Samples saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/samples.json
+
+================================================================================
+PHASE 2: EMBEDDING GENERATION
+--------------------------------------------------------------------------------
+
+Generating OpenAI embeddings (original strategy)...
+  [1/40] Embedding: "Amoxicillin Capsule 500 mg (as trihydrat..."
+  [2/40] Embedding: "Flucloxacillin Capsule 500 mg (as sodium..."
+  [3/40] Embedding: "Dicloxacillin Capsule 500 mg (as sodium)..."
+  [4/40] Embedding: "Cefalexin Capsule 500 mg (as monohydrate..."
+  [5/40] Embedding: "Atorvastatin Tablet 20 mg (as calcium)..."
+  [6/40] Embedding: "Simvastatin Tablet 20 mg..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin Pack containi..."
+  [8/40] Embedding: "Pravastatin Tablet containing pravastati..."
+  [9/40] Embedding: "Perindopril Tablet containing perindopri..."
+  [10/40] Embedding: "Ramipril Capsule 10 mg..."
+  [11/40] Embedding: "Enalapril Tablet containing enalapril ma..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel Po..."
+  [13/40] Embedding: "Docetaxel Solution concentrate for I.V. ..."
+  [14/40] Embedding: "Carboplatin Solution for I.V. injection ..."
+  [15/40] Embedding: "Aspirin null..."
+  [16/40] Embedding: "Clopidogrel Tablet 75 mg (as hydrogen su..."
+  [17/40] Embedding: "Paracetamol Tablet 500 mg..."
+  [18/40] Embedding: "Metformin Tablet (extended release) cont..."
+  [19/40] Embedding: "METOPROLOL TARTRATE Tablet containing me..."
+  [20/40] Embedding: "Esomeprazole Capsule (enteric) 20 mg (as..."
+  [21/40] Embedding: "Initiation of the management of anaesthe..."
+  [22/40] Embedding: "Spine—thoracic (R)..."
+  [23/40] Embedding: "Initiation of the management of anaesthe..."
+  [24/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "Central vein catheterisation, including ..."
+  [27/40] Embedding: "BREAST, ABNORMALITY detected by mammogra..."
+  [28/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [29/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [30/40] Embedding: "PERCUTANEOUS NEEDLE BIOPSY of lung (Anae..."
+  [31/40] Embedding: "Sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "GASTROSCOPY and insertion of nasogastric..."
+  [33/40] Embedding: "Bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "Initiation of the management of anaesthe..."
+  [35/40] Embedding: "Initiation of the management of anaesthe..."
+  [36/40] Embedding: "ELBOW, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "Arthrectomy or excision arthroplasty (Gi..."
+  [38/40] Embedding: "IMPLANTED PACEMAKER TESTING, with patien..."
+  [39/40] Embedding: "Measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "Video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_openai_original.json
+
+Generating OpenAI embeddings (normalized strategy)...
+  [1/40] Embedding: "amoxicillin capsule 500 mg blooms the ch..."
+  [2/40] Embedding: "flucloxacillin capsule 500 mg flopen via..."
+  [3/40] Embedding: "dicloxacillin capsule 500 mg distaph 500..."
+  [4/40] Embedding: "cefalexin capsule 500 mg keflex..."
+  [5/40] Embedding: "atorvastatin tablet 20 mg lorstat 20..."
+  [6/40] Embedding: "simvastatin tablet 20 mg simvar 20..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin pack 30 table..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium 40..."
+  [9/40] Embedding: "perindopril tablet perindopril 8 mg idap..."
+  [10/40] Embedding: "ramipril capsule 10 mg apo-ramipril..."
+  [11/40] Embedding: "enalapril tablet enalapril 20 mg enalapr..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet 75 mg blooms clopidog..."
+  [17/40] Embedding: "paracetamol tablet 500 mg wagner health ..."
+  [18/40] Embedding: "metformin tablet extended release metfor..."
+  [19/40] Embedding: "metoprolol tablet metoprolol 50 mg metop..."
+  [20/40] Embedding: "esomeprazole capsule (enteric) 20 mg nox..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "anaesthesia for percutaneous liver biops..."
+  [29/40] Embedding: "anaesthesia for percutaneous bone marrow..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_openai_normalized.json
+
+Generating OpenAI embeddings (core strategy)...
+  [1/40] Embedding: "amoxicillin capsule..."
+  [2/40] Embedding: "flucloxacillin capsule..."
+  [3/40] Embedding: "dicloxacillin capsule..."
+  [4/40] Embedding: "cefalexin capsule..."
+  [5/40] Embedding: "atorvastatin tablet..."
+  [6/40] Embedding: "simvastatin tablet..."
+  [7/40] Embedding: "ezetimibe rosuvastatin pack 30 tablets e..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium..."
+  [9/40] Embedding: "perindopril tablet perindopril erbumine..."
+  [10/40] Embedding: "ramipril capsule..."
+  [11/40] Embedding: "enalapril tablet enalapril maleate..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet..."
+  [17/40] Embedding: "paracetamol tablet..."
+  [18/40] Embedding: "metformin tablet metformin hydrochloride..."
+  [19/40] Embedding: "metoprolol tartrate tablet metoprolol ta..."
+  [20/40] Embedding: "esomeprazole capsule..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "initiation of management of anaesthesia ..."
+  [29/40] Embedding: "initiation of management of anaesthesia ..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_openai_core.json
+
+Generating SapBERT embeddings (original strategy)...
+  [1/40] Embedding: "Amoxicillin Capsule 500 mg (as trihydrat..."
+  [2/40] Embedding: "Flucloxacillin Capsule 500 mg (as sodium..."
+  [3/40] Embedding: "Dicloxacillin Capsule 500 mg (as sodium)..."
+  [4/40] Embedding: "Cefalexin Capsule 500 mg (as monohydrate..."
+  [5/40] Embedding: "Atorvastatin Tablet 20 mg (as calcium)..."
+  [6/40] Embedding: "Simvastatin Tablet 20 mg..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin Pack containi..."
+  [8/40] Embedding: "Pravastatin Tablet containing pravastati..."
+  [9/40] Embedding: "Perindopril Tablet containing perindopri..."
+  [10/40] Embedding: "Ramipril Capsule 10 mg..."
+  [11/40] Embedding: "Enalapril Tablet containing enalapril ma..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel Po..."
+  [13/40] Embedding: "Docetaxel Solution concentrate for I.V. ..."
+  [14/40] Embedding: "Carboplatin Solution for I.V. injection ..."
+  [15/40] Embedding: "Aspirin null..."
+  [16/40] Embedding: "Clopidogrel Tablet 75 mg (as hydrogen su..."
+  [17/40] Embedding: "Paracetamol Tablet 500 mg..."
+  [18/40] Embedding: "Metformin Tablet (extended release) cont..."
+  [19/40] Embedding: "METOPROLOL TARTRATE Tablet containing me..."
+  [20/40] Embedding: "Esomeprazole Capsule (enteric) 20 mg (as..."
+  [21/40] Embedding: "Initiation of the management of anaesthe..."
+  [22/40] Embedding: "Spine—thoracic (R)..."
+  [23/40] Embedding: "Initiation of the management of anaesthe..."
+  [24/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "Central vein catheterisation, including ..."
+  [27/40] Embedding: "BREAST, ABNORMALITY detected by mammogra..."
+  [28/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [29/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [30/40] Embedding: "PERCUTANEOUS NEEDLE BIOPSY of lung (Anae..."
+  [31/40] Embedding: "Sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "GASTROSCOPY and insertion of nasogastric..."
+  [33/40] Embedding: "Bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "Initiation of the management of anaesthe..."
+  [35/40] Embedding: "Initiation of the management of anaesthe..."
+  [36/40] Embedding: "ELBOW, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "Arthrectomy or excision arthroplasty (Gi..."
+  [38/40] Embedding: "IMPLANTED PACEMAKER TESTING, with patien..."
+  [39/40] Embedding: "Measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "Video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_sapbert_original.json
+
+Generating SapBERT embeddings (normalized strategy)...
+  [1/40] Embedding: "amoxicillin capsule 500 mg blooms the ch..."
+  [2/40] Embedding: "flucloxacillin capsule 500 mg flopen via..."
+  [3/40] Embedding: "dicloxacillin capsule 500 mg distaph 500..."
+  [4/40] Embedding: "cefalexin capsule 500 mg keflex..."
+  [5/40] Embedding: "atorvastatin tablet 20 mg lorstat 20..."
+  [6/40] Embedding: "simvastatin tablet 20 mg simvar 20..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin pack 30 table..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium 40..."
+  [9/40] Embedding: "perindopril tablet perindopril 8 mg idap..."
+  [10/40] Embedding: "ramipril capsule 10 mg apo-ramipril..."
+  [11/40] Embedding: "enalapril tablet enalapril 20 mg enalapr..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet 75 mg blooms clopidog..."
+  [17/40] Embedding: "paracetamol tablet 500 mg wagner health ..."
+  [18/40] Embedding: "metformin tablet extended release metfor..."
+  [19/40] Embedding: "metoprolol tablet metoprolol 50 mg metop..."
+  [20/40] Embedding: "esomeprazole capsule (enteric) 20 mg nox..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "anaesthesia for percutaneous liver biops..."
+  [29/40] Embedding: "anaesthesia for percutaneous bone marrow..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_sapbert_normalized.json
+
+Generating SapBERT embeddings (core strategy)...
+  [1/40] Embedding: "amoxicillin capsule..."
+  [2/40] Embedding: "flucloxacillin capsule..."
+  [3/40] Embedding: "dicloxacillin capsule..."
+  [4/40] Embedding: "cefalexin capsule..."
+  [5/40] Embedding: "atorvastatin tablet..."
+  [6/40] Embedding: "simvastatin tablet..."
+  [7/40] Embedding: "ezetimibe rosuvastatin pack 30 tablets e..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium..."
+  [9/40] Embedding: "perindopril tablet perindopril erbumine..."
+  [10/40] Embedding: "ramipril capsule..."
+  [11/40] Embedding: "enalapril tablet enalapril maleate..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet..."
+  [17/40] Embedding: "paracetamol tablet..."
+  [18/40] Embedding: "metformin tablet metformin hydrochloride..."
+  [19/40] Embedding: "metoprolol tartrate tablet metoprolol ta..."
+  [20/40] Embedding: "esomeprazole capsule..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "initiation of management of anaesthesia ..."
+  [29/40] Embedding: "initiation of management of anaesthesia ..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_sapbert_core.json
+
+Generating BioBERT embeddings (original strategy)...
+  [1/40] Embedding: "Amoxicillin Capsule 500 mg (as trihydrat..."
+  [2/40] Embedding: "Flucloxacillin Capsule 500 mg (as sodium..."
+  [3/40] Embedding: "Dicloxacillin Capsule 500 mg (as sodium)..."
+  [4/40] Embedding: "Cefalexin Capsule 500 mg (as monohydrate..."
+  [5/40] Embedding: "Atorvastatin Tablet 20 mg (as calcium)..."
+  [6/40] Embedding: "Simvastatin Tablet 20 mg..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin Pack containi..."
+  [8/40] Embedding: "Pravastatin Tablet containing pravastati..."
+  [9/40] Embedding: "Perindopril Tablet containing perindopri..."
+  [10/40] Embedding: "Ramipril Capsule 10 mg..."
+  [11/40] Embedding: "Enalapril Tablet containing enalapril ma..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel Po..."
+  [13/40] Embedding: "Docetaxel Solution concentrate for I.V. ..."
+  [14/40] Embedding: "Carboplatin Solution for I.V. injection ..."
+  [15/40] Embedding: "Aspirin null..."
+  [16/40] Embedding: "Clopidogrel Tablet 75 mg (as hydrogen su..."
+  [17/40] Embedding: "Paracetamol Tablet 500 mg..."
+  [18/40] Embedding: "Metformin Tablet (extended release) cont..."
+  [19/40] Embedding: "METOPROLOL TARTRATE Tablet containing me..."
+  [20/40] Embedding: "Esomeprazole Capsule (enteric) 20 mg (as..."
+  [21/40] Embedding: "Initiation of the management of anaesthe..."
+  [22/40] Embedding: "Spine—thoracic (R)..."
+  [23/40] Embedding: "Initiation of the management of anaesthe..."
+  [24/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "Central vein catheterisation, including ..."
+  [27/40] Embedding: "BREAST, ABNORMALITY detected by mammogra..."
+  [28/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [29/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [30/40] Embedding: "PERCUTANEOUS NEEDLE BIOPSY of lung (Anae..."
+  [31/40] Embedding: "Sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "GASTROSCOPY and insertion of nasogastric..."
+  [33/40] Embedding: "Bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "Initiation of the management of anaesthe..."
+  [35/40] Embedding: "Initiation of the management of anaesthe..."
+  [36/40] Embedding: "ELBOW, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "Arthrectomy or excision arthroplasty (Gi..."
+  [38/40] Embedding: "IMPLANTED PACEMAKER TESTING, with patien..."
+  [39/40] Embedding: "Measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "Video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_biobert_original.json
+
+Generating BioBERT embeddings (normalized strategy)...
+  [1/40] Embedding: "amoxicillin capsule 500 mg blooms the ch..."
+  [2/40] Embedding: "flucloxacillin capsule 500 mg flopen via..."
+  [3/40] Embedding: "dicloxacillin capsule 500 mg distaph 500..."
+  [4/40] Embedding: "cefalexin capsule 500 mg keflex..."
+  [5/40] Embedding: "atorvastatin tablet 20 mg lorstat 20..."
+  [6/40] Embedding: "simvastatin tablet 20 mg simvar 20..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin pack 30 table..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium 40..."
+  [9/40] Embedding: "perindopril tablet perindopril 8 mg idap..."
+  [10/40] Embedding: "ramipril capsule 10 mg apo-ramipril..."
+  [11/40] Embedding: "enalapril tablet enalapril 20 mg enalapr..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet 75 mg blooms clopidog..."
+  [17/40] Embedding: "paracetamol tablet 500 mg wagner health ..."
+  [18/40] Embedding: "metformin tablet extended release metfor..."
+  [19/40] Embedding: "metoprolol tablet metoprolol 50 mg metop..."
+  [20/40] Embedding: "esomeprazole capsule (enteric) 20 mg nox..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "anaesthesia for percutaneous liver biops..."
+  [29/40] Embedding: "anaesthesia for percutaneous bone marrow..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_biobert_normalized.json
+
+Generating BioBERT embeddings (core strategy)...
+  [1/40] Embedding: "amoxicillin capsule..."
+  [2/40] Embedding: "flucloxacillin capsule..."
+  [3/40] Embedding: "dicloxacillin capsule..."
+  [4/40] Embedding: "cefalexin capsule..."
+  [5/40] Embedding: "atorvastatin tablet..."
+  [6/40] Embedding: "simvastatin tablet..."
+  [7/40] Embedding: "ezetimibe rosuvastatin pack 30 tablets e..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium..."
+  [9/40] Embedding: "perindopril tablet perindopril erbumine..."
+  [10/40] Embedding: "ramipril capsule..."
+  [11/40] Embedding: "enalapril tablet enalapril maleate..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet..."
+  [17/40] Embedding: "paracetamol tablet..."
+  [18/40] Embedding: "metformin tablet metformin hydrochloride..."
+  [19/40] Embedding: "metoprolol tartrate tablet metoprolol ta..."
+  [20/40] Embedding: "esomeprazole capsule..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "initiation of management of anaesthesia ..."
+  [29/40] Embedding: "initiation of management of anaesthesia ..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_biobert_core.json
+
+Generating Clinical-ModernBERT embeddings (original strategy)...
+  [1/40] Embedding: "Amoxicillin Capsule 500 mg (as trihydrat..."
+  [2/40] Embedding: "Flucloxacillin Capsule 500 mg (as sodium..."
+  [3/40] Embedding: "Dicloxacillin Capsule 500 mg (as sodium)..."
+  [4/40] Embedding: "Cefalexin Capsule 500 mg (as monohydrate..."
+  [5/40] Embedding: "Atorvastatin Tablet 20 mg (as calcium)..."
+  [6/40] Embedding: "Simvastatin Tablet 20 mg..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin Pack containi..."
+  [8/40] Embedding: "Pravastatin Tablet containing pravastati..."
+  [9/40] Embedding: "Perindopril Tablet containing perindopri..."
+  [10/40] Embedding: "Ramipril Capsule 10 mg..."
+  [11/40] Embedding: "Enalapril Tablet containing enalapril ma..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel Po..."
+  [13/40] Embedding: "Docetaxel Solution concentrate for I.V. ..."
+  [14/40] Embedding: "Carboplatin Solution for I.V. injection ..."
+  [15/40] Embedding: "Aspirin null..."
+  [16/40] Embedding: "Clopidogrel Tablet 75 mg (as hydrogen su..."
+  [17/40] Embedding: "Paracetamol Tablet 500 mg..."
+  [18/40] Embedding: "Metformin Tablet (extended release) cont..."
+  [19/40] Embedding: "METOPROLOL TARTRATE Tablet containing me..."
+  [20/40] Embedding: "Esomeprazole Capsule (enteric) 20 mg (as..."
+  [21/40] Embedding: "Initiation of the management of anaesthe..."
+  [22/40] Embedding: "Spine—thoracic (R)..."
+  [23/40] Embedding: "Initiation of the management of anaesthe..."
+  [24/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "Mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "Central vein catheterisation, including ..."
+  [27/40] Embedding: "BREAST, ABNORMALITY detected by mammogra..."
+  [28/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [29/40] Embedding: "INITIATION OF MANAGEMENT OF ANAESTHESIA ..."
+  [30/40] Embedding: "PERCUTANEOUS NEEDLE BIOPSY of lung (Anae..."
+  [31/40] Embedding: "Sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "GASTROSCOPY and insertion of nasogastric..."
+  [33/40] Embedding: "Bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "Initiation of the management of anaesthe..."
+  [35/40] Embedding: "Initiation of the management of anaesthe..."
+  [36/40] Embedding: "ELBOW, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "Arthrectomy or excision arthroplasty (Gi..."
+  [38/40] Embedding: "IMPLANTED PACEMAKER TESTING, with patien..."
+  [39/40] Embedding: "Measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "Video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_clinical_modernbert_original.json
+
+Generating Clinical-ModernBERT embeddings (normalized strategy)...
+  [1/40] Embedding: "amoxicillin capsule 500 mg blooms the ch..."
+  [2/40] Embedding: "flucloxacillin capsule 500 mg flopen via..."
+  [3/40] Embedding: "dicloxacillin capsule 500 mg distaph 500..."
+  [4/40] Embedding: "cefalexin capsule 500 mg keflex..."
+  [5/40] Embedding: "atorvastatin tablet 20 mg lorstat 20..."
+  [6/40] Embedding: "simvastatin tablet 20 mg simvar 20..."
+  [7/40] Embedding: "ezetimibe (&) rosuvastatin pack 30 table..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium 40..."
+  [9/40] Embedding: "perindopril tablet perindopril 8 mg idap..."
+  [10/40] Embedding: "ramipril capsule 10 mg apo-ramipril..."
+  [11/40] Embedding: "enalapril tablet enalapril 20 mg enalapr..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet 75 mg blooms clopidog..."
+  [17/40] Embedding: "paracetamol tablet 500 mg wagner health ..."
+  [18/40] Embedding: "metformin tablet extended release metfor..."
+  [19/40] Embedding: "metoprolol tablet metoprolol 50 mg metop..."
+  [20/40] Embedding: "esomeprazole capsule (enteric) 20 mg nox..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "anaesthesia for percutaneous liver biops..."
+  [29/40] Embedding: "anaesthesia for percutaneous bone marrow..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_clinical_modernbert_normalized.json
+
+Generating Clinical-ModernBERT embeddings (core strategy)...
+  [1/40] Embedding: "amoxicillin capsule..."
+  [2/40] Embedding: "flucloxacillin capsule..."
+  [3/40] Embedding: "dicloxacillin capsule..."
+  [4/40] Embedding: "cefalexin capsule..."
+  [5/40] Embedding: "atorvastatin tablet..."
+  [6/40] Embedding: "simvastatin tablet..."
+  [7/40] Embedding: "ezetimibe rosuvastatin pack 30 tablets e..."
+  [8/40] Embedding: "pravastatin tablet pravastatin sodium..."
+  [9/40] Embedding: "perindopril tablet perindopril erbumine..."
+  [10/40] Embedding: "ramipril capsule..."
+  [11/40] Embedding: "enalapril tablet enalapril maleate..."
+  [12/40] Embedding: "nanoparticle albumin-bound paclitaxel po..."
+  [13/40] Embedding: "docetaxel solution concentrate for i.v. ..."
+  [14/40] Embedding: "carboplatin solution for i.v. injection ..."
+  [15/40] Embedding: "aspirin null..."
+  [16/40] Embedding: "clopidogrel tablet..."
+  [17/40] Embedding: "paracetamol tablet..."
+  [18/40] Embedding: "metformin tablet metformin hydrochloride..."
+  [19/40] Embedding: "metoprolol tartrate tablet metoprolol ta..."
+  [20/40] Embedding: "esomeprazole capsule..."
+  [21/40] Embedding: "initiation of the management of anaesthe..."
+  [22/40] Embedding: "spine—thoracic (r)..."
+  [23/40] Embedding: "initiation of the management of anaesthe..."
+  [24/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [25/40] Embedding: "mechanical thrombectomy, in a patient wi..."
+  [26/40] Embedding: "central vein catheterisation, including ..."
+  [27/40] Embedding: "breast, abnormality detected by mammogra..."
+  [28/40] Embedding: "initiation of management of anaesthesia ..."
+  [29/40] Embedding: "initiation of management of anaesthesia ..."
+  [30/40] Embedding: "percutaneous needle biopsy of lung (anae..."
+  [31/40] Embedding: "sigmoidoscopy or colonoscopy up to the h..."
+  [32/40] Embedding: "gastroscopy and insertion of nasogastric..."
+  [33/40] Embedding: "bronchoscopy, as an independent procedur..."
+  [34/40] Embedding: "initiation of the management of anaesthe..."
+  [35/40] Embedding: "initiation of the management of anaesthe..."
+  [36/40] Embedding: "elbow, diagnostic arthroscopy of, includ..."
+  [37/40] Embedding: "arthrectomy or excision arthroplasty (gi..."
+  [38/40] Embedding: "implanted pacemaker testing, with patien..."
+  [39/40] Embedding: "measurement of spirometry: (a) that incl..."
+  [40/40] Embedding: "video attendance for the provision of se..."
+  ✓ Complete: 40 succeeded, 0 failed
+  ✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/embeddings_clinical_modernbert_core.json
+
+================================================================================
+PHASE 3: SIMILARITY CALCULATION
+--------------------------------------------------------------------------------
+
+Calculating pairwise similarities...
+✓ Calculated 360 similarity scores
+✓ Saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/similarity_results.json
+
+================================================================================
+PHASE 4: ANALYSIS & REPORTING
+--------------------------------------------------------------------------------
+
+================================================================================
+EXPERIMENT 2 RESULTS
+================================================================================
+
+AVERAGE SIMILARITY SCORES (Lower = Better Differentiation)
+
+| Model | Strategy | Medications | Procedures | Overall |
+|-------|----------|-------------|------------|---------|
+| openai               | original   | 54.6% | 50.1% | 52.4% |
+| openai               | normalized | 50.5% | 50.1% | 50.3% |
+| openai               | core       | 54.8% | 50.1% | 52.4% |
+| sapbert              | original   | 33.6% | 48.9% | 41.3% |
+| sapbert              | normalized | 33.2% | 49.1% | 41.2% |
+| sapbert              | core       | 38.6% | 49.0% | 43.8% |
+| biobert              | original   | 92.5% | 91.5% | 92.0% |
+| biobert              | normalized | 90.6% | 90.4% | 90.5% |
+| biobert              | core       | 93.0% | 90.7% | 91.9% |
+| clinical             | modernbert | 90.9% | 87.7% | 89.3% |
+| clinical             | modernbert | 89.9% | 88.9% | 89.4% |
+| clinical             | modernbert | 90.5% | 88.9% | 89.7% |
+
+================================================================================
+RECOMMENDATION
+================================================================================
+
+Best Model: SapBERT
+Best Strategy: normalized
+Overall Similarity: 41.2%
+
+Improvement over OpenAI baseline: 11.3 points
+================================================================================
+
+✓ Analysis saved to: /Users/xflanagan/Documents/GitHub/Guardian-Cursor/shared/docs/architecture/database-foundation-v3/ai-processing-v3/implementation-planning/pass-1.5-medical-code-embedding/pass1.5-testing/experiment-2/analysis.md
+
+================================================================================
+EXPERIMENT 2 COMPLETE
+================================================================================

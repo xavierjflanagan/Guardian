@@ -14,7 +14,7 @@ This directory contains all documentation and scripts for Phase 2 of the Pass 1.
 
 ### Phase 2 Goals
 1. Acquire 6 medical code libraries (~228,000 codes)
-2. Parse raw data into standardized JSON format
+2. Parse raw data into **library-agnostic standardized JSON** format
 3. Generate OpenAI embeddings for all codes
 4. Populate Supabase database tables
 
@@ -36,13 +36,13 @@ Step 1: DATA ACQUISITION (User Action)
     ├─> See: DATA-ACQUISITION-GUIDE.md
     └─> Output: Raw files in data/medical-codes/<system>/raw/
 
-Step 2: PARSING (Not Yet Implemented)
-├── Parse RxNorm RRF files → JSON
-├── Parse SNOMED-CT RF2 files → JSON
-├── Parse LOINC CSV → JSON
-├── Parse PBS XML → JSON
-├── Parse MBS CSV → JSON
-└── Parse ICD-10-AM CSV → JSON
+Step 2: PARSING (PBS Complete, Others Pending)
+├── Parse RxNorm RRF files → JSON (pending UMLS approval)
+├── Parse SNOMED-CT RF2 files → JSON (pending UMLS approval)
+├── Parse LOINC CSV → JSON (pending UMLS approval)
+├── Parse PBS CSV → JSON (✅ READY TO RUN)
+├── Parse MBS CSV → JSON (pending implementation)
+└── Parse ICD-10-AM CSV → JSON (optional)
     │
     ├─> See: PARSING-STRATEGY.md
     └─> Output: Standardized JSON in data/medical-codes/<system>/processed/
@@ -83,13 +83,13 @@ Step 4: DATABASE POPULATION (Script Ready)
 1. **generate-embeddings.ts** - TypeScript script for embedding generation
 2. **populate-database.ts** - TypeScript script for database population
 
-### Future Files (Not Yet Created)
-- **parse-rxnorm.ts** - RxNorm RRF parser
-- **parse-snomed.ts** - SNOMED-CT RF2 parser
-- **parse-loinc.ts** - LOINC CSV parser
-- **parse-pbs.ts** - PBS XML parser
-- **parse-mbs.ts** - MBS CSV parser
-- **parse-icd10am.ts** - ICD-10-AM CSV parser
+### Parser Implementation Status
+- **parse-pbs.ts** - ✅ PBS CSV parser (READY TO RUN)
+- **parse-rxnorm.ts** - ⏳ RxNorm RRF parser (pending UMLS approval)
+- **parse-snomed.ts** - ⏳ SNOMED-CT RF2 parser (pending UMLS approval)
+- **parse-loinc.ts** - ⏳ LOINC CSV parser (pending UMLS approval)
+- **parse-mbs.ts** - ⏸️ MBS CSV parser (pending implementation)
+- **parse-icd10am.ts** - ⏸️ ICD-10-AM CSV parser (optional)
 
 ---
 
@@ -110,15 +110,18 @@ Step 4: DATABASE POPULATION (Script Ready)
 # (Optional) Acquire ICD-10-AM license
 ```
 
-### Step 2: Parsing (Not Yet Implemented)
+### Step 2: Parsing (PBS Ready, Others Pending)
 ```bash
-# TODO: Implement parser scripts based on PARSING-STRATEGY.md
-# npx tsx parse-rxnorm.ts
-# npx tsx parse-snomed.ts
-# npx tsx parse-loinc.ts
-# npx tsx parse-pbs.ts
-# npx tsx parse-mbs.ts
-# npx tsx parse-icd10am.ts
+# Run PBS parser (ready now)
+cd /Users/xflanagan/Documents/GitHub/Guardian-Cursor
+npx tsx parse-pbs.ts
+
+# TODO: Implement remaining parsers based on PARSING-STRATEGY.md
+# npx tsx parse-rxnorm.ts    # after UMLS approval
+# npx tsx parse-snomed.ts    # after UMLS approval  
+# npx tsx parse-loinc.ts     # after UMLS approval
+# npx tsx parse-mbs.ts       # needs implementation
+# npx tsx parse-icd10am.ts   # optional
 ```
 
 ### Step 3: Embedding Generation
@@ -162,7 +165,7 @@ data/medical-codes/
 ├── loinc/raw/
 │   └── Loinc.csv                 # ~100 MB
 ├── pbs/raw/
-│   └── pbs-xml-YYYY-MM.zip       # ~10 MB
+│   └── 2025-10-01-PBS-API-CSV-files/  # ~10 MB CSV format
 ├── mbs/raw/
 │   └── MBS_Items_YYYYMMDD.xlsx   # ~5 MB
 └── icd10am/raw/
@@ -186,18 +189,23 @@ data/medical-codes/
     └── icd10am_codes.json        # ~2 MB, 20,000 records
 ```
 
-**JSON Structure (Standardized):**
+**JSON Structure (Library-Agnostic Standardized):**
 ```json
 [
   {
-    "code_system": "rxnorm",
-    "code_value": "205923",
-    "display_name": "Atorvastatin 20 MG Oral Tablet",
+    "code_system": "pbs",
+    "code_value": "10001J_14023_31078_31081_31083",  // Most granular ID
+    "grouping_code": "10001J",                       // Optional grouping ID
+    "display_name": "Rifaximin Tablet 550 mg",
     "entity_type": "medication",
-    "search_text": "Atorvastatin 20 MG Oral Tablet",
-    "library_version": "v2025Q1",
-    "country_code": null,
-    "region_specific_data": {}
+    "search_text": "Rifaximin Tablet 550 mg Xifaxan",
+    "library_version": "v2025Q4", 
+    "country_code": "AUS",
+    "region_specific_data": {
+      "original_li_item_id": "10001J_14023_31078_31081_31083",
+      "original_pbs_code": "10001J",
+      "brand_name": "Xifaxan"
+    }
   },
   ...
 ]
@@ -288,11 +296,13 @@ SELECT code_system, country_code, COUNT(*) FROM regional_medical_codes GROUP BY 
 ### In Progress ⏳
 - [⏳] UMLS account approval (1-2 business days expected)
 - [ ] User will download RxNorm, SNOMED, LOINC after UMLS approval
+- [⏳] PBS parser implementation (✅ COMPLETE - ready to run)
+- [ ] MBS parser implementation
 
 ### Not Started ⏸️
-- [ ] Parser script implementation (6 parsers needed - can start PBS/MBS immediately)
+- [ ] RxNorm, SNOMED, LOINC parser implementation (pending UMLS approval)
 - [ ] Embedding generation execution (requires parsed data)
-- [ ] Database population execution (requires embedded data)
+- [ ] Database population execution (requires embedded data)  
 - [ ] Vector search testing and validation
 
 ### Ready to Start
@@ -377,6 +387,6 @@ SELECT code_system, country_code, COUNT(*) FROM regional_medical_codes GROUP BY 
 
 ---
 
-**Last Updated:** 2025-10-15
-**Status:** Phase 2 in progress - User acquiring data
-**Next Milestone:** Complete data acquisition, implement parsers
+**Last Updated:** 2025-10-16
+**Status:** Phase 2 active - PBS parser ready, library-agnostic approach implemented
+**Next Milestone:** Run PBS parser, implement MBS parser, complete data acquisition
