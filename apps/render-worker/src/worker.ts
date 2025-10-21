@@ -998,55 +998,6 @@ class V3Worker {
 }
 
 // =============================================================================
-// BATCH JOB RUNNER
-// =============================================================================
-
-/**
- * Run batch jobs (embeddings, migrations, etc.) instead of normal worker
- */
-async function runBatchJob(batchMode: string): Promise<void> {
-  const logger = createLogger({
-    context: 'batch-job',
-    worker_id: config.worker.id,
-  });
-
-  logger.info('Starting batch job', { batch_mode: batchMode });
-
-  try {
-    if (batchMode === 'sapbert') {
-      // Import and run SapBERT embedding generation
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execPromise = promisify(exec);
-
-      logger.info('Running SapBERT embedding generation');
-
-      const { stdout, stderr } = await execPromise(
-        'npx tsx src/pass15/generate-sapbert-embeddings.ts',
-        {
-          cwd: '/opt/render/project/src',
-          env: { ...process.env },
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer for logs
-        }
-      );
-
-      if (stdout) logger.info('SapBERT stdout', { output: stdout.slice(0, 1000) });
-      if (stderr) logger.warn('SapBERT stderr', { output: stderr.slice(0, 1000) });
-
-      logger.info('SapBERT embedding generation completed successfully');
-    } else {
-      throw new Error(`Unknown batch mode: ${batchMode}`);
-    }
-
-    logger.info('Batch job completed, exiting');
-    process.exit(0);
-  } catch (error: any) {
-    logger.error('Batch job failed', error);
-    throw error;
-  }
-}
-
-// =============================================================================
 // EXPRESS SERVER (for health checks)
 // =============================================================================
 
@@ -1075,24 +1026,11 @@ app.listen(config.server.port, () => {
     port: config.server.port,
   });
 
-  // Check for batch mode
-  const BATCH_MODE = process.env.BATCH_MODE;
-
-  if (BATCH_MODE) {
-    serverLogger.info('Batch mode detected', { batch_mode: BATCH_MODE });
-
-    // Run batch job instead of normal worker
-    runBatchJob(BATCH_MODE).catch(error => {
-      serverLogger.error('Batch job failed', error as Error);
-      process.exit(1);
-    });
-  } else {
-    // Start normal worker
-    worker.start().catch(error => {
-      serverLogger.error('Worker failed to start', error as Error);
-      process.exit(1);
-    });
-  }
+  // Start worker
+  worker.start().catch(error => {
+    serverLogger.error('Worker failed to start', error as Error);
+    process.exit(1);
+  });
 });
 
 // Graceful shutdown
