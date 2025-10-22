@@ -1347,6 +1347,11 @@ CREATE TABLE IF NOT EXISTS regional_medical_codes (
     normalized_embedding_text TEXT,
     normalized_embedding VECTOR(1536),
 
+    -- Migration 31 (2025-10-21): SapBERT embedding support for PBS medications
+    sapbert_embedding VECTOR(768),
+    sapbert_embedding_generated_at TIMESTAMPTZ,
+    active_embedding_model VARCHAR(20) DEFAULT 'openai' CHECK (active_embedding_model IN ('openai', 'sapbert')),
+
     -- Unique constraint
     UNIQUE(code_system, code_value, country_code)
 );

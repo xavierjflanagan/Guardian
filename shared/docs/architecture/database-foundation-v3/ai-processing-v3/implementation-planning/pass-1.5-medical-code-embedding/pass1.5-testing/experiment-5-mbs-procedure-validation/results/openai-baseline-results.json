@@ -1,0 +1,1593 @@
+{
+  "experiment": "Experiment 5 - Phase 2",
+  "test_type": "OpenAI Baseline",
+  "model": "text-embedding-3-small",
+  "total_entities": 35,
+  "completed_at": "2025-10-22T04:02:05.165Z",
+  "results": [
+    {
+      "entity_id": 1,
+      "entity_text": "Standard GP consultation",
+      "category": "gp_visits",
+      "subcategory": "consultation",
+      "top_score": 49.8,
+      "top_20_results": [
+        {
+          "code_value": "10905",
+          "display_name": "REFERRED COMPREHENSIVE INITIAL CONSULTATION Professional attendance of more than 15 minutes duration, being the first in a course of attention, where the patient has been referred by another optometrist who is not associated with the optometrist to whom the patient is referred",
+          "similarity_score": 0.497531
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:08.548Z"
+    },
+    {
+      "entity_id": 2,
+      "entity_text": "Long GP consultation",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:10.403Z"
+    },
+    {
+      "entity_id": 3,
+      "entity_text": "Telehealth consultation",
+      "category": "gp_visits",
+      "subcategory": "consultation",
+      "top_score": 44.1,
+      "top_20_results": [
+        {
+          "code_value": "93095",
+          "display_name": "Eating disorder psychological treatment service provided by video attendance to an eligible patient by an eligible occupational therapist if: (a) the service is recommended in the patient’s eating disorder treatment and management plan; and (b) the service is provided to the patient individually; and (c) the service is at least 50 minutes in duration",
+          "similarity_score": 0.440725
+        },
+        {
+          "code_value": "45661",
+          "display_name": "External ear, complex total reconstruction of, elevation of costal cartilage framework using cartilage previously stored in abdominal wall, including the use of local skin and fascia flaps and skin graft to cover cartilage (second stage) - performed by a specialist in the practice of the specialist’s specialty (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.210786
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:11.037Z"
+    },
+    {
+      "entity_id": 4,
+      "entity_text": "ECG",
+      "category": "gp_visits",
+      "subcategory": "diagnostic_test",
+      "top_score": 28.5,
+      "top_20_results": [
+        {
+          "code_value": "73829",
+          "display_name": "Leucocyte count, erythrocyte sedimentation rate, examination of blood film (including differential leucocyte count), haemoglobin, haematocrit or erythrocyte count by a participating nurse practitioner - 1 test",
+          "similarity_score": 0.284691
+        },
+        {
+          "code_value": "12024",
+          "display_name": "Epicutaneous patch testing in the investigation of allergic dermatitis, performed by or on behalf of a specialist, or consultant physician, in the practice of his or her specialty, using more than 100 allergens",
+          "similarity_score": 0.262448
+        },
+        {
+          "code_value": "16509",
+          "display_name": "Pre‑eclampsia, eclampsia or antepartum haemorrhage, treatment of—professional attendance (other than a service to which item 16534 applies) that is not a routine antenatal attendance",
+          "similarity_score": 0.25487
+        },
+        {
+          "code_value": "71064",
+          "display_name": "Detection and quantitation of cryoglobulins or cryofibrinogen - 1 or more tests",
+          "similarity_score": 0.253015
+        },
+        {
+          "code_value": "12021",
+          "display_name": "Epicutaneous patch testing in the investigation of allergic dermatitis, performed by or on behalf of a specialist, or consultant physician, in the practice of his or her specialty, using more than 50 allergens but not more than 75 allergens",
+          "similarity_score": 0.241724
+        },
+        {
+          "code_value": "12022",
+          "display_name": "Epicutaneous patch testing in the investigation of allergic dermatitis, performed by or on behalf of a specialist, or consultant physician, in the practice of his or her specialty, using more than 75 allergens but not more than 100 allergens",
+          "similarity_score": 0.240338
+        },
+        {
+          "code_value": "71089",
+          "display_name": "Quantitation of complement components or breakdown products of complement proteins not elsewhere described in an item in this Schedule - 1 test (Item is subject to rule 6)",
+          "similarity_score": 0.228928
+        },
+        {
+          "code_value": "65087",
+          "display_name": "Bone marrow - examination of aspirated material (including clot sections where necessary), including (if performed): any test described in item 65060, 65066 or 65070",
+          "similarity_score": 0.223671
+        },
+        {
+          "code_value": "66635",
+          "display_name": "Alpha-1-antitrypsin - quantitation in serum, urine or other body fluid - 1 or more tests",
+          "similarity_score": 0.222578
+        },
+        {
+          "code_value": "66752",
+          "display_name": "Quantitation of acetoacetate, beta-hydroxybutyrate, citrate, oxalate, total free fatty acids, cysteine, homocysteine, cystine, lactate, pyruvate or other amino acids and hydroxyproline (except if performed as part of item 66773 or 66776) - 1 test",
+          "similarity_score": 0.216507
+        },
+        {
+          "code_value": "66822",
+          "display_name": "Quantitation of copper, manganese, selenium, or zinc (except if item 66667 applies), in blood, urine or other body fluid - 2 or more tests. (Item is subject to rule 6, 22 and 25)",
+          "similarity_score": 0.20162
+        },
+        {
+          "code_value": "12003",
+          "display_name": "Skin prick testing for food and latex allergens, including all allergens tested on the same day, not being a service associated with a service to which item 12012, 12017, 12021, 12022 or 12024 applies",
+          "similarity_score": 0.179522
+        },
+        {
+          "code_value": "75802",
+          "display_name": "Fabrication and fitting of acrylic base partial denture, including retainers—1 to 4 teeth",
+          "similarity_score": 0.113474
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:12.754Z"
+    },
+    {
+      "entity_id": 5,
+      "entity_text": "Spirometry",
+      "category": "gp_visits",
+      "subcategory": "diagnostic_test",
+      "top_score": 37.6,
+      "top_20_results": [
+        {
+          "code_value": "66900",
+          "display_name": "CARBON-LABELLED UREA BREATH TEST using oral C-13 or C-14 urea, including the measurement of exhaled 13CO2 or 14CO2 (except if item 12533 applies) for either:- (a) the confirmation of Helicobacter pylori colonisation OR (b) the monitoring of the success of eradication of Helicobacter pylori.",
+          "similarity_score": 0.375926
+        },
+        {
+          "code_value": "12533",
+          "display_name": "CARBON-LABELLED UREA BREATH TEST using oral C-13 or C-14 urea, performed by a specialist or consultant physician, including the measurement of exhaled 13CO2 or 14CO2, for either:- (a)the confirmation of Helicobacter pylori colonisation, OR (b)the monitoring of the success of eradication of Helicobacter pylori in patients with peptic ulcer disease. not being a service to which 66900 applies",
+          "similarity_score": 0.375763
+        },
+        {
+          "code_value": "22015",
+          "display_name": "Right heart balloon catheter, insertion of, including pulmonary wedge pressure and cardiac output measurement, when performed in association with the management of anaesthesia (H) (6 basic units)",
+          "similarity_score": 0.32196
+        },
+        {
+          "code_value": "11318",
+          "display_name": "Audiogram, air and bone conduction and speech, with other cochlear tests, if a service to which item 82318 applies has not been performed on the patient on the same day",
+          "similarity_score": 0.317534
+        },
+        {
+          "code_value": "11315",
+          "display_name": "Audiogram, air and bone conduction and speech, if a service to which item 82315 applies has not been performed on the patient on the same day",
+          "similarity_score": 0.310038
+        },
+        {
+          "code_value": "69401",
+          "display_name": "A test described in item 69384, other than that described in 69400, if rendered by a receiving APP - each test to a maximum of 4 tests (Item is subject to rule 6, 18 and 18A)",
+          "similarity_score": 0.299151
+        },
+        {
+          "code_value": "11724",
+          "display_name": "UP-RIGHT TILT TABLE TESTING for the investigation of syncope of suspected cardiothoracic origin, including blood pressure monitoring, continuous ECG monitoring and the recording of the parameters, and involving an established intravenous line and the continuous attendance of a specialist or consultant physician - on premises equipped with a mechanical respirator and defibrillator",
+          "similarity_score": 0.294498
+        },
+        {
+          "code_value": "66827",
+          "display_name": "A test described in item 66825, other than that described in 66826, if rendered by a receiving APP to a maximum of 1 test (Item is subject to rules 6, 18, 22 and 25)",
+          "similarity_score": 0.293356
+        },
+        {
+          "code_value": "65081",
+          "display_name": "Tests for the investigation of haemoglobinopathy consisting of haemoglobin electrophoresis or chromatography and at least 1 of: (a) heat denaturation test; or (b) isopropanol precipitation test; or (c) tests for the presence of haemoglobin S; or (d) quantitation of any haemoglobin fraction (including S, C, D, E); including (if performed) any service described in item 65060, 65070 or 65078",
+          "similarity_score": 0.285896
+        },
+        {
+          "code_value": "66542",
+          "display_name": "Oral glucose tolerance test for the diagnosis of diabetes mellitus that includes: (a) administration of glucose; and (b) at least 2 measurements of blood glucose; and (c) (if performed) any test described in item 66695",
+          "similarity_score": 0.284787
+        },
+        {
+          "code_value": "66805",
+          "display_name": "A test described in item 66800 other than that described in 66804, if rendered by a receiving APP - each test to a maximum of 2 tests (Item is subject to rule 6 and 18)",
+          "similarity_score": 0.283661
+        },
+        {
+          "code_value": "65158",
+          "display_name": "Tests described in item 65150, other than that described in 65157, if rendered by a receiving APP - each test to a maximum of 2 tests (Item is subject to rule 6 and 18)",
+          "similarity_score": 0.282827
+        },
+        {
+          "code_value": "73804",
+          "display_name": "3 or more tests described in item 73802",
+          "similarity_score": 0.277565
+        },
+        {
+          "code_value": "65126",
+          "display_name": "3 tests described in item 65120",
+          "similarity_score": 0.277445
+        },
+        {
+          "code_value": "12272",
+          "display_name": "Maintenance of wakefulness test for the assessment of the ability to maintain wakefulness for a patient less than 12 years of age, if: (a) a qualified paediatric sleep medicine practitioner determines that testing to objectively confirm the ability to maintain wakefulness is necessary; and (b) an overnight diagnostic assessment of sleep is performed for at least 8 hours, with continuous monitoring of oxygen saturation and breathing using a multi‑channel polygraph, and recordings of the following",
+          "similarity_score": 0.275449
+        },
+        {
+          "code_value": "65078",
+          "display_name": "Tests for the diagnosis of thalassaemia consisting of haemoglobin electrophoresis or chromatography and at least 2 of: (a) examination for HbH; or (b) quantitation of HbA2; or (c) quantitation of HbF; including (if performed) any service described in item 65060 or 65070",
+          "similarity_score": 0.274586
+        },
+        {
+          "code_value": "65123",
+          "display_name": "2 tests described in item 65120",
+          "similarity_score": 0.274244
+        },
+        {
+          "code_value": "66803",
+          "display_name": "2 tests described in item 66800 (Item is subject to rule 6)",
+          "similarity_score": 0.269249
+        },
+        {
+          "code_value": "12265",
+          "display_name": "Maintenance of wakefulness test for the assessment of the ability to maintain wakefulness in a patient aged at least 12 years but less than 18 years, if: (a) a qualified sleep medicine practitioner determines that testing to objectively confirm the ability to maintain wakefulness is necessary; and (b) an overnight diagnostic assessment of sleep is performed for at least 8 hours, with continuous monitoring of oxygen saturation and breathing using a multi‑channel polygraph, and recordings of the f",
+          "similarity_score": 0.26886
+        },
+        {
+          "code_value": "66509",
+          "display_name": "4 tests described in item 66500",
+          "similarity_score": 0.268553
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:15.100Z"
+    },
+    {
+      "entity_id": 6,
+      "entity_text": "Wound dressing",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "top_score": 49.6,
+      "top_20_results": [
+        {
+          "code_value": "46134",
+          "display_name": "Definitive burn wound closure, or closure of skin defect secondary to necrotising fasciitis, if the defect area involves 20% or more but less than 30% of total body surface, using autologous tissue (split skin graft or other) following previous procedure using non-autologous temporary wound closure, excluding aftercare (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.495717
+        },
+        {
+          "code_value": "46135",
+          "display_name": "Definitive burn wound closure, or closure of skin defect secondary to necrotising fasciitis, if the defect area involves 30% or more of total body surface, using autologous tissue (split skin graft or other) following previous procedure using non-autologous temporary wound closure, excluding aftercare (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.492568
+        },
+        {
+          "code_value": "38851",
+          "display_name": "Sternotomy wound, debridement of, involving curettage of infected bone, with or without removal of wires, but not involving reopening of the mediastinum, other than a service associated with a service to which item 18258, 18260, 38815, 38816, 38828 or 38850 applies (H) (Anaes.)",
+          "similarity_score": 0.465352
+        },
+        {
+          "code_value": "38850",
+          "display_name": "Sternotomy wound, debridement of, not involving reopening of the mediastinum, other than a service associated with a service to which item 18258, 18260, 38815, 38816, 38828 or 38851 applies (H) (Anaes.)",
+          "similarity_score": 0.464434
+        },
+        {
+          "code_value": "46136",
+          "display_name": "Definitive burn wound closure, or closure of skin defect secondary to necrotising fasciitis, of whole of face, using autologous tissue (split skin graft or other) following previous procedure using non-autologous temporary wound closure, excluding aftercare, other than a service associated with a service to which item 46100 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.464215
+        },
+        {
+          "code_value": "46125",
+          "display_name": "Non-excisional debridement of superficial or mid-dermal partial thickness burns, if the area of burn involves less than 1% of total body surface, and application of skin substitute (skin allograft or biosynthetic epidermal replacements) (Anaes.) (Assist.)",
+          "similarity_score": 0.420293
+        },
+        {
+          "code_value": "46129",
+          "display_name": "Non-excisional debridement of superficial or mid-dermal partial thickness burns, if the area of burn involves 30% or more of total body surface, and application of skin substitute (skin allograft or biosynthetic epidermal replacements), excluding aftercare (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.418195
+        },
+        {
+          "code_value": "46128",
+          "display_name": "Non-excisional debridement of superficial or mid-dermal partial thickness burns, if the area of burn involves 10% or more but less than 30% of total body surface, and application of skin substitute (skin allograft or biosynthetic epidermal replacements), excluding aftercare (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.41595
+        },
+        {
+          "code_value": "46127",
+          "display_name": "Non-excisional debridement of superficial or mid-dermal partial thickness burns, if the area of burn involves 3% or more but less than 10% of total body surface, and application of skin substitute (skin allograft or biosynthetic epidermal replacements) (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.415773
+        },
+        {
+          "code_value": "46126",
+          "display_name": "Non-excisional debridement of superficial or mid-dermal partial thickness burns, if the area of burn involves 1% or more but less than 3% of total body surface, and application of skin substitute (skin allograft or biosynthetic epidermal replacements) (Anaes.) (Assist.)",
+          "similarity_score": 0.408063
+        },
+        {
+          "code_value": "45894",
+          "display_name": "Grafting (mucosa or split skin), in the oral cavity of a mucosal defect (Anaes.)",
+          "similarity_score": 0.368251
+        },
+        {
+          "code_value": "46111",
+          "display_name": "Excision of burnt tissue, if the area of burn excised involves 80% or more of total body surface, excluding aftercare (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.351697
+        },
+        {
+          "code_value": "46106",
+          "display_name": "Excision of burnt tissue, if the area of burn excised involves 30% or more but less than 40% of total body surface, excluding aftercare (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.34987
+        },
+        {
+          "code_value": "30189",
+          "display_name": "WARTS or MOLLUSCUM CONTAGIOSUM (one or more), removal of, by any method (other than by chemical means), where undertaken in the operating theatre of a hospital, not being a service associated with a service to which another item in this Group applies (H) (Anaes.)",
+          "similarity_score": 0.348474
+        },
+        {
+          "code_value": "88387",
+          "display_name": "Replantation and splinting of a tooth Replantation of a tooth which has been avulsed or intentionally removed. It may be held in the correct position by splinting. Inclusive of the insertion of sutures, normal post-operative care and suture removal.",
+          "similarity_score": 0.342252
+        },
+        {
+          "code_value": "34175",
+          "display_name": "INFECTED BYPASS GRAFT FROM EXTREMITIES, excision of including closure of arteries (Anaes.) (Assist.)",
+          "similarity_score": 0.342154
+        },
+        {
+          "code_value": "38852",
+          "display_name": "Sternum, reoperation on, for dehiscence or infection involving reopening of the mediastinum, with or without rewiring, other than a service associated with a service to which item 18258, 18260, 38815, 38816, 38828 or 38853 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.339449
+        },
+        {
+          "code_value": "38742",
+          "display_name": "Atrial septal defect, closure by open exposure and direct suture or patch, for congenital heart disease in a patient with documented evidence of right heart overload or paradoxical embolism, other than a service associated with a service to which item 11704, 11705, 11707, 11714, 18260, 33824, 38816, 38828 or 45503 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.338448
+        },
+        {
+          "code_value": "46401",
+          "display_name": "Operative treatment of non-union of phalanx or metacarpal of hand, including internal fixation (if performed) (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.335353
+        },
+        {
+          "code_value": "46101",
+          "display_name": "Excision of burnt tissue, if the area of burn excised involves not more than 1% of the total body surface (Anaes.) (Assist.)",
+          "similarity_score": 0.333313
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:17.574Z"
+    },
+    {
+      "entity_id": 7,
+      "entity_text": "Suture removal",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:19.306Z"
+    },
+    {
+      "entity_id": 8,
+      "entity_text": "Ear syringing",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "top_score": 22.3,
+      "top_20_results": [
+        {
+          "code_value": "10943",
+          "display_name": "Additional testing to confirm diagnosis of, or establish a treatment regime for, a significant binocular or accommodative dysfunction, in a patient aged 3 to 14 years, where the service:(a) includes assessment of one or more of the following: (i) accommodation; (ii) ocular motility; (iii) vergences; (iv) fusional reserves; (v) cycloplegic refraction; and(b) is not performed for the assessment of learning difficulties or learning disabilities;other than a service to which item 10916, 10921, 10924",
+          "similarity_score": 0.22308
+        },
+        {
+          "code_value": "11602",
+          "display_name": "Investigation of venous reflux or obstruction in one or more limbs at rest by CW Doppler or pulsed Doppler involving examination at multiple sites along each limb using intermittent limb compression or Valsalva manoeuvres, or both, to detect prograde and retrograde flow, other than a service associated with a service to which item 32500 applies—hard copy trace and written report, the report component of which must be performed by a medical practitioner, maximum of 2 examinations in a 12 month pe",
+          "similarity_score": 0.204185
+        },
+        {
+          "code_value": "10938",
+          "display_name": "Full quantitative computerised perimetry (automated absolute static threshold), with bilateral assessment and report, where indicated by the presence of glaucoma with a high risk of clinically significant progression that: (a) is not a service involving multifocal multichannel objective perimetry; (b) is performed by an optometrist; and (c) is performed on a patient who has received two perimetry services to which item 10940 or 10941 applies in the previous 12 months other than a service associa",
+          "similarity_score": 0.197017
+        },
+        {
+          "code_value": "10940",
+          "display_name": "Full quantitative computerised perimetry (automated absolute static threshold), with bilateral assessment and report, if indicated by the presence of relevant ocular disease or suspected pathology of the visual pathways or brain that:(a) is not a service involving multifocal multichannel objective perimetry; and(b) is performed by an optometrist; (c) the patient has received fewer than two perimetry services to which this item or item 10941 applies in a 12-month period other than a service assoc",
+          "similarity_score": 0.189211
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:20.252Z"
+    },
+    {
+      "entity_id": 9,
+      "entity_text": "Influenza vaccination",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:22.948Z"
+    },
+    {
+      "entity_id": 10,
+      "entity_text": "Skin lesion excision",
+      "category": "gp_visits",
+      "subcategory": "minor_surgery",
+      "top_score": 23.5,
+      "top_20_results": [
+        {
+          "code_value": "55084",
+          "display_name": "Urinary bladder, ultrasound scan of, by any or all approaches, if within 24 hours of the service, a service mentioned in item 11917, 55036, 55038, 55065, 55600 or 55603 is not performed on the same patient by the providing practitioner (R)",
+          "similarity_score": 0.234653
+        },
+        {
+          "code_value": "55085",
+          "display_name": "Urinary bladder, ultrasound scan of, by any or all approaches, if within 24 hours of the service, a service mentioned in item 11917, 55037, 55039, 55068, 55600 or 55603 is not performed on the same patient by the providing practitioner (NR)",
+          "similarity_score": 0.231261
+        },
+        {
+          "code_value": "91186",
+          "display_name": "Focussed psychological strategies health service provided by phone attendance by an eligible occupational therapist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided to the patient individually; and (c) at the completion of a course of treatment, the referring practitioner reviews the need for a further course of treatment; and (d) on the completion of the course of treatment, the eligible occupational therapist gives a written report to the referring p",
+          "similarity_score": 0.207065
+        },
+        {
+          "code_value": "91185",
+          "display_name": "Focussed psychological strategies health service provided by phone attendance by an eligible occupational therapist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided to the patient individually; and (c) at the completion of a course of treatment, the referring practitioner reviews the need for a further course of treatment; and (d) on the completion of the course of treatment, the eligible occupational therapist gives a written report to the referring p",
+          "similarity_score": 0.204198
+        },
+        {
+          "code_value": "91172",
+          "display_name": "Focussed psychological strategies health service provided by video attendance by an eligible occupational therapist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided to the patient individually; and (c) at the completion of a course of treatment, the referring practitioner reviews the need for a further course of treatment; and (d) on the completion of the course of treatment, the eligible occupational therapist gives a written report to the referring p",
+          "similarity_score": 0.198334
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:24.027Z"
+    },
+    {
+      "entity_id": 11,
+      "entity_text": "Mental health care plan",
+      "category": "gp_visits",
+      "subcategory": "care_plan",
+      "top_score": 49.2,
+      "top_20_results": [
+        {
+          "code_value": "80170",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible social worker if: (a) the patient is referred by referring practitioner; and (b) the service is provided in person; and (c) the service is at least 60 minutes duration",
+          "similarity_score": 0.491644
+        },
+        {
+          "code_value": "80175",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible social worker if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the social worker; and (e) the service is at least 120 minutes duration",
+          "similarity_score": 0.488846
+        },
+        {
+          "code_value": "80172",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible social worker if: (a) the patient is referred by a referring practitioner; and (b) the service is provided in person; and (c) the service is at least 90 minutes duration",
+          "similarity_score": 0.488398
+        },
+        {
+          "code_value": "80173",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible social worker if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the social worker; and (e) the service is at least 90 minutes duration",
+          "similarity_score": 0.487578
+        },
+        {
+          "code_value": "80120",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible psychologist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided in person; and (c) the service is at least 60 minutes duration",
+          "similarity_score": 0.487158
+        },
+        {
+          "code_value": "80171",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible social worker if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the social worker; and (e) the service is at least 60 minutes duration",
+          "similarity_score": 0.486454
+        },
+        {
+          "code_value": "80127",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible psychologist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided in person; and (c) the service is at least 120 minutes duration",
+          "similarity_score": 0.485702
+        },
+        {
+          "code_value": "80122",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible psychologist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided in person; and (c) the service is at least 90 minutes duration",
+          "similarity_score": 0.484327
+        },
+        {
+          "code_value": "80025",
+          "display_name": "Psychological therapy health service provided to a patient as part of a group of 4 to 10 patients by an eligible clinical psychologist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the clinical psychologist; and (e) the service is at least 120 minutes duration",
+          "similarity_score": 0.479707
+        },
+        {
+          "code_value": "80128",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible psychologist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the psychologist; and (e) the service is at least 120 minutes duration",
+          "similarity_score": 0.477311
+        },
+        {
+          "code_value": "80021",
+          "display_name": "Psychological therapy health service provided to a patient as part of a group of 4 to 10 patients by an eligible clinical psychologist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the clinical psychologist; and (e) the service is at least 60 minutes duration",
+          "similarity_score": 0.476604
+        },
+        {
+          "code_value": "80112",
+          "display_name": "Focussed psychological strategies health service provided in consulting rooms by an eligible psychologist to a person other than the patient, if: (a) the service is part of the patient’s treatment; (b) the patient has been referred to the eligible psychologist by a referring practitioner; and (c) the service lasts at least 50 minutes",
+          "similarity_score": 0.475931
+        },
+        {
+          "code_value": "80147",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible occupational therapist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided in person; and (c) the service is at least 90 minutes duration",
+          "similarity_score": 0.474684
+        },
+        {
+          "code_value": "80023",
+          "display_name": "Psychological therapy health service provided to a patient as part of a group of 4 to 10 patients by an eligible clinical psychologist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the clinical psychologist; and (e) the service is at least 90 minutes duration",
+          "similarity_score": 0.474532
+        },
+        {
+          "code_value": "80162",
+          "display_name": "Focussed psychological strategies health service provided in consulting rooms by an eligible social worker to a person other than the patient, if: (a) the service is part of the patient’s treatment; (b) the patient has been referred to the eligible social worker by a referring practitioner; and (c) the service lasts at least 50 minutes",
+          "similarity_score": 0.473991
+        },
+        {
+          "code_value": "80123",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 by an eligible psychologist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the psychologist; and (e) the service is at least 90 minutes duration",
+          "similarity_score": 0.473443
+        },
+        {
+          "code_value": "80145",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible occupational therapist if: (a) the patient is referred by a referring practitioner; and (b) the service is provided in person; and (c) the service is at least 60 minutes duration",
+          "similarity_score": 0.473353
+        },
+        {
+          "code_value": "80121",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible psychologist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the psychologist; and (e) the service is at least 60 minutes duration",
+          "similarity_score": 0.472699
+        },
+        {
+          "code_value": "80153",
+          "display_name": "Focussed psychological strategies health service provided to a patient as part of a group of 4 to 10 patients by an eligible occupational therapist if: (a) the patient is referred by a referring practitioner; and (b) the attendance is by video conference; and (c) the patient is located within a telehealth eligible area; and (d) the patient is, at the time of the attendance, at least 15 kilometres by road from the occupational therapist; and (e) the service is at least 120 minutes duration",
+          "similarity_score": 0.471868
+        },
+        {
+          "code_value": "80154",
+          "display_name": "Focussed psychological strategies health service provided in consulting rooms by an eligible social worker to a person other than the patient, if: (a) the service is part of the patient’s treatment; (b) the patient has been referred to the eligible social worker by a referring practitioner; and (c) the service lasts at least 20 minutes but less than 50 minutes",
+          "similarity_score": 0.470181
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:26.089Z"
+    },
+    {
+      "entity_id": 12,
+      "entity_text": "Pap smear",
+      "category": "gp_visits",
+      "subcategory": "screening",
+      "top_score": 18.3,
+      "top_20_results": [
+        {
+          "code_value": "16060",
+          "display_name": "177Lutetium-DOTA-somatostatin receptor agonist treatment cycle for patients with histologically confirmed and inoperable neuroendocrine neoplasm (NEN), either locally advanced or metastatic, with documented disease progression or uncontrolled symptoms related to their NEN despite standard therapy who: a) have high tumour somatostatin receptor expression demonstrated on whole body 68Ga DOTA somatostatin agonist PET study; and b) are considered suitable for a course of 177Lutetium-DOTA-somatostati",
+          "similarity_score": 0.182995
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:27.845Z"
+    },
+    {
+      "entity_id": 13,
+      "entity_text": "Joint injection",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:29.557Z"
+    },
+    {
+      "entity_id": 14,
+      "entity_text": "Blood collection",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "top_score": 58.6,
+      "top_20_results": [
+        {
+          "code_value": "13839",
+          "display_name": "ARTERIAL PUNCTURE and collection of blood for diagnostic purposes",
+          "similarity_score": 0.585923
+        },
+        {
+          "code_value": "13755",
+          "display_name": "Donor haemapheresis for the collection of blood products for transfusion, utilising continuous or intermittent flow techniques, including morphological tests for cell counts and viability studies; continuous monitoring of vital signs, fluid balance, blood volume and other parameters; with continuous registered nurse attendance under the supervision of a consultant physician—other than a service associated with a service to which item 13750 applies—each day (H)",
+          "similarity_score": 0.53452
+        },
+        {
+          "code_value": "13703",
+          "display_name": "Transfusion of blood including collection from donor, when used for intra‑operative normovolaemic haemodilution, other than a service associated with a service to which item 22052 applies (H)",
+          "similarity_score": 0.524375
+        },
+        {
+          "code_value": "22052",
+          "display_name": "Transfusion of blood by an anaesthetist, including collection from donor, when used for intra-operative normovolaemic haemodilution, where the service is provided on the same occasion as the administration of anaesthesia by the same anaesthetist, other than a service associated with a service to which item 13703 applies (6 basic units)",
+          "similarity_score": 0.508026
+        },
+        {
+          "code_value": "16609",
+          "display_name": "Fetal intravascular blood transfusion, using blood already collected, including neuromuscular blockade, amniocentesis and fetal blood sampling (Anaes.)",
+          "similarity_score": 0.488956
+        },
+        {
+          "code_value": "16615",
+          "display_name": "FOETAL INTRAPERITONEAL BLOOD TRANSFUSION, using blood already collected, including neuromuscular blockade, amniocentesis and foetal blood sampling - performed in conjunction with a service described in item 16609 (Anaes.)",
+          "similarity_score": 0.476599
+        },
+        {
+          "code_value": "16612",
+          "display_name": "FOETAL INTRAPERITONEAL BLOOD TRANSFUSION, using blood already collected, including neuromuscular blockade, amniocentesis and foetal blood sampling - not performed in conjunction with a service described in item 16609 (Anaes.)",
+          "similarity_score": 0.475049
+        },
+        {
+          "code_value": "18233",
+          "display_name": "EPIDURAL INJECTION of blood for blood patch (Anaes.)",
+          "similarity_score": 0.45115
+        },
+        {
+          "code_value": "13700",
+          "display_name": "Harvesting of homologous (including allogeneic) or autologous bone marrow for the purpose of transplantation (H) (Anaes.)",
+          "similarity_score": 0.441601
+        },
+        {
+          "code_value": "21949",
+          "display_name": "INITIATION OF MANAGEMENT OF ANAESTHESIA for harvesting of bone marrow for the purpose of transplantation (5 basic units)",
+          "similarity_score": 0.422103
+        },
+        {
+          "code_value": "34515",
+          "display_name": "ARTERIOVENOUS ACCESS DEVICE, thrombectomy of (Anaes.) (Assist.)",
+          "similarity_score": 0.402854
+        },
+        {
+          "code_value": "34521",
+          "display_name": "INTRA-ABDOMINAL ARTERY OR VEIN, cannulation of, for infusion chemotherapy, by open operation (excluding aftercare) (Anaes.) (Assist.)",
+          "similarity_score": 0.398977
+        },
+        {
+          "code_value": "34506",
+          "display_name": "ARTERIOVENOUS SHUNT, EXTERNAL, removal of (Anaes.) (Assist.)",
+          "similarity_score": 0.397898
+        },
+        {
+          "code_value": "33803",
+          "display_name": "EMBOLECTOMY or THROMBECTOMY, by abdominal approach, of an artery or bypass graft of trunk (Anaes.) (Assist.)",
+          "similarity_score": 0.390033
+        },
+        {
+          "code_value": "34533",
+          "display_name": "Isolated limb perfusion, including cannulation of artery and vein at commencement of procedure, regional perfusion for chemotherapy, or other therapy, repair of arteriotomy and venotomy at conclusion of procedure (excluding after‑care) (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.388712
+        },
+        {
+          "code_value": "34512",
+          "display_name": "ARTERIOVENOUS ACCESS DEVICE, insertion of (Anaes.) (Assist.)",
+          "similarity_score": 0.381206
+        },
+        {
+          "code_value": "34538",
+          "display_name": "Central vein catheterisation by percutaneous technique, using subcutaneous tunnelled cuffed catheter or similar device, for the administration of haemodialysis or parenteral nutrition (H) (Anaes.)",
+          "similarity_score": 0.380772
+        },
+        {
+          "code_value": "18297",
+          "display_name": "Assistance at the administration of an epidural blood patch (a service to which item 18233 applies) by another medical practitioner",
+          "similarity_score": 0.376296
+        },
+        {
+          "code_value": "34500",
+          "display_name": "Arteriovenous shunt, external, insertion of (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.371005
+        },
+        {
+          "code_value": "34503",
+          "display_name": "ARTERIOVENOUS ANASTOMOSIS OF UPPER OR LOWER LIMB, in conjunction with another venous or arterial operation (Anaes.) (Assist.)",
+          "similarity_score": 0.366042
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:30.717Z"
+    },
+    {
+      "entity_id": 15,
+      "entity_text": "Chest X-ray",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:32.642Z"
+    },
+    {
+      "entity_id": 16,
+      "entity_text": "Chest x-ray",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:33.320Z"
+    },
+    {
+      "entity_id": 17,
+      "entity_text": "Chest xray",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:33.917Z"
+    },
+    {
+      "entity_id": 18,
+      "entity_text": "CXR",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "formatting_test": "CXR (abbreviation)",
+      "top_score": 24.8,
+      "top_20_results": [
+        {
+          "code_value": "53410",
+          "display_name": "ZYGOMATIC BONE, treatment of fracture of, not requiring surgical reduction",
+          "similarity_score": 0.248386
+        },
+        {
+          "code_value": "18298",
+          "display_name": "CERVICAL OR THORACIC SYMPATHETIC CHAIN, destruction by a neurolytic agent (Anaes.)",
+          "similarity_score": 0.230731
+        },
+        {
+          "code_value": "53400",
+          "display_name": "MAXILLA, unilateral or bilateral, treatment of fracture of, not requiring splinting",
+          "similarity_score": 0.209681
+        },
+        {
+          "code_value": "53403",
+          "display_name": "MANDIBLE, treatment of fracture of, not requiring splinting",
+          "similarity_score": 0.20389
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:34.695Z"
+    },
+    {
+      "entity_id": 19,
+      "entity_text": "XR chest",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:36.854Z"
+    },
+    {
+      "entity_id": 20,
+      "entity_text": "X-ray left ankle",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:37.544Z"
+    },
+    {
+      "entity_id": 21,
+      "entity_text": "CT scan head",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:38.357Z"
+    },
+    {
+      "entity_id": 22,
+      "entity_text": "Ultrasound abdomen",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:39.436Z"
+    },
+    {
+      "entity_id": 23,
+      "entity_text": "Laceration repair",
+      "category": "ed_visits",
+      "subcategory": "procedure",
+      "top_score": 56.4,
+      "top_20_results": [
+        {
+          "code_value": "30052",
+          "display_name": "FULL THICKNESS LACERATION OF EAR, EYELID, NOSE OR LIP, repair of, with accurate apposition of each layer of tissue (Anaes.) (Assist.)",
+          "similarity_score": 0.564349
+        },
+        {
+          "code_value": "52010",
+          "display_name": "FULL THICKNESS LACERATION OF EAR, EYELID, NOSE OR LIP, repair of, with accurate apposition of each layer of tissue (Anaes.) (Assist.)",
+          "similarity_score": 0.55469
+        },
+        {
+          "code_value": "33815",
+          "display_name": "MAJOR ARTERY OR VEIN OF EXTREMITY, repair of wound of, with restoration of continuity, by lateral suture (Anaes.) (Assist.)",
+          "similarity_score": 0.528381
+        },
+        {
+          "code_value": "33824",
+          "display_name": "MAJOR ARTERY OR VEIN OF NECK, repair of wound of, with restoration of continuity, by lateral suture (Anaes.) (Assist.)",
+          "similarity_score": 0.499575
+        },
+        {
+          "code_value": "33833",
+          "display_name": "MAJOR ARTERY OR VEIN OF ABDOMEN, repair of wound of, with restoration of continuity by lateral suture (Anaes.) (Assist.)",
+          "similarity_score": 0.495247
+        },
+        {
+          "code_value": "33839",
+          "display_name": "MAJOR ARTERY OR VEIN OF ABDOMEN, repair of wound of, with restoration of continuity by means of interposition graft (Anaes.) (Assist.)",
+          "similarity_score": 0.469304
+        },
+        {
+          "code_value": "45677",
+          "display_name": "Cleft lip, unilateral—primary repair of nasolabial complex, one stage, without anterior palate repair (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.462004
+        },
+        {
+          "code_value": "33836",
+          "display_name": "MAJOR ARTERY OR VEIN OF ABDOMEN, repair of wound of, with restoration of continuity by direct anastomosis (Anaes.) (Assist.)",
+          "similarity_score": 0.456972
+        },
+        {
+          "code_value": "45680",
+          "display_name": "Cleft lip, unilateral—primary repair of nasolabial complex, one stage, with anterior palate repair (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.454145
+        },
+        {
+          "code_value": "45714",
+          "display_name": "Oro-nasal fistula, repair of, including a local flap for closure (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.452833
+        },
+        {
+          "code_value": "33818",
+          "display_name": "MAJOR ARTERY OR VEIN OF EXTREMITY, repair of wound of, with restoration of continuity, by direct anastomosis (Anaes.) (Assist.)",
+          "similarity_score": 0.452726
+        },
+        {
+          "code_value": "45683",
+          "display_name": "Cleft lip, bilateral—primary repair of nasolabial complex, one stage, without anterior palate repair (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.450858
+        },
+        {
+          "code_value": "33827",
+          "display_name": "MAJOR ARTERY OR VEIN OF NECK, repair of wound of, with restoration of continuity, by direct anastomosis (Anaes.) (Assist.)",
+          "similarity_score": 0.447797
+        },
+        {
+          "code_value": "33821",
+          "display_name": "MAJOR ARTERY OR VEIN OF EXTREMITY, repair of wound of, with restoration of continuity, by interposition graft of synthetic material or vein (Anaes.) (Assist.)",
+          "similarity_score": 0.427366
+        },
+        {
+          "code_value": "33830",
+          "display_name": "MAJOR ARTERY OR VEIN OF NECK, repair of wound of, with restoration of continuity, by interposition graft of synthetic material or vein (Anaes.) (Assist.)",
+          "similarity_score": 0.425666
+        },
+        {
+          "code_value": "33075",
+          "display_name": "ANEURYSM IN THE NECK, ligation, suture closure or excision of, without bypass grafting (Anaes.) (Assist.)",
+          "similarity_score": 0.425226
+        },
+        {
+          "code_value": "52303",
+          "display_name": "Single-stage local flap, if indicated, repair to one defect, with buccal pad of fat (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.422745
+        },
+        {
+          "code_value": "33133",
+          "display_name": "ANEURYSM OF VISCERAL ARTERY, dissection and ligation of arteries without restoration of continuity (Anaes.) (Assist.)",
+          "similarity_score": 0.418698
+        },
+        {
+          "code_value": "52062",
+          "display_name": "Muscle, in the oral and maxillofacial region, ruptured, repair of (extensive), not associated with external wound (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.409433
+        },
+        {
+          "code_value": "34115",
+          "display_name": "ARTERIO-VENOUS FISTULA OF THE NECK, dissection and ligation (Anaes.) (Assist.)",
+          "similarity_score": 0.403448
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:40.611Z"
+    },
+    {
+      "entity_id": 24,
+      "entity_text": "Appendectomy",
+      "category": "past_surgeries",
+      "subcategory": "abdominal_surgery",
+      "top_score": 25.9,
+      "top_20_results": [
+        {
+          "code_value": "65087",
+          "display_name": "Bone marrow - examination of aspirated material (including clot sections where necessary), including (if performed): any test described in item 65060, 65066 or 65070",
+          "similarity_score": 0.259437
+        },
+        {
+          "code_value": "16509",
+          "display_name": "Pre‑eclampsia, eclampsia or antepartum haemorrhage, treatment of—professional attendance (other than a service to which item 16534 applies) that is not a routine antenatal attendance",
+          "similarity_score": 0.243512
+        },
+        {
+          "code_value": "12021",
+          "display_name": "Epicutaneous patch testing in the investigation of allergic dermatitis, performed by or on behalf of a specialist, or consultant physician, in the practice of his or her specialty, using more than 50 allergens but not more than 75 allergens",
+          "similarity_score": 0.21804
+        },
+        {
+          "code_value": "12024",
+          "display_name": "Epicutaneous patch testing in the investigation of allergic dermatitis, performed by or on behalf of a specialist, or consultant physician, in the practice of his or her specialty, using more than 100 allergens",
+          "similarity_score": 0.217763
+        },
+        {
+          "code_value": "12022",
+          "display_name": "Epicutaneous patch testing in the investigation of allergic dermatitis, performed by or on behalf of a specialist, or consultant physician, in the practice of his or her specialty, using more than 75 allergens but not more than 100 allergens",
+          "similarity_score": 0.215732
+        },
+        {
+          "code_value": "75802",
+          "display_name": "Fabrication and fitting of acrylic base partial denture, including retainers—1 to 4 teeth",
+          "similarity_score": 0.189261
+        },
+        {
+          "code_value": "73829",
+          "display_name": "Leucocyte count, erythrocyte sedimentation rate, examination of blood film (including differential leucocyte count), haemoglobin, haematocrit or erythrocyte count by a participating nurse practitioner - 1 test",
+          "similarity_score": 0.175579
+        },
+        {
+          "code_value": "66822",
+          "display_name": "Quantitation of copper, manganese, selenium, or zinc (except if item 66667 applies), in blood, urine or other body fluid - 2 or more tests. (Item is subject to rule 6, 22 and 25)",
+          "similarity_score": 0.167598
+        },
+        {
+          "code_value": "66635",
+          "display_name": "Alpha-1-antitrypsin - quantitation in serum, urine or other body fluid - 1 or more tests",
+          "similarity_score": 0.165212
+        },
+        {
+          "code_value": "66752",
+          "display_name": "Quantitation of acetoacetate, beta-hydroxybutyrate, citrate, oxalate, total free fatty acids, cysteine, homocysteine, cystine, lactate, pyruvate or other amino acids and hydroxyproline (except if performed as part of item 66773 or 66776) - 1 test",
+          "similarity_score": 0.16369
+        },
+        {
+          "code_value": "12003",
+          "display_name": "Skin prick testing for food and latex allergens, including all allergens tested on the same day, not being a service associated with a service to which item 12012, 12017, 12021, 12022 or 12024 applies",
+          "similarity_score": 0.141693
+        },
+        {
+          "code_value": "71089",
+          "display_name": "Quantitation of complement components or breakdown products of complement proteins not elsewhere described in an item in this Schedule - 1 test (Item is subject to rule 6)",
+          "similarity_score": 0.137401
+        },
+        {
+          "code_value": "71064",
+          "display_name": "Detection and quantitation of cryoglobulins or cryofibrinogen - 1 or more tests",
+          "similarity_score": 0.12761
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:43.004Z"
+    },
+    {
+      "entity_id": 25,
+      "entity_text": "Cholecystectomy",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:44.631Z"
+    },
+    {
+      "entity_id": 26,
+      "entity_text": "Inguinal hernia repair",
+      "category": "past_surgeries",
+      "subcategory": "abdominal_surgery",
+      "top_score": 63.7,
+      "top_20_results": [
+        {
+          "code_value": "44114",
+          "display_name": "Inguinal hernia, laparoscopic or open repair of, at age less than 12 months when orchidopexy also required (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.636765
+        },
+        {
+          "code_value": "44108",
+          "display_name": "Inguinal hernia, laparoscopic or open repair of, at age less than 12 months (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.623655
+        },
+        {
+          "code_value": "30651",
+          "display_name": "Ventral hernia repair involving primary fascial closure by suture, with or without onlay mesh or insertion of intraperitoneal onlay mesh repair, without closure of the defect or advancement of the rectus muscle toward the midline, by open or minimally invasive approach, in a patient 10 years of age or over, other than a service associated with a service to which item 30175, 30621, 30655 or 30657 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.567097
+        },
+        {
+          "code_value": "30655",
+          "display_name": "Ventral hernia, repair of, with advancement of the rectus muscles to the midline using a retro-rectus, pre-peritoneal or sublay technique, by open or minimally invasive approach, in a patient 10 years of age or over, other than a service associated with a service to which item 30175, 30621 or 30651 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.559505
+        },
+        {
+          "code_value": "37807",
+          "display_name": "Undescended testis in inguinal canal close to deep inguinal ring or within abdominal cavity, orchidopexy for, on a patient under 10 years of age (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.535419
+        },
+        {
+          "code_value": "37806",
+          "display_name": "Undescended testis in inguinal canal close to deep inguinal ring or within abdominal cavity, orchidopexy for, on a patient 10 years of age or over (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.534399
+        },
+        {
+          "code_value": "43837",
+          "display_name": "CONGENITAL DIAPHRAGMATIC HERNIA, repair by thoracic or abdominal approach, with diagnosis confirmed in the first 24 hours of life (Anaes.) (Assist.)",
+          "similarity_score": 0.493424
+        },
+        {
+          "code_value": "43835",
+          "display_name": "STRANGULATED, INCARCERATED OR OBSTRUCTED HERNIA, repair of, without bowel resection, on a patient under 10 years of age (Anaes.) (Assist.)",
+          "similarity_score": 0.485952
+        },
+        {
+          "code_value": "43840",
+          "display_name": "CONGENITAL DIAPHRAGMATIC HERNIA, repair by thoracic or abdominal approach, diagnosed after the first day of life and before 20 days of age (Anaes.) (Assist.)",
+          "similarity_score": 0.478439
+        },
+        {
+          "code_value": "33181",
+          "display_name": "RUPTURED INTRA-ABDOMINAL OR PELVIC ANEURYSM, ligation, suture closure or excision of, without bypass grafting (Anaes.) (Assist.)",
+          "similarity_score": 0.476589
+        },
+        {
+          "code_value": "31468",
+          "display_name": "Para-oesophageal hiatus hernia, repair of, with complete reduction of hernia, resection of sac and repair of hiatus, with or without fundoplication, other than a service associated with a service to which item 30756 or 31466 applies (Anaes.) (Assist.)",
+          "similarity_score": 0.466871
+        },
+        {
+          "code_value": "45571",
+          "display_name": "Closure of abdomen with reconstruction of umbilicus, with or without lipectomy, to be used following the harvest of an autologous flap, being a service associated with a service to which item 45530, 45531, 45562, 45564, 45565, 45567, 46080, 46082, 46084, 46086, 46088 or 46090 applies, including repair of the musculoaponeurotic layer of the abdomen (including insertion of prosthetic mesh if used) (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.465771
+        },
+        {
+          "code_value": "33521",
+          "display_name": "ILIO-FEMORAL ENDARTERECTOMY (1 side), including closure by suture (Anaes.) (Assist.)",
+          "similarity_score": 0.458695
+        },
+        {
+          "code_value": "33116",
+          "display_name": "Infrarenal abdominal aortic aneurysm (repair), replacement by tube graft using endovascular repair procedure, excluding associated radiological services (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.45666
+        },
+        {
+          "code_value": "30630",
+          "display_name": "Insertion of testicular prosthesis, at least 6 months following orchidectomy (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.450113
+        },
+        {
+          "code_value": "30657",
+          "display_name": "Unilateral abdominal wall reconstruction with component separation, including transversus abdominus release and external oblique release for abdominal wall closure by mobilising the rectus abdominis muscles to the midline, by open or minimally invasive approach (Anaes.) (Assist.)",
+          "similarity_score": 0.448873
+        },
+        {
+          "code_value": "43936",
+          "display_name": "INTUSSUSCEPTION, laparotomy and resection with anastomosis (Anaes.) (Assist.)",
+          "similarity_score": 0.448696
+        },
+        {
+          "code_value": "33163",
+          "display_name": "RUPTURED ILIAC ARTERY ANEURYSM, replacement by graft (Anaes.) (Assist.)",
+          "similarity_score": 0.448682
+        },
+        {
+          "code_value": "30600",
+          "display_name": "Emergency repair of diaphragmatic laceration or hernia, following recent trauma, by any approach, including when performed in conjunction with another procedure indicated as a result of abdominal or chest trauma (Anaes.) (Assist.)",
+          "similarity_score": 0.442964
+        },
+        {
+          "code_value": "33130",
+          "display_name": "ANEURYSM OF VISCERAL ARTERY, excision and repair by direct anastomosis or replacement by graft (Anaes.) (Assist.)",
+          "similarity_score": 0.434918
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:45.724Z"
+    },
+    {
+      "entity_id": 27,
+      "entity_text": "Knee arthroscopy",
+      "category": "past_surgeries",
+      "subcategory": "orthopedic",
+      "top_score": 63.3,
+      "top_20_results": [
+        {
+          "code_value": "49582",
+          "display_name": "Meniscal repair of knee, by arthroscopic means (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.632725
+        },
+        {
+          "code_value": "49534",
+          "display_name": "Arthroplasty of patella and trochlea of patello-femoral joint of knee, performed as a primary procedure (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.623067
+        },
+        {
+          "code_value": "49574",
+          "display_name": "Removal of loose bodies of knee, by arthroscopic means—one or more bodies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.613374
+        },
+        {
+          "code_value": "49360",
+          "display_name": "Diagnostic arthroscopy of hip, other than a service associated with a service to which another item in this Schedule applies if the service described in the other item is for the purpose of performing a procedure of the hip joint by arthroscopic means (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.533224
+        },
+        {
+          "code_value": "49524",
+          "display_name": "Complex primary arthroplasty of knee: (a) using revision femoral and tibial components; or (b) using revision femoral or tibial components including anatomic specific allograft of femur or tibia; including either or both of the following (if performed): (c) ligament reconstruction; (d) patellar resurfacing; other than a service associated with a service to which item 48245, 48248, 48251, 48254 or 48257 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.523232
+        },
+        {
+          "code_value": "49730",
+          "display_name": "Surgery of joint of hindfoot (other than ankle) or first metatarsophalangeal joint, by arthroscopic means, including any of the following (if performed): (a) cartilage treatment; (b) removal of loose bodies; (c) synovectomy; (d) excision of joint osteophytes; other than a service associated with a service to which another item of this Schedule applies if the service described in the other item is for the purpose of performing a procedure on the ankle by arthroscopic means—one joint (H) (Anaes.) ",
+          "similarity_score": 0.506479
+        },
+        {
+          "code_value": "49121",
+          "display_name": "Surgery of the elbow, by arthroscopic means, including any of the following (if performed): (a) chondroplasty; (b) drilling of defect; (c) osteoplasty; (d) removal of loose bodies; (e) release of contracture or adhesions; (f) treatment of epicondylitis; other than a service associated with a service to which another item in this Schedule applies if the service described in the other item is for the purpose of an arthroscopic procedure of the elbow (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.493809
+        },
+        {
+          "code_value": "49366",
+          "display_name": "Treatment of hip, by arthroscopic means, including any procedures to treat bone or soft tissue in the same area (if performed), other than a service associated with a service to which another item in this Schedule applies if the service described in the other item is for the purpose of performing: (a) a procedure of the hip joint by arthroscopic means; or (b) surgery for femoroacetabular impingement (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.478813
+        },
+        {
+          "code_value": "37318",
+          "display_name": "Urethroscopy, with or without cystoscopy, with one or more of biopsy, diathermy, visual laser destruction of urethral calculi or removal of foreign body or calculi (Anaes.)",
+          "similarity_score": 0.399132
+        },
+        {
+          "code_value": "51071",
+          "display_name": "Removal of intradural lesion, or primary extradural tumour or lesion, where the pathology is confirmed by histology - not including removal of synovial or juxtafacet cyst and not being a service associated with a service to which item 51072 or 51073 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.378267
+        },
+        {
+          "code_value": "36833",
+          "display_name": "Cystoscopy with removal of ureteric stent or other foreign body in the lower urinary tract, unilateral (H) (Anaes.)",
+          "similarity_score": 0.375176
+        },
+        {
+          "code_value": "58715",
+          "display_name": "Antegrade or retrograde pyelography with or without preliminary plain films and with preparation and contrast injection, one side (R)",
+          "similarity_score": 0.372808
+        },
+        {
+          "code_value": "36821",
+          "display_name": "Cystoscopy with one or more of ureteric dilatation, insertion of ureteric stent, or brush biopsy of ureter or of renal pelvis, unilateral (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.371856
+        },
+        {
+          "code_value": "36633",
+          "display_name": "Nephroscopy, percutaneous, with incision of any one or more of renal pelvis, calyx or calyces or ureter and including antegrade insertion of ureteric stent, other than a service associated with a service to which item 36627, 36639 or 36645 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.366935
+        },
+        {
+          "code_value": "36812",
+          "display_name": "Either or both of cystoscopy and urethroscopy, with or without urethral dilatation, other than a service associated with any other urological endoscopic procedure on the lower urinary tract (Anaes.)",
+          "similarity_score": 0.366099
+        },
+        {
+          "code_value": "36612",
+          "display_name": "URETER, exploration of, with or without drainage of, as an independent procedure (Anaes.) (Assist.)",
+          "similarity_score": 0.366058
+        },
+        {
+          "code_value": "36567",
+          "display_name": "Pyeloplasty in a kidney that is congenitally abnormal (in addition to the presence of pelvi-ureteric junction obstruction), or in a solitary kidney, by open, laparoscopic or robot-assisted approach, with or without the use of a retroperitoneal approach (Anaes.) (Assist.)",
+          "similarity_score": 0.358467
+        },
+        {
+          "code_value": "31466",
+          "display_name": "ANTIREFLUX OPERATION BY FUNDOPLASTY, via abdominal or thoracic approach, with or without closure of the diaphragmatic hiatus, revision procedure, by laparoscopy or open operation (Anaes.) (Assist.)",
+          "similarity_score": 0.348367
+        },
+        {
+          "code_value": "36591",
+          "display_name": "URETER, reimplantation into bladder with psoas hitch or Boari flap or both (Anaes.) (Assist.)",
+          "similarity_score": 0.344732
+        },
+        {
+          "code_value": "36836",
+          "display_name": "Cystoscopy with biopsy of bladder, other than a service associated with a service to which item 36812, 36830, 36840, 36845, 36848, 36854, 37203 or 37215 applies (H) (Anaes.)",
+          "similarity_score": 0.343585
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:47.742Z"
+    },
+    {
+      "entity_id": 28,
+      "entity_text": "Total hip replacement",
+      "error": "TypeError: Cannot read properties of undefined (reading 'similarity_score')",
+      "timestamp": "2025-10-22T04:01:49.664Z"
+    },
+    {
+      "entity_id": 29,
+      "entity_text": "Carpal tunnel release",
+      "category": "past_surgeries",
+      "subcategory": "orthopedic",
+      "top_score": 26.5,
+      "top_20_results": [
+        {
+          "code_value": "38730",
+          "display_name": "Anastomosis or repair of intrathoracic vessels, with cardiopulmonary bypass, performed as a primary procedure, other than a service to which item 11704, 11705, 11707, 11714, 18260, 33824, 38700, 38703, 38706, 38709, 38715, 38718, 38721, 38724, 38816, 38828 or 45503 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.265291
+        },
+        {
+          "code_value": "38727",
+          "display_name": "Anastomosis or repair of intrathoracic vessels, without cardiopulmonary bypass, performed as a primary procedure, other than a service to which item 11704, 11705, 11707, 11714, 18260, 33824, 38700, 38703, 38706, 38709, 38715, 38718, 38721, 38724, 38816, 38828 or 45503 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.263307
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:51.102Z"
+    },
+    {
+      "entity_id": 30,
+      "entity_text": "Tonsillectomy",
+      "category": "past_surgeries",
+      "subcategory": "ent",
+      "top_score": 22.3,
+      "top_20_results": [
+        {
+          "code_value": "10940",
+          "display_name": "Full quantitative computerised perimetry (automated absolute static threshold), with bilateral assessment and report, if indicated by the presence of relevant ocular disease or suspected pathology of the visual pathways or brain that:(a) is not a service involving multifocal multichannel objective perimetry; and(b) is performed by an optometrist; (c) the patient has received fewer than two perimetry services to which this item or item 10941 applies in a 12-month period other than a service assoc",
+          "similarity_score": 0.222895
+        },
+        {
+          "code_value": "10938",
+          "display_name": "Full quantitative computerised perimetry (automated absolute static threshold), with bilateral assessment and report, where indicated by the presence of glaucoma with a high risk of clinically significant progression that: (a) is not a service involving multifocal multichannel objective perimetry; (b) is performed by an optometrist; and (c) is performed on a patient who has received two perimetry services to which item 10940 or 10941 applies in the previous 12 months other than a service associa",
+          "similarity_score": 0.207713
+        },
+        {
+          "code_value": "10943",
+          "display_name": "Additional testing to confirm diagnosis of, or establish a treatment regime for, a significant binocular or accommodative dysfunction, in a patient aged 3 to 14 years, where the service:(a) includes assessment of one or more of the following: (i) accommodation; (ii) ocular motility; (iii) vergences; (iv) fusional reserves; (v) cycloplegic refraction; and(b) is not performed for the assessment of learning difficulties or learning disabilities;other than a service to which item 10916, 10921, 10924",
+          "similarity_score": 0.206269
+        },
+        {
+          "code_value": "11602",
+          "display_name": "Investigation of venous reflux or obstruction in one or more limbs at rest by CW Doppler or pulsed Doppler involving examination at multiple sites along each limb using intermittent limb compression or Valsalva manoeuvres, or both, to detect prograde and retrograde flow, other than a service associated with a service to which item 32500 applies—hard copy trace and written report, the report component of which must be performed by a medical practitioner, maximum of 2 examinations in a 12 month pe",
+          "similarity_score": 0.183022
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:53.208Z"
+    },
+    {
+      "entity_id": 31,
+      "entity_text": "Cataract surgery",
+      "category": "past_surgeries",
+      "subcategory": "ophthalmology",
+      "top_score": 54.4,
+      "top_20_results": [
+        {
+          "code_value": "42749",
+          "display_name": "Glaucoma filtering surgery, if previous filtering surgery has been performed (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.54429
+        },
+        {
+          "code_value": "42746",
+          "display_name": "Glaucoma filtering surgery, if conservative therapies have failed, are likely to fail, or are contraindicated (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.501068
+        },
+        {
+          "code_value": "42794",
+          "display_name": "Division of suture by laser following glaucoma filtering surgery, each treatment to one eye, to a maximum of 2 treatments to that eye in a 2 year period (Anaes.)",
+          "similarity_score": 0.481189
+        },
+        {
+          "code_value": "42764",
+          "display_name": "Iridectomy (including excision of tumour of iris) or iridotomy, as an independent procedure, other than by laser (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.477631
+        },
+        {
+          "code_value": "43050",
+          "display_name": "Choroidal detachment, repair by external drainage (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.476192
+        },
+        {
+          "code_value": "42812",
+          "display_name": "Removal of scleral buckling material, from an eye having undergone previous scleral buckling surgery (Anaes.)",
+          "similarity_score": 0.474162
+        },
+        {
+          "code_value": "42857",
+          "display_name": "Resuturing of wound following intraocular procedures with or without excision of prolapsed iris (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.474158
+        },
+        {
+          "code_value": "42719",
+          "display_name": "Either or both of the following, via a limbal approach by any method: (a) removal of capsular or lens material; (b) removal of vitreous; other than a service associated with a service to which item 42698, 42702, 42705, 42716, 42725 or 42731 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.466095
+        },
+        {
+          "code_value": "41810",
+          "display_name": "Uvulotomy or uvulectomy (H) (Anaes.)",
+          "similarity_score": 0.461873
+        },
+        {
+          "code_value": "42744",
+          "display_name": "Needle revision of glaucoma filtration bleb, following glaucoma filtering surgery (Anaes.)",
+          "similarity_score": 0.461259
+        },
+        {
+          "code_value": "42713",
+          "display_name": "Iris or ciliary body suturing, McCannel technique or similar, for:(a) fixation of intraocular lens; or(b) repair of iris defect or cyclodialysis cleft(H) (Anaes.) (Assist.)",
+          "similarity_score": 0.460067
+        },
+        {
+          "code_value": "42782",
+          "display_name": "LASER TRABECULOPLASTY, for the treatment of glaucoma. Each treatment to 1 eye, to a maximum of 4 treatments to that eye in a 2 year period (Anaes.) (Assist.)",
+          "similarity_score": 0.457896
+        },
+        {
+          "code_value": "42629",
+          "display_name": "Dacryocystorhinostomy, with placement of a permanent bypass tube from the conjunctival sac to the nasal cavity (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.448307
+        },
+        {
+          "code_value": "42557",
+          "display_name": "EYE, PENETRATING WOUND OR RUPTURE OF, with incarceration of lens or vitreous repair (Anaes.) (Assist.)",
+          "similarity_score": 0.444318
+        },
+        {
+          "code_value": "42608",
+          "display_name": "LACRIMAL DRAINAGE by insertion of glass tube, as an independent procedure (Anaes.) (Assist.)",
+          "similarity_score": 0.440081
+        },
+        {
+          "code_value": "43030",
+          "display_name": "Paracentesis of anterior chamber or vitreous cavity, or both, for either or both of the following:(a) the injection of therapeutic substances;(b) the removal of aqueous or vitreous humours for diagnostic or therapeutic purposes;as an independent procedure of the left eye",
+          "similarity_score": 0.438359
+        },
+        {
+          "code_value": "42758",
+          "display_name": "Goniotomy for the treatment of primary congenital glaucoma, excluding the minimally invasive implantation of glaucoma drainage devices (Anaes.) (Assist.)",
+          "similarity_score": 0.435359
+        },
+        {
+          "code_value": "43032",
+          "display_name": "Paracentesis of anterior chamber or vitreous cavity, or both, for either or both of the following:(a) the injection of therapeutic substances;(b) the removal of aqueous or vitreous humours for diagnostic or therapeutic purposes;as an independent procedure of the right eye",
+          "similarity_score": 0.435102
+        },
+        {
+          "code_value": "42755",
+          "display_name": "Any of the following:(a) removal of glaucoma drainage device incorporating an extraocular reservoir;(b) insertion or removal of intraluminal stent;(c) tying off of lumenOne eye (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.432157
+        },
+        {
+          "code_value": "42626",
+          "display_name": "Dacryocystorhinostomy, if a previous dacryocystorhinostomy has been performed, external or endonasal approach, including any sinus, turbinate or uncinate operation performed by same surgeon for access, with or without silicone intubation/stenting (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.431973
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:55.276Z"
+    },
+    {
+      "entity_id": 32,
+      "entity_text": "Hysterectomy",
+      "category": "past_surgeries",
+      "subcategory": "gynecology",
+      "top_score": 24.1,
+      "top_20_results": [
+        {
+          "code_value": "73833",
+          "display_name": "Pregnancy test by 1 or more immunochemical methods by a participating nurse practitioner",
+          "similarity_score": 0.240584
+        },
+        {
+          "code_value": "73832",
+          "display_name": "Microscopy of urine, excluding dipstick testing by a participating nurse practitioner.",
+          "similarity_score": 0.212964
+        },
+        {
+          "code_value": "294",
+          "display_name": "Professional attendance on a patient by a consultant physician practising in the consultant physician’s specialty of psychiatry if: (a) the attendance is by video conference; and (b) except for the requirement for the attendance to be at consulting rooms—item 291, 293, 296, 300, 302, 304, 306, 308, 310, 312, 314, 316, 318 or 319 would otherwise apply to the attendance; and (c) the patient is not an admitted patient; and (d) the patient is bulk‑billed; and (e) the patient: (i) is located: (A) wit",
+          "similarity_score": 0.162448
+        },
+        {
+          "code_value": "66779",
+          "display_name": "Adrenaline, noradrenaline, dopamine, histamine, hydroxyindoleacetic acid (5HIAA), hydroxymethoxymandelic acid (HMMA), homovanillic acid (HVA), metanephrines, methoxyhydroxyphenylethylene glycol (MHPG), phenylacetic acid (PAA) or serotonin quantitation - 1 or more tests",
+          "similarity_score": 0.122616
+        }
+      ],
+      "timestamp": "2025-10-22T04:01:58.123Z"
+    },
+    {
+      "entity_id": 33,
+      "entity_text": "Caesarean section",
+      "category": "past_surgeries",
+      "subcategory": "obstetrics",
+      "top_score": 36.2,
+      "top_20_results": [
+        {
+          "code_value": "38736",
+          "display_name": "Systemic pulmonary or Cavo-pulmonary shunt, creation of, with cardiopulmonary bypass, for congenital heart disease, other than a service associated with a service to which item 11704, 11705, 11707, 11714, 18260, 33824, 38816, 38828 or 45503 applies (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.361841
+        },
+        {
+          "code_value": "32730",
+          "display_name": "MESENTERIC VESSEL (single), bypass grafting to (Anaes.) (Assist.)",
+          "similarity_score": 0.323719
+        },
+        {
+          "code_value": "38510",
+          "display_name": "Artery harvesting (other than of the left internal mammary), for coronary artery bypass, if: (a) more than one arterial graft is required; and (b) the service is performed in conjunction with coronary artery bypass surgery performed by any medical practitioner (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.291662
+        },
+        {
+          "code_value": "63385",
+          "display_name": "MRI—scan of cardiovascular system for congenital disease of the heart or a great vessel (R) (Contrast) (Anaes.)",
+          "similarity_score": 0.276936
+        }
+      ],
+      "timestamp": "2025-10-22T04:02:00.268Z"
+    },
+    {
+      "entity_id": 34,
+      "entity_text": "Colonoscopy",
+      "category": "past_surgeries",
+      "subcategory": "endoscopy",
+      "top_score": 49.2,
+      "top_20_results": [
+        {
+          "code_value": "43822",
+          "display_name": "ANORECTAL MALFORMATION, laparotomy and colostomy for (Anaes.) (Assist.)",
+          "similarity_score": 0.491987
+        },
+        {
+          "code_value": "44102",
+          "display_name": "RECTUM, examination of, on a patient 2 years of age or over, under general anaesthesia with full thickness biopsy or removal of polyp or similar lesion (Anaes.) (Assist.)",
+          "similarity_score": 0.466158
+        },
+        {
+          "code_value": "43816",
+          "display_name": "ILEAL ATRESIA, COLONIC ATRESIA OR MECONIUM ILEUS not being a service associated with a service to which item 43813 applies, laparotomy for (Anaes.) (Assist.)",
+          "similarity_score": 0.464003
+        },
+        {
+          "code_value": "30562",
+          "display_name": "Enterostomy or colostomy, closure of (not involving resection of bowel), on a patient 10 years of age or over (Anaes.) (Assist.)",
+          "similarity_score": 0.45261
+        },
+        {
+          "code_value": "44101",
+          "display_name": "RECTUM, examination of, on a patient under 2 years of age, under general anaesthesia with full thickness biopsy or removal of polyp or similar lesion (Anaes.) (Assist.)",
+          "similarity_score": 0.451983
+        },
+        {
+          "code_value": "30637",
+          "display_name": "Enterostomy or colostomy, closure of (not involving resection of bowel), on a patient under 10 years of age (Anaes.) (Assist.)",
+          "similarity_score": 0.443797
+        },
+        {
+          "code_value": "30563",
+          "display_name": "Colostomy or ileostomy, refashioning of, on a patient 10 years of age or over (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.439894
+        },
+        {
+          "code_value": "30406",
+          "display_name": "PARACENTESIS ABDOMINIS (Anaes.)",
+          "similarity_score": 0.429773
+        },
+        {
+          "code_value": "43933",
+          "display_name": "IDIOPATHIC INTUSSUSCEPTION, laparotomy and manipulative reduction of (Anaes.) (Assist.)",
+          "similarity_score": 0.428632
+        },
+        {
+          "code_value": "43945",
+          "display_name": "PATENT VITELLO INTESTINAL DUCT, excision of (Anaes.) (Assist.)",
+          "similarity_score": 0.423394
+        },
+        {
+          "code_value": "43813",
+          "display_name": "MECONIUM ILEUS, laparotomy for, complicated by 1 or more of associated volvulus, atresia, intesinal perforation with or without meconium peritonitis (Anaes.) (Assist.)",
+          "similarity_score": 0.423035
+        },
+        {
+          "code_value": "30639",
+          "display_name": "Colostomy or ileostomy, refashioning of, on a patient under 10 years of age (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.419255
+        },
+        {
+          "code_value": "30622",
+          "display_name": "Caecostomy, enterostomy, colostomy, enterotomy, colotomy, cholecystostomy, gastrostomy, gastrotomy, reduction of intussusception, removal of Meckel’s diverticulum, suture of perforated peptic ulcer, simple repair of ruptured viscus, reduction of volvulus, pyloroplasty or drainage of pancreas, on a patient under 10 years of age (Anaes.) (Assist.)",
+          "similarity_score": 0.413846
+        },
+        {
+          "code_value": "30390",
+          "display_name": "Laparoscopy, diagnostic, with or without aspiration of fluid, on a patient 10 years of age or over, if no other intra-abdominal procedure is performed (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.409157
+        },
+        {
+          "code_value": "32235",
+          "display_name": "Anal skin tags or anal polyps, excision of one or more of (Anaes.)",
+          "similarity_score": 0.404752
+        },
+        {
+          "code_value": "38420",
+          "display_name": "Bronchoscopy with one or more endobronchial biopsies or other diagnostic or therapeutic procedures (H) (Anaes.)",
+          "similarity_score": 0.396908
+        },
+        {
+          "code_value": "43882",
+          "display_name": "Cloacal exstrophy, operation for (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.390365
+        },
+        {
+          "code_value": "30400",
+          "display_name": "LAPAROTOMY WITH INSERTION OF PORTACATH for administration of cytotoxic therapy including placement of reservoir (Anaes.) (Assist.)",
+          "similarity_score": 0.388402
+        },
+        {
+          "code_value": "14212",
+          "display_name": "Intussusception, management of fluid or gas reduction for (H) (Anaes.)",
+          "similarity_score": 0.385372
+        },
+        {
+          "code_value": "38816",
+          "display_name": "Thoracotomy, exploratory, with or without biopsy, including insertion of an intercostal catheter where necessary, other than a service associated with: (a) a service to which item 18258, 18260 or 38828 applies; or (b) a service to which item 38815 applies that is performed on the same lung (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.38077
+        }
+      ],
+      "timestamp": "2025-10-22T04:02:01.943Z"
+    },
+    {
+      "entity_id": 35,
+      "entity_text": "Skin cancer excision",
+      "category": "past_surgeries",
+      "subcategory": "dermatology",
+      "top_score": 58.7,
+      "top_20_results": [
+        {
+          "code_value": "31362",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision (other than by shave excision) and repair of, if: (a) the lesion is excised from face, neck, scalp, nipple-areola complex, distal lower limb (distal to, and including, the knee) or distal upper limb (distal to, and including, the ulnar styloid); and (b) the necessary excision diam",
+          "similarity_score": 0.587459
+        },
+        {
+          "code_value": "31357",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision of (other than by shave excision) including repair (if performed), if: (a) the lesion is excised from nose, eyelid, eyebrow, lip, ear, digit or genitalia, or from a contiguous area; and (b) the necessary excision diameter is less than 6 mm; and (c) the excised specimen is sent for",
+          "similarity_score": 0.57295
+        },
+        {
+          "code_value": "31360",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision of (other than by shave excision) including repair (if performed), if: (a) the lesion is excised from nose, eyelid, eyebrow, lip, ear, digit or genitalia, or from a contiguous area; and (b) the necessary excision diameter is 6 mm or more; and (c) the excised specimen is sent for h",
+          "similarity_score": 0.570621
+        },
+        {
+          "code_value": "31364",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision of (other than by shave excision) including repair (if performed), if: (a) the lesion is excised from face, neck, scalp, nipple-areola complex, distal lower limb (distal to, and including, the knee) or distal upper limb (distal to, and including, the ulnar styloid); and (b) the ne",
+          "similarity_score": 0.566405
+        },
+        {
+          "code_value": "42695",
+          "display_name": "LIMBIC TUMOUR, excision of, requiring keratectomy or sclerectomy, excluding Pterygium (Anaes.) (Assist.)",
+          "similarity_score": 0.556157
+        },
+        {
+          "code_value": "31370",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision of (other than by shave excision) including repair (if performed), if: (a) the lesion is excised from any part of the body not covered by item 31357, 31360, 31362 or 31364; and (b) the necessary excision diameter is more than 30 mm; and (c) the excised specimen is sent for histolo",
+          "similarity_score": 0.546224
+        },
+        {
+          "code_value": "31368",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision (other than by shave excision) and repair of, if: (a) the lesion is excised from any part of the body not covered by item 31357, 31360, 31362 or 31364; and (b) the necessary excision diameter is at least 15 mm but not more than 30mm; and (c) the excised specimen is sent for histol",
+          "similarity_score": 0.544182
+        },
+        {
+          "code_value": "31366",
+          "display_name": "Non-malignant skin lesion (other than viral verrucae (common warts) and seborrheic keratoses), including a cyst, ulcer or scar (other than a scar removed during the surgical approach at an operation), surgical excision (other than by shave excision) and repair of, if: (a) the lesion is excised from any part of the body not covered by item 31357, 31360, 31362 or 31364; and (b) the necessary excision diameter is less than 15 mm; and (c) the excised specimen is sent for histological examination; no",
+          "similarity_score": 0.542803
+        },
+        {
+          "code_value": "46140",
+          "display_name": "Burns contracture, release of, by excision or incision of scar, if the defect resulting from surgery is less than 1% of total body surface, including direct repair if performed (Anaes.) (Assist.)",
+          "similarity_score": 0.534714
+        },
+        {
+          "code_value": "45652",
+          "display_name": "Rhinophyma of a moderate or severe degree, carbon dioxide laser or erbium laser excision - ablation of (Anaes.)",
+          "similarity_score": 0.491052
+        },
+        {
+          "code_value": "45515",
+          "display_name": "Scar, other than on face or neck, not more than 7 cm in length, revision of, if:(a) the service is:(i) undertaken in the operating theatre of a hospital; or(ii) performed by a specialist in the practice of the specialist’s specialty; and(b) the service is not performed in conjunction with the insertion of breast implants for cosmetic purposes; and(c) the incision made for revision of the scar is not used as an approach for another procedure (including a non rebatable procedure); and(d) sufficien",
+          "similarity_score": 0.465378
+        },
+        {
+          "code_value": "45518",
+          "display_name": "Scar, other than on face or neck, more than 7 cm in length, revision of, if: (a) the service is: (i) undertaken in the operating theatre of a hospital; or (ii) performed by a specialist in the practice of the specialist’s specialty; and (b) the service is not performed in conjunction with the insertion of breast implants for cosmetic purposes; and (c) the incision made for revision of the scar is not used as an approach for another procedure (including a non‑rebatable procedure); and (d) suffici",
+          "similarity_score": 0.457989
+        },
+        {
+          "code_value": "49124",
+          "display_name": "Excision of olecranon bursa, including bony prominence, other than a service associated with a service to which another item in this Schedule applies if the service described in the other item is for the purpose of an arthroscopic procedure of the elbow (H) (Anaes.) (Assist.)",
+          "similarity_score": 0.425633
+        },
+        {
+          "code_value": "42647",
+          "display_name": "Corneal scars, removal of, by partial keratectomy, other than a service associated with a service to which item 42686 or 42650 applies (Anaes.)",
+          "similarity_score": 0.419886
+        },
+        {
+          "code_value": "42810",
+          "display_name": "PHOTOTHERAPEUTIC KERATECTOMY, by laser, for corneal scarring or disease, excluding surgery for refractive error (Anaes.)",
+          "similarity_score": 0.403391
+        },
+        {
+          "code_value": "45026",
+          "display_name": "CARBON DIOXIDE LASER OR ERBIUM LASER (not including fractional laser therapy) resurfacing of the face or neck for severely disfiguring scarring resulting from trauma, burns or acne - more than 1 aesthetic area (Anaes.)",
+          "similarity_score": 0.39164
+        },
+        {
+          "code_value": "45025",
+          "display_name": "CARBON DIOXIDE LASER OR ERBIUM LASER (not including fractional laser therapy) resurfacing of the face or neck for severely disfiguring scarring resulting from trauma, burns or acne - limited to 1 aesthetic area (Anaes.)",
+          "similarity_score": 0.389313
+        },
+        {
+          "code_value": "45021",
+          "display_name": "Abrasive therapy for severely disfiguring scarring of face resulting from trauma, burns or acne, if sufficient photographic evidence demonstrating the clinical need for the service is included in patient notes—limited to one claim per patient per episode (Anaes.)",
+          "similarity_score": 0.388147
+        },
+        {
+          "code_value": "14124",
+          "display_name": "Laser photocoagulation using laser radiation in the treatment of vascular malformations, infantile haemangiomas, café‑au‑lait macules and naevi of Ota, other than melanocytic naevi (common moles), including any associated consultation, if: (a) a seventh or subsequent session (including any sessions to which this item or any of items 14100 to 14118 apply) is indicated in a 12 month period commencing on the day of the first session; and (b) photographic evidence demonstrating the need for this ser",
+          "similarity_score": 0.370972
+        },
+        {
+          "code_value": "46335",
+          "display_name": "Synovectomy of digital extensor tendons of hand, distal to wrist, for diagnosed inflammatory arthritis, including any of the following (if performed): (a) reconstruction of extensor retinaculum; (b) removal of tendon nodules; (c) tenolysis; (d) tenoplasty; other than a service associated with: (e) a service to which item 39330 applies; or (f) a service to which item 30023 applies that is performed at the same site Applicable once per hand per occasion on which the service is performed (H) (Anaes",
+          "similarity_score": 0.341739
+        }
+      ],
+      "timestamp": "2025-10-22T04:02:04.159Z"
+    }
+  ]
+}

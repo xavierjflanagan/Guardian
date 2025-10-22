@@ -1,0 +1,1636 @@
+{
+  "metadata": {
+    "experiment": "Experiment 4: Realistic Pass 1 Extracted Text",
+    "approach": "Exploratory discovery - manual review required",
+    "total_queries": 15,
+    "model": "cambridgeltl/SapBERT-from-PubMedBERT-fulltext",
+    "timestamp": "2025-10-21T21:00:52.039Z"
+  },
+  "results": [
+    {
+      "query": "Amoxicillin 500mg capsules",
+      "group": "Generic - Antibiotics",
+      "source": "GP prescription",
+      "reference_display": "Amoxicillin Capsule 500 mg (as trihydrate)",
+      "top20_results": [
+        {
+          "code_value": "11947T_8485_152_1529_8675",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.934877136288111
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8675",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.934877136288111
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8675",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.934877136288111
+        },
+        {
+          "code_value": "1889K_8485_152_1529_57087",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.915089968619169
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_57087",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.915089968619169
+        },
+        {
+          "code_value": "11947T_8485_152_1529_57087",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.915089968619169
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8669",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.908711403479147
+        },
+        {
+          "code_value": "11947T_8485_152_1529_8669",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.908711403479147
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8669",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.908711403479147
+        },
+        {
+          "code_value": "11947T_8485_152_1529_8670",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.907735638248127
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8670",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.907735638248127
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8670",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.907735638248127
+        },
+        {
+          "code_value": "11947T_8485_152_1529_58628",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.882467610110895
+        },
+        {
+          "code_value": "1889K_8485_152_1529_58628",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.882467610110895
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_58628",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.882467610110895
+        },
+        {
+          "code_value": "11947T_8485_152_1529_8679",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.8707509101346
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8679",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.8707509101346
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8679",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.8707509101346
+        },
+        {
+          "code_value": "1889K_8485_152_1529_47929",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.867732227417648
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_47929",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.867732227417648
+        }
+      ]
+    },
+    {
+      "query": "Paracetamol 500mg",
+      "group": "Generic - Analgesics",
+      "source": "Medication chart",
+      "reference_display": "Paracetamol Tablet 500 mg",
+      "top20_results": [
+        {
+          "code_value": "5224Y_7030_485_2862_46535",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.809646851853542
+        },
+        {
+          "code_value": "8784H_7030_485_2862_46535",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.809646851853542
+        },
+        {
+          "code_value": "10582Y_7030_485_2862_46535",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.809646851853542
+        },
+        {
+          "code_value": "5196L_7030_485_2862_46535",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.809646851853542
+        },
+        {
+          "code_value": "10585D_7030_485_2862_46535",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.809646851853542
+        },
+        {
+          "code_value": "1746X_7030_485_2862_46535",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.809646851853542
+        },
+        {
+          "code_value": "10582Y_7030_485_2862_52187",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.802817325168975
+        },
+        {
+          "code_value": "5224Y_7030_485_2862_52187",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.802817325168975
+        },
+        {
+          "code_value": "1746X_7030_485_2862_52187",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.802817325168975
+        },
+        {
+          "code_value": "8784H_7030_485_2862_52187",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.802817325168975
+        },
+        {
+          "code_value": "10585D_7030_485_2862_52187",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.802817325168975
+        },
+        {
+          "code_value": "5196L_7030_485_2862_52187",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.802817325168975
+        },
+        {
+          "code_value": "10585D_7030_485_2862_9556",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.756422441691084
+        },
+        {
+          "code_value": "10582Y_7030_485_2862_9556",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.756422441691084
+        },
+        {
+          "code_value": "8784H_7030_485_2862_9556",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.756422441691084
+        },
+        {
+          "code_value": "1746X_7030_485_2862_9556",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.756422441691084
+        },
+        {
+          "code_value": "5196L_7030_485_2862_9556",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.756422441691084
+        },
+        {
+          "code_value": "5224Y_7030_485_2862_9556",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.756422441691084
+        },
+        {
+          "code_value": "10585D_7030_485_2862_9561",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.751062527844479
+        },
+        {
+          "code_value": "5224Y_7030_485_2862_9561",
+          "display_name": "Paracetamol Tablet 500 mg",
+          "similarity_score": 0.751062527844479
+        }
+      ]
+    },
+    {
+      "query": "Atorvastatin 20mg",
+      "group": "Generic - Statins",
+      "source": "Repeat prescription",
+      "reference_display": "Atorvastatin Tablet 20 mg (as calcium)",
+      "top20_results": [
+        {
+          "code_value": "13529C_11522_1005_4727_56935",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.817713537402142
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_56935",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.817713537402142
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14065",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.803916009040007
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14065",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.803916009040007
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_58618",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.802116712682301
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_58618",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.802116712682301
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_44030",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.792844312764627
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_44030",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.792844312764627
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14068",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.773037516320453
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14068",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.773037516320453
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_29906",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.772694289932659
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_29906",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.772694289932659
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14066",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.770014821854005
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14066",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.770014821854005
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14073",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.762934697555178
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14073",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.762934697555178
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14072",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.738513561017665
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14072",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.738513561017665
+        },
+        {
+          "code_value": "13588E_10829_1247_5563_51471",
+          "display_name": "Rosuvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.653259860073923
+        },
+        {
+          "code_value": "2574L_10829_1247_5563_51471",
+          "display_name": "Rosuvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.653259860073923
+        }
+      ]
+    },
+    {
+      "query": "Metformin 500mg tablets",
+      "group": "Generic - Diabetes",
+      "source": "Diabetes medication list",
+      "reference_display": "Metformin Tablet containing metformin hydrochloride 500 mg",
+      "top20_results": [
+        {
+          "code_value": "13976N_8564_415_2567_8956",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.897383572335631
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8956",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.897383572335631
+        },
+        {
+          "code_value": "2430X_8564_415_2567_57101",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.884261400528036
+        },
+        {
+          "code_value": "13976N_8564_415_2567_57101",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.884261400528036
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8944",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.870196543189047
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8944",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.870196543189047
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8938",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.842162763174606
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8938",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.842162763174606
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8953",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.813637130399241
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8953",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.813637130399241
+        },
+        {
+          "code_value": "2430X_8564_415_2567_58673",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.807556008690283
+        },
+        {
+          "code_value": "13976N_8564_415_2567_58673",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.807556008690283
+        },
+        {
+          "code_value": "2430X_8564_415_2567_50705",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.805575463208964
+        },
+        {
+          "code_value": "13976N_8564_415_2567_50705",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.805575463208964
+        },
+        {
+          "code_value": "13976N_8564_415_2567_48809",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.795425562973844
+        },
+        {
+          "code_value": "2430X_8564_415_2567_48809",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.795425562973844
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8957",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.794357903281378
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8957",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.794357903281378
+        },
+        {
+          "code_value": "2430X_8564_415_2567_59336",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.772175766219359
+        },
+        {
+          "code_value": "13976N_8564_415_2567_59336",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.772175766219359
+        }
+      ]
+    },
+    {
+      "query": "Aspirin 100mg",
+      "group": "Generic - Cardiovascular",
+      "source": "Cardiology discharge summary",
+      "reference_display": "Aspirin Tablet 100 mg",
+      "top20_results": [
+        {
+          "code_value": "4078P_10993_158_1560_9299",
+          "display_name": "Aspirin Capsule 100 mg (containing enteric coated pellets)",
+          "similarity_score": 0.819883739683145
+        },
+        {
+          "code_value": "8202Q_10131_158_1561_9303",
+          "display_name": "Aspirin Tablet 100 mg",
+          "similarity_score": 0.729400379407514
+        },
+        {
+          "code_value": "10590J_10131_158_1561_9303",
+          "display_name": "Aspirin Tablet 100 mg",
+          "similarity_score": 0.729400379407514
+        },
+        {
+          "code_value": "4077N_10313_158_1562_9304",
+          "display_name": "Aspirin Tablet 100 mg (enteric coated)",
+          "similarity_score": 0.711192337586483
+        },
+        {
+          "code_value": "4076M_9643_158_1563_9305",
+          "display_name": "Aspirin Tablet 100 mg (with glycine)",
+          "similarity_score": 0.670821281950979
+        },
+        {
+          "code_value": "4077N_10313_158_1562_38379",
+          "display_name": "Aspirin Tablet 100 mg (enteric coated)",
+          "similarity_score": 0.660329897685428
+        },
+        {
+          "code_value": "4077N_10313_158_1562_50655",
+          "display_name": "Aspirin Tablet 100 mg (enteric coated)",
+          "similarity_score": 0.600952107284097
+        },
+        {
+          "code_value": "4077N_10313_158_1562_35252",
+          "display_name": "Aspirin Tablet 100 mg (enteric coated)",
+          "similarity_score": 0.594189715887498
+        },
+        {
+          "code_value": "8439E_12194_1093_5055_52036",
+          "display_name": "Celecoxib Capsule 100 mg",
+          "similarity_score": 0.541578429743233
+        },
+        {
+          "code_value": "2757D_9273_372_2360_8405",
+          "display_name": "Indometacin Suppository 100 mg",
+          "similarity_score": 0.522965950933651
+        },
+        {
+          "code_value": "5128X_9273_372_2360_8405",
+          "display_name": "Indometacin Suppository 100 mg",
+          "similarity_score": 0.522965950933651
+        },
+        {
+          "code_value": "8439E_12194_1093_5055_59091",
+          "display_name": "Celecoxib Capsule 100 mg",
+          "similarity_score": 0.515716053699064
+        },
+        {
+          "code_value": "3322W_8582_287_2023_7484",
+          "display_name": "Doxycycline Capsule 100 mg (as hyclate) (containing enteric coated pellets)",
+          "similarity_score": 0.507164435192046
+        },
+        {
+          "code_value": "10777F_8582_287_2023_7484",
+          "display_name": "Doxycycline Capsule 100 mg (as hyclate) (containing enteric coated pellets)",
+          "similarity_score": 0.507164435192046
+        },
+        {
+          "code_value": "2715X_8582_287_2024_7482",
+          "display_name": "Doxycycline Capsule 100 mg (as hyclate) (containing enteric coated pellets)",
+          "similarity_score": 0.507164435192046
+        },
+        {
+          "code_value": "14443E_8582_287_2023_7484",
+          "display_name": "Doxycycline Capsule 100 mg (as hyclate) (containing enteric coated pellets)",
+          "similarity_score": 0.507164435192046
+        },
+        {
+          "code_value": "2708M_8582_287_2023_7484",
+          "display_name": "Doxycycline Capsule 100 mg (as hyclate) (containing enteric coated pellets)",
+          "similarity_score": 0.507164435192046
+        },
+        {
+          "code_value": "2703G_8582_287_2023_7484",
+          "display_name": "Doxycycline Capsule 100 mg (as hyclate) (containing enteric coated pellets)",
+          "similarity_score": 0.507164435192046
+        },
+        {
+          "code_value": "8439E_12194_1093_5055_58461",
+          "display_name": "Celecoxib Capsule 100 mg",
+          "similarity_score": 0.504649984488381
+        },
+        {
+          "code_value": "1272Y_6963_1205_5451_6564",
+          "display_name": "Dapsone Tablet 100 mg",
+          "similarity_score": 0.503999533763303
+        }
+      ]
+    },
+    {
+      "query": "Omeprazole 20mg capsules",
+      "group": "Generic - Gastrointestinal",
+      "source": "Hospital medication chart",
+      "reference_display": "Omeprazole Capsule 20 mg",
+      "top20_results": [
+        {
+          "code_value": "12281J_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "14464G_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "11682W_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "1327W_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "14465H_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "14559G_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "14706B_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "1326T_9709_15600_2813_9453",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.941883561243385
+        },
+        {
+          "code_value": "1326T_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "12281J_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "14559G_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "14464G_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "14706B_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "11682W_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "1327W_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "14465H_9709_15600_2813_9459",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.938120733845706
+        },
+        {
+          "code_value": "12281J_9709_15600_2813_59067",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.92418553972951
+        },
+        {
+          "code_value": "11682W_9709_15600_2813_59067",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.92418553972951
+        },
+        {
+          "code_value": "14464G_9709_15600_2813_59067",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.92418553972951
+        },
+        {
+          "code_value": "14465H_9709_15600_2813_59067",
+          "display_name": "Omeprazole Capsule 20 mg",
+          "similarity_score": 0.92418553972951
+        }
+      ]
+    },
+    {
+      "query": "Panadol Osteo",
+      "group": "Brand - Analgesics",
+      "source": "Patient's own medication list",
+      "reference_display": "Paracetamol Tablet 665 mg (modified release)",
+      "top20_results": [
+        {
+          "code_value": "173D____",
+          "display_name": "Calcium Hydroxide null",
+          "similarity_score": 0.514582410517052
+        },
+        {
+          "code_value": "44H____",
+          "display_name": "Paints null",
+          "similarity_score": 0.513211729506618
+        },
+        {
+          "code_value": "2194L_7958_1239_5543_6686",
+          "display_name": "Alendronate + colecalciferol Tablet 70 mg (as alendronate sodium) with 70 micrograms colecalciferol",
+          "similarity_score": 0.508013818202664
+        },
+        {
+          "code_value": "14003B_7958_1239_5543_6686",
+          "display_name": "Alendronate + colecalciferol Tablet 70 mg (as alendronate sodium) with 70 micrograms colecalciferol",
+          "similarity_score": 0.508013818202664
+        },
+        {
+          "code_value": "9012H_7958_1239_5543_6686",
+          "display_name": "Alendronate + colecalciferol Tablet 70 mg (as alendronate sodium) with 70 micrograms colecalciferol",
+          "similarity_score": 0.508013818202664
+        },
+        {
+          "code_value": "13488X_11658_1111_5156_15049",
+          "display_name": "risedronate Tablet containing risedronate sodium 150 mg",
+          "similarity_score": 0.503170566451189
+        },
+        {
+          "code_value": "9391G_11658_1111_5156_15049",
+          "display_name": "risedronate Tablet containing risedronate sodium 150 mg",
+          "similarity_score": 0.503170566451189
+        },
+        {
+          "code_value": "14197F_8714_1111_5158_58407",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.498988002320097
+        },
+        {
+          "code_value": "8621R_8714_1111_5158_58407",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.498988002320097
+        },
+        {
+          "code_value": "4444X_8714_1111_5158_58407",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.498988002320097
+        },
+        {
+          "code_value": "13459J_8714_1111_5158_58407",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.498988002320097
+        },
+        {
+          "code_value": "2224C_11674_1239_5542_6684",
+          "display_name": "Alendronate + colecalciferol Tablet 70 mg (as alendronate sodium) with 140 micrograms colecalciferol",
+          "similarity_score": 0.498027997369221
+        },
+        {
+          "code_value": "13835E_11674_1239_5542_6684",
+          "display_name": "Alendronate + colecalciferol Tablet 70 mg (as alendronate sodium) with 140 micrograms colecalciferol",
+          "similarity_score": 0.498027997369221
+        },
+        {
+          "code_value": "9183H_11674_1239_5542_6684",
+          "display_name": "Alendronate + colecalciferol Tablet 70 mg (as alendronate sodium) with 140 micrograms colecalciferol",
+          "similarity_score": 0.498027997369221
+        },
+        {
+          "code_value": "14197F_8714_1111_5158_15054",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.491501387543295
+        },
+        {
+          "code_value": "4444X_8714_1111_5158_15054",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.491501387543295
+        },
+        {
+          "code_value": "13459J_8714_1111_5158_15054",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.491501387543295
+        },
+        {
+          "code_value": "8621R_8714_1111_5158_15054",
+          "display_name": "risedronate Tablet containing risedronate sodium 35 mg",
+          "similarity_score": 0.491501387543295
+        },
+        {
+          "code_value": "8482K_8030_1111_5157_15050",
+          "display_name": "risedronate Tablet containing risedronate sodium 30 mg",
+          "similarity_score": 0.491131405287023
+        },
+        {
+          "code_value": "7567G____",
+          "display_name": "Podophyllin Compound null",
+          "similarity_score": 0.487854930595222
+        }
+      ]
+    },
+    {
+      "query": "Salbutamol inhaler",
+      "group": "Generic - Respiratory",
+      "source": "Asthma action plan",
+      "reference_display": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+      "top20_results": [
+        {
+          "code_value": "11125M_21148_15587_41550_41645",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 20",
+          "similarity_score": 0.703533367106696
+        },
+        {
+          "code_value": "11130T_21148_15587_41550_41645",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 20",
+          "similarity_score": 0.703533367106696
+        },
+        {
+          "code_value": "11095Y_21150_15587_41554_41646",
+          "display_name": "Salbutamol Nebuliser solution 5 mg (as sulfate) in 2.5 mL single dose units, 20",
+          "similarity_score": 0.676822543373039
+        },
+        {
+          "code_value": "11088N_21150_15587_41554_41646",
+          "display_name": "Salbutamol Nebuliser solution 5 mg (as sulfate) in 2.5 mL single dose units, 20",
+          "similarity_score": 0.676822543373039
+        },
+        {
+          "code_value": "3496B_9073_15587_3031_47071",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.654707816170027
+        },
+        {
+          "code_value": "2000G_9073_15587_3031_47071",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.654707816170027
+        },
+        {
+          "code_value": "3497C_9074_15587_3032_47072",
+          "display_name": "Salbutamol Nebuliser solution 5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.654568244024152
+        },
+        {
+          "code_value": "2001H_9074_15587_3032_47072",
+          "display_name": "Salbutamol Nebuliser solution 5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.654568244024152
+        },
+        {
+          "code_value": "8354Q_11395_15587_3036_10095",
+          "display_name": "Salbutamol Pressurised inhalation in breath actuated device 100 micrograms (as sulfate) per dose, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.601544616198746
+        },
+        {
+          "code_value": "12109H_24206_15587_15675_50257",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.56527226220915
+        },
+        {
+          "code_value": "12108G_24206_15587_15675_50257",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.56527226220915
+        },
+        {
+          "code_value": "12109H_24206_15587_15675_49132",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.559954868958368
+        },
+        {
+          "code_value": "12108G_24206_15587_15675_49132",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.559954868958368
+        },
+        {
+          "code_value": "12109H_24206_15587_15675_50505",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.549987921274537
+        },
+        {
+          "code_value": "12108G_24206_15587_15675_50505",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.549987921274537
+        },
+        {
+          "code_value": "14328D_8826_908_4331_13095",
+          "display_name": "Salmeterol Powder for oral inhalation in breath actuated device 50 micrograms (as xinafoate) per dose, 60 doses",
+          "similarity_score": 0.510045031075434
+        },
+        {
+          "code_value": "8141L_8826_908_4331_13095",
+          "display_name": "Salmeterol Powder for oral inhalation in breath actuated device 50 micrograms (as xinafoate) per dose, 60 doses",
+          "similarity_score": 0.510045031075434
+        },
+        {
+          "code_value": "14413N_9380_1098_5087_51549",
+          "display_name": "fluticasone propionate + salmeterol Powder for oral inhalation in breath actuated device containing fluticasone propionate 100 micrograms with salmeterol 50 micrograms (as xinafoate) per dose, 60 doses",
+          "similarity_score": 0.466712715624816
+        },
+        {
+          "code_value": "8430Q_9380_1098_5087_51549",
+          "display_name": "fluticasone propionate + salmeterol Powder for oral inhalation in breath actuated device containing fluticasone propionate 100 micrograms with salmeterol 50 micrograms (as xinafoate) per dose, 60 doses",
+          "similarity_score": 0.466712715624816
+        },
+        {
+          "code_value": "14378R_8686_165_1609_9922",
+          "display_name": "Beclometasone Pressurised inhalation in breath actuated device containing beclometasone dipropionate 50 micrograms per dose, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.46413172930505
+        }
+      ]
+    },
+    {
+      "query": "Clopidogrel 75mg",
+      "group": "Generic - Cardiovascular",
+      "source": "Post-stent prescription",
+      "reference_display": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+      "top20_results": [
+        {
+          "code_value": "8358X_9321_1072_15684_14579",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.82416423943525
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14579",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.82416423943525
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_57097",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.808329184660751
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_57097",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.808329184660751
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_48236",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.797287969842394
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_48236",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.797287969842394
+        },
+        {
+          "code_value": "9354H_9561_1072_15684_58386",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.790785322109529
+        },
+        {
+          "code_value": "13365K_9561_1072_15684_58386",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.790785322109529
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_53966",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.790433007494353
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_53966",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.790433007494353
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_14589",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.787554308368557
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14589",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.787554308368557
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14586",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.78515329188001
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_14586",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.78515329188001
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_14585",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.783180784727311
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14585",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.783180784727311
+        },
+        {
+          "code_value": "13365K_9561_1072_15684_36068",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.763899313271825
+        },
+        {
+          "code_value": "9354H_9561_1072_15684_36068",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.763899313271825
+        },
+        {
+          "code_value": "9354H_9561_1072_15684_14573",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.753066993515195
+        },
+        {
+          "code_value": "13365K_9561_1072_15684_14573",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.753066993515195
+        }
+      ]
+    },
+    {
+      "query": "Atenolol 50mg tablets",
+      "group": "Generic - Cardiovascular",
+      "source": "Cardiovascular medication list",
+      "reference_display": "Atenolol Tablet 50 mg",
+      "top20_results": [
+        {
+          "code_value": "1081X_9745_159_1570_9388",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.918497779162514
+        },
+        {
+          "code_value": "13540P_9745_159_1570_9388",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.918497779162514
+        },
+        {
+          "code_value": "1081X_9745_159_1570_9375",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.907186506550404
+        },
+        {
+          "code_value": "13540P_9745_159_1570_9375",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.907186506550404
+        },
+        {
+          "code_value": "13540P_9745_159_1570_52129",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.892824632382329
+        },
+        {
+          "code_value": "1081X_9745_159_1570_52129",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.892824632382329
+        },
+        {
+          "code_value": "1081X_9745_159_1570_9387",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.883383710443147
+        },
+        {
+          "code_value": "13540P_9745_159_1570_9387",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.883383710443147
+        },
+        {
+          "code_value": "1081X_9745_159_1570_9374",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.878766336803175
+        },
+        {
+          "code_value": "13540P_9745_159_1570_9374",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.878766336803175
+        },
+        {
+          "code_value": "1081X_9745_159_1570_56613",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.875549197824015
+        },
+        {
+          "code_value": "13540P_9745_159_1570_56613",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.875549197824015
+        },
+        {
+          "code_value": "13540P_9745_159_1570_58379",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.870628333270982
+        },
+        {
+          "code_value": "1081X_9745_159_1570_58379",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.870628333270982
+        },
+        {
+          "code_value": "1081X_9745_159_1570_26303",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.828573321567984
+        },
+        {
+          "code_value": "13540P_9745_159_1570_26303",
+          "display_name": "Atenolol Tablet 50 mg",
+          "similarity_score": 0.828573321567984
+        },
+        {
+          "code_value": "2687K_9946_163_1584_9679",
+          "display_name": "Azathioprine Tablet 50 mg",
+          "similarity_score": 0.601867257058811
+        },
+        {
+          "code_value": "13600T_10407_159_25831_25833",
+          "display_name": "Atenolol Oral solution 50 mg in 10 mL, 300 mL",
+          "similarity_score": 0.585584882205825
+        },
+        {
+          "code_value": "2243C_10407_159_25831_25833",
+          "display_name": "Atenolol Oral solution 50 mg in 10 mL, 300 mL",
+          "similarity_score": 0.585584882205825
+        },
+        {
+          "code_value": "1849H_8493_15569_15551_32922",
+          "display_name": "Sumatriptan Tablet 50 mg (as succinate)",
+          "similarity_score": 0.571342937850415
+        }
+      ]
+    },
+    {
+      "query": "Amoxil 500mg",
+      "group": "Brand - Antibiotics",
+      "source": "GP prescription (brand name)",
+      "reference_display": "Amoxicillin Capsule 500 mg (as trihydrate)",
+      "top20_results": [
+        {
+          "code_value": "11947T_8485_152_1529_8675",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.833781222384879
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8675",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.833781222384879
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8675",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.833781222384879
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8670",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.814249913370933
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8670",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.814249913370933
+        },
+        {
+          "code_value": "11947T_8485_152_1529_8670",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.814249913370933
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8669",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.811074864562701
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8669",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.811074864562701
+        },
+        {
+          "code_value": "11947T_8485_152_1529_8669",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.811074864562701
+        },
+        {
+          "code_value": "1889K_8485_152_1529_57087",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.791919628912502
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_57087",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.791919628912502
+        },
+        {
+          "code_value": "11947T_8485_152_1529_57087",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.791919628912502
+        },
+        {
+          "code_value": "1889K_8485_152_1529_8673",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.787630150825365
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_8673",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.787630150825365
+        },
+        {
+          "code_value": "11947T_8485_152_1529_8673",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.787630150825365
+        },
+        {
+          "code_value": "3300Q_8485_152_1529_47929",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.772164198791405
+        },
+        {
+          "code_value": "11947T_8485_152_1529_47929",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.772164198791405
+        },
+        {
+          "code_value": "1889K_8485_152_1529_47929",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.772164198791405
+        },
+        {
+          "code_value": "11947T_8485_152_1529_58628",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.770020096643837
+        },
+        {
+          "code_value": "1889K_8485_152_1529_58628",
+          "display_name": "Amoxicillin Capsule 500 mg (as trihydrate)",
+          "similarity_score": 0.770020096643837
+        }
+      ],
+      "brand_generic_pair": "Amoxicillin 500mg capsules"
+    },
+    {
+      "query": "Lipitor 20mg",
+      "group": "Brand - Statins",
+      "source": "Repeat prescription (brand name)",
+      "reference_display": "Atorvastatin Tablet 20 mg (as calcium)",
+      "top20_results": [
+        {
+          "code_value": "8214H_11522_1005_4727_14065",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.855164471271101
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14065",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.855164471271101
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_56935",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.763803726239041
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_56935",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.763803726239041
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_44030",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.737093582535259
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_44030",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.737093582535259
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14072",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.733645386637636
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14072",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.733645386637636
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14066",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.715336019787242
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14066",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.715336019787242
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14073",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.713875601793437
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14073",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.713875601793437
+        },
+        {
+          "code_value": "13373W_11972_555_3048_10164",
+          "display_name": "Simvastatin Tablet 20 mg",
+          "similarity_score": 0.712336890524045
+        },
+        {
+          "code_value": "2012X_11972_555_3048_10164",
+          "display_name": "Simvastatin Tablet 20 mg",
+          "similarity_score": 0.712336890524045
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_14068",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.707230966942194
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_14068",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.707230966942194
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_29906",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.700214056904873
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_29906",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.700214056904873
+        },
+        {
+          "code_value": "8214H_11522_1005_4727_58618",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.688613513808511
+        },
+        {
+          "code_value": "13529C_11522_1005_4727_58618",
+          "display_name": "Atorvastatin Tablet 20 mg (as calcium)",
+          "similarity_score": 0.688613513808511
+        }
+      ],
+      "brand_generic_pair": "Atorvastatin 20mg"
+    },
+    {
+      "query": "Diabex 500mg",
+      "group": "Brand - Diabetes",
+      "source": "Diabetes medication list (brand name)",
+      "reference_display": "Metformin Tablet containing metformin hydrochloride 500 mg",
+      "top20_results": [
+        {
+          "code_value": "2430X_8564_415_2567_8956",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.761594860016811
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8956",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.761594860016811
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8957",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.675440725405995
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8957",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.675440725405995
+        },
+        {
+          "code_value": "2430X_8564_415_2567_59336",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.667313327084383
+        },
+        {
+          "code_value": "13976N_8564_415_2567_59336",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.667313327084383
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8953",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.66020291063269
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8953",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.66020291063269
+        },
+        {
+          "code_value": "2430X_8564_415_2567_57101",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.652310499257621
+        },
+        {
+          "code_value": "13976N_8564_415_2567_57101",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.652310499257621
+        },
+        {
+          "code_value": "10195N_15093_34991_34994_34996",
+          "display_name": "glycine with carbohydrate Sachets of oral powder 4 g containing 500 mg glycine, 30 (Glycine500)",
+          "similarity_score": 0.628177187017938
+        },
+        {
+          "code_value": "9435N_8637_415_2569_8959",
+          "display_name": "Metformin Tablet (extended release) containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.614691859094867
+        },
+        {
+          "code_value": "13899M_8637_415_2569_8959",
+          "display_name": "Metformin Tablet (extended release) containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.614691859094867
+        },
+        {
+          "code_value": "3093T_10855_365_2334_50429",
+          "display_name": "Hydroxycarbamide Capsule 500 mg",
+          "similarity_score": 0.601337729453612
+        },
+        {
+          "code_value": "13942T_8503_527_2967_9932",
+          "display_name": "Probenecid Tablet 500 mg",
+          "similarity_score": 0.596357061598383
+        },
+        {
+          "code_value": "1940D_8503_527_2967_9932",
+          "display_name": "Probenecid Tablet 500 mg",
+          "similarity_score": 0.596357061598383
+        },
+        {
+          "code_value": "2430X_8564_415_2567_8944",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.595825820889142
+        },
+        {
+          "code_value": "13976N_8564_415_2567_8944",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.595825820889142
+        },
+        {
+          "code_value": "11180K_21336_1102_42249_42251",
+          "display_name": "Ursodeoxycholic acid Tablet 500 mg",
+          "similarity_score": 0.587078030763375
+        },
+        {
+          "code_value": "2430X_8564_415_2567_48809",
+          "display_name": "Metformin Tablet containing metformin hydrochloride 500 mg",
+          "similarity_score": 0.58147185214992
+        }
+      ],
+      "brand_generic_pair": "Metformin 500mg tablets"
+    },
+    {
+      "query": "Ventolin",
+      "group": "Brand - Respiratory",
+      "source": "Asthma action plan (brand name)",
+      "reference_display": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+      "top20_results": [
+        {
+          "code_value": "532B____",
+          "display_name": "Syrup null",
+          "similarity_score": 0.526992510740027
+        },
+        {
+          "code_value": "7567G____",
+          "display_name": "Podophyllin Compound null",
+          "similarity_score": 0.510931736369603
+        },
+        {
+          "code_value": "592E____",
+          "display_name": "Water Purified null",
+          "similarity_score": 0.496143647585888
+        },
+        {
+          "code_value": "193E____",
+          "display_name": "Collodion Flexible null",
+          "similarity_score": 0.495557063422575
+        },
+        {
+          "code_value": "339W____",
+          "display_name": "Lavender Spike Oil null",
+          "similarity_score": 0.477336042117947
+        },
+        {
+          "code_value": "310H____",
+          "display_name": "Menthol, Racemic or Levomenthol null",
+          "similarity_score": 0.476017213524769
+        },
+        {
+          "code_value": "11125M_21148_15587_41550_41645",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 20",
+          "similarity_score": 0.474159354883836
+        },
+        {
+          "code_value": "11130T_21148_15587_41550_41645",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 20",
+          "similarity_score": 0.474159354883836
+        },
+        {
+          "code_value": "12108G_24206_15587_15675_49132",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.4736712158691
+        },
+        {
+          "code_value": "12109H_24206_15587_15675_49132",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.4736712158691
+        },
+        {
+          "code_value": "3497C_9074_15587_3032_47072",
+          "display_name": "Salbutamol Nebuliser solution 5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.459729020678615
+        },
+        {
+          "code_value": "2001H_9074_15587_3032_47072",
+          "display_name": "Salbutamol Nebuliser solution 5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.459729020678615
+        },
+        {
+          "code_value": "271G____",
+          "display_name": "Honey Purified (use as additive only) null",
+          "similarity_score": 0.457281684315079
+        },
+        {
+          "code_value": "3496B_9073_15587_3031_47071",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.457118651850294
+        },
+        {
+          "code_value": "2000G_9073_15587_3031_47071",
+          "display_name": "Salbutamol Nebuliser solution 2.5 mg (as sulfate) in 2.5 mL single dose units, 30",
+          "similarity_score": 0.457118651850294
+        },
+        {
+          "code_value": "397X____",
+          "display_name": "Phenobarbitone Sodium (may only be prescribed for the treatment of epilepsy) null",
+          "similarity_score": 0.451335349649568
+        },
+        {
+          "code_value": "7308P____",
+          "display_name": "Menthol null",
+          "similarity_score": 0.450542846464141
+        },
+        {
+          "code_value": "15T____",
+          "display_name": "Ear Drops null",
+          "similarity_score": 0.447304935586708
+        },
+        {
+          "code_value": "12108G_24206_15587_15675_50257",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.445184566117173
+        },
+        {
+          "code_value": "12109H_24206_15587_15675_50257",
+          "display_name": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+          "similarity_score": 0.445184566117173
+        }
+      ],
+      "brand_generic_pair": "Salbutamol inhaler"
+    },
+    {
+      "query": "Plavix 75mg",
+      "group": "Brand - Cardiovascular",
+      "source": "Post-stent prescription (brand name)",
+      "reference_display": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+      "top20_results": [
+        {
+          "code_value": "8358X_9321_1072_15684_14589",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.77270591897036
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14589",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.77270591897036
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_14579",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.758217198518757
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14579",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.758217198518757
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_53966",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.74861986389745
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_53966",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.74861986389745
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_57097",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.745670616406756
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_57097",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.745670616406756
+        },
+        {
+          "code_value": "9354H_9561_1072_15684_14573",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.735289027298989
+        },
+        {
+          "code_value": "13365K_9561_1072_15684_14573",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.735289027298989
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_14586",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.727141148206262
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14586",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.727141148206262
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_48236",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.715586340320816
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_48236",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.715586340320816
+        },
+        {
+          "code_value": "9354H_9561_1072_15684_36068",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.703885575985509
+        },
+        {
+          "code_value": "13365K_9561_1072_15684_36068",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.703885575985509
+        },
+        {
+          "code_value": "8358X_9321_1072_15684_14585",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.683348828138997
+        },
+        {
+          "code_value": "13399F_9321_1072_15684_14585",
+          "display_name": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+          "similarity_score": 0.683348828138997
+        },
+        {
+          "code_value": "13365K_9561_1072_15684_58386",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.673823104050718
+        },
+        {
+          "code_value": "9354H_9561_1072_15684_58386",
+          "display_name": "Clopidogrel Tablet 75 mg (as besilate)",
+          "similarity_score": 0.673823104050718
+        }
+      ],
+      "brand_generic_pair": "Clopidogrel 75mg"
+    }
+  ]
+}

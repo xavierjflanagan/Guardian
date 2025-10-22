@@ -1,0 +1,130 @@
+{
+  "_note": "This is an EXPLORATORY test. Reference codes are for manual comparison only, not automated validation.",
+  "medications": [
+    {
+      "entity_name": "Amoxicillin 500mg capsules",
+      "code_system": "pbs",
+      "reference_code": "11947T_8485_152_1529_57087",
+      "reference_display": "Amoxicillin Capsule 500 mg (as trihydrate)",
+      "group": "Generic - Antibiotics",
+      "source": "GP prescription"
+    },
+    {
+      "entity_name": "Paracetamol 500mg",
+      "code_system": "pbs",
+      "reference_code": "1746X_7030_485_2862_52187",
+      "reference_display": "Paracetamol Tablet 500 mg",
+      "group": "Generic - Analgesics",
+      "source": "Medication chart"
+    },
+    {
+      "entity_name": "Atorvastatin 20mg",
+      "code_system": "pbs",
+      "reference_code": "8214H_11522_1005_4727_14072",
+      "reference_display": "Atorvastatin Tablet 20 mg (as calcium)",
+      "group": "Generic - Statins",
+      "source": "Repeat prescription"
+    },
+    {
+      "entity_name": "Metformin 500mg tablets",
+      "code_system": "pbs",
+      "reference_code": "2430X_8564_415_2567_8953",
+      "reference_display": "Metformin Tablet containing metformin hydrochloride 500 mg",
+      "group": "Generic - Diabetes",
+      "source": "Diabetes medication list"
+    },
+    {
+      "entity_name": "Aspirin 100mg",
+      "code_system": "pbs",
+      "reference_code": "10590J_10131_158_1561_9303",
+      "reference_display": "Aspirin Tablet 100 mg",
+      "group": "Generic - Cardiovascular",
+      "source": "Cardiology discharge summary"
+    },
+    {
+      "entity_name": "Omeprazole 20mg capsules",
+      "code_system": "pbs",
+      "reference_code": "1327W_9709_15600_2813_9458",
+      "reference_display": "Omeprazole Capsule 20 mg",
+      "group": "Generic - Gastrointestinal",
+      "source": "Hospital medication chart"
+    },
+    {
+      "entity_name": "Panadol Osteo",
+      "code_system": "pbs",
+      "reference_code": "10598T_12218_485_2863_43597",
+      "reference_display": "Paracetamol Tablet 665 mg (modified release)",
+      "group": "Brand - Analgesics",
+      "source": "Patient's own medication list"
+    },
+    {
+      "entity_name": "Salbutamol inhaler",
+      "code_system": "pbs",
+      "reference_code": "12108G_24206_15587_15675_49132",
+      "reference_display": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+      "group": "Generic - Respiratory",
+      "source": "Asthma action plan"
+    },
+    {
+      "entity_name": "Clopidogrel 75mg",
+      "code_system": "pbs",
+      "reference_code": "8358X_9321_1072_15684_57097",
+      "reference_display": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+      "group": "Generic - Cardiovascular",
+      "source": "Post-stent prescription"
+    },
+    {
+      "entity_name": "Atenolol 50mg tablets",
+      "code_system": "pbs",
+      "reference_code": "1081X_9745_159_1570_52129",
+      "reference_display": "Atenolol Tablet 50 mg",
+      "group": "Generic - Cardiovascular",
+      "source": "Cardiovascular medication list"
+    },
+    {
+      "entity_name": "Amoxil 500mg",
+      "code_system": "pbs",
+      "reference_code": "11947T_8485_152_1529_57087",
+      "reference_display": "Amoxicillin Capsule 500 mg (as trihydrate)",
+      "group": "Brand - Antibiotics",
+      "source": "GP prescription (brand name)",
+      "brand_generic_pair": "Amoxicillin 500mg capsules"
+    },
+    {
+      "entity_name": "Lipitor 20mg",
+      "code_system": "pbs",
+      "reference_code": "8214H_11522_1005_4727_14072",
+      "reference_display": "Atorvastatin Tablet 20 mg (as calcium)",
+      "group": "Brand - Statins",
+      "source": "Repeat prescription (brand name)",
+      "brand_generic_pair": "Atorvastatin 20mg"
+    },
+    {
+      "entity_name": "Diabex 500mg",
+      "code_system": "pbs",
+      "reference_code": "2430X_8564_415_2567_8953",
+      "reference_display": "Metformin Tablet containing metformin hydrochloride 500 mg",
+      "group": "Brand - Diabetes",
+      "source": "Diabetes medication list (brand name)",
+      "brand_generic_pair": "Metformin 500mg tablets"
+    },
+    {
+      "entity_name": "Ventolin",
+      "code_system": "pbs",
+      "reference_code": "12108G_24206_15587_15675_49132",
+      "reference_display": "Salbutamol Pressurised inhalation 100 micrograms (as sulfate) per dose with dose counter, 200 doses (CFC-free formulation)",
+      "group": "Brand - Respiratory",
+      "source": "Asthma action plan (brand name)",
+      "brand_generic_pair": "Salbutamol inhaler"
+    },
+    {
+      "entity_name": "Plavix 75mg",
+      "code_system": "pbs",
+      "reference_code": "8358X_9321_1072_15684_57097",
+      "reference_display": "Clopidogrel Tablet 75 mg (as hydrogen sulfate)",
+      "group": "Brand - Cardiovascular",
+      "source": "Post-stent prescription (brand name)",
+      "brand_generic_pair": "Clopidogrel 75mg"
+    }
+  ]
+}

@@ -414,6 +414,14 @@ CREATE INDEX IF NOT EXISTS idx_patient_medications_patient_active ON patient_med
 CREATE INDEX IF NOT EXISTS idx_patient_allergies_patient_severity ON patient_allergies(patient_id, severity);
 CREATE INDEX IF NOT EXISTS idx_patient_immunizations_patient_date ON patient_immunizations(patient_id, administration_date DESC);
 
+-- Regional Medical Codes Performance Indexes (Migration 31 - 2025-10-21)
+-- Note: Index created CONCURRENTLY - cannot be in transaction, must run separately
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_regional_medical_codes_sapbert_embedding_pbs
+-- ON public.regional_medical_codes
+-- USING ivfflat (sapbert_embedding vector_cosine_ops)
+-- WITH (lists = 100)
+-- WHERE code_system = 'pbs' AND country_code = 'AUS';
+
 -- Semantic Architecture Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_clinical_narratives_shell_file_purpose ON clinical_narratives(shell_file_id, narrative_purpose);
 CREATE INDEX IF NOT EXISTS idx_clinical_narratives_patient_classification ON clinical_narratives(patient_id, clinical_classification);

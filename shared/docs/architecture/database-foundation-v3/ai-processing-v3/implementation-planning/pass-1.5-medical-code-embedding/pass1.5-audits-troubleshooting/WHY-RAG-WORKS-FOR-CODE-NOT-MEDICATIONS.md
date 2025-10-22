@@ -1,5 +1,13 @@
 # Why Vector Embeddings Work for IDE Code Search But Not Medical Codes
 
+---
+**HISTORICAL CONTEXT:**
+
+This conceptual explanation (October 20, 2025) was written after discovering pure vector search limitations in medication matching. It explains the fundamental mathematical and semantic reasons why vector embeddings excel for high-diversity domains (code repositories, research papers) but fail for low-diversity domains (medical codes, legal codes, product catalogs).
+
+This document remains valuable as a timeless explanation of semantic diversity principles, independent of specific embedding models. The concepts apply equally to OpenAI, SapBERT, or any other embedding model.
+---
+
 **Date:** 2025-10-20
 **Critical Insight:** Semantic diversity vs semantic clustering
 

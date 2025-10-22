@@ -1,5 +1,13 @@
 # MBS Procedure Validation Results
 
+---
+**HISTORICAL CONTEXT:**
+
+This validation (October 20, 2025) tested OpenAI text-embedding-3-small embeddings on MBS procedures and found similar semantic clustering limitations as medications (40% success rate). This investigation validated that pure vector search is insufficient for procedures as well, extending the hybrid search requirement beyond just medications.
+
+SapBERT was not tested on procedures as it is medication-specific. Procedures continue to use OpenAI embeddings but will require hybrid search (lexical + vector) to achieve production-ready accuracy.
+---
+
 **Date:** 2025-10-20
 **Test Set:** 5 common Australian medical procedures
 **Dataset:** 1,000 MBS procedure codes (limited by query)

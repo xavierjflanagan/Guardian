@@ -1,5 +1,13 @@
 # Critical Finding: Pure Vector Embeddings Insufficient for Medication Matching
 
+---
+**HISTORICAL CONTEXT:**
+
+This investigation (October 20, 2025) used OpenAI text-embedding-3-small embeddings and led to the hybrid search decision. Subsequent work (Experiment 2, October 21) validated that SapBERT embeddings perform better for medications (75.3% vs 58.0% OpenAI accuracy) but hybrid search remains necessary to achieve target accuracy above 95%.
+
+This document remains valuable as it explains the fundamental semantic clustering limitations that affect all general-purpose embedding models for low-diversity domains like medical codes.
+---
+
 **Date:** 2025-10-20
 **Status:** VALIDATED via empirical testing
 **Impact:** HIGH - Requires architectural change from pure vector to hybrid retrieval

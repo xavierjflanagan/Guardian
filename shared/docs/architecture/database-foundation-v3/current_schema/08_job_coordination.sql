@@ -376,6 +376,47 @@ CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_profile ON ai_processing_su
 CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_shell_file ON ai_processing_summary(shell_file_id);
 CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_status ON ai_processing_summary(processing_status);
 
+-- Migration 31 (2025-10-21): Embedding performance metrics for SapBERT/OpenAI optimization
+CREATE TABLE IF NOT EXISTS embedding_performance_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Model identification
+    model_name VARCHAR(50) NOT NULL, -- 'sapbert', 'openai'
+    code_system VARCHAR(10) NOT NULL, -- 'pbs', 'mbs'
+
+    -- Performance metrics
+    batch_size INTEGER, -- Number of embeddings generated in batch
+    generation_time_ms INTEGER, -- Total time for batch generation
+    cache_hit_rate DECIMAL(5,2), -- Percentage of cache hits (0-100)
+
+    -- Audit
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for security
+ALTER TABLE embedding_performance_metrics ENABLE ROW LEVEL SECURITY;
+
+-- Service role only policy (metrics are internal system data)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'embedding_performance_metrics'
+        AND policyname = 'Service role full access'
+    ) THEN
+        CREATE POLICY "Service role full access"
+        ON embedding_performance_metrics
+        FOR ALL
+        TO service_role
+        USING (true)
+        WITH CHECK (true);
+    END IF;
+END $$;
+
+-- Index for performance analytics
+CREATE INDEX IF NOT EXISTS idx_embedding_performance_metrics_model_system
+ON embedding_performance_metrics(model_name, code_system, created_at DESC);
+
 -- Subscription plans configuration (future billing - feature flagged)
 CREATE TABLE IF NOT EXISTS subscription_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

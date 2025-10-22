@@ -1,0 +1,395 @@
+{
+  "metadata": {
+    "experiment": "Experiment 5: MBS Procedure Validation",
+    "created": "2025-10-22",
+    "updated": "2025-10-22 (v2 - revised after user feedback)",
+    "total_entities": 35,
+    "status": "DRAFT v2 - Pending final approval",
+    "categories": {
+      "gp_visits": 14,
+      "ed_visits": 9,
+      "past_surgeries": 12
+    },
+    "changes_from_v1": [
+      "Removed treatments (IV fluids, nebuliser)",
+      "Removed assessments (triage, generic blood tests)",
+      "Added blood collection as actual procedure",
+      "Added x-ray formatting variations to test display presentation impact",
+      "Reduced total count from 48 to 35, focused on actual procedures only"
+    ]
+  },
+  "entities": [
+    {
+      "id": 1,
+      "entity_text": "Standard GP consultation",
+      "category": "gp_visits",
+      "subcategory": "consultation",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Most common GP visit, level B or C consultation",
+      "variations": ["GP visit", "Doctor appointment", "General practitioner consultation"]
+    },
+    {
+      "id": 2,
+      "entity_text": "Long GP consultation",
+      "category": "gp_visits",
+      "subcategory": "consultation",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Extended consultation for complex cases, level D",
+      "variations": ["Extended consultation", "Long appointment"]
+    },
+    {
+      "id": 3,
+      "entity_text": "Telehealth consultation",
+      "category": "gp_visits",
+      "subcategory": "consultation",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Video or phone consultation, COVID-era common",
+      "variations": ["Phone consult", "Video appointment", "Telephone consultation"]
+    },
+    {
+      "id": 4,
+      "entity_text": "ECG",
+      "category": "gp_visits",
+      "subcategory": "diagnostic_test",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Electrocardiogram, common abbreviation",
+      "variations": ["Electrocardiogram", "12-lead ECG", "Heart trace"]
+    },
+    {
+      "id": 5,
+      "entity_text": "Spirometry",
+      "category": "gp_visits",
+      "subcategory": "diagnostic_test",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Lung function test for asthma/COPD",
+      "variations": ["Lung function test", "Breathing test"]
+    },
+    {
+      "id": 6,
+      "entity_text": "Wound dressing",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Change dressing on existing wound",
+      "variations": ["Dressing change", "Wound care"]
+    },
+    {
+      "id": 7,
+      "entity_text": "Suture removal",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Remove stitches after wound healing",
+      "variations": ["Stitch removal", "Remove stitches"]
+    },
+    {
+      "id": 8,
+      "entity_text": "Ear syringing",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Remove ear wax buildup",
+      "variations": ["Ear irrigation", "Wax removal"]
+    },
+    {
+      "id": 9,
+      "entity_text": "Influenza vaccination",
+      "category": "gp_visits",
+      "subcategory": "immunization",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Flu shot administration",
+      "variations": ["Flu vaccine", "Flu shot", "Influenza immunisation"]
+    },
+    {
+      "id": 10,
+      "entity_text": "Skin lesion excision",
+      "category": "gp_visits",
+      "subcategory": "minor_surgery",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Remove suspicious skin lesion in GP office",
+      "variations": ["Mole removal", "Skin tag removal", "Lesion biopsy"]
+    },
+    {
+      "id": 11,
+      "entity_text": "Mental health care plan",
+      "category": "gp_visits",
+      "subcategory": "care_plan",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Structured mental health assessment and plan",
+      "variations": ["Mental health assessment", "MHCP", "Mental health treatment plan"]
+    },
+    {
+      "id": 12,
+      "entity_text": "Pap smear",
+      "category": "gp_visits",
+      "subcategory": "screening",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Cervical screening test",
+      "variations": ["Cervical screening", "Cervical smear test", "CST"]
+    },
+    {
+      "id": 13,
+      "entity_text": "Joint injection",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Corticosteroid injection into joint (knee, shoulder)",
+      "variations": ["Cortisone injection", "Steroid injection", "Intra-articular injection"]
+    },
+    {
+      "id": 14,
+      "entity_text": "Blood collection",
+      "category": "gp_visits",
+      "subcategory": "minor_procedure",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Venipuncture - actual procedure of taking blood, not the test itself",
+      "variations": ["Venipuncture", "Blood draw", "Taking blood"]
+    },
+
+    {
+      "id": 15,
+      "entity_text": "Chest X-ray",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "X-ray formatting variation 1: Capitalized with hyphen",
+      "variations": ["Chest radiograph"],
+      "formatting_test": "X-ray (capital X, hyphen)"
+    },
+    {
+      "id": 16,
+      "entity_text": "Chest x-ray",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "X-ray formatting variation 2: Lowercase with hyphen",
+      "variations": [],
+      "formatting_test": "x-ray (lowercase x, hyphen)"
+    },
+    {
+      "id": 17,
+      "entity_text": "Chest xray",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "X-ray formatting variation 3: One word, no hyphen",
+      "variations": [],
+      "formatting_test": "xray (one word)"
+    },
+    {
+      "id": 18,
+      "entity_text": "CXR",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "X-ray formatting variation 4: Abbreviation",
+      "variations": [],
+      "formatting_test": "CXR (abbreviation)"
+    },
+    {
+      "id": 19,
+      "entity_text": "XR chest",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "X-ray formatting variation 5: Abbreviation first, anatomy second",
+      "variations": [],
+      "formatting_test": "XR chest (reversed word order)"
+    },
+    {
+      "id": 20,
+      "entity_text": "X-ray left ankle",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Radiograph for suspected ankle fracture, includes laterality",
+      "variations": ["Ankle x-ray", "Left ankle radiograph"]
+    },
+    {
+      "id": 21,
+      "entity_text": "CT scan head",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "CT brain for head injury, stroke",
+      "variations": ["CT brain", "Head CT", "CT head without contrast"]
+    },
+    {
+      "id": 22,
+      "entity_text": "Ultrasound abdomen",
+      "category": "ed_visits",
+      "subcategory": "imaging",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Abdominal ultrasound for pain, gallstones",
+      "variations": ["Abdominal ultrasound", "US abdomen", "Abdominal USS"]
+    },
+    {
+      "id": 23,
+      "entity_text": "Laceration repair",
+      "category": "ed_visits",
+      "subcategory": "procedure",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Suturing wound/cut in ED",
+      "variations": ["Suturing", "Wound closure", "Stitch laceration"]
+    },
+
+    {
+      "id": 24,
+      "entity_text": "Appendectomy",
+      "category": "past_surgeries",
+      "subcategory": "abdominal_surgery",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Appendix removal, common emergency surgery",
+      "variations": ["Appendix removal", "Laparoscopic appendectomy"]
+    },
+    {
+      "id": 25,
+      "entity_text": "Cholecystectomy",
+      "category": "past_surgeries",
+      "subcategory": "abdominal_surgery",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Gallbladder removal for gallstones",
+      "variations": ["Gallbladder removal", "Lap chole", "Laparoscopic cholecystectomy"]
+    },
+    {
+      "id": 26,
+      "entity_text": "Inguinal hernia repair",
+      "category": "past_surgeries",
+      "subcategory": "abdominal_surgery",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Groin hernia repair",
+      "variations": ["Hernia repair", "Hernia operation"]
+    },
+    {
+      "id": 27,
+      "entity_text": "Knee arthroscopy",
+      "category": "past_surgeries",
+      "subcategory": "orthopedic",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Keyhole knee surgery for meniscus/cartilage",
+      "variations": ["Arthroscopy knee", "Knee scope", "Keyhole knee surgery"]
+    },
+    {
+      "id": 28,
+      "entity_text": "Total hip replacement",
+      "category": "past_surgeries",
+      "subcategory": "orthopedic",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Hip arthroplasty for arthritis",
+      "variations": ["Hip replacement", "Total hip arthroplasty", "THR"]
+    },
+    {
+      "id": 29,
+      "entity_text": "Carpal tunnel release",
+      "category": "past_surgeries",
+      "subcategory": "orthopedic",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Decompress median nerve in wrist",
+      "variations": ["Carpal tunnel surgery", "Carpal tunnel decompression"]
+    },
+    {
+      "id": 30,
+      "entity_text": "Tonsillectomy",
+      "category": "past_surgeries",
+      "subcategory": "ent",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Removal of tonsils, common childhood surgery",
+      "variations": ["Tonsils removed", "Tonsil removal"]
+    },
+    {
+      "id": 31,
+      "entity_text": "Cataract surgery",
+      "category": "past_surgeries",
+      "subcategory": "ophthalmology",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Remove cloudy lens, insert artificial lens",
+      "variations": ["Cataract operation", "Lens replacement", "Phacoemulsification"]
+    },
+    {
+      "id": 32,
+      "entity_text": "Hysterectomy",
+      "category": "past_surgeries",
+      "subcategory": "gynecology",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Uterus removal for fibroids, cancer, etc.",
+      "variations": ["Uterus removal", "Total hysterectomy"]
+    },
+    {
+      "id": 33,
+      "entity_text": "Caesarean section",
+      "category": "past_surgeries",
+      "subcategory": "obstetrics",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Surgical delivery of baby",
+      "variations": ["C-section", "Caesarean delivery", "Emergency caesar"]
+    },
+    {
+      "id": 34,
+      "entity_text": "Colonoscopy",
+      "category": "past_surgeries",
+      "subcategory": "endoscopy",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Bowel scope for screening or symptoms",
+      "variations": ["Bowel scope", "Colonoscopy procedure"]
+    },
+    {
+      "id": 35,
+      "entity_text": "Skin cancer excision",
+      "category": "past_surgeries",
+      "subcategory": "dermatology",
+      "expected_mbs_code": "TBD",
+      "expected_mbs_display": "TBD",
+      "notes": "Surgical removal of melanoma/BCC/SCC",
+      "variations": ["Melanoma removal", "Skin cancer removal", "Wide local excision"]
+    }
+  ],
+  "special_test_groups": {
+    "chest_xray_formatting_variations": {
+      "description": "Testing how different x-ray formatting affects matching accuracy",
+      "entity_ids": [15, 16, 17, 18, 19],
+      "variations": [
+        "Chest X-ray (capital X, hyphen)",
+        "Chest x-ray (lowercase x, hyphen)",
+        "Chest xray (one word)",
+        "CXR (abbreviation)",
+        "XR chest (reversed order)"
+      ],
+      "expected_result": "All should match same MBS code regardless of formatting",
+      "hypothesis": "Pure vector search may struggle with formatting differences, lexical search should handle well"
+    }
+  }
+}

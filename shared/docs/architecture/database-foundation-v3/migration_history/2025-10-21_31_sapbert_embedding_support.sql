@@ -27,12 +27,18 @@
 --            If your migration runner wraps DDL in transactions, split the index
 --            creation into a separate migration or run manually.
 --
+-- EXECUTION STATUS: ✅ COMPLETED 2025-10-21
+--
 -- SOURCE OF TRUTH SCHEMA UPDATED:
---   [ ] current_schema/03_clinical_core.sql (Line 1346-1350: Add SapBERT columns)
+--   [✅] current_schema/03_clinical_core.sql (Line 1350-1353: Added SapBERT columns)
+--   [✅] current_schema/07_optimization.sql (Line 417-423: Added SapBERT index note)
+--   [✅] current_schema/08_job_coordination.sql (Line 379-418: Added embedding_performance_metrics table)
 --
 -- DOWNSTREAM UPDATES:
---   [ ] TypeScript types (if applicable)
---   [ ] Worker code (pass15-embedding-service.ts, batch processor)
+--   [✅] TypeScript types: apps/render-worker/src/pass15/generate-sapbert-embeddings.ts (MedicalCode interface updated)
+--   [✅] Worker code:
+--       - generate-sapbert-embeddings.ts (Updated to use sapbert_embedding column + timestamp)
+--       - vector-search.ts (Added TODO for dual-model routing implementation)
 -- ============================================================================
 
 -- ============================================================================
