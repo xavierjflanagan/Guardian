@@ -1,0 +1,107 @@
+/**
+ * Task 1: Healthcare Encounter Discovery
+ * Uses GPT-4o-mini (text-only, not vision)
+ */
+
+import OpenAI from 'openai';
+import { GoogleCloudVisionOCR, EncounterMetadata } from './types';
+import { buildEncounterDiscoveryPrompt } from './aiPrompts';
+import { parseEncounterResponse } from './manifestBuilder';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export interface EncounterDiscoveryInput {
+  shellFileId: string;
+  patientId: string;
+  ocrOutput: GoogleCloudVisionOCR;
+  pageCount: number;
+}
+
+export interface EncounterDiscoveryOutput {
+  success: boolean;
+  encounters?: EncounterMetadata[];
+  error?: string;
+  aiModel: string;
+  aiCostUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Task 1: Extract healthcare encounters from OCR text
+ * Uses GPT-4o-mini (text-only, not vision)
+ */
+export async function discoverEncounters(
+  input: EncounterDiscoveryInput
+): Promise<EncounterDiscoveryOutput> {
+
+  try {
+    // Build prompt with OCR text
+    const prompt = buildEncounterDiscoveryPrompt({
+      fullText: input.ocrOutput.fullTextAnnotation.text,
+      pageCount: input.pageCount,
+      ocrPages: input.ocrOutput.fullTextAnnotation.pages
+    });
+
+    // Call GPT-4o-mini (text analysis)
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a medical document analyzer specializing in healthcare encounter extraction.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.1,  // Low temperature for consistent extraction
+      response_format: { type: 'json_object' }
+    });
+
+    // Parse AI response
+    const aiOutput = response.choices[0].message.content;
+    if (!aiOutput) {
+      throw new Error('Empty response from AI');
+    }
+
+    const parsed = await parseEncounterResponse(aiOutput, input.ocrOutput, input.patientId, input.shellFileId);
+
+    // Calculate cost
+    const inputTokens = response.usage?.prompt_tokens || 0;
+    const outputTokens = response.usage?.completion_tokens || 0;
+    const cost = calculateCost(inputTokens, outputTokens);
+
+    return {
+      success: true,
+      encounters: parsed.encounters,
+      aiModel: 'gpt-4o-mini',
+      aiCostUsd: cost,
+      inputTokens,
+      outputTokens
+    };
+
+  } catch (error) {
+    console.error('[Pass 0.5] Encounter discovery error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      aiModel: 'gpt-4o-mini',
+      aiCostUsd: 0,
+      inputTokens: 0,
+      outputTokens: 0
+    };
+  }
+}
+
+function calculateCost(inputTokens: number, outputTokens: number): number {
+  // GPT-4o-mini pricing (as of Oct 2024)
+  const INPUT_PRICE_PER_1M = 0.15;  // $0.15 per 1M tokens
+  const OUTPUT_PRICE_PER_1M = 0.60;  // $0.60 per 1M tokens
+
+  const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M;
+  const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M;
+
+  return inputCost + outputCost;
+}

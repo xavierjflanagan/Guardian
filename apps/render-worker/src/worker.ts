@@ -9,6 +9,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import express from 'express';
 import dotenv from 'dotenv';
 import { Pass1EntityDetector, Pass1Input, Pass1Config, Pass1DatabaseRecords, AIProcessingJobPayload } from './pass1';
+import { runPass05, Pass05Input } from './pass05';
 import { calculateSHA256 } from './utils/checksum';
 import { persistOCRArtifacts, loadOCRArtifacts } from './utils/ocr-persistence';
 import { downscaleImageBase64 } from './utils/image-processing';
@@ -705,13 +706,75 @@ class V3Worker {
       }
     }
 
+    // =============================================================================
+    // PASS 0.5: ENCOUNTER DISCOVERY (NEW - October 2025)
+    // =============================================================================
+    // Run Pass 0.5 encounter discovery before Pass 1 entity detection
+    // Creates healthcare_encounters records and manifest for downstream passes
+
+    this.logger.info('Starting Pass 0.5 encounter discovery', {
+      shell_file_id: payload.shell_file_id,
+      page_count: ocrResult.pages.length,
+    });
+
+    // Generate processing session ID (shared by Pass 0.5 and Pass 1)
+    const processingSessionId = crypto.randomUUID();
+
+    // Convert OCR result to Pass 0.5 input format
+    const pass05Input: Pass05Input = {
+      shellFileId: payload.shell_file_id,
+      patientId: payload.patient_id,
+      ocrOutput: {
+        fullTextAnnotation: {
+          text: ocrResult.pages.map((p: any) => p.lines.map((l: any) => l.text).join(' ')).join('\n'),
+          pages: ocrResult.pages.map((page: any) => ({
+            width: page.size.width_px || 1000,
+            height: page.size.height_px || 1400,
+            confidence: page.lines.reduce((sum: number, l: any) => sum + l.confidence, 0) / (page.lines.length || 1),
+            blocks: page.lines.map((line: any) => ({
+              boundingBox: {
+                vertices: [
+                  { x: line.bbox.x, y: line.bbox.y },
+                  { x: line.bbox.x + line.bbox.w, y: line.bbox.y },
+                  { x: line.bbox.x + line.bbox.w, y: line.bbox.y + line.bbox.h },
+                  { x: line.bbox.x, y: line.bbox.y + line.bbox.h }
+                ]
+              },
+              confidence: line.confidence,
+              paragraphs: []
+            }))
+          }))
+        }
+      },
+      pageCount: ocrResult.pages.length,
+      processingSessionId: processingSessionId
+    };
+
+    const pass05Result = await runPass05(pass05Input);
+
+    if (!pass05Result.success) {
+      throw new Error(`Pass 0.5 encounter discovery failed: ${pass05Result.error}`);
+    }
+
+    this.logger.info('Pass 0.5 encounter discovery completed', {
+      shell_file_id: payload.shell_file_id,
+      encounters_found: pass05Result.manifest?.encounters.length || 0,
+      processing_time_ms: pass05Result.processingTimeMs,
+      ai_cost_usd: pass05Result.aiCostUsd,
+      ai_model: pass05Result.aiModel,
+    });
+
+    // =============================================================================
+    // PASS 1: ENTITY DETECTION (existing code continues)
+    // =============================================================================
+
     // Build Pass1Input from storage-based payload + OCR result
     // Phase 2: Use processed file size for accurate analytics when downscaled
     const processedBuffer = processed?.b64 ? Buffer.from(processed.b64, 'base64') : fileBuffer;
     const pass1Input: Pass1Input = {
       shell_file_id: payload.shell_file_id,
       patient_id: payload.patient_id,
-      processing_session_id: crypto.randomUUID(),
+      processing_session_id: processingSessionId,  // Reuse Pass 0.5 session ID
       raw_file: {
         file_data: processed?.b64 ?? fileBuffer.toString('base64'),
         file_type: processed?.outMime ?? payload.mime_type,
