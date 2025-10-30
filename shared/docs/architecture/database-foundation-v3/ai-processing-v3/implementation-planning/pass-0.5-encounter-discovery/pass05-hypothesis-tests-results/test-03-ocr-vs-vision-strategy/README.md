@@ -1,0 +1,47 @@
+# Test 03: OCR vs. Vision Strategy Evaluation
+
+**Status:** PLANNING
+**Date:** October 30, 2025
+**Context:** Strategic evaluation following Test 02 false positive issues
+
+---
+
+## Purpose
+
+Evaluate three prompt strategies for Pass 0.5 encounter discovery:
+1. Current (OCR baseline) - 70-80% accuracy
+2. OCR-optimized - Target 85-90% accuracy
+3. Vision - Target 95%+ accuracy
+
+## Key Architectural Insight
+
+**Pass 0.5 cannot run in parallel with Pass 1** due to batching dependency:
+
+```
+Sequential Requirement:
+Pass 0.5 Task 1: Encounter Discovery (30s)
+    ↓
+Pass 0.5 Task 2: Batch Planning (30s) ← MUST complete before Pass 1
+    ↓
+Pass 1: Entity Detection with batch boundaries
+```
+
+Pass 0.5 Task 2 determines WHERE to split large files into batches. Pass 1 needs these batch boundaries before it can start processing.
+
+## Files in This Test
+
+- **STRATEGY_ANALYSIS.md** - Complete strategic analysis, options evaluation, implementation plan
+- **README.md** - This file (test overview)
+
+## Next Steps
+
+1. Create `aiPromptsOCR.ts` (OCR-optimized, 150 lines)
+2. Create `aiPromptsVision.ts` (Vision-optimized, 200 lines)
+3. Run A/B tests on same files
+4. Deploy winning strategy
+
+## Related Tests
+
+- **Test 01:** Integration & constraint fixes
+- **Test 02:** End-to-end production flow (revealed false positive issue)
+- **Test 03:** Strategy optimization (this test)
