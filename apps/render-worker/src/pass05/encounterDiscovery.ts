@@ -76,7 +76,7 @@ export async function discoverEncounters(
     return {
       success: true,
       encounters: parsed.encounters,
-      aiModel: 'gpt-4o-mini',
+      aiModel: response.model,  // Dynamic from OpenAI response
       aiCostUsd: cost,
       inputTokens,
       outputTokens
@@ -87,7 +87,7 @@ export async function discoverEncounters(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-      aiModel: 'gpt-4o-mini',
+      aiModel: 'unknown',  // No response available on error
       aiCostUsd: 0,
       inputTokens: 0,
       outputTokens: 0

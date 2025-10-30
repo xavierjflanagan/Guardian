@@ -13,7 +13,7 @@ export interface PromptInput {
 
 /**
  * Build prompt for encounter discovery (Task 1)
- * GPT-4o-mini text analysis
+ * GPT-5-mini text analysis
  */
 export function buildEncounterDiscoveryPrompt(input: PromptInput): string {
   // Include OCR confidence per page for context
@@ -30,21 +30,52 @@ You are analyzing a medical document uploaded by a patient. Your task is to iden
 - Total pages: ${input.pageCount}
 - OCR confidence: ${pageConfidences}
 
-## Encounter Classification Rules - THE TIMELINE TEST
+## STEP 1: Document Type Recognition (CRITICAL FIRST STEP)
 
-**Ask yourself: "Can this be placed on a patient's medical timeline with confidence?"**
+**Before identifying encounters, determine the OVERALL document type:**
+
+### A. Single Unified Administrative Document
+If the document is ONE cohesive administrative record, create ONLY ONE pseudo-encounter.
+
+**Indicators:**
+- Document header/title: "Patient Health Summary", "GP Summary", "Medical Summary", "Patient Profile"
+- Contains multiple sections: Medications, Allergies, History, Immunizations, Surgeries
+- NO distinct date ranges or providers for individual sections
+- Sections are COMPONENTS of the summary, not separate encounters
+
+**Examples:**
+- Patient Health Summary with sections for medications, immunizations, past history
+- Medicare/Insurance card
+- Referral letter (entire letter is one encounter)
+- Standalone medication list sheet
+
+**Action:** Create 1 encounter of type \`pseudo_admin_summary\` covering ALL pages
+
+### B. Multi-Document File
+If the file contains MULTIPLE DISTINCT documents (clear page breaks, different dates/providers).
+
+**Indicators:**
+- Clear page breaks between documents
+- Different dates, different providers, different clinical settings
+- Examples: Hospital discharge summary + attached lab reports, multiple consultation notes
+
+**Action:** Create separate encounters for each distinct document
+
+## STEP 2: Encounter Classification - THE TIMELINE TEST
+
+**For each identified document, ask: "Can this be placed on a patient's medical timeline with confidence?"**
 
 ### Real-World Encounter (Timeline-Worthy)
 A completed past visit that meets BOTH criteria:
-1. ✅ **Specific Date**: YYYY-MM-DD or YYYY-MM format (NOT "recently", "last month", "early 2024")
-2. ✅ **Provider OR Facility**: Named provider (Dr. Smith) OR specific facility (City Hospital) OR clinical setting (Emergency Department)
+1. **Specific Date**: YYYY-MM-DD or YYYY-MM format (NOT "recently", "last month", "early 2024")
+2. **Provider OR Facility**: Named provider (Dr. Smith) OR specific facility (City Hospital) OR clinical setting (Emergency Department)
 
 **Examples:**
-- ✅ "Admitted to St Vincent's Hospital 2024-03-10" (date + facility)
-- ✅ "GP visit with Dr. Jones on 2024-01-15" (date + provider)
-- ✅ "Emergency Department attendance, January 2024" (date + clinical setting)
-- ❌ "Patient presented to GP last month" (vague date → pseudo-encounter)
-- ❌ "Recent hospital admission" (no specific date → pseudo-encounter)
+- "Admitted to St Vincent's Hospital 2024-03-10" (date + facility)
+- "GP visit with Dr. Jones on 2024-01-15" (date + provider)
+- "Emergency Department attendance, January 2024" (date + clinical setting)
+- "Patient presented to GP last month" (vague date → pseudo-encounter)
+- "Recent hospital admission" (no specific date → pseudo-encounter)
 
 **Encounter Types:** \`inpatient\`, \`outpatient\`, \`emergency_department\`, \`specialist_consultation\`, \`gp_appointment\`, \`telehealth\`
 
@@ -57,32 +88,79 @@ Future appointment or referral with specific date and provider/facility:
 **Set:** \`isRealWorldVisit: false\` (hasn't happened yet)
 
 ### Pseudo-Encounter (NOT Timeline-Worthy)
-Documents containing clinical info but NOT representing a discrete visit:
-- Missing specific date (vague/relative dates)
-- Missing provider AND facility
-- Administrative documents
-- Standalone results/reports
+Documents containing clinical info but NOT representing a discrete visit.
 
-**Examples:**
-- Standalone medication list (no date)
-- Insurance card
-- Lab report (collection date but no visit context)
-- Historical mention: "Patient presented to GP last month with chest pain" (insufficient detail - don't create separate encounter)
+**When to use pseudo-encounters:**
+- Administrative summaries (health summaries, GP summaries)
+- Insurance/Medicare cards
+- Standalone medication lists (no specific visit context)
+- Referral letters (the letter itself, not the visit it refers to)
 
-**Encounter Types:** \`pseudo_medication_list\`, \`pseudo_lab_report\`, \`pseudo_imaging_report\`, \`pseudo_referral_letter\`, \`pseudo_insurance\`, \`pseudo_admin_summary\`, \`pseudo_unverified_visit\`
+**CRITICAL - Pseudo-Encounter Subtypes:**
+
+**Use \`pseudo_admin_summary\` for:**
+- Patient Health Summary documents
+- GP Summary printouts
+- Multi-section administrative summaries
+- Any document with header suggesting unified summary
+
+**Use \`pseudo_medication_list\` for:**
+- Standalone medication sheets (NOT part of larger summary)
+
+**Use \`pseudo_lab_report\` ONLY for:**
+- Pathology reports: Blood tests, chemistry panels, FBC, LFTs, U&E
+- Microbiology culture results
+- NOT immunization records
+- NOT vital signs in consultation notes
+- NOT test results embedded in discharge summaries
+
+**Use \`pseudo_imaging_report\` ONLY for:**
+- Radiology reports: X-ray, CT, MRI, ultrasound interpretations
+- NOT procedure notes that mention imaging
 
 ### Date Precision Requirements
-- ✅ **Specific:** "2024-03-15", "March 2024", "15-20 January 2024"
-- ❌ **Vague:** "last month", "recently", "early 2024", "a few weeks ago", "Day 2" (relative without anchor)
+- VALID **Specific:** "2024-03-15", "March 2024", "15-20 January 2024"
+- INVALID **Vague:** "last month", "recently", "early 2024", "a few weeks ago", "Day 2" (relative without anchor)
 
 **If date is vague:** Create pseudo-encounter, leave \`dateRange\` null
 
-### Historical Mentions vs. Encounters
-**DO NOT create separate encounters for:**
+### What NOT to Create as Separate Encounters
+
+**DO NOT split administrative summaries into sections:**
+- If document header says "Patient Health Summary", keep it as ONE \`pseudo_admin_summary\` encounter
+- Sections like "Current Medications", "Immunisations", "Past History" are COMPONENTS, not separate encounters
+- Immunization records are NOT lab reports (they are procedures/interventions, not diagnostic tests)
+
+**DO NOT create pseudo_lab_report for:**
+- Immunization/vaccination records (part of admin summary or parent encounter)
+- Vital signs listed in a consultation note (part of consultation)
+- Brief test results mentioned in discharge summary (part of discharge)
+- Medication lists
+
+**DO NOT create separate encounters for historical mentions:**
 - Brief mentions: "Patient previously seen by GP for chest pain"
 - Embedded references: "Discharge summary notes initial GP visit on 2024-01-10..." (main encounter is discharge, not GP visit)
 
-**ONLY create if:** Full detail provided (date + provider/facility + page range)
+**ONLY create separate encounter if:** Full detail provided (date + provider/facility + distinct page range)
+
+## Decision Tree for Administrative Summaries
+
+When you see a document with header "Patient Health Summary" or "GP Summary":
+
+1. Is this a single cohesive document?
+   → YES: Create 1 \`pseudo_admin_summary\` encounter, STOP
+
+2. Does it contain multiple sections (medications, immunizations, history)?
+   → YES: These are COMPONENTS of the summary, NOT separate encounters
+   → Keep as 1 \`pseudo_admin_summary\`
+
+3. Are immunizations listed?
+   → Do NOT create \`pseudo_lab_report\` for immunizations
+   → Immunizations are part of the admin summary
+
+4. Are medications listed?
+   → If standalone medication sheet: \`pseudo_medication_list\`
+   → If part of larger summary: Include in \`pseudo_admin_summary\`
 
 ## Critical Constraints
 
@@ -90,8 +168,8 @@ Documents containing clinical info but NOT representing a discrete visit:
 **Each page MUST belong to exactly ONE encounter**
 - If page 3 has content from multiple encounters, choose the DOMINANT encounter for that page
 - Example:
-  - ✅ Encounter A: pages [1,2,3], Encounter B: pages [4,5,6]
-  - ❌ Encounter A: pages [1,2,3], Encounter B: pages [3,4,5] ← INVALID (page 3 overlaps)
+  - VALID: Encounter A: pages [1,2,3], Encounter B: pages [4,5,6]
+  - INVALID: Encounter A: pages [1,2,3], Encounter B: pages [3,4,5] (page 3 overlaps)
 
 ### 2. Confidence Scoring
 Your \`confidence\` should reflect:
@@ -141,6 +219,12 @@ Your \`confidence\` should reflect:
   ]
 }
 \`\`\`
+
+**CRITICAL - Page Range Format:**
+- pageRanges must ALWAYS include BOTH start AND end page as numbers
+- Single page: [[1, 1]] NOT [[1]] or [[1, null]]
+- Multiple pages: [[1, 5]] NOT [[1, 5, null]]
+- Non-contiguous: [[1, 3], [7, 8]] (separate ranges for separate sections)
 
 ## Important Notes
 
