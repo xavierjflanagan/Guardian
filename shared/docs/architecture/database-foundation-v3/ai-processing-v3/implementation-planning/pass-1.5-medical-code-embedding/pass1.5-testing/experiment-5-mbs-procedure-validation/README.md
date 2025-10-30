@@ -4,7 +4,7 @@
 
 **Date:** October 22, 2025
 
-**Status:** Planning
+**Status:** ✓ COMPLETED - OpenAI Insufficient
 
 ---
 
@@ -249,6 +249,59 @@ experiment-5-mbs-procedure-validation/
 4. Analyze failures and determine if alternative strategies needed
 5. Document findings in `ANALYSIS_SUMMARY.md`
 6. Update `PASS-1.5-MASTER-PLAN.md` with validation status
+
+---
+
+## EXPERIMENT COMPLETION SUMMARY
+
+**Date Completed:** October 22, 2025
+**Status:** ✓ VALIDATION COMPLETE - OpenAI text-embedding-3-small INSUFFICIENT
+
+### Results
+- **Test Entities:** 35 realistic MBS procedure entities
+- **OpenAI Baseline:** 22/35 returned results (62.9%), 13/35 zero results (37.1%)
+- **Ground Truth Investigation:** 11/13 failed entities had correct codes in database
+- **Root Cause:** Semantic terminology mismatch between casual medical language and formal MBS descriptions
+
+### Critical Failures Documented
+- **Cholecystectomy:** Exact term match, similarity < 0.0 (catastrophic)
+- **Chest X-ray (5 variations):** All failed despite codes existing
+- **CT scan head:** Failed "CT" → "Computed tomography" and "head" → "brain"
+- **Ultrasound abdomen:** Very similar terminology yet failed
+
+### Decision: Hybrid Search with AI-Generated Variants
+
+**Selected Strategy:** Option B - Lexical (70%) + Semantic (30%) with AI variant generation
+
+**Implementation Plan:**
+1. **Pass 1 Enhancement:** Add `search_variants` array output (max 5 variants) for ALL entities destined for Pass 1.5
+2. **Procedure-Specific Path:** Create dedicated fork (like medications) with hybrid search
+3. **Lexical Phase (70%):** Match against AI-generated variant arrays
+4. **Semantic Phase (30%):** OpenAI embedding reranking of lexical results
+
+**Search Variants Example:**
+```json
+{
+  "entity_text": "Chest X-ray",
+  "entity_type": "procedure",
+  "search_variants": [
+    "chest x-ray",
+    "chest radiography",
+    "CXR",
+    "thoracic radiograph",
+    "lung fields x-ray"
+  ]
+}
+```
+
+### Files Created
+- `results/PHASE_2_ANALYSIS_SUMMARY.md` - Comprehensive test analysis
+- `results/MANUAL_CODE_INVESTIGATION.md` - Ground truth investigation (13/13 failed entities)
+
+### Architecture Impact
+- **PASS-1.5-MASTER-PLAN.md:** Updated to three-path architecture (Medications, Procedures, Others)
+- **Pass 1 Output Schema:** Enhanced with `search_variants` array for all Pass 1.5 entities
+- **Procedure Routing:** Dedicated path with hybrid search (like medications)
 
 ---
 

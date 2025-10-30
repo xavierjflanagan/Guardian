@@ -82,36 +82,54 @@ Pass 2: Clinical Enrichment (DESIGNED)
 
 ### Entity Type Routing Architecture
 
-**Critical Design Decision:** Medications receive specialized treatment from the START of Pass 1.5:
+**Critical Design Decision:** Medications AND Procedures receive specialized treatment from the START of Pass 1.5:
 
 ```
 Pass 1 Entities (40 total)
   ↓
   Entity Type Classification
   ↓
-┌─────────────────┬──────────────────────────┐
-│   MEDICATIONS   │   OTHER ENTITY TYPES     │
-│   (Fork Path)   │   (Standard Path)        │
-├─────────────────┼──────────────────────────┤
-│ • SapBERT       │ • OpenAI embeddings      │
-│   embeddings    │ • Simple vector search   │
-│ • Hybrid search │ • Top 10-20 candidates   │
-│   (semantic +   │                          │
-│   lexical)      │ Includes:                │
-│ • Gradient      │ • Procedures (MBS)       │
-│   candidates    │ • Lab results (LOINC)    │
-│   (3-30 codes)  │ • Conditions (SNOMED)    │
-│                 │ • Allergies (SNOMED)     │
-└─────────────────┴──────────────────────────┘
+┌───────────────┬───────────────┬────────────────────┐
+│  MEDICATIONS  │  PROCEDURES   │  OTHER TYPES       │
+│  (Fork Path)  │  (Fork Path)  │  (Standard Path)   │
+├───────────────┼───────────────┼────────────────────┤
+│ • SapBERT     │ • OpenAI      │ • OpenAI           │
+│   embeddings  │   embeddings  │   embeddings       │
+│ • Hybrid      │ • Hybrid      │ • Simple vector    │
+│   search      │   search      │   search           │
+│   (semantic + │   (lexical    │ • Top 10-20        │
+│   lexical)    │   70% +       │   candidates       │
+│ • Gradient    │   semantic    │ • Status: PENDING  │
+│   candidates  │   30%)        │   (no libraries)   │
+│   (3-30 codes)│ • AI-generated│                    │
+│               │   search      │ Includes:          │
+│ PBS: 14,382   │   variants    │ • Lab results      │
+│ codes         │   (max 5)     │   (LOINC)          │
+│               │               │ • Conditions       │
+│ Status:       │ MBS: 6,001    │   (SNOMED)         │
+│ ✓ VALIDATED   │ codes         │ • Allergies        │
+│ (Exp 2,3,4)   │               │   (SNOMED)         │
+│               │ Status:       │ • Vitals           │
+│               │ ✓ VALIDATED   │                    │
+│               │ (Exp 5)       │                    │
+└───────────────┴───────────────┴────────────────────┘
 ```
 
-**Rationale:** Experiment 4 validated that medications require specialized handling due to:
+**Rationale:**
+
+**Medications** (Experiment 4): Require specialized handling due to:
 - Brand name variations (Ventolin, Panadol Osteo vs generic names)
 - Dose-specific matching requirements
 - Signal dilution in embeddings (brand names buried in long text)
 - Need for lexical fallback when semantic search fails
 
-**Other entity types** (procedures, lab results, conditions) use standard OpenAI embeddings with simple vector search. This may require validation in future phases.
+**Procedures** (Experiment 5): Require specialized handling due to:
+- Semantic terminology mismatch ("X-ray" vs "direct radiography")
+- Medical synonym failures ("replacement" vs "arthroplasty")
+- Abbreviation expansion failures ("CT" vs "Computed tomography")
+- Verbose MBS descriptions diluting embedding signal
+
+**Other entity types** (lab results, conditions, allergies) use standard OpenAI embeddings with simple vector search pending code library availability.
 
 ---
 
@@ -233,6 +251,99 @@ async function searchMedicationCodes(queryText: string) {
 
 ---
 
+## Procedure-Specific Hybrid Search Strategy
+
+**Status:** ✓ VALIDATED via Experiment 5 (October 22, 2025)
+
+**Root Cause Identified:** OpenAI text-embedding-3-small is INSUFFICIENT for MBS procedure matching due to semantic terminology mismatch between casual medical language and formal MBS descriptions.
+
+### Evidence of OpenAI Failure
+
+**Critical Failures:**
+- **Cholecystectomy:** Exact term in entity text and MBS code → similarity < 0.0 (catastrophic)
+- **Chest X-ray (5 variations):** All formats failed → "Chest (lung fields) by direct radiography"
+- **CT scan head:** Failed to map "CT" → "Computed tomography" and "head" → "brain"
+- **Ultrasound abdomen:** Very similar terminology yet similarity < 0.0
+
+**Experiment 5 Results:** 13/35 entities (37.1%) returned zero results despite correct codes existing in database.
+
+### Hybrid Search Architecture
+
+**Code Matching Algorithm:**
+
+1. **Pass 1 Enhancement:**
+   - AI outputs `search_variants` array (max 5 variants) for ALL entities destined for Pass 1.5
+   - Includes synonyms, abbreviations, formatting variations, medical terminology
+   - Example: "Chest X-ray" → ["chest x-ray", "chest radiography", "CXR", "thoracic radiograph", "lung fields x-ray"]
+
+2. **Lexical Phase (70% weight):**
+   - Fast text matching against MBS `normalized_embedding_text` or `search_text`
+   - Match ALL variants in `search_variants` array using ILIKE
+   - Returns initial candidate pool (typically 10-50 codes)
+   - Deterministic, handles spelling/formatting variations
+
+3. **Semantic Phase (30% weight):**
+   - OpenAI embedding cosine similarity on lexical candidates
+   - Reranks candidates by semantic relevance
+   - Fills gaps where lexical matching insufficient
+   - Uses original `entity_text`, NOT variants
+
+4. **Weighted Combination:**
+   - Normalized lexical score × 0.70
+   - Normalized semantic score × 0.30
+   - Final ranked candidate list (Top 10-20)
+
+**Cost Estimate:**
+- AI variant generation: ~$0.0002 per entity (GPT-4o mini)
+- 40 entities per document: ~$0.008 per document
+- Negligible cost increase vs pure vector search
+
+### Search Variants Schema
+
+**Pass 1 Output Enhancement:**
+```typescript
+{
+  entity_text: string;           // Original extracted text
+  entity_type: string;           // 'procedure' | 'medication' | etc
+  search_variants: string[];     // NEW: Max 5 AI-generated variants
+  confidence: number;
+  bounding_box?: BoundingBox;
+}
+```
+
+**Variant Generation Prompt Template:**
+```
+Given the medical procedure: "{entity_text}"
+Generate up to 5 search variants including:
+- Synonyms (medical and common language)
+- Abbreviations (e.g., CXR, CT, ECG)
+- Formatting variations (hyphenation, capitalization, spacing)
+- Anatomical variations (e.g., "left knee" → "knee left")
+
+Return as JSON array of strings, max 5 variants.
+```
+
+### MBS Code Characteristics
+
+**Database:** 6,001 Australian procedure codes
+**Embedding Model:** OpenAI text-embedding-3-small (1536d) - VALIDATED as insufficient for pure vector search
+**Hybrid Approach:** Required due to verbose MBS descriptions diluting semantic signal
+
+**Example MBS Code:**
+```
+Code: 58500
+Display: "Chest (lung fields) by direct radiography (NR)"
+Search Text: "MBS 58500... Chest (lung fields) by direct radiography (NR)"
+```
+
+**Challenges:**
+- Long descriptive text (up to 200+ characters)
+- Negative definitions ("not being a service to which...")
+- Formal medical terminology vs casual language
+- No summary field exists in government MBS data source
+
+---
+
 ## Worker Architecture & Job Flow
 
 ### Single Worker, Multiple Job Types
@@ -339,7 +450,7 @@ async function getEntityEmbedding(
 | Entity Type | Embedding Model | Dimensions | Code System | Status | Notes |
 |-------------|----------------|------------|-------------|--------|-------|
 | medication | SapBERT | 768 | PBS (regional), RxNorm (universal) | VALIDATED | 17.3pp better accuracy, hybrid search required |
-| procedure | OpenAI | 1536 | MBS (regional), CPT (universal) | NEEDS VALIDATION | Currently using OpenAI, may require domain-specific model |
+| procedure | OpenAI | 1536 | MBS (regional), CPT (universal) | ✓ VALIDATED - Hybrid Required (Exp 5) | Lexical (70%) + Semantic (30%) with AI variants |
 | lab_result | OpenAI | 1536 | LOINC (universal only) | PLANNED | No regional Australian codes (LOINC is international standard) |
 | condition | OpenAI | 1536 | SNOMED-CT (universal), ICD-10-AM (regional) | PLANNED | Generic embeddings likely sufficient |
 | allergy | OpenAI | 1536 | SNOMED-CT (universal) | PLANNED | Generic embeddings likely sufficient |
@@ -360,13 +471,12 @@ async function getEntityEmbedding(
 - Validation: Experiment 4 (30 realistic entities, 95%+ expected hybrid success)
 - Special handling: Brand name fallback via `search_text` field
 
-**Procedures (NEEDS VALIDATION):**
-- Strategy: OpenAI embeddings + simple vector search (current approach)
+**Procedures (✓ VALIDATED - Experiment 5):**
+- Strategy: OpenAI embeddings + hybrid search (lexical 70% + semantic 30%)
+- AI-generated search_variants array (max 5 per entity)
 - Regional codes: MBS (6,001 codes)
 - Universal codes: CPT (pending, ~10,000 codes)
-- Validation status: NOT YET VALIDATED - assumed adequate but requires testing
-- Future consideration: May benefit from medical domain model or hybrid search
-- **Phase 2 milestone:** Validate procedure matching strategy with real MBS test data
+- Validation: Experiment 5 (35 realistic entities, pure OpenAI insufficient)
 
 **Lab Results (UNIVERSAL CODES ONLY):**
 - Strategy: OpenAI embeddings + simple vector search

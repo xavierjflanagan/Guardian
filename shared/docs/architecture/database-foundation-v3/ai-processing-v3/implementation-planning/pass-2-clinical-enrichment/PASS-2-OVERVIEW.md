@@ -16,12 +16,12 @@ Pass 2 takes the entity detection results from Pass 1 (entity_processing_audit t
 
 ## Key Architecture Principles
 
-### 1. Encounter-First Extraction
+### 1. Encounter-First Processing
 
-**All clinical events within a single healthcare visit reference the SAME healthcare_encounters record.**
+**All clinical events reference pre-created healthcare_encounters from Pass 0.5.**
 
 ```
-Step 0: Extract healthcare_encounters → encounter_id
+Step 0: Load shell_file_manifest → encounter_id (pre-created by Pass 0.5)
   ↓
 For each clinical entity:
   Step N.1: Create patient_clinical_events hub (with encounter_id)
@@ -59,19 +59,20 @@ FOREIGN KEY (event_id, patient_id)
 
 ## Input and Output
 
-### Input (from Pass 1)
+### Input
 
-**Source:** `entity_processing_audit` table filtered by:
+**From Pass 0.5 (shell_file_manifest):**
+- Pre-created healthcare_encounters with UUIDs
+- Encounter metadata (type, dates, provider, facility, page ranges)
+
+**From Pass 1 (entity_processing_audit):**
 ```sql
 WHERE pass2_status = 'pending'
   AND entity_category IN ('clinical_event', 'healthcare_context')
 ```
-
-**Pass 1 provides:**
 - Entity text and classification
 - Spatial information (bounding boxes, page numbers)
-- Confidence scores
-- Required schema mappings
+- Confidence scores and required schema mappings
 
 ### Output (to V3 Database)
 
@@ -188,21 +189,20 @@ async function processPass2Batch(entities: Entity[]) {
 
 ## Processing Flow
 
-### Stage 0: Encounter Extraction (FIRST)
+### Stage 0: Load Manifest (FIRST)
 
-**Purpose:** Establish visit context for all subsequent clinical events
+**Purpose:** Retrieve pre-created encounters from Pass 0.5
 
 ```typescript
-// Extract encounter from document
-const encounter = await extractHealthcareEncounter({
-  document_text: ocrText,
-  spatial_data: spatialMapping,
-  pass1_entities: healthcareContextEntities,
-  bridge_schema: encounterSchema // detailed or minimal
-});
+// Load manifest created by Pass 0.5
+const { data: manifest } = await supabase
+  .from('shell_file_manifests')
+  .select('manifest_data')
+  .eq('shell_file_id', shellFileId)
+  .single();
 
-// Returns encounter_id for use in all clinical events
-const encounterId = encounter.id;
+// Use pre-created encounter IDs
+const encounterId = manifest.manifest_data.encounters[0].encounterId;
 ```
 
 ### Stage 1: Clinical Event Detection (Loop)
@@ -321,9 +321,10 @@ const codeAssignment = await assignMedicalCode({
 ## Critical Dependencies
 
 ### Completed
-1. **Pass 1 Entity Detection** - Operational on Render.com
-2. **Bridge Schema System** - 75 schemas complete (source + detailed + minimal)
-3. **Database Schema** - Migration 08 applied (hub-and-spoke architecture)
+1. **Pass 0.5 Encounter Discovery** - Operational on Render.com (creates healthcare_encounters + manifest)
+2. **Pass 1 Entity Detection** - Operational on Render.com
+3. **Bridge Schema System** - 75 schemas complete (source + detailed + minimal)
+4. **Database Schema** - Migration 08 applied (hub-and-spoke architecture)
 
 ### In Progress
 1. **Pass 1.5 Medical Code Resolution** - Vector embedding system for code candidate retrieval
@@ -338,10 +339,9 @@ const codeAssignment = await assignMedicalCode({
 
 ## Integration Points
 
-### Upstream (Pass 1)
-- **Input table:** `entity_processing_audit` (WHERE pass2_status = 'pending')
-- **Filter:** Only clinical_event and healthcare_context entities
-- **Handoff:** Entity text, spatial info, confidence scores, required schemas
+### Upstream
+**Pass 0.5:** shell_file_manifests table (pre-created encounters + metadata)
+**Pass 1:** entity_processing_audit (WHERE pass2_status = 'pending', clinical/context entities only)
 
 ### Downstream (Pass 3)
 - **Output tables:** 18 Pass 2 tables with structured clinical data

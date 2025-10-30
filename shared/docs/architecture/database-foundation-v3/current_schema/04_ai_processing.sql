@@ -345,6 +345,15 @@ CREATE TABLE IF NOT EXISTS entity_processing_audit (
     pii_sensitivity_level TEXT CHECK (pii_sensitivity_level IN ('none', 'low', 'medium', 'high')),
     compliance_flags TEXT[] DEFAULT '{}',          -- HIPAA, Privacy Act compliance flags
 
+    -- Pass 1.5 Hybrid Search Support (Migration 32 - 2025-10-22)
+    search_variants TEXT[],                        -- AI-generated search term variants for hybrid code matching (max 5)
+
+    -- Pass 0.5 Encounter Assignment (Migration 34 - 2025-10-30)
+    encounter_assignment_method TEXT,              -- Method used: high_iou (>=0.8), medium_iou (0.2-0.8), page_range_fallback, nearest_region, unassigned
+    encounter_assignment_score NUMERIC(3,2),       -- IoU overlap score or distance score
+    encounter_assignment_confidence NUMERIC(3,2),  -- Confidence in the assignment
+    temporal_precision TEXT DEFAULT 'unknown',     -- Temporal granularity: day, month, year, vague, unknown
+
     -- Audit Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -641,6 +650,11 @@ CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_processing ON entity_proc
 CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_final_event ON entity_processing_audit(final_event_id) WHERE final_event_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entity_processing_audit_spatial ON entity_processing_audit(shell_file_id, page_number) WHERE spatial_bbox IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entity_audit_quality_review ON entity_processing_audit(ai_ocr_agreement_score, cross_validation_score) WHERE manual_review_required = false;
+
+-- Pass 0.5 indexes (Migration 34 - 2025-10-30)
+CREATE INDEX IF NOT EXISTS idx_entities_assignment_method ON entity_processing_audit(encounter_assignment_method);
+CREATE INDEX IF NOT EXISTS idx_entities_unassigned ON entity_processing_audit(final_encounter_id) WHERE final_encounter_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_entities_temporal_precision ON entity_processing_audit(temporal_precision);
 
 -- Profile classification indexes
 CREATE INDEX IF NOT EXISTS idx_profile_class_session ON profile_classification_audit(processing_session_id);

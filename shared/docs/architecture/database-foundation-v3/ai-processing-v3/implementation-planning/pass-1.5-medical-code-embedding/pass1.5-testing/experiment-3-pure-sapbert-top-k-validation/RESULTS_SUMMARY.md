@@ -7,9 +7,7 @@
 ## Executive Summary
 
 **Tested hypothesis:** SapBERT's 75.3% top-1 accuracy (from Experiment 2) would translate to >95% top-20 accuracy, making hybrid retrieval unnecessary.
-
 **Result:** REJECTED - Top-20 accuracy was only 55.0%, far below the 95% target.
-
 **Decision:** Implement hybrid lexical+vector retrieval as originally planned.
 
 ## Test Configuration

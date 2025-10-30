@@ -743,12 +743,12 @@ class V3Worker {
     }
     // Insert Pass 1 records into all 7 database tables
     async insertPass1DatabaseRecords(records, shellFileId) {
-        // 1. INSERT ai_processing_sessions
+        // 1. UPSERT ai_processing_sessions (may already exist from Pass 0.5)
         const { error: sessionError } = await this.supabase
             .from('ai_processing_sessions')
-            .insert(records.ai_processing_session);
+            .upsert(records.ai_processing_session, { onConflict: 'id' });
         if (sessionError) {
-            throw new Error(`Failed to insert ai_processing_sessions: ${sessionError.message}`);
+            throw new Error(`Failed to upsert ai_processing_sessions: ${sessionError.message}`);
         }
         // 2. INSERT entity_processing_audit (bulk)
         if (records.entity_processing_audit.length > 0) {

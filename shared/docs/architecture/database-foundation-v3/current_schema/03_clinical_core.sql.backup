@@ -154,11 +154,6 @@ CREATE TABLE IF NOT EXISTS shell_files (
     processed_image_checksum TEXT, -- SHA256 checksum for idempotency
     processed_image_mime TEXT, -- MIME type of processed image
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30)
-    pass_0_5_completed BOOLEAN DEFAULT FALSE, -- True if Pass 0.5 encounter discovery completed successfully
-    pass_0_5_completed_at TIMESTAMPTZ, -- When Pass 0.5 completed
-    pass_0_5_error TEXT, -- Pass 0.5 error message if failed
-
     -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -282,60 +277,6 @@ CREATE TABLE IF NOT EXISTS narrative_source_mappings (
     -- Audit
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
--- =============================================================================
--- SECTION 2D: SHELL FILE MANIFESTS (Pass 0.5 Encounter Discovery)
--- =============================================================================
--- Migration 34 - 2025-10-30: Pass 0.5 intelligent pre-processing layer
-
-CREATE TABLE IF NOT EXISTS shell_file_manifests (
-    -- Primary key
-    manifest_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Foreign keys
-    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
-    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-
-    -- Manifest metadata
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    pass_0_5_version TEXT NOT NULL DEFAULT '1.0.0',
-    processing_time_ms INTEGER,
-
-    -- File analysis
-    total_pages INTEGER NOT NULL,
-    total_encounters_found INTEGER NOT NULL,
-    ocr_average_confidence NUMERIC(3,2),
-
-    -- Batching metadata (Phase 2)
-    batching_required BOOLEAN NOT NULL DEFAULT FALSE,
-    batch_count INTEGER DEFAULT 1,
-
-    -- Manifest content (JSONB structure: encounters array with spatial bounds, page ranges, encounter metadata)
-    manifest_data JSONB NOT NULL,
-
-    -- AI audit
-    ai_model_used TEXT NOT NULL,
-    ai_cost_usd NUMERIC(10,6),
-
-    -- Uniqueness constraint
-    CONSTRAINT unique_manifest_per_shell_file UNIQUE(shell_file_id)
-);
-
-CREATE INDEX idx_manifests_shell_file ON shell_file_manifests(shell_file_id);
-CREATE INDEX idx_manifests_patient ON shell_file_manifests(patient_id);
-CREATE INDEX idx_manifests_created ON shell_file_manifests(created_at);
-
--- RLS policy
-ALTER TABLE shell_file_manifests ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view their own manifests" ON shell_file_manifests;
-
-CREATE POLICY "Users can view their own manifests"
-    ON shell_file_manifests FOR SELECT
-    USING (patient_id = auth.uid());
-
-COMMENT ON TABLE shell_file_manifests IS 'Pass 0.5 encounter discovery output - lightweight metadata for Pass 1/2 consumption';
-COMMENT ON COLUMN shell_file_manifests.manifest_data IS 'JSONB structure: encounters array with spatial bounds, page ranges, encounter metadata';
 
 -- =============================================================================
 -- SECTION 3: ENHANCED CLINICAL DATA TABLES (V3 Core + Narrative Integration)
@@ -547,22 +488,7 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     ai_extracted BOOLEAN DEFAULT FALSE,
     ai_confidence NUMERIC(4,3) CHECK (ai_confidence BETWEEN 0 AND 1),
     requires_review BOOLEAN DEFAULT FALSE,
-
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30)
-    page_ranges INT[][] DEFAULT '{}', -- Page ranges in source document [[1,5], [10,12]]
-    spatial_bounds JSONB, -- Bounding box coordinates for encounter region
-    identified_in_pass TEXT DEFAULT 'pass_2', -- 'pass_0_5', 'pass_1', 'pass_2'
-    is_real_world_visit BOOLEAN DEFAULT TRUE, -- Timeline Test: date + (provider OR facility)
-    pass_0_5_confidence NUMERIC(3,2), -- AI confidence in encounter detection
-    ocr_average_confidence NUMERIC(3,2), -- Average OCR quality for this encounter
-    encounter_date_end TIMESTAMPTZ, -- End date for multi-day encounters
-    is_planned_future BOOLEAN DEFAULT FALSE, -- True for scheduled appointments/procedures
-
-    -- Phase 2: Master Encounter Grouping (Migration 34 - 2025-10-30)
-    master_encounter_id UUID, -- Groups duplicate encounters from different documents
-    master_encounter_confidence NUMERIC(3,2), -- Confidence in grouping (0.80-1.00)
-    all_shell_file_ids UUID[] DEFAULT ARRAY[]::UUID[], -- All documents referencing this encounter
-
+    
     -- Quality and Audit
     confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
     archived BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1578,12 +1504,6 @@ CREATE INDEX IF NOT EXISTS idx_encounters_type ON healthcare_encounters(encounte
 CREATE INDEX IF NOT EXISTS idx_encounters_provider ON healthcare_encounters USING GIN(to_tsvector('english', provider_name)) WHERE archived IS NOT TRUE;
 CREATE INDEX IF NOT EXISTS idx_encounters_ai_extracted ON healthcare_encounters(ai_extracted, ai_confidence) WHERE ai_extracted = TRUE;
 
--- Pass 0.5 indexes (Migration 34 - 2025-10-30)
-CREATE INDEX IF NOT EXISTS idx_encounters_identified_in_pass ON healthcare_encounters(identified_in_pass);
-CREATE INDEX IF NOT EXISTS idx_encounters_real_world ON healthcare_encounters(is_real_world_visit);
-CREATE INDEX IF NOT EXISTS idx_encounters_planned_future ON healthcare_encounters(is_planned_future);
-CREATE INDEX IF NOT EXISTS idx_encounters_master ON healthcare_encounters(master_encounter_id);
-
 -- V3 Timeline Events indexes
 CREATE INDEX IF NOT EXISTS idx_timeline_patient ON healthcare_timeline_events(patient_id) WHERE archived IS NOT TRUE;
 CREATE INDEX IF NOT EXISTS idx_timeline_date ON healthcare_timeline_events(patient_id, event_date DESC) WHERE archived IS NOT TRUE;
@@ -2115,6 +2035,7 @@ RETURNS TABLE (
     search_text TEXT
 ) AS $$
 DECLARE
+    v_query_embedding VECTOR(1536);
     v_variant_count INTEGER;
     v_normalized_variants TEXT[];
 BEGIN
@@ -2127,92 +2048,140 @@ BEGIN
         RAISE EXCEPTION 'p_entity_text is required and must not be empty';
     END IF;
 
-    -- Normalize: trim whitespace and filter empty variants to prevent ILIKE '%%' matches
+    -- Normalize: trim whitespace from all variants to prevent accidental mismatches
     SELECT array_agg(trim(v)) INTO v_normalized_variants
-    FROM unnest(p_search_variants) AS v
-    WHERE trim(v) != '';
+    FROM unnest(p_search_variants) AS v;
 
-    -- Validate at least one non-empty variant exists after filtering
-    IF v_normalized_variants IS NULL OR array_length(v_normalized_variants, 1) = 0 THEN
-        RAISE EXCEPTION 'All search_variants are empty after trimming';
-    END IF;
-
-    -- Enforce 5-variant cap (silent truncation)
+    -- Enforce 5-variant cap (silent truncation to match documented max)
     IF array_length(v_normalized_variants, 1) > 5 THEN
         v_normalized_variants := v_normalized_variants[1:5];
     END IF;
 
     v_variant_count := array_length(v_normalized_variants, 1);
 
-    -- Step 1: Keyword match-count scoring
+    -- Step 1: Get embedding for semantic phase
+    -- TODO (Phase 2): Pass precomputed entity embedding from Pass 1 to eliminate proxy bias
+    -- Current approach uses FIRST matching code's embedding as proxy for semantic reranking
+    -- This is acceptable for Phase 1 (semantic only 30% weight, lexical already filtered)
+    SELECT rmc.embedding INTO v_query_embedding
+    FROM regional_medical_codes rmc
+    WHERE rmc.code_system = 'mbs'
+        AND rmc.country_code = p_country_code
+        AND rmc.active = TRUE
+        AND rmc.entity_type = 'procedure'
+        AND rmc.embedding IS NOT NULL
+        AND (
+            rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[1] || '%' OR
+            rmc.normalized_embedding_text ILIKE '%' || p_entity_text || '%'
+        )
+    LIMIT 1;
+
+    -- If no embedding found, fall back to zero vector (lexical-only mode)
+    IF v_query_embedding IS NULL THEN
+        v_query_embedding := array_fill(0::float4, ARRAY[1536])::VECTOR(1536);
+    END IF;
+
+    -- Step 2: Lexical matching with variant scoring
+    -- Earlier variants get higher scores (assume AI ranks by relevance)
     RETURN QUERY
-    WITH keyword_matches AS (
+    WITH lexical_matches AS (
         SELECT
-            rmc.code_value,
-            rmc.display_name,
-            rmc.code_system,
-            rmc.search_text,
-            rmc.normalized_embedding_text,
-            -- Count total keyword matches (raw count)
-            (
-                (CASE WHEN normalized_embedding_text ILIKE '%' || v_normalized_variants[1] || '%' THEN 1 ELSE 0 END) +
-                (CASE WHEN v_variant_count >= 2 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[2] || '%' THEN 1 ELSE 0 END) +
-                (CASE WHEN v_variant_count >= 3 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[3] || '%' THEN 1 ELSE 0 END) +
-                (CASE WHEN v_variant_count >= 4 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[4] || '%' THEN 1 ELSE 0 END) +
-                (CASE WHEN v_variant_count >= 5 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[5] || '%' THEN 1 ELSE 0 END)
-            ) AS match_count
+            rmc.code_value AS l_code_value,
+            rmc.display_name AS l_display_name,
+            rmc.code_system AS l_code_system,
+            rmc.search_text AS l_search_text,
+            rmc.embedding AS l_embedding,
+            -- Score based on which variant matched (1.0 for first, 0.8 for last)
+            GREATEST(
+                CASE WHEN rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[1] || '%' THEN 1.00 ELSE 0 END,
+                CASE WHEN v_variant_count >= 2 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[2] || '%' THEN 0.95 ELSE 0 END,
+                CASE WHEN v_variant_count >= 3 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[3] || '%' THEN 0.90 ELSE 0 END,
+                CASE WHEN v_variant_count >= 4 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[4] || '%' THEN 0.85 ELSE 0 END,
+                CASE WHEN v_variant_count >= 5 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[5] || '%' THEN 0.80 ELSE 0 END
+            )::NUMERIC AS l_raw_lexical_score
         FROM regional_medical_codes rmc
         WHERE rmc.code_system = 'mbs'
             AND rmc.country_code = p_country_code
             AND rmc.active = TRUE
             AND rmc.entity_type = 'procedure'
             AND (
-                normalized_embedding_text ILIKE '%' || v_normalized_variants[1] || '%' OR
-                (v_variant_count >= 2 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[2] || '%') OR
-                (v_variant_count >= 3 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[3] || '%') OR
-                (v_variant_count >= 4 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[4] || '%') OR
-                (v_variant_count >= 5 AND normalized_embedding_text ILIKE '%' || v_normalized_variants[5] || '%')
+                rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[1] || '%' OR
+                (v_variant_count >= 2 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[2] || '%') OR
+                (v_variant_count >= 3 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[3] || '%') OR
+                (v_variant_count >= 4 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[4] || '%') OR
+                (v_variant_count >= 5 AND rmc.normalized_embedding_text ILIKE '%' || v_normalized_variants[5] || '%')
             )
+    ),
+
+    -- Step 3: Semantic reranking on lexical candidates
+    semantic_rerank AS (
+        SELECT
+            lm.l_code_value AS s_code_value,
+            lm.l_display_name AS s_display_name,
+            lm.l_code_system AS s_code_system,
+            lm.l_search_text AS s_search_text,
+            lm.l_raw_lexical_score AS s_raw_lexical_score,
+            -- Cosine similarity (1 - distance)
+            (CASE
+                WHEN lm.l_embedding IS NOT NULL
+                THEN GREATEST(0, 1 - (lm.l_embedding <=> v_query_embedding))
+                ELSE 0
+            END)::NUMERIC AS s_raw_semantic_score
+        FROM lexical_matches lm
+        WHERE lm.l_raw_lexical_score > 0
+    ),
+
+    -- Step 4: Normalize and combine scores
+    normalized_scores AS (
+        SELECT
+            sr.s_code_value AS n_code_value,
+            sr.s_display_name AS n_display_name,
+            sr.s_code_system AS n_code_system,
+            sr.s_search_text AS n_search_text,
+            -- Normalize lexical score (already 0-1 range from variant scoring)
+            sr.s_raw_lexical_score AS n_norm_lexical,
+            -- Normalize semantic score (0-1 range)
+            (CASE
+                WHEN MAX(sr.s_raw_semantic_score) OVER () > 0
+                THEN sr.s_raw_semantic_score / NULLIF(MAX(sr.s_raw_semantic_score) OVER (), 0)
+                ELSE 0
+            END)::NUMERIC AS n_norm_semantic
+        FROM semantic_rerank sr
     )
 
+    -- Final weighted combination: 70% lexical + 30% semantic
     SELECT
-        km.code_value,
-        km.display_name,
-        (km.match_count::NUMERIC / v_variant_count::NUMERIC) AS lexical_score,
-        0::NUMERIC AS semantic_score,
-        (km.match_count::NUMERIC / v_variant_count::NUMERIC) AS combined_score,
-        'lexical'::TEXT AS match_source,
-        km.code_system,
-        km.search_text
-    FROM keyword_matches km
-    WHERE km.match_count > 0
-    ORDER BY km.match_count DESC, km.code_value ASC
+        ns.n_code_value,
+        ns.n_display_name,
+        ns.n_norm_lexical,
+        ns.n_norm_semantic,
+        (ns.n_norm_lexical * 0.70 + ns.n_norm_semantic * 0.30)::NUMERIC,
+        CASE
+            WHEN ns.n_norm_lexical >= 0.9 THEN 'lexical_primary'
+            WHEN ns.n_norm_semantic >= 0.8 THEN 'semantic_primary'
+            ELSE 'hybrid'
+        END,
+        ns.n_code_system,
+        ns.n_search_text
+    FROM normalized_scores ns
+    ORDER BY (ns.n_norm_lexical * 0.70 + ns.n_norm_semantic * 0.30) DESC
     LIMIT p_limit;
+
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = public;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
 
 COMMENT ON FUNCTION search_procedures_hybrid(TEXT, TEXT[], CHAR(3), INTEGER) IS
-'Hybrid search for MBS procedure codes (Phase 1: Pure lexical with keyword match-count ranking).
-
-Parameters:
-  p_entity_text TEXT - Original entity text from Pass 1 (for reference/logging)
-  p_search_variants TEXT[] - AI-generated variant array (max 5, auto-truncated)
-  p_country_code CHAR(3) - Country filter (default ''AUS'')
-  p_limit INTEGER - Max results to return (default 20)
-
-Strategy: Count how many search variants each code matches, rank by coverage.
-
-Example: "Chest X-ray" with variants ["chest", "radiograph", "thorax", "cxr", "lung"]
-  - Code matching "chest" + "radiograph" = 2/5 = 0.4 score
-  - Code matching only "chest" = 1/5 = 0.2 score
-  - Higher match count = higher ranking
-
-Migration 33: Replaced positional scoring (Migration 32) with match-count for better accuracy.
-Phase 2 may reintroduce semantic component if pure lexical insufficient.';
-
-REVOKE ALL ON FUNCTION search_procedures_hybrid(TEXT, TEXT[], CHAR(3), INTEGER) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION search_procedures_hybrid(TEXT, TEXT[], CHAR(3), INTEGER) TO service_role;
+'Hybrid search for MBS procedure codes using AI-generated search variants.
+Strategy: Lexical matching (70%) + Semantic reranking (30%)
+Validated: Experiment 5 (October 2025) - OpenAI pure vector insufficient
+Usage: Pass 1.5 procedure code matching (replaces pure vector search)
+Example:
+  SELECT * FROM search_procedures_hybrid(
+    ''Chest X-ray'',
+    ARRAY[''chest x-ray'', ''chest radiography'', ''CXR'', ''thoracic radiograph'', ''lung fields x-ray''],
+    ''AUS'',
+    20
+  );';
 
 REVOKE ALL ON FUNCTION search_procedures_hybrid(TEXT, TEXT[], CHAR(3), INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION search_procedures_hybrid(TEXT, TEXT[], CHAR(3), INTEGER) TO service_role;

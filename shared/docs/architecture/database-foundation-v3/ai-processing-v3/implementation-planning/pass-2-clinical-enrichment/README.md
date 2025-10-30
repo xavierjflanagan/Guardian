@@ -77,9 +77,9 @@
 - **Spokes:** 7 clinical detail tables (observations, interventions, vitals, conditions, allergies, medications, immunizations)
 - **Enforcement:** Composite foreign keys ensure patient_id consistency
 
-### Encounter-First Extraction Flow
+### Encounter-First Processing Flow
 ```
-Step 0: Extract healthcare_encounters → encounter_id
+Step 0: Load manifest from Pass 0.5 → encounter_id (pre-created)
   ↓
 For each clinical entity detected by Pass 1:
   Step N.1: Create patient_clinical_events hub (with encounter_id)
@@ -92,6 +92,7 @@ For each clinical entity detected by Pass 1:
 ## Dependencies
 
 ### Completed
+- Pass 0.5 Encounter Discovery (operational)
 - Pass 1 Entity Detection (operational)
 - Bridge Schema System (75 schemas complete)
 - Database Schema (Migration 08 applied)

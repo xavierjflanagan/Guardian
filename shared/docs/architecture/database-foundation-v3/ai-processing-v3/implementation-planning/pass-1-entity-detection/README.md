@@ -179,26 +179,32 @@ Total: 3,116 lines TypeScript (Pass 1 files)
 
 ---
 
-## Integration with 3-Pass AI Pipeline
+## Integration with 5-Pass AI Pipeline
 
-Pass 1 is the **first stage** of Exora's three-pass AI processing system:
+### Pass 0.5: Encounter Discovery (Operational)
+- **Purpose:** Discover healthcare encounters, create manifest
+- **Output:** shell_file_manifest with pre-created healthcare_encounters
+- **Status:** ✅ Operational since October 2025
 
 ### Pass 1: Entity Detection (Operational - This Folder)
-- **Purpose:** Identify and classify every piece of information in medical documents
-- **Output:** Detected entities with categories, confidence scores, bridge-schema/medical-code requirements
-- **Status:** ✅ Production-ready, operational since October 2025
+- **Purpose:** Identify and classify every piece of information
+- **Input:** Manifest from Pass 0.5 (encounter context)
+- **Output:** Detected entities with categories, confidence scores
+- **Status:** ✅ Operational since October 2025
+
+### Pass 1.5: Medical Code Resolution (In Design)
+- **Purpose:** Vector embedding code candidate retrieval
+- **Output:** Shortlisted medical codes for Pass 2
+- **Status:** Design phase
 
 ### Pass 2: Clinical Extraction (Designed, Not Implemented)
-- **Purpose:** Extract structured clinical data from Pass 1 entities
-- **Input:** Entities with `pass2_status = 'pending'` from Pass 1
-- **Output:** Populated clinical schemas (patient_clinical_events, patient_medications, etc.)
+- **Purpose:** Extract structured clinical data
+- **Input:** Entities from Pass 1 + manifest from Pass 0.5
+- **Output:** Populated clinical schemas
 - **Status:** Schema complete, implementation pending
-- **Location:** [../bridge-schema-architecture/bridge-schemas/source/pass-2/](../bridge-schema-architecture/bridge-schemas/source/pass-2/)
 
-### Pass 3: Narrative Generation (Planned and designed but not published)
+### Pass 3: Narrative Generation (Planned)
 - **Purpose:** Generate patient-friendly medical summaries
-- **Input:** Structured clinical data from Pass 2
-- **Output:** Natural language medical summaries
 - **Status:** Planning phase
 
 **For complete V3 architecture:** See [V3_ARCHITECTURE_MASTER_GUIDE.md](../../../V3_ARCHITECTURE_MASTER_GUIDE.md)

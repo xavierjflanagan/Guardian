@@ -215,6 +215,59 @@ CREATE INDEX IF NOT EXISTS idx_user_usage_over_limit ON user_usage_tracking(prof
 
 -- Pass-specific metrics tables for structured analytics and performance tracking
 
+-- Pass 0.5 Encounter Discovery Metrics (Migration 34 - 2025-10-30)
+CREATE TABLE IF NOT EXISTS pass05_encounter_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
+
+    -- Pass 0.5 metrics
+    encounters_detected INTEGER NOT NULL,
+    real_world_encounters INTEGER NOT NULL,
+    planned_encounters INTEGER NOT NULL DEFAULT 0,  -- Migration 35 - 2025-10-30
+    pseudo_encounters INTEGER NOT NULL,
+
+    -- Performance
+    processing_time_ms INTEGER NOT NULL,
+    processing_time_seconds NUMERIC(10,2) GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 1000.0, 2)) STORED,
+
+    -- AI model
+    ai_model_used TEXT NOT NULL,
+
+    -- Token breakdown
+    input_tokens INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    total_tokens INTEGER NOT NULL,
+
+    -- Quality metrics
+    ocr_average_confidence NUMERIC(3,2),
+    encounter_confidence_average NUMERIC(3,2),
+    encounter_types_found TEXT[],
+
+    -- Page analysis
+    total_pages INTEGER NOT NULL,
+    pages_per_encounter NUMERIC(5,2),
+
+    -- Batching
+    batching_required BOOLEAN NOT NULL DEFAULT FALSE,
+    batch_count INTEGER DEFAULT 1,
+
+    -- Audit trail
+    user_agent TEXT,
+    ip_address INET,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Uniqueness constraint
+    CONSTRAINT unique_metrics_per_session UNIQUE (processing_session_id)
+);
+
+CREATE INDEX idx_pass05_metrics_shell_file ON pass05_encounter_metrics(shell_file_id);
+CREATE INDEX idx_pass05_metrics_session ON pass05_encounter_metrics(processing_session_id);
+CREATE INDEX idx_pass05_metrics_created ON pass05_encounter_metrics(created_at);
+
+COMMENT ON TABLE pass05_encounter_metrics IS 'Pass 0.5 session-level performance and cost tracking';
+
 -- Pass 1 Entity Detection Metrics
 CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1236,6 +1289,168 @@ BEGIN
 END;
 $$;
 
+-- Pass 0.5 Atomic Manifest Write Function (Migration 35 - 2025-10-30)
+CREATE OR REPLACE FUNCTION write_pass05_manifest_atomic(
+  -- Manifest data
+  p_shell_file_id UUID,
+  p_patient_id UUID,
+  p_total_pages INTEGER,
+  p_total_encounters_found INTEGER,
+  p_ocr_average_confidence NUMERIC(3,2),
+  p_batching_required BOOLEAN,
+  p_batch_count INTEGER,
+  p_manifest_data JSONB,
+  p_ai_model_used TEXT,
+  p_ai_cost_usd NUMERIC(10,6),
+  p_processing_time_ms INTEGER,
+
+  -- Metrics data
+  p_processing_session_id UUID,
+  p_encounters_detected INTEGER,
+  p_real_world_encounters INTEGER,
+  p_planned_encounters INTEGER,
+  p_pseudo_encounters INTEGER,
+  p_input_tokens INTEGER,
+  p_output_tokens INTEGER,
+  p_encounter_confidence_average NUMERIC(3,2),
+  p_encounter_types_found TEXT[]
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_manifest_id UUID;
+  v_metrics_id UUID;
+BEGIN
+  -- Optional: Validate shell_file belongs to patient (defense in depth)
+  -- Uncomment if cross-patient writes are detected in production
+  /*
+  IF NOT EXISTS (
+    SELECT 1 FROM shell_files
+    WHERE id = p_shell_file_id AND patient_id = p_patient_id
+  ) THEN
+    RAISE EXCEPTION 'shell_file_id % does not belong to patient_id %',
+      p_shell_file_id, p_patient_id;
+  END IF;
+  */
+
+  -- 1. Insert manifest (will fail if already exists due to unique constraint)
+  INSERT INTO shell_file_manifests (
+    shell_file_id,
+    patient_id,
+    total_pages,
+    total_encounters_found,
+    ocr_average_confidence,
+    batching_required,
+    batch_count,
+    manifest_data,
+    ai_model_used,
+    ai_cost_usd,
+    processing_time_ms
+  ) VALUES (
+    p_shell_file_id,
+    p_patient_id,
+    p_total_pages,
+    p_total_encounters_found,
+    p_ocr_average_confidence,
+    p_batching_required,
+    p_batch_count,
+    p_manifest_data,
+    p_ai_model_used,
+    p_ai_cost_usd,
+    p_processing_time_ms
+  )
+  RETURNING manifest_id INTO v_manifest_id;
+
+  -- 2. UPSERT metrics (idempotent on processing_session_id)
+  INSERT INTO pass05_encounter_metrics (
+    patient_id,
+    shell_file_id,
+    processing_session_id,
+    encounters_detected,
+    real_world_encounters,
+    planned_encounters,
+    pseudo_encounters,
+    processing_time_ms,
+    ai_model_used,
+    input_tokens,
+    output_tokens,
+    total_tokens,
+    ocr_average_confidence,
+    encounter_confidence_average,
+    encounter_types_found,
+    total_pages,
+    pages_per_encounter,
+    batching_required,
+    batch_count
+  ) VALUES (
+    p_patient_id,
+    p_shell_file_id,
+    p_processing_session_id,
+    p_encounters_detected,
+    p_real_world_encounters,
+    p_planned_encounters,
+    p_pseudo_encounters,
+    p_processing_time_ms,
+    p_ai_model_used,
+    p_input_tokens,
+    p_output_tokens,
+    p_input_tokens + p_output_tokens,
+    p_ocr_average_confidence,
+    p_encounter_confidence_average,
+    p_encounter_types_found,
+    p_total_pages,
+    CASE
+      WHEN p_encounters_detected > 0 THEN ROUND((p_total_pages::numeric / p_encounters_detected::numeric), 2)
+      ELSE 0
+    END,
+    p_batching_required,
+    p_batch_count
+  )
+  ON CONFLICT (processing_session_id) DO UPDATE SET
+    encounters_detected = EXCLUDED.encounters_detected,
+    real_world_encounters = EXCLUDED.real_world_encounters,
+    planned_encounters = EXCLUDED.planned_encounters,
+    pseudo_encounters = EXCLUDED.pseudo_encounters,
+    processing_time_ms = EXCLUDED.processing_time_ms,
+    ai_model_used = EXCLUDED.ai_model_used,
+    input_tokens = EXCLUDED.input_tokens,
+    output_tokens = EXCLUDED.output_tokens,
+    total_tokens = EXCLUDED.total_tokens,
+    ocr_average_confidence = EXCLUDED.ocr_average_confidence,
+    encounter_confidence_average = EXCLUDED.encounter_confidence_average,
+    encounter_types_found = EXCLUDED.encounter_types_found
+  RETURNING id INTO v_metrics_id;
+
+  -- 3. Update shell_files completion flag
+  UPDATE shell_files
+  SET
+    pass_0_5_completed = TRUE,
+    pass_0_5_completed_at = NOW()
+  WHERE id = p_shell_file_id;
+
+  -- Return success with IDs
+  RETURN jsonb_build_object(
+    'success', true,
+    'manifest_id', v_manifest_id,
+    'metrics_id', v_metrics_id
+  );
+
+EXCEPTION
+  WHEN unique_violation THEN
+    -- Manifest already exists (idempotency check passed)
+    RAISE EXCEPTION 'Manifest already exists for shell_file_id %', p_shell_file_id;
+  WHEN OTHERS THEN
+    -- Any other error rolls back transaction
+    RAISE;
+END;
+$$;
+
+COMMENT ON FUNCTION write_pass05_manifest_atomic IS
+  'Atomic transaction wrapper for Pass 0.5 manifest/metrics/shell_files writes. Ensures all-or-nothing behavior: if any write fails, all writes roll back. Called via RPC from worker to prevent partial failures.';
+
 -- 9. Set up proper RLS and security
 -- Enable RLS on job_queue (service role only)
 ALTER TABLE job_queue ENABLE ROW LEVEL SECURITY;
@@ -1275,6 +1490,7 @@ GRANT EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) TO service_rol
 GRANT EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) TO service_role;
 GRANT EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION write_pass05_manifest_atomic(uuid, uuid, integer, integer, numeric, boolean, integer, jsonb, text, numeric, integer, uuid, integer, integer, integer, integer, integer, integer, numeric, text[]) TO service_role;
 -- Analytics functions permissions - accessible to authenticated users
 GRANT EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION track_ai_processing_usage(uuid, uuid, integer, integer) TO service_role; -- Service role only for worker usage

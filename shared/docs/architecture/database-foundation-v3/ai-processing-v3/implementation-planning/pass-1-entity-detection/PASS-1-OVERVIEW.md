@@ -10,10 +10,12 @@
 
 Pass 1 is the **entity detection and classification** stage of Exora's three-pass AI processing pipeline for medical documents. It serves as the foundation that enables intelligent, targeted processing in subsequent passes.
 
-**The Three-Pass Pipeline:**
-1. **Pass 1 (Entity Detection)** - Identify and classify every piece of information in a medical document
-2. **Pass 2 (Clinical Extraction)** - Extract structured clinical data from Pass 1 entities (schema designed, not yet implemented)
-3. **Pass 3 (Narrative Generation)** - Generate patient-friendly healthcare 'journeys' (planned)
+**The Five-Pass Pipeline:**
+1. **Pass 0.5 (Encounter Discovery)** - Discover healthcare encounters, create manifest (operational)
+2. **Pass 1 (Entity Detection)** - Identify and classify every piece of information (operational)
+3. **Pass 1.5 (Medical Code Resolution)** - Vector embedding code candidate retrieval (in design)
+4. **Pass 2 (Clinical Extraction)** - Extract structured clinical data (schema designed)
+5. **Pass 3 (Narrative Generation)** - Generate patient-friendly healthcare journeys (planned)
 
 Pass 1's responsibility is to detect ALL entities in a document and classify them using the 3-Category Classification System, determining which entities require full medical analysis (Pass 2) versus simple logging (document structure).
 
@@ -53,6 +55,7 @@ Pass 1 classifies every detected entity into one of 3 categories, each with diff
 ## Processing Flow
 
 ### 1. Input Preparation
+- **Manifest:** Load shell_file_manifest from Pass 0.5 (encounter context)
 - **Raw file:** Document image/PDF (base64-encoded)
 - **OCR data:** Google Cloud Vision spatial mapping for coordinates
 - **Metadata:** Patient ID, shell file ID, processing session ID
@@ -243,16 +246,19 @@ Pass 1 determines which database schemas each entity requires (e.g., `vital_sign
 
 ---
 
-## Integration with 3-Pass AI Pipeline
+## Integration with 5-Pass AI Pipeline
+
+### Pass 0.5 → Pass 1 Handoff
+**Pass 0.5 provides:** shell_file_manifest with pre-created healthcare_encounters (IDs, metadata, page ranges)
 
 ### Pass 1 → Pass 2 Handoff
-**What Pass 1 Provides:**
+**Pass 1 provides:**
 - Detected entities with categories and subtypes
 - Required schema mappings for each entity
-- Indirect provision of shortlisted vector-embedding-matched medical codes (performed by pass 1.5)
 - Confidence scores and quality indicators
 - Spatial coordinates for click-to-zoom
 - Manual review flags for low-confidence entities
+- **Pass 1.5** provides shortlisted medical code candidates via vector embedding
 
 **What Pass 2 Will Use:**
 - Filter: `WHERE pass2_status = 'pending'` (clinical + healthcare context only)

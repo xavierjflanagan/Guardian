@@ -422,6 +422,19 @@ CREATE INDEX IF NOT EXISTS idx_patient_immunizations_patient_date ON patient_imm
 -- WITH (lists = 100)
 -- WHERE code_system = 'pbs' AND country_code = 'AUS';
 
+-- Regional Medical Codes Hybrid Search Performance Indexes (Migration 32 - 2025-10-22)
+-- Trigram index for ILIKE text matching on normalized_embedding_text
+-- Enables fast fuzzy matching for hybrid search lexical phase
+CREATE INDEX IF NOT EXISTS idx_rmc_normalized_text_trgm
+ON regional_medical_codes USING gin (normalized_embedding_text gin_trgm_ops)
+WHERE code_system = 'mbs' AND entity_type = 'procedure' AND active = TRUE;
+
+-- Composite B-tree index for filter predicates
+-- Covers common WHERE clause filters to avoid sequential scans
+CREATE INDEX IF NOT EXISTS idx_rmc_mbs_proc_active
+ON regional_medical_codes (code_system, entity_type, active, country_code)
+WHERE code_system = 'mbs' AND entity_type = 'procedure' AND active = TRUE;
+
 -- Semantic Architecture Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_clinical_narratives_shell_file_purpose ON clinical_narratives(shell_file_id, narrative_purpose);
 CREATE INDEX IF NOT EXISTS idx_clinical_narratives_patient_classification ON clinical_narratives(patient_id, clinical_classification);

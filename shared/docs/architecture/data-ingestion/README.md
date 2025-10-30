@@ -1,6 +1,6 @@
 # Data Ingestion Architecture
 
-**Purpose:** Documentation for all data input pathways into Guardian  
+**Purpose:** Documentation for all data input pathways into Exora  
 **Status:** Manual upload complete, automated systems planned  
 **Last updated:** August 2025
 
@@ -8,7 +8,7 @@
 
 ## 🎯 **Overview**
 
-The Data Ingestion layer is the first stage of the Guardian pipeline, responsible for getting healthcare data into the system through multiple pathways. This stage focuses on data acquisition, initial validation, and preparation for AI processing.
+The Data Ingestion layer is the first stage of the Exora pipeline, responsible for getting healthcare data into the system through multiple pathways. This stage focuses on data acquisition, initial validation, and preparation for AI processing.
 
 ```
 📱 Manual Upload | 📧 Email Sync | 📷 Photo Scanning | 🔗 External APIs | ----------> 🤖 AI Processing
