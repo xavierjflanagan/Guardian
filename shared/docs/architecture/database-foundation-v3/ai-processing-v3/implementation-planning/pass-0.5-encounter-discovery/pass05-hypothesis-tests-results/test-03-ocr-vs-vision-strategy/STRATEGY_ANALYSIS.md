@@ -541,6 +541,46 @@ Deploy best strategy to production.
 
 ---
 
+## Implementation Status
+
+**Date:** October 30, 2025
+**Status:** IMPLEMENTED - Ready for A/B testing
+
+### Files Created:
+1. `apps/render-worker/src/pass05/aiPromptsOCR.ts` (186 lines)
+   - OCR-optimized prompt targeting 85-90% accuracy
+   - Text pattern detection (no visual cues)
+   - Stricter lab report criteria
+   - Enhanced document unity detection
+
+2. `apps/render-worker/src/pass05/aiPromptsVision.ts` (261 lines)
+   - Vision-optimized prompt targeting 95%+ accuracy
+   - Visual boundary detection (letterheads, formatting)
+   - Table and structure detection
+   - NOTE: Not yet wired up (requires image loading infrastructure)
+
+3. `apps/render-worker/src/pass05/encounterDiscovery.ts` (MODIFIED)
+   - Added strategy switching via `PASS_05_STRATEGY` environment variable
+   - Options: 'ocr' (default baseline), 'ocr_optimized', 'vision'
+   - Vision mode throws informative error (not implemented yet)
+   - Logs strategy selection for debugging
+
+### Environment Variable Configuration:
+```bash
+# Set in Render.com worker environment variables:
+PASS_05_STRATEGY=ocr           # Current baseline (default)
+PASS_05_STRATEGY=ocr_optimized # OCR-optimized (for A/B testing)
+PASS_05_STRATEGY=vision        # Will error - not implemented yet
+```
+
+### Next Steps:
+1. **Test current baseline** - Re-upload V5 file with Phase 2 improvements
+2. **A/B test OCR-optimized** - Deploy with `PASS_05_STRATEGY=ocr_optimized`
+3. **Compare results** - Measure accuracy, false positives, processing time
+4. **Deploy winner** - Production rollout based on test results
+
+---
+
 **Last Updated:** October 30, 2025
-**Status:** Planning complete - Ready for implementation
-**Next Step:** Create `aiPromptsOCR.ts` and `aiPromptsVision.ts` files
+**Status:** Implementation complete - Ready for A/B testing
+**Next Step:** Test Phase 2 baseline improvements with V5 file upload

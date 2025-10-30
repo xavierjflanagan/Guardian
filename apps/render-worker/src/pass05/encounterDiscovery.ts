@@ -1,11 +1,17 @@
 /**
  * Task 1: Healthcare Encounter Discovery
- * Uses GPT-4o-mini (text-only, not vision)
+ *
+ * Strategy Selection (via PASS_05_STRATEGY env var):
+ * - 'ocr' (default): Current baseline prompt with OCR text (gpt-4o-mini)
+ * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-4o-mini)
+ * - 'vision': Vision-optimized prompt with raw images (gpt-4o) - NOT YET IMPLEMENTED
  */
 
 import OpenAI from 'openai';
 import { GoogleCloudVisionOCR, EncounterMetadata } from './types';
 import { buildEncounterDiscoveryPrompt } from './aiPrompts';
+import { buildOCROptimizedPrompt } from './aiPromptsOCR';
+// import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
 import { parseEncounterResponse } from './manifestBuilder';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -29,21 +35,40 @@ export interface EncounterDiscoveryOutput {
 
 /**
  * Task 1: Extract healthcare encounters from OCR text
- * Uses GPT-4o-mini (text-only, not vision)
+ * Strategy selected via PASS_05_STRATEGY environment variable
  */
 export async function discoverEncounters(
   input: EncounterDiscoveryInput
 ): Promise<EncounterDiscoveryOutput> {
 
   try {
+    // Read strategy from environment variable (defaults to 'ocr')
+    const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'ocr_optimized' | 'vision';
+
+    console.log(`[Pass 0.5] Using strategy: ${strategy}`);
+
+    // Vision strategy requires image loading infrastructure (not yet implemented)
+    if (strategy === 'vision') {
+      throw new Error(
+        'Vision strategy not yet implemented. ' +
+        'Requires image loading from Supabase Storage. ' +
+        'Use PASS_05_STRATEGY=ocr or ocr_optimized instead.'
+      );
+    }
+
+    // Select prompt builder based on strategy
+    const promptBuilder = strategy === 'ocr_optimized'
+      ? buildOCROptimizedPrompt
+      : buildEncounterDiscoveryPrompt;
+
     // Build prompt with OCR text
-    const prompt = buildEncounterDiscoveryPrompt({
+    const prompt = promptBuilder({
       fullText: input.ocrOutput.fullTextAnnotation.text,
       pageCount: input.pageCount,
       ocrPages: input.ocrOutput.fullTextAnnotation.pages
     });
 
-    // Call GPT-4o-mini (text analysis)
+    // Call GPT-4o-mini (text analysis for both OCR strategies)
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
