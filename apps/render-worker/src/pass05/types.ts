@@ -53,7 +53,7 @@ export interface EncounterMetadata {
 
   /**
    * AI model confidence score for encounter detection (0.0-1.0)
-   * Source: OpenAI GPT-4o Vision analysis (NOT OCR confidence)
+   * Source: OpenAI GPT-5-mini analysis (NOT OCR confidence)
    */
   confidence: number;
 

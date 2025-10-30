@@ -3,7 +3,7 @@
  *
  * Target: 95%+ accuracy using visual document understanding
  * Input: Raw medical document images
- * Model: GPT-4o (vision-capable)
+ * Model: GPT-5-mini vision (vision-capable)
  *
  * Key Changes from Original:
  * - Leverages visual understanding (letterheads, formatting, layout)

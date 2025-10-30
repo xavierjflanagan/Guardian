@@ -3,7 +3,7 @@
  *
  * Target: 85-90% accuracy using text patterns only
  * Input: OCR-extracted text (no visual information)
- * Model: GPT-4o-mini (text-only)
+ * Model: GPT-5-mini (text-only)
  *
  * Key Changes from Original:
  * - Removed all visual cues (formatting, letterhead, page breaks)
