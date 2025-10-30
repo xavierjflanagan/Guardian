@@ -728,7 +728,7 @@ class V3Worker {
         patient_id: payload.patient_id,
         shell_file_id: payload.shell_file_id,
         session_type: 'full_pipeline',
-        session_status: 'in_progress',
+        session_status: 'processing',
         ai_model_name: 'gpt-4o-vision',
         workflow_step: 'pass_0_5_encounter_discovery',
         total_steps: 5,
