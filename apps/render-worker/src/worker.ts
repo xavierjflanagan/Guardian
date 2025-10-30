@@ -729,8 +729,8 @@ class V3Worker {
         shell_file_id: payload.shell_file_id,
         session_type: 'shell_file_processing',
         session_status: 'processing',
-        ai_model_name: 'gpt-4o',
-        workflow_step: 'pass_0_5_encounter_discovery',
+        ai_model_name: 'gpt-5-mini',
+        workflow_step: 'entity_detection',
         total_steps: 5,
         completed_steps: 0,
         processing_started_at: new Date().toISOString()
