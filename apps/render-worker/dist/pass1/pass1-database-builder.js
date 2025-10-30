@@ -58,7 +58,7 @@ function buildAIProcessingSessionRecord(input, aiResponse, sessionMetadata) {
         shell_file_id: input.shell_file_id,
         session_type: 'entity_extraction',
         session_status: 'completed',
-        ai_model_version: sessionMetadata.model_used,
+        ai_model_name: sessionMetadata.model_used, // MIGRATION 23 (2025-10-12): Renamed from ai_model_version
         model_config: {
             temperature: 0.1,
             max_tokens: 4000,
@@ -218,6 +218,16 @@ function buildManualReviewQueueRecords(input, _aiResponse, _sessionMetadata, ent
         if (entity.manual_review_required) {
             const priority = determinePriority(entity);
             const reviewType = determineReviewType(entity);
+            // Build ai_concerns array (existing logic)
+            const aiConcerns = [
+                ...(entity.discrepancy_type ? [`AI-OCR discrepancy: ${entity.discrepancy_type}`] : []),
+                ...(entity.pass1_confidence < 0.6 ? ['Low detection confidence'] : []),
+            ];
+            // ENHANCEMENT 4 (2025-10-12): Prioritize AI concerns in title
+            // Use first concern as title when available, otherwise fallback to generic title
+            const reviewTitle = aiConcerns.length > 0
+                ? aiConcerns[0] // Use first concern as title
+                : `Low Confidence Entity: ${entity.entity_subtype}`; // Fallback to generic
             records.push({
                 patient_id: input.patient_id,
                 processing_session_id: input.processing_session_id,
@@ -225,12 +235,9 @@ function buildManualReviewQueueRecords(input, _aiResponse, _sessionMetadata, ent
                 review_type: reviewType,
                 priority: priority,
                 ai_confidence_score: entity.pass1_confidence,
-                ai_concerns: [
-                    ...(entity.discrepancy_type ? [`AI-OCR discrepancy: ${entity.discrepancy_type}`] : []),
-                    ...(entity.pass1_confidence < 0.6 ? ['Low detection confidence'] : []),
-                ],
+                ai_concerns: aiConcerns,
                 flagged_issues: [],
-                review_title: `Low Confidence Entity: ${entity.entity_subtype}`,
+                review_title: reviewTitle, // Now uses specific concern when available
                 review_description: `Entity "${entity.original_text}" detected with ${(entity.pass1_confidence * 100).toFixed(0)}% confidence. Manual review recommended.`,
                 ai_suggestions: `Verify the classification of this entity and confirm the extracted text is accurate.`,
                 clinical_context: {

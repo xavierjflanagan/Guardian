@@ -1,10 +1,10 @@
 /**
  * Pass 1 Entity Detector - Main Class
  * Created: 2025-10-03
- * Purpose: Core entity detection using GPT-4o Vision with dual-input processing
+ * Purpose: Core entity detection using GPT5-mini with dual-input processing
  *
  * This class:
- * 1. Calls OpenAI GPT-4o Vision with raw document image (PRIMARY)
+ * 1. Calls OpenAI GPT5-mini Vision with raw document image (PRIMARY)
  * 2. Provides OCR data for cross-validation (SECONDARY)
  * 3. Parses AI response with entity classification
  * 4. Translates to database format
@@ -15,6 +15,7 @@ import { Pass1DatabaseRecords } from './pass1-database-builder';
 export declare class Pass1EntityDetector {
     private openai;
     private config;
+    private logger;
     constructor(config: Pass1Config);
     /**
      * Process a document through Pass 1 entity detection
@@ -24,21 +25,29 @@ export declare class Pass1EntityDetector {
      */
     processDocument(input: Pass1Input): Promise<Pass1ProcessingResult>;
     /**
-     * Call OpenAI GPT-4o Vision for entity detection
+     * Call OpenAI GPT5-mini for entity detection
      *
      * @param input - Pass 1 input with raw file and OCR data
      * @returns Parsed AI response
      */
     private callAIForEntityDetection;
     /**
-     * Calculate cost for GPT-4o Vision processing
-     *
-     * GPT-4o Pricing (as of 2025):
-     * - Input: $2.50 per 1M tokens (includes image tokens from OpenAI)
-     * - Output: $10.00 per 1M tokens
+     * Model pricing configuration
+     * Source: OpenAI API pricing (as of 2025-10-12)
+     */
+    private static readonly MODEL_PRICING;
+    /**
+     * Default pricing fallback (uses GPT-4o pricing)
+     */
+    private static readonly DEFAULT_PRICING;
+    /**
+     * Calculate cost for OpenAI Vision processing with model-specific pricing
      *
      * Note: OpenAI's prompt_tokens already includes image tokens, so we don't
      * need to estimate or add them separately.
+     *
+     * @param usage - OpenAI usage object with token counts
+     * @returns Estimated cost in USD
      */
     private calculateCost;
     /**

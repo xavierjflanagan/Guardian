@@ -47,6 +47,6 @@ export interface OCRPage {
     processing_time_ms: number;
 }
 export declare function persistOCRArtifacts(supabase: SupabaseClient, shellFileId: string, patientId: string, // Uses patient_id to match storage pattern
-ocrResult: any, fileChecksum: string): Promise<void>;
-export declare function loadOCRArtifacts(supabase: SupabaseClient, shellFileId: string): Promise<any | null>;
+ocrResult: any, fileChecksum: string, correlationId?: string): Promise<void>;
+export declare function loadOCRArtifacts(supabase: SupabaseClient, shellFileId: string, correlationId?: string): Promise<any | null>;
 //# sourceMappingURL=ocr-persistence.d.ts.map

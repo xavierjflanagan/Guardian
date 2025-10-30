@@ -10,6 +10,33 @@
  */
 import { Pass1AIResponse, EntityAuditRecord, ProcessingSessionMetadata } from './pass1-types';
 /**
+ * Truncate text field to maximum length with ellipsis
+ *
+ * Phase 5 Optimization 2: Server-side truncation enforcement for defense in depth.
+ * The AI is instructed to keep these fields under 120 chars, but this provides
+ * a safety net in case AI behavior changes or different models are used.
+ *
+ * @param text - Text to truncate (can be null)
+ * @param maxLength - Maximum length (default 120)
+ * @returns Truncated text with ellipsis if needed, or null if input is null
+ */
+export declare function truncateTextField(text: string | null, maxLength?: number): string | null;
+/**
+ * Normalize entity_category to match database constraint
+ *
+ * AI sometimes returns variations:
+ * - "CLINICAL_EVENTS" (uppercase, plural) → "clinical_event"
+ * - "clinical_events" (lowercase, plural) → "clinical_event"
+ * - "DOCUMENT_STRUCTURE" → "document_structure"
+ * - "HEALTHCARE_CONTEXT" → "healthcare_context"
+ *
+ * Database constraint expects: 'clinical_event', 'healthcare_context', 'document_structure'
+ *
+ * @param category - Raw category string from AI (may have wrong case or plural)
+ * @returns Normalized category matching database constraint
+ */
+export declare function normalizeEntityCategory(category: string): 'clinical_event' | 'healthcare_context' | 'document_structure';
+/**
  * Translates AI response to database-ready format
  *
  * This function:
@@ -19,7 +46,7 @@ import { Pass1AIResponse, EntityAuditRecord, ProcessingSessionMetadata } from '.
  * 4. Sets processing priority
  * 5. Initializes Pass 2 status
  *
- * @param aiResponse - The complete response from GPT-4o Vision
+ * @param aiResponse - The complete response from GPT5-mini
  * @param sessionMetadata - Processing session context
  * @returns Array of database-ready records for entity_processing_audit table
  */

@@ -7,8 +7,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.persistOCRArtifacts = persistOCRArtifacts;
 exports.loadOCRArtifacts = loadOCRArtifacts;
 const checksum_1 = require("./checksum");
+const retry_1 = require("./retry");
+const logger_1 = require("./logger");
 async function persistOCRArtifacts(supabase, shellFileId, patientId, // Uses patient_id to match storage pattern
-ocrResult, fileChecksum) {
+ocrResult, fileChecksum, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
     const basePath = `${patientId}/${shellFileId}-ocr`;
     // Build page artifacts
     const pageArtifacts = ocrResult.pages.map((page, idx) => ({
@@ -39,29 +46,44 @@ ocrResult, fileChecksum) {
     };
     // Order of operations: pages → manifest → database
     // This ensures manifest isn't corrupted if DB write fails
-    // 1. Upload page artifacts
+    // 1. Upload page artifacts with retry logic
     for (let i = 0; i < ocrResult.pages.length; i++) {
-        const { error } = await supabase.storage
-            .from('medical-docs')
-            .upload(`${basePath}/page-${i + 1}.json`, JSON.stringify(ocrResult.pages[i], null, 2), {
-            contentType: 'application/json',
-            upsert: true // Idempotent
+        const result = await (0, retry_1.retryStorageUpload)(async () => {
+            return await supabase.storage
+                .from('medical-docs')
+                .upload(`${basePath}/page-${i + 1}.json`, JSON.stringify(ocrResult.pages[i], null, 2), {
+                contentType: 'application/json',
+                upsert: true // Idempotent
+            });
         });
-        if (error) {
-            console.error(`[OCR Persistence] Failed to upload page ${i + 1}:`, error);
+        if (result.error) {
+            const error = new Error(`Failed to upload OCR page ${i + 1}: ${result.error.message}`);
+            error.status = 500;
+            logger.error('Failed to upload OCR page', error, {
+                shell_file_id: shellFileId,
+                patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+                page_number: i + 1,
+            });
             throw error;
         }
     }
-    // 2. Upload manifest
-    const { error: manifestError } = await supabase.storage
-        .from('medical-docs')
-        .upload(`${basePath}/manifest.json`, JSON.stringify(manifest, null, 2), {
-        contentType: 'application/json',
-        upsert: true // Idempotent
+    // 2. Upload manifest with retry logic
+    const manifestResult = await (0, retry_1.retryStorageUpload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .upload(`${basePath}/manifest.json`, JSON.stringify(manifest, null, 2), {
+            contentType: 'application/json',
+            upsert: true // Idempotent
+        });
     });
-    if (manifestError) {
-        console.error('[OCR Persistence] Failed to upload manifest:', manifestError);
-        throw manifestError;
+    if (manifestResult.error) {
+        const error = new Error(`Failed to upload OCR manifest: ${manifestResult.error.message}`);
+        error.status = 500;
+        logger.error('Failed to upload OCR manifest', error, {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        });
+        throw error;
     }
     // 3. Upsert database index (idempotent)
     const { error: dbError } = await supabase
@@ -80,12 +102,27 @@ ocrResult, fileChecksum) {
         onConflict: 'shell_file_id'
     });
     if (dbError) {
-        console.error('[OCR Persistence] Failed to update database index:', dbError);
+        logger.error('Failed to update database index', dbError, {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        });
         throw dbError;
     }
-    console.log(`[OCR Persistence] Successfully persisted ${ocrResult.pages.length} pages for shell_file ${shellFileId}`);
+    const duration_ms = Date.now() - startTime;
+    logger.info('OCR artifacts persisted successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        page_count: ocrResult.pages.length,
+        total_bytes: manifest.total_bytes,
+        duration_ms,
+    });
 }
-async function loadOCRArtifacts(supabase, shellFileId) {
+async function loadOCRArtifacts(supabase, shellFileId, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
     // Check if OCR artifacts exist
     const { data: artifactIndex, error: indexError } = await supabase
         .from('ocr_artifacts')
@@ -95,29 +132,46 @@ async function loadOCRArtifacts(supabase, shellFileId) {
     if (indexError || !artifactIndex) {
         return null; // No artifacts found
     }
-    // Load manifest
-    const { data: manifestData, error: manifestError } = await supabase.storage
-        .from('medical-docs')
-        .download(artifactIndex.manifest_path);
-    if (manifestError || !manifestData) {
-        console.warn(`[OCR Persistence] Failed to load manifest for ${shellFileId}:`, manifestError);
+    // Load manifest with retry logic
+    const manifestResult = await (0, retry_1.retryStorageDownload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .download(artifactIndex.manifest_path);
+    });
+    if (manifestResult.error || !manifestResult.data) {
+        logger.warn('Failed to load OCR manifest', {
+            shell_file_id: shellFileId,
+            error_message: manifestResult.error?.message,
+        });
         return null;
     }
+    const manifestData = manifestResult.data;
     const manifest = JSON.parse(await manifestData.text());
-    // Reconstruct OCR result from artifacts
+    // Reconstruct OCR result from artifacts with retry logic
     const ocrResult = { pages: [] };
     for (const page of manifest.pages) {
         const pagePath = artifactIndex.manifest_path.replace('manifest.json', page.artifact_path);
-        const { data: pageData, error: pageError } = await supabase.storage
-            .from('medical-docs')
-            .download(pagePath);
-        if (pageError || !pageData) {
-            console.warn(`[OCR Persistence] Failed to load page ${page.page_number} for ${shellFileId}:`, pageError);
+        const pageResult = await (0, retry_1.retryStorageDownload)(async () => {
+            return await supabase.storage
+                .from('medical-docs')
+                .download(pagePath);
+        });
+        if (pageResult.error || !pageResult.data) {
+            logger.warn('Failed to load OCR page', {
+                shell_file_id: shellFileId,
+                page_number: page.page_number,
+                error_message: pageResult.error?.message,
+            });
             return null; // If any page fails, return null to trigger fresh OCR
         }
-        ocrResult.pages.push(JSON.parse(await pageData.text()));
+        ocrResult.pages.push(JSON.parse(await pageResult.data.text()));
     }
-    console.log(`[OCR Persistence] Successfully loaded ${ocrResult.pages.length} pages for shell_file ${shellFileId}`);
+    const duration_ms = Date.now() - startTime;
+    logger.info('OCR artifacts loaded successfully', {
+        shell_file_id: shellFileId,
+        page_count: ocrResult.pages.length,
+        duration_ms,
+    });
     return ocrResult;
 }
 //# sourceMappingURL=ocr-persistence.js.map

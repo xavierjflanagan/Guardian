@@ -13,9 +13,12 @@ const supabase_js_1 = require("@supabase/supabase-js");
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const pass1_1 = require("./pass1");
+const pass05_1 = require("./pass05");
 const checksum_1 = require("./utils/checksum");
 const ocr_persistence_1 = require("./utils/ocr-persistence");
 const image_processing_1 = require("./utils/image-processing");
+const retry_1 = require("./utils/retry");
+const logger_1 = require("./utils/logger");
 // Load environment variables
 dotenv_1.default.config();
 // =============================================================================
@@ -60,20 +63,26 @@ async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unu
         throw new Error('GOOGLE_CLOUD_API_KEY not configured');
     }
     const startTime = Date.now();
-    // Call Google Cloud Vision API
-    const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            requests: [{
-                    image: { content: base64Data },
-                    features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
-                }],
-        }),
+    // Call Google Cloud Vision API with retry logic
+    const response = await (0, retry_1.retryGoogleVision)(async () => {
+        const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requests: [{
+                        image: { content: base64Data },
+                        features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+                    }],
+            }),
+        });
+        if (!res.ok) {
+            const error = new Error(`Google Vision API failed: ${res.status} ${res.statusText}`);
+            error.status = res.status;
+            error.response = res; // Preserve response for Retry-After header
+            throw error;
+        }
+        return res;
     });
-    if (!response.ok) {
-        throw new Error(`Google Vision API failed: ${response.status} ${response.statusText}`);
-    }
     const result = await response.json();
     const annotation = result.responses?.[0]?.fullTextAnnotation;
     if (!annotation) {
@@ -137,11 +146,16 @@ async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unu
 class V3Worker {
     supabase;
     workerId;
+    logger;
     activeJobs = new Map();
     heartbeatInterval;
     pass1Detector;
     constructor() {
         this.workerId = config.worker.id;
+        this.logger = (0, logger_1.createLogger)({
+            context: 'worker',
+            worker_id: this.workerId,
+        });
         this.supabase = (0, supabase_js_1.createClient)(config.supabase.url, config.supabase.serviceRoleKey);
         // Initialize Pass 1 detector if OpenAI key is available
         if (config.openai.apiKey) {
@@ -152,18 +166,22 @@ class V3Worker {
                 max_tokens: 32000, // Safe limit for GPT-5-mini (supports up to 128k)
                 confidence_threshold: 0.7,
             };
-            console.log(`[${this.workerId}] 🔧 Pass 1 Config: model=${pass1Config.model}, max_tokens=${pass1Config.max_tokens}`);
+            this.logger.debug('Pass 1 configuration', {
+                model: pass1Config.model,
+                max_tokens: pass1Config.max_tokens,
+                temperature: pass1Config.temperature,
+            });
             this.pass1Detector = new pass1_1.Pass1EntityDetector(pass1Config);
-            console.log(`[${this.workerId}] Pass 1 Entity Detector initialized`);
+            this.logger.info('Pass 1 Entity Detector initialized');
         }
         else {
-            console.warn(`[${this.workerId}] OpenAI API key not found - Pass 1 disabled`);
+            this.logger.warn('OpenAI API key not found - Pass 1 disabled');
         }
-        console.log(`[${this.workerId}] V3 Worker initialized`);
+        this.logger.info('V3 Worker initialized');
     }
     // Start the worker
     async start() {
-        console.log(`[${this.workerId}] Starting V3 Worker...`);
+        this.logger.info('Starting V3 Worker');
         // Start heartbeat
         this.startHeartbeat();
         // Start polling for jobs
@@ -183,14 +201,14 @@ class V3Worker {
                 if (job) {
                     // Process job asynchronously
                     this.processJob(job).catch(error => {
-                        console.error(`[${this.workerId}] Error processing job ${job.id}:`, error);
+                        this.logger.error('Error processing job', error, { job_id: job.id });
                     });
                 }
                 // Wait before next poll
                 await this.sleep(config.worker.pollIntervalMs);
             }
             catch (error) {
-                console.error(`[${this.workerId}] Polling error:`, error);
+                this.logger.error('Polling error', error);
                 await this.sleep(config.worker.pollIntervalMs * 2); // Back off on error
             }
         }
@@ -204,7 +222,7 @@ class V3Worker {
             p_job_lanes: ['ai_queue_simple'] // FIXED: Match Edge Function job lane
         });
         // VERBOSE LOGGING: See what RPC actually returns
-        console.log(`[${this.workerId}] RPC claim_next_job_v3 response:`, {
+        this.logger.debug('RPC claim_next_job_v3 response', {
             hasError: !!error,
             error: error,
             dataType: typeof data,
@@ -213,13 +231,13 @@ class V3Worker {
             dataValue: data
         });
         if (error) {
-            console.error(`[${this.workerId}] Error claiming job:`, error);
+            this.logger.error('Error claiming job', error);
             return null;
         }
         if (data && data.length > 0) {
             // FIXED: Function returns job_id, job_type, job_payload, retry_count
             const jobData = data[0];
-            console.log(`[${this.workerId}] Job data from RPC:`, jobData);
+            this.logger.debug('Job data from RPC', jobData);
             // Need to fetch full job details
             const { data: fullJob, error: fetchError } = await this.supabase
                 .from('job_queue')
@@ -227,44 +245,71 @@ class V3Worker {
                 .eq('id', jobData.job_id)
                 .single();
             if (fetchError || !fullJob) {
-                console.error(`[${this.workerId}] Error fetching job details:`, fetchError);
+                this.logger.error('Error fetching job details', fetchError, { job_id: jobData.job_id });
                 return null;
             }
-            console.log(`[${this.workerId}] Claimed job ${fullJob.id} (${fullJob.job_type})`);
+            this.logger.info('Claimed job', {
+                job_id: fullJob.id,
+                job_type: fullJob.job_type,
+                retry_count: fullJob.retry_count,
+            });
             return fullJob;
         }
-        console.log(`[${this.workerId}] No jobs available (data empty or null)`);
+        this.logger.debug('No jobs available');
         return null;
     }
     // Process a single job
     async processJob(job) {
         const jobId = job.id;
+        // Extract correlation_id from job payload (fallback to job ID for traceability)
+        const correlationId = job.job_payload?.correlation_id || `job_${jobId}`;
+        this.logger.setCorrelationId(correlationId);
         // Mark job as active
         this.activeJobs.set(jobId, true);
         try {
-            console.log(`[${this.workerId}] Processing job ${jobId}: ${job.job_name}`);
-            // Update heartbeat
-            await this.updateJobHeartbeat(jobId);
-            // Process based on job type
-            let result;
-            switch (job.job_type) {
-                case 'shell_file_processing':
-                    result = await this.processShellFile(job);
-                    break;
-                case 'ai_processing':
-                    result = await this.processAIJob(job);
-                    break;
-                default:
-                    throw new Error(`Unknown job type: ${job.job_type}`);
-            }
-            // Mark job as completed
-            await this.completeJob(jobId, result);
-            console.log(`[${this.workerId}] Completed job ${jobId}`);
+            await this.logger.logOperation('processJob', async () => {
+                this.logger.info('Processing job', {
+                    job_id: jobId,
+                    job_type: job.job_type,
+                    job_name: job.job_name,
+                    retry_count: job.retry_count,
+                });
+                // Update heartbeat
+                await this.updateJobHeartbeat(jobId);
+                // Process based on job type
+                let result;
+                switch (job.job_type) {
+                    case 'shell_file_processing':
+                        result = await this.processShellFile(job);
+                        break;
+                    case 'ai_processing':
+                        result = await this.processAIJob(job);
+                        break;
+                    default:
+                        throw new Error(`Unknown job type: ${job.job_type}`);
+                }
+                // Mark job as completed
+                await this.completeJob(jobId, result);
+                this.logger.info('Job completed', { job_id: jobId });
+                return result;
+            }, { job_id: jobId, job_type: job.job_type });
         }
         catch (error) {
-            console.error(`[${this.workerId}] Job ${jobId} failed:`, error);
-            // Mark job as failed
-            await this.failJob(jobId, error.message);
+            this.logger.error('Job failed', error, {
+                job_id: jobId,
+                error_message: error.message,
+            });
+            // GUARD: Don't call failJob if the job was rescheduled (already handled by RPC)
+            if (error.message && error.message.includes('Job rescheduled')) {
+                this.logger.info('Job rescheduled - skipping failJob call', {
+                    job_id: jobId,
+                    error_message: error.message,
+                });
+            }
+            else {
+                // Mark job as failed
+                await this.failJob(jobId, error.message);
+            }
         }
         finally {
             // Remove from active jobs
@@ -274,7 +319,10 @@ class V3Worker {
     // Process shell file (document upload)
     async processShellFile(job) {
         const { shell_file_id, patient_id } = job.job_payload; // FIXED: Removed unused file_path
-        console.log(`[${this.workerId}] Processing shell file ${shell_file_id}`);
+        this.logger.info('Processing shell file', {
+            shell_file_id,
+            patient_id_masked: (0, logger_1.maskPatientId)(patient_id),
+        });
         // TODO: Implement actual document processing
         // 1. Download file from storage
         // 2. Run OCR if needed
@@ -308,10 +356,13 @@ class V3Worker {
         if (!payload.shell_file_id || !payload.storage_path || !payload.patient_id) {
             throw new Error('Invalid AI job payload: missing required fields (shell_file_id, storage_path, patient_id)');
         }
-        console.log(`[${this.workerId}] Processing AI job for shell_file ${payload.shell_file_id}`);
-        console.log(`[${this.workerId}] - Storage path: ${payload.storage_path}`);
-        console.log(`[${this.workerId}] - File size: ${payload.file_size_bytes} bytes`);
-        console.log(`[${this.workerId}] - MIME type: ${payload.mime_type}`);
+        this.logger.info('Processing AI job', {
+            shell_file_id: payload.shell_file_id,
+            patient_id_masked: (0, logger_1.maskPatientId)(payload.patient_id),
+            storage_path: payload.storage_path,
+            file_size_bytes: payload.file_size_bytes,
+            mime_type: payload.mime_type,
+        });
         // NEW: Update shell_files with job tracking at start
         await this.supabase
             .from('shell_files')
@@ -322,23 +373,33 @@ class V3Worker {
             processing_worker_id: this.workerId
         })
             .eq('id', payload.shell_file_id);
-        // NEW: Download file from storage
-        const { data: fileBlob, error: downloadError } = await this.supabase.storage
-            .from('medical-docs')
-            .download(payload.storage_path);
-        if (downloadError || !fileBlob) {
-            throw new Error(`Failed to download file from storage: ${downloadError?.message}`);
+        // NEW: Download file from storage with retry logic
+        const result = await (0, retry_1.retryStorageDownload)(async () => {
+            return await this.supabase.storage
+                .from('medical-docs')
+                .download(payload.storage_path);
+        });
+        if (result.error || !result.data) {
+            const error = new Error(`Failed to download file from storage: ${result.error?.message}`);
+            error.status = 500;
+            throw error;
         }
+        const fileBlob = result.data;
         // NEW: Calculate checksum for integrity verification
         const fileBuffer = Buffer.from(await fileBlob.arrayBuffer());
         const fileChecksum = await (0, checksum_1.calculateSHA256)(fileBuffer);
-        console.log(`[${this.workerId}] File checksum: ${fileChecksum}`);
+        this.logger.debug('File checksum calculated', {
+            shell_file_id: payload.shell_file_id,
+            checksum: fileChecksum,
+        });
         // NEW: Check for existing OCR artifacts (reuse if available)
-        let ocrResult = await (0, ocr_persistence_1.loadOCRArtifacts)(this.supabase, payload.shell_file_id);
+        let ocrResult = await (0, ocr_persistence_1.loadOCRArtifacts)(this.supabase, payload.shell_file_id, this.logger['correlation_id']);
         // Phase 2: Track processed image state for analytics
         let processed = { b64: fileBuffer.toString('base64'), width: 0, height: 0, outMime: payload.mime_type };
         if (ocrResult) {
-            console.log(`[${this.workerId}] Reusing existing OCR artifacts for shell_file ${payload.shell_file_id}`);
+            this.logger.info('Reusing existing OCR artifacts', {
+                shell_file_id: payload.shell_file_id,
+            });
         }
         else {
             // Phase 2: Image downscaling before OCR
@@ -346,20 +407,35 @@ class V3Worker {
             const BYPASS_DOWNSCALING = process.env.BYPASS_IMAGE_DOWNSCALING === 'true';
             const isImageOrPDF = /^(image\/|application\/pdf)/.test(payload.mime_type);
             if (isImageOrPDF && !BYPASS_DOWNSCALING) {
-                console.log(`[${this.workerId}] Phase 2: Processing image/PDF before OCR...`);
+                this.logger.info('Phase 2: Processing image/PDF before OCR', {
+                    shell_file_id: payload.shell_file_id,
+                    mime_type: payload.mime_type,
+                });
                 try {
-                    processed = await (0, image_processing_1.downscaleImageBase64)(processed.b64, payload.mime_type, 1600, 78);
+                    processed = await (0, image_processing_1.downscaleImageBase64)(processed.b64, payload.mime_type, 1600, 78, this.logger['correlation_id']);
                     if (processed.width && processed.height) {
-                        console.log(`[${this.workerId}] Processed to ${processed.width}x${processed.height} (${processed.outMime})`);
+                        this.logger.info('Image downscaled', {
+                            shell_file_id: payload.shell_file_id,
+                            width: processed.width,
+                            height: processed.height,
+                            output_mime: processed.outMime,
+                        });
                     }
                     else {
-                        console.log(`[${this.workerId}] Processed ${processed.outMime} (dimensions handled by OCR)`);
+                        this.logger.info('Image processed without dimensions', {
+                            shell_file_id: payload.shell_file_id,
+                            output_mime: processed.outMime,
+                        });
                     }
                 }
                 catch (error) {
                     // Handle unsupported formats gracefully
                     if (error.message.includes('not yet supported') || error.message.includes('planned for Phase')) {
-                        console.log(`[${this.workerId}] ${error.message}`);
+                        this.logger.info('Unsupported format for downscaling', {
+                            shell_file_id: payload.shell_file_id,
+                            mime_type: payload.mime_type,
+                            error_message: error.message,
+                        });
                         // Continue with original file for now
                         processed = { b64: fileBuffer.toString('base64'), width: 0, height: 0, outMime: payload.mime_type };
                     }
@@ -369,18 +445,28 @@ class V3Worker {
                 }
             }
             else if (BYPASS_DOWNSCALING) {
-                console.log(`[${this.workerId}] Image downscaling bypassed via BYPASS_IMAGE_DOWNSCALING flag`);
+                this.logger.info('Image downscaling bypassed via BYPASS_IMAGE_DOWNSCALING flag', {
+                    shell_file_id: payload.shell_file_id,
+                });
             }
             else {
-                console.log(`[${this.workerId}] Non-image file (${payload.mime_type}), skipping downscaling`);
+                this.logger.debug('Non-image file, skipping downscaling', {
+                    shell_file_id: payload.shell_file_id,
+                    mime_type: payload.mime_type,
+                });
             }
             // NEW: Run OCR processing (moved from Edge Function)
-            console.log(`[${this.workerId}] Running OCR processing for shell_file ${payload.shell_file_id}`);
+            this.logger.info('Running OCR processing', {
+                shell_file_id: payload.shell_file_id,
+                output_mime: processed.outMime,
+            });
             const ocrSpatialData = await processWithGoogleVisionOCR(processed.b64, processed.outMime);
             // Transform to expected OCR result format
             // GUARDRAIL: Skip normalization if dimensions missing
             if (processed.width === 0 || processed.height === 0) {
-                console.warn(`[${this.workerId}] Missing processed image dimensions, skipping bbox normalization`);
+                this.logger.warn('Missing processed image dimensions, skipping bbox normalization', {
+                    shell_file_id: payload.shell_file_id,
+                });
                 // Use raw OCR bounding boxes without normalization
                 ocrResult = {
                     pages: [{
@@ -436,8 +522,7 @@ class V3Worker {
                 };
             }
             // NEW: Persist OCR artifacts for future reuse
-            await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum);
-            console.log(`[${this.workerId}] OCR artifacts persisted for shell_file ${payload.shell_file_id}`);
+            await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum, this.logger['correlation_id']);
             // IDEMPOTENCY: Store processed image with checksum caching
             if (isImageOrPDF && processed.width && processed.height) {
                 const processedBuf = Buffer.from(processed.b64, 'base64');
@@ -457,12 +542,19 @@ class V3Worker {
                         processed.outMime === 'image/webp' ? '.webp' :
                             processed.outMime === 'image/tiff' ? '.tiff' : '.jpg';
                     const processedPath = `${sanitizedPatientId}/${sanitizedFileId}-processed${ext}`;
-                    await this.supabase.storage
-                        .from('medical-docs')
-                        .upload(processedPath, processedBuf, {
-                        contentType: processed.outMime,
-                        upsert: true // Overwrite if exists
+                    const uploadResult = await (0, retry_1.retryStorageUpload)(async () => {
+                        return await this.supabase.storage
+                            .from('medical-docs')
+                            .upload(processedPath, processedBuf, {
+                            contentType: processed.outMime,
+                            upsert: true // Overwrite if exists
+                        });
                     });
+                    if (uploadResult.error) {
+                        const error = new Error(`Failed to upload processed image: ${uploadResult.error.message}`);
+                        error.status = 500;
+                        throw error;
+                    }
                     // Update metadata
                     await this.supabase
                         .from('shell_files')
@@ -472,20 +564,98 @@ class V3Worker {
                         processed_image_mime: processed.outMime
                     })
                         .eq('id', payload.shell_file_id);
-                    console.log(`[${this.workerId}] Stored ${processed.outMime} image: ${processedPath}`);
+                    this.logger.info('Stored processed image', {
+                        shell_file_id: payload.shell_file_id,
+                        processed_path: processedPath,
+                        output_mime: processed.outMime,
+                    });
                 }
                 else {
-                    console.log(`[${this.workerId}] Processed image unchanged (checksum match), skipping upload`);
+                    this.logger.debug('Processed image unchanged (checksum match), skipping upload', {
+                        shell_file_id: payload.shell_file_id,
+                    });
                 }
             }
         }
+        // =============================================================================
+        // PASS 0.5: ENCOUNTER DISCOVERY (NEW - October 2025)
+        // =============================================================================
+        // Run Pass 0.5 encounter discovery before Pass 1 entity detection
+        // Creates healthcare_encounters records and manifest for downstream passes
+        this.logger.info('Starting Pass 0.5 encounter discovery', {
+            shell_file_id: payload.shell_file_id,
+            page_count: ocrResult.pages.length,
+        });
+        // Generate processing session ID (shared by Pass 0.5 and Pass 1)
+        const processingSessionId = crypto.randomUUID();
+        // Create ai_processing_sessions record (required before Pass 0.5)
+        const { error: sessionError } = await this.supabase
+            .from('ai_processing_sessions')
+            .insert({
+            id: processingSessionId,
+            patient_id: payload.patient_id,
+            shell_file_id: payload.shell_file_id,
+            session_type: 'full_pipeline',
+            session_status: 'in_progress',
+            ai_model_name: 'gpt-4o-vision',
+            workflow_step: 'pass_0_5_encounter_discovery',
+            total_steps: 5,
+            completed_steps: 0,
+            processing_started_at: new Date().toISOString()
+        });
+        if (sessionError) {
+            throw new Error(`Failed to create processing session: ${sessionError.message}`);
+        }
+        // Convert OCR result to Pass 0.5 input format
+        const pass05Input = {
+            shellFileId: payload.shell_file_id,
+            patientId: payload.patient_id,
+            ocrOutput: {
+                fullTextAnnotation: {
+                    text: ocrResult.pages.map((p) => p.lines.map((l) => l.text).join(' ')).join('\n'),
+                    pages: ocrResult.pages.map((page) => ({
+                        width: page.size.width_px || 1000,
+                        height: page.size.height_px || 1400,
+                        confidence: page.lines.reduce((sum, l) => sum + l.confidence, 0) / (page.lines.length || 1),
+                        blocks: page.lines.map((line) => ({
+                            boundingBox: {
+                                vertices: [
+                                    { x: line.bbox.x, y: line.bbox.y },
+                                    { x: line.bbox.x + line.bbox.w, y: line.bbox.y },
+                                    { x: line.bbox.x + line.bbox.w, y: line.bbox.y + line.bbox.h },
+                                    { x: line.bbox.x, y: line.bbox.y + line.bbox.h }
+                                ]
+                            },
+                            confidence: line.confidence,
+                            paragraphs: []
+                        }))
+                    }))
+                }
+            },
+            pageCount: ocrResult.pages.length,
+            processingSessionId: processingSessionId
+        };
+        const pass05Result = await (0, pass05_1.runPass05)(pass05Input);
+        if (!pass05Result.success) {
+            throw new Error(`Pass 0.5 encounter discovery failed: ${pass05Result.error}`);
+        }
+        this.logger.info('Pass 0.5 encounter discovery completed', {
+            shell_file_id: payload.shell_file_id,
+            encounters_found: pass05Result.manifest?.encounters.length || 0,
+            processing_time_ms: pass05Result.processingTimeMs,
+            ai_cost_usd: pass05Result.aiCostUsd,
+            ai_model: pass05Result.aiModel,
+        });
+        // =============================================================================
+        // PASS 1: ENTITY DETECTION (existing code continues)
+        // =============================================================================
         // Build Pass1Input from storage-based payload + OCR result
         // Phase 2: Use processed file size for accurate analytics when downscaled
         const processedBuffer = processed?.b64 ? Buffer.from(processed.b64, 'base64') : fileBuffer;
         const pass1Input = {
             shell_file_id: payload.shell_file_id,
             patient_id: payload.patient_id,
-            processing_session_id: crypto.randomUUID(),
+            processing_session_id: processingSessionId, // Reuse Pass 0.5 session ID
             raw_file: {
                 file_data: processed?.b64 ?? fileBuffer.toString('base64'),
                 file_type: processed?.outMime ?? payload.mime_type,
@@ -519,7 +689,9 @@ class V3Worker {
             }
         };
         // Process with Pass 1 entity detection
-        console.log(`[${this.workerId}] Starting Pass 1 entity detection with storage-based input`);
+        this.logger.info('Starting Pass 1 entity detection with storage-based input', {
+            shell_file_id: pass1Input.shell_file_id,
+        });
         return await this.processPass1EntityDetection({ ...job, job_payload: pass1Input });
     }
     // Process Pass 1 Entity Detection
@@ -528,28 +700,37 @@ class V3Worker {
             throw new Error('Pass 1 detector not initialized - OpenAI API key may be missing');
         }
         const payload = job.job_payload;
-        console.log(`[${this.workerId}] Starting Pass 1 entity detection for shell_file ${payload.shell_file_id}`);
-        console.log(`[${this.workerId}] - Processing session: ${payload.processing_session_id}`);
-        console.log(`[${this.workerId}] - OCR extracted text length: ${payload.ocr_spatial_data.extracted_text.length}`);
-        console.log(`[${this.workerId}] - Spatial mapping elements: ${payload.ocr_spatial_data.spatial_mapping.length}`);
+        this.logger.info('Starting Pass 1 entity detection', {
+            shell_file_id: payload.shell_file_id,
+            processing_session_id: payload.processing_session_id,
+            ocr_text_length: payload.ocr_spatial_data.extracted_text.length,
+            spatial_mapping_elements: payload.ocr_spatial_data.spatial_mapping.length,
+        });
         // Run Pass 1 processing
         const result = await this.pass1Detector.processDocument(payload);
         if (!result.success) {
             throw new Error(`Pass 1 processing failed: ${result.error}`);
         }
-        console.log(`[${this.workerId}] Pass 1 detected ${result.total_entities_detected} entities`);
-        console.log(`[${this.workerId}] - Clinical events: ${result.entities_by_category.clinical_event}`);
-        console.log(`[${this.workerId}] - Healthcare context: ${result.entities_by_category.healthcare_context}`);
-        console.log(`[${this.workerId}] - Document structure: ${result.entities_by_category.document_structure}`);
+        this.logger.info('Pass 1 entity detection completed', {
+            shell_file_id: payload.shell_file_id,
+            total_entities: result.total_entities_detected,
+            clinical_events: result.entities_by_category.clinical_event,
+            healthcare_context: result.entities_by_category.healthcare_context,
+            document_structure: result.entities_by_category.document_structure,
+        });
         // Get ALL Pass 1 database records (7 tables)
-        console.log(`[${this.workerId}] Building Pass 1 database records (7 tables)...`);
+        this.logger.debug('Building Pass 1 database records (7 tables)', {
+            shell_file_id: payload.shell_file_id,
+        });
         const dbRecords = await this.pass1Detector.getAllDatabaseRecords(payload);
         // Insert into ALL 7 Pass 1 tables
         await this.insertPass1DatabaseRecords(dbRecords, payload.shell_file_id);
-        console.log(`[${this.workerId}] Pass 1 complete - inserted records into 7 tables`);
-        console.log(`[${this.workerId}] - entity_processing_audit: ${result.records_created.entity_audit}`);
-        console.log(`[${this.workerId}] - ai_confidence_scoring: ${result.records_created.confidence_scoring}`);
-        console.log(`[${this.workerId}] - manual_review_queue: ${result.records_created.manual_review_queue}`);
+        this.logger.info('Pass 1 complete - inserted records into 7 tables', {
+            shell_file_id: payload.shell_file_id,
+            entity_audit_records: result.records_created.entity_audit,
+            confidence_scoring_records: result.records_created.confidence_scoring,
+            manual_review_records: result.records_created.manual_review_queue,
+        });
         // NEW: Update shell_files with completion tracking
         await this.supabase
             .from('shell_files')
@@ -584,7 +765,10 @@ class V3Worker {
             .update(records.shell_file_updates)
             .eq('id', shellFileId);
         if (shellError) {
-            console.warn(`[${this.workerId}] Failed to update shell_files:`, shellError);
+            this.logger.warn('Failed to update shell_files (non-fatal)', {
+                shell_file_id: shellFileId,
+                error_message: shellError.message,
+            });
             // Non-fatal - continue
         }
         // 4. INSERT profile_classification_audit
@@ -607,7 +791,10 @@ class V3Worker {
                 .from('ai_confidence_scoring')
                 .insert(records.ai_confidence_scoring);
             if (confidenceError) {
-                console.warn(`[${this.workerId}] Failed to insert ai_confidence_scoring:`, confidenceError);
+                this.logger.warn('Failed to insert ai_confidence_scoring (non-fatal)', {
+                    shell_file_id: shellFileId,
+                    error_message: confidenceError.message,
+                });
                 // Non-fatal - continue
             }
         }
@@ -617,7 +804,10 @@ class V3Worker {
                 .from('manual_review_queue')
                 .insert(records.manual_review_queue);
             if (reviewError) {
-                console.warn(`[${this.workerId}] Failed to insert manual_review_queue:`, reviewError);
+                this.logger.warn('Failed to insert manual_review_queue (non-fatal)', {
+                    shell_file_id: shellFileId,
+                    error_message: reviewError.message,
+                });
                 // Non-fatal - continue
             }
         }
@@ -651,7 +841,7 @@ class V3Worker {
             .eq('id', jobId)
             .eq('worker_id', this.workerId); // Ensure we only update jobs we own
         if (error) {
-            console.error(`[${this.workerId}] Failed to mark job as failed:`, error);
+            this.logger.error('Failed to mark job as failed', error, { job_id: jobId });
         }
     }
     // Update job heartbeat
@@ -663,25 +853,25 @@ class V3Worker {
                 p_worker_id: this.workerId,
             });
             if (error) {
-                console.error(`[${this.workerId}] HEARTBEAT FAILED for job ${jobId}:`, error);
+                this.logger.error('Heartbeat failed', error, { job_id: jobId });
             }
             else {
-                if (config.environment.verbose) {
-                    console.log(`[${this.workerId}] Heartbeat updated for job ${jobId}`);
-                }
+                this.logger.debug('Heartbeat updated', { job_id: jobId });
             }
         }
         catch (err) {
-            console.error(`[${this.workerId}] HEARTBEAT EXCEPTION for job ${jobId}:`, err);
+            this.logger.error('Heartbeat exception', err, { job_id: jobId });
         }
     }
     // Start heartbeat for all active jobs
     startHeartbeat() {
-        console.log(`[${this.workerId}] Starting heartbeat interval (every ${config.worker.heartbeatIntervalMs}ms)`);
+        this.logger.info('Starting heartbeat interval', {
+            interval_ms: config.worker.heartbeatIntervalMs,
+        });
         this.heartbeatInterval = setInterval(async () => {
             const activeJobCount = this.activeJobs.size;
             if (activeJobCount > 0) {
-                console.log(`[${this.workerId}] Heartbeat tick: ${activeJobCount} active job(s)`);
+                this.logger.debug('Heartbeat tick', { active_jobs: activeJobCount });
                 for (const jobId of this.activeJobs.keys()) {
                     await this.updateJobHeartbeat(jobId);
                 }
@@ -690,17 +880,19 @@ class V3Worker {
     }
     // Stop the worker
     async stop() {
-        console.log(`[${this.workerId}] Stopping V3 Worker...`);
+        this.logger.info('Stopping V3 Worker');
         // Clear heartbeat
         if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
         }
         // Wait for active jobs to complete
         while (this.activeJobs.size > 0) {
-            console.log(`[${this.workerId}] Waiting for ${this.activeJobs.size} jobs to complete...`);
+            this.logger.info('Waiting for active jobs to complete', {
+                active_jobs: this.activeJobs.size,
+            });
             await this.sleep(1000);
         }
-        console.log(`[${this.workerId}] V3 Worker stopped`);
+        this.logger.info('V3 Worker stopped');
     }
     // Sleep utility
     sleep(ms) {
@@ -712,6 +904,11 @@ class V3Worker {
 // =============================================================================
 const app = (0, express_1.default)();
 const worker = new V3Worker();
+// Module-level logger for server startup/shutdown
+const serverLogger = (0, logger_1.createLogger)({
+    context: 'server',
+    worker_id: config.worker.id,
+});
 // Health check endpoint (required by Render.com)
 app.get('/health', (_req, res) => {
     res.json({
@@ -723,21 +920,23 @@ app.get('/health', (_req, res) => {
 });
 // Start server
 app.listen(config.server.port, () => {
-    console.log(`Health check server listening on port ${config.server.port}`);
+    serverLogger.info('Health check server listening', {
+        port: config.server.port,
+    });
     // Start worker
     worker.start().catch(error => {
-        console.error('Worker failed to start:', error);
+        serverLogger.error('Worker failed to start', error);
         process.exit(1);
     });
 });
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-    console.log('SIGTERM received, shutting down gracefully...');
+    serverLogger.info('SIGTERM received, shutting down gracefully');
     await worker.stop();
     process.exit(0);
 });
 process.on('SIGINT', async () => {
-    console.log('SIGINT received, shutting down gracefully...');
+    serverLogger.info('SIGINT received, shutting down gracefully');
     await worker.stop();
     process.exit(0);
 });

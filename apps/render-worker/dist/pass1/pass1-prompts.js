@@ -80,16 +80,13 @@ function generatePass1ClassificationPrompt(input, modelName = 'vision-model') {
     return `
 You are a medical document entity detection system using DUAL INPUTS for maximum accuracy.
 
-INPUT 1 - RAW DOCUMENT IMAGE:
-[Base64 image data provided to vision model]
+INPUT 1 - RAW DOCUMENT IMAGE: [Base64 image provided to vision model]
 
-INPUT 2 - OCR SPATIAL REFERENCE:
-OCR Text: "${truncateOCRText(input.ocr_spatial_data.extracted_text, 2000)}"
-OCR Spatial Coordinates (sample):
-${formatSpatialMapping(input.ocr_spatial_data.spatial_mapping, 100)}
-OCR Confidence: ${input.ocr_spatial_data.ocr_confidence}
-OCR Provider: ${input.ocr_spatial_data.ocr_provider}
-(Note: Full spatial mapping available contextually - focus on visual interpretation)
+INPUT 2 - OCR REFERENCE DATA:
+• OCR Text: "${truncateOCRText(input.ocr_spatial_data.extracted_text, 2000)}"
+• Spatial Coordinates: ${formatSpatialMapping(input.ocr_spatial_data.spatial_mapping, 100)}
+• OCR Confidence: ${input.ocr_spatial_data.ocr_confidence}
+• OCR Provider: ${input.ocr_spatial_data.ocr_provider}
 
 PROCESSING INSTRUCTIONS:
 1. PRIMARY ANALYSIS: Use your vision capabilities to interpret the raw document image
@@ -99,17 +96,11 @@ PROCESSING INSTRUCTIONS:
 5. QUALITY ASSESSMENT: Evaluate visual quality and readability of each entity
 
 CRITICAL REQUIREMENTS:
-1. Analyze the RAW IMAGE as your primary source of truth
-2. Use OCR data for spatial coordinates and cross-validation
-3. Flag significant discrepancies between your vision and OCR
-4. Identify 100% of document content visible in the image
-5. Map each visual entity to the closest OCR spatial coordinates when available
-6. Mark spatial_source with EXACTLY one of these values based on coordinate accuracy:
-   - "ocr_exact": Coordinates directly from OCR with high precision
-   - "ocr_approximate": Coordinates from OCR with some uncertainty
-   - "ai_estimated": Coordinates estimated by visual analysis (no OCR match)
-   - "none": No spatial coordinates available
-7. Always emit uncertain items as entities; set requires_manual_review=true when confidence < 0.7
+1. Analyze RAW IMAGE as primary source; use OCR for spatial coordinates and cross-validation
+2. Flag discrepancies between vision and OCR
+3. Identify 100% of visible document content
+4. Mark spatial_source as: "ocr_exact" (high precision), "ocr_approximate" (uncertain), "ai_estimated" (no OCR match), or "none"
+5. Always emit uncertain items; set requires_manual_review=true when confidence < 0.7
 
 CRITICAL: LIST HANDLING RULES (STRICT)
 - Treat each list item as a SEPARATE entity across all list formats:
@@ -134,99 +125,7 @@ ${ENTITY_TAXONOMY}
 ${DISAMBIGUATION_RULES}
 
 RESPONSE FORMAT:
-Return a JSON object with this exact structure:
-
-{
-  "processing_metadata": {
-    "model_used": "${modelName}",
-    "vision_processing": true,
-    "processing_time_seconds": <number>,
-    "token_usage": {
-      "prompt_tokens": <number>,
-      "completion_tokens": <number>,
-      "total_tokens": <number>
-    },
-    "cost_estimate": <number>,
-    "confidence_metrics": {
-      "overall_confidence": <0.0-1.0>,
-      "visual_interpretation_confidence": <0.0-1.0>,
-      "category_confidence": {
-        "clinical_event": <0.0-1.0>,
-        "healthcare_context": <0.0-1.0>,
-        "document_structure": <0.0-1.0>
-      }
-    }
-  },
-  "entities": [
-    {
-      "entity_id": "ent_001",
-      "original_text": "what_you_see_in_image",
-      "classification": {
-        "entity_category": "clinical_event|healthcare_context|document_structure",
-        "entity_subtype": "specific_subtype_from_above",
-        "confidence": 0.95
-      },
-      "visual_interpretation": {
-        "ai_sees": "exact_visual_text",
-        "formatting_context": "bold header with indented values",
-        "visual_quality": "clear typed text",
-        "ai_confidence": 0.95
-      },
-      "ocr_cross_reference": {
-        "ocr_text": "what_ocr_extracted",
-        "ocr_confidence": 0.88,
-        "ai_ocr_agreement": 0.92,
-        "discrepancy_type": "abbreviation",
-        "discrepancy_notes": "OCR abbreviated 'Blood Pressure' as 'BP'"
-      },
-      "spatial_information": {
-        "page_number": 1,
-        "bounding_box": {"x": 245, "y": 356, "width": 185, "height": 18},
-        "unique_marker": "Blood Pressure: 140/90 mmHg",
-        "location_context": "page 1, vital signs section",
-        "spatial_source": "ocr_exact"
-      },
-      "quality_indicators": {
-        "detection_confidence": 0.95,
-        "classification_confidence": 0.93,
-        "cross_validation_score": 0.92,
-        "requires_manual_review": false
-      }
-    }
-  ],
-  "document_coverage": {
-    "total_content_processed": <number>,
-    "content_classified": <number>,
-    "coverage_percentage": <0-100>,
-    "unclassified_segments": ["any content not classified"],
-    "visual_quality_score": <0.0-1.0>,
-    "list_extraction_metrics": {
-      "total_list_items_found": <number>,
-      "total_entities_emitted": <number>,
-      "list_items_missed": ["verbatim text of any missed items"]
-    }
-  },
-  "cross_validation_results": {
-    "ai_ocr_agreement_score": <0.0-1.0>,
-    "high_discrepancy_count": <number>,
-    "ocr_missed_entities": <number>,
-    "ai_missed_ocr_text": <number>,
-    "spatial_mapping_success_rate": <0.0-1.0>
-  },
-  "quality_assessment": {
-    "completeness_score": <0.0-1.0>,
-    "classification_confidence": <0.0-1.0>,
-    "cross_validation_score": <0.0-1.0>,
-    "requires_manual_review": true/false,
-    "quality_flags": ["low_confidence", "high_discrepancy", etc.]
-  },
-  "profile_safety": {
-    "patient_identity_confidence": <0.0-1.0>,
-    "age_appropriateness_score": <0.0-1.0>,
-    "safety_flags": ["potential_age_mismatch", "identity_uncertainty", etc.],
-    "requires_identity_verification": true/false
-  }
-}
+Return JSON with: processing_metadata (model_used="${modelName}", vision_processing=true, token_usage, cost_estimate, confidence_metrics), entities array (entity_id, original_text, classification{entity_category, entity_subtype, confidence}, visual_interpretation{ai_sees, formatting_context, visual_quality, ai_confidence}, ocr_cross_reference{ocr_text, ocr_confidence, ai_ocr_agreement, discrepancy_type, discrepancy_notes}, spatial_information{page_number, bounding_box{x,y,width,height}, unique_marker, location_context, spatial_source}, quality_indicators{detection_confidence, classification_confidence, cross_validation_score, requires_manual_review}), document_coverage{total_content_processed, content_classified, coverage_percentage, unclassified_segments, visual_quality_score, list_extraction_metrics{total_list_items_found, total_entities_emitted, list_items_missed}}, cross_validation_results{ai_ocr_agreement_score, high_discrepancy_count, ocr_missed_entities, ai_missed_ocr_text, spatial_mapping_success_rate}, quality_assessment{completeness_score, classification_confidence, cross_validation_score, requires_manual_review, quality_flags}, profile_safety{patient_identity_confidence, age_appropriateness_score, safety_flags, requires_identity_verification}.
 
 Process this document using both visual analysis and OCR cross-validation. Return ONLY the JSON object, no additional text.
 `.trim();

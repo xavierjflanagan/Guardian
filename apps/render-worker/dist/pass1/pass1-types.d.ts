@@ -73,7 +73,7 @@ export interface EntityDetectionResult {
     ocr_cross_reference: {
         ocr_text: string | null;
         ocr_confidence: number | null;
-        ai_ocr_agreement: number;
+        ai_ocr_agreement: number | boolean;
         discrepancy_type: string | null;
         discrepancy_notes: string | null;
     };
@@ -188,7 +188,7 @@ export interface AIProcessingSessionRecord {
     shell_file_id: string;
     session_type: 'shell_file_processing' | 'entity_extraction';
     session_status: 'initiated' | 'processing' | 'completed' | 'failed';
-    ai_model_version: string;
+    ai_model_name: string;
     model_config: Record<string, any>;
     processing_mode: 'automated' | 'human_guided';
     workflow_step: 'entity_detection';

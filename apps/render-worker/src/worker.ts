@@ -720,6 +720,26 @@ class V3Worker {
     // Generate processing session ID (shared by Pass 0.5 and Pass 1)
     const processingSessionId = crypto.randomUUID();
 
+    // Create ai_processing_sessions record (required before Pass 0.5)
+    const { error: sessionError } = await this.supabase
+      .from('ai_processing_sessions')
+      .insert({
+        id: processingSessionId,
+        patient_id: payload.patient_id,
+        shell_file_id: payload.shell_file_id,
+        session_type: 'full_pipeline',
+        session_status: 'in_progress',
+        ai_model_name: 'gpt-4o-vision',
+        workflow_step: 'pass_0_5_encounter_discovery',
+        total_steps: 5,
+        completed_steps: 0,
+        processing_started_at: new Date().toISOString()
+      });
+
+    if (sessionError) {
+      throw new Error(`Failed to create processing session: ${sessionError.message}`);
+    }
+
     // Convert OCR result to Pass 0.5 input format
     const pass05Input: Pass05Input = {
       shellFileId: payload.shell_file_id,

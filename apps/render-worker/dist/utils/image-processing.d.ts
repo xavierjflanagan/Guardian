@@ -10,9 +10,10 @@
  * @param mime - MIME type of the image
  * @param maxWidth - Maximum width in pixels (default: 1600)
  * @param quality - Quality for lossy formats (default: 78)
+ * @param correlationId - Optional correlation ID for request tracing
  * @returns Processed image with dimensions and output MIME type
  */
-export declare function downscaleImageBase64(b64: string, mime: string, maxWidth?: number, quality?: number): Promise<{
+export declare function downscaleImageBase64(b64: string, mime: string, maxWidth?: number, quality?: number, correlationId?: string): Promise<{
     b64: string;
     width: number;
     height: number;

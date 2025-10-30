@@ -10,6 +10,8 @@
  * - Prepares records for batch insertion into entity_processing_audit
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.truncateTextField = truncateTextField;
+exports.normalizeEntityCategory = normalizeEntityCategory;
 exports.translateAIOutputToDatabase = translateAIOutputToDatabase;
 exports.batchEntityRecords = batchEntityRecords;
 exports.validateEntityRecord = validateEntityRecord;
@@ -17,6 +19,64 @@ exports.validateRecordBatch = validateRecordBatch;
 exports.generateRecordStatistics = generateRecordStatistics;
 exports.formatRecordSummary = formatRecordSummary;
 const pass1_schema_mapping_1 = require("./pass1-schema-mapping");
+// =============================================================================
+// TEXT FIELD TRUNCATION HELPER
+// =============================================================================
+/**
+ * Truncate text field to maximum length with ellipsis
+ *
+ * Phase 5 Optimization 2: Server-side truncation enforcement for defense in depth.
+ * The AI is instructed to keep these fields under 120 chars, but this provides
+ * a safety net in case AI behavior changes or different models are used.
+ *
+ * @param text - Text to truncate (can be null)
+ * @param maxLength - Maximum length (default 120)
+ * @returns Truncated text with ellipsis if needed, or null if input is null
+ */
+function truncateTextField(text, maxLength = 120) {
+    if (text === null || text === undefined) {
+        return null;
+    }
+    if (text.length <= maxLength) {
+        return text;
+    }
+    // Truncate and add ellipsis
+    return text.substring(0, maxLength - 3) + '...';
+}
+// =============================================================================
+// ENTITY CATEGORY NORMALIZATION
+// =============================================================================
+/**
+ * Normalize entity_category to match database constraint
+ *
+ * AI sometimes returns variations:
+ * - "CLINICAL_EVENTS" (uppercase, plural) → "clinical_event"
+ * - "clinical_events" (lowercase, plural) → "clinical_event"
+ * - "DOCUMENT_STRUCTURE" → "document_structure"
+ * - "HEALTHCARE_CONTEXT" → "healthcare_context"
+ *
+ * Database constraint expects: 'clinical_event', 'healthcare_context', 'document_structure'
+ *
+ * @param category - Raw category string from AI (may have wrong case or plural)
+ * @returns Normalized category matching database constraint
+ */
+function normalizeEntityCategory(category) {
+    // Convert to lowercase and remove any trailing 's' from plurals
+    const normalized = category.toLowerCase().replace(/s$/, '');
+    // Handle variations
+    if (normalized.includes('clinical')) {
+        return 'clinical_event';
+    }
+    if (normalized.includes('healthcare') || normalized.includes('context')) {
+        return 'healthcare_context';
+    }
+    if (normalized.includes('document') || normalized.includes('structure')) {
+        return 'document_structure';
+    }
+    // Fallback: try to match exactly (should not reach here if AI follows prompt)
+    console.warn(`[Pass1] Unknown entity_category "${category}", defaulting to document_structure`);
+    return 'document_structure';
+}
 // =============================================================================
 // MAIN TRANSLATION FUNCTION
 // =============================================================================
@@ -30,7 +90,7 @@ const pass1_schema_mapping_1 = require("./pass1-schema-mapping");
  * 4. Sets processing priority
  * 5. Initializes Pass 2 status
  *
- * @param aiResponse - The complete response from GPT-4o Vision
+ * @param aiResponse - The complete response from GPT5-mini
  * @param sessionMetadata - Processing session context
  * @returns Array of database-ready records for entity_processing_audit table
  */
@@ -51,11 +111,11 @@ function translateAIOutputToDatabase(aiResponse, sessionMetadata) {
             patient_id: sessionMetadata.patient_id,
             processing_session_id: sessionMetadata.processing_session_id,
             // =========================================================================
-            // ENTITY IDENTITY (Direct mappings from AI)
+            // ENTITY IDENTITY (Direct mappings from AI with normalization)
             // =========================================================================
             entity_id: entity.entity_id,
             original_text: entity.original_text,
-            entity_category: entity.classification.entity_category,
+            entity_category: normalizeEntityCategory(entity.classification.entity_category),
             entity_subtype: entity.classification.entity_subtype,
             // =========================================================================
             // SPATIAL AND CONTEXT INFORMATION (Direct mappings with safety guards)
@@ -67,7 +127,9 @@ function translateAIOutputToDatabase(aiResponse, sessionMetadata) {
             // =========================================================================
             // PASS 1 PROCESSING RESULTS (Computed + Direct with safety guards)
             // =========================================================================
-            pass1_confidence: entity.classification?.confidence || 0,
+            pass1_confidence: typeof entity.classification?.confidence === 'number'
+                ? entity.classification.confidence
+                : 0,
             requires_schemas: requiredSchemas,
             processing_priority: priority,
             // =========================================================================
@@ -83,35 +145,48 @@ function translateAIOutputToDatabase(aiResponse, sessionMetadata) {
             // REMOVED (Migration 17): pass1_image_tokens (deprecated, always 0)
             // REMOVED (Migration 17): pass1_cost_estimate (calculate on-demand from token breakdown)
             // =========================================================================
-            // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards)
+            // DUAL-INPUT PROCESSING METADATA (FLATTENED with safety guards + TRUNCATION)
             // =========================================================================
-            ai_visual_interpretation: entity.visual_interpretation?.ai_sees || '',
-            visual_formatting_context: entity.visual_interpretation?.formatting_context || '',
-            ai_visual_confidence: entity.visual_interpretation?.ai_confidence || 0,
-            visual_quality_assessment: entity.visual_interpretation?.visual_quality || '',
+            ai_visual_interpretation: truncateTextField(entity.visual_interpretation?.ai_sees || '', 120) || '[no visual interpretation]',
+            visual_formatting_context: truncateTextField(entity.visual_interpretation?.formatting_context || '', 120) || '[no formatting context]',
+            ai_visual_confidence: typeof entity.visual_interpretation?.ai_confidence === 'number'
+                ? entity.visual_interpretation.ai_confidence
+                : 0,
+            visual_quality_assessment: entity.visual_interpretation?.visual_quality || '[unknown]',
             // =========================================================================
-            // OCR CROSS-REFERENCE DATA (FLATTENED with safety guards)
+            // OCR CROSS-REFERENCE DATA (FLATTENED with safety guards + TRUNCATION)
             // =========================================================================
-            ocr_reference_text: entity.ocr_cross_reference?.ocr_text || null,
+            ocr_reference_text: truncateTextField(entity.ocr_cross_reference?.ocr_text || null, 120),
             ocr_confidence: entity.ocr_cross_reference?.ocr_confidence || null,
             ocr_provider: sessionMetadata.ocr_provider,
-            ai_ocr_agreement_score: entity.ocr_cross_reference?.ai_ocr_agreement || 0,
+            // FIX: AI returns boolean (true/false) but we need number (0.0-1.0)
+            // Convert: true -> 1.0, false -> 0.0, number -> use as-is, anything else -> 0
+            ai_ocr_agreement_score: (() => {
+                const val = entity.ocr_cross_reference?.ai_ocr_agreement;
+                if (typeof val === 'number')
+                    return val;
+                if (typeof val === 'boolean')
+                    return val ? 1.0 : 0.0;
+                return 0;
+            })(),
             spatial_mapping_source: entity.spatial_information?.spatial_source || 'none',
             // =========================================================================
-            // DISCREPANCY TRACKING (FLATTENED with safety guards)
+            // DISCREPANCY TRACKING (FLATTENED with safety guards + TRUNCATION)
             // =========================================================================
             discrepancy_type: entity.ocr_cross_reference?.discrepancy_type || null,
-            discrepancy_notes: entity.ocr_cross_reference?.discrepancy_notes || null,
+            discrepancy_notes: truncateTextField(entity.ocr_cross_reference?.discrepancy_notes || null, 120),
             // =========================================================================
             // QUALITY AND VALIDATION METADATA (FLATTENED with safety guards)
             // =========================================================================
             validation_flags: aiResponse.quality_assessment?.quality_flags || [],
-            cross_validation_score: entity.quality_indicators?.cross_validation_score || 0,
+            cross_validation_score: typeof entity.quality_indicators?.cross_validation_score === 'number'
+                ? entity.quality_indicators.cross_validation_score
+                : 0,
             manual_review_required: entity.quality_indicators?.requires_manual_review || false,
             // =========================================================================
             // PROFILE SAFETY AND COMPLIANCE (From document-level assessment)
             // =========================================================================
-            profile_verification_confidence: aiResponse.profile_safety.patient_identity_confidence,
+            profile_verification_confidence: aiResponse.profile_safety?.patient_identity_confidence ?? 0,
             compliance_flags: aiResponse.profile_safety?.safety_flags || [],
             // =========================================================================
             // TIMESTAMPS (Handled by database defaults)
