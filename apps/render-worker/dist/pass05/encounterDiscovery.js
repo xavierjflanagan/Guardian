@@ -1,7 +1,11 @@
 "use strict";
 /**
  * Task 1: Healthcare Encounter Discovery
- * Uses GPT-4o-mini (text-only, not vision)
+ *
+ * Strategy Selection (via PASS_05_STRATEGY env var):
+ * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
+ * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
+ * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
  */
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -10,23 +14,38 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.discoverEncounters = discoverEncounters;
 const openai_1 = __importDefault(require("openai"));
 const aiPrompts_1 = require("./aiPrompts");
+const aiPromptsOCR_1 = require("./aiPromptsOCR");
+// import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
 const manifestBuilder_1 = require("./manifestBuilder");
 const openai = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
 /**
  * Task 1: Extract healthcare encounters from OCR text
- * Uses GPT-4o-mini (text-only, not vision)
+ * Strategy selected via PASS_05_STRATEGY environment variable
  */
 async function discoverEncounters(input) {
     try {
+        // Read strategy from environment variable (defaults to 'ocr')
+        const strategy = (process.env.PASS_05_STRATEGY || 'ocr');
+        console.log(`[Pass 0.5] Using strategy: ${strategy}`);
+        // Vision strategy requires image loading infrastructure (not yet implemented)
+        if (strategy === 'vision') {
+            throw new Error('Vision strategy not yet implemented. ' +
+                'Requires image loading from Supabase Storage. ' +
+                'Use PASS_05_STRATEGY=ocr or ocr_optimized instead.');
+        }
+        // Select prompt builder based on strategy
+        const promptBuilder = strategy === 'ocr_optimized'
+            ? aiPromptsOCR_1.buildOCROptimizedPrompt
+            : aiPrompts_1.buildEncounterDiscoveryPrompt;
         // Build prompt with OCR text
-        const prompt = (0, aiPrompts_1.buildEncounterDiscoveryPrompt)({
+        const prompt = promptBuilder({
             fullText: input.ocrOutput.fullTextAnnotation.text,
             pageCount: input.pageCount,
             ocrPages: input.ocrOutput.fullTextAnnotation.pages
         });
-        // Call GPT-4o-mini (text analysis)
+        // Call GPT-5-mini (text analysis for both OCR strategies)
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: 'gpt-5-mini',
             messages: [
                 {
                     role: 'system',
@@ -53,7 +72,7 @@ async function discoverEncounters(input) {
         return {
             success: true,
             encounters: parsed.encounters,
-            aiModel: 'gpt-4o-mini',
+            aiModel: response.model, // Dynamic from OpenAI response
             aiCostUsd: cost,
             inputTokens,
             outputTokens
@@ -64,7 +83,7 @@ async function discoverEncounters(input) {
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            aiModel: 'gpt-4o-mini',
+            aiModel: 'unknown', // No response available on error
             aiCostUsd: 0,
             inputTokens: 0,
             outputTokens: 0
@@ -72,9 +91,9 @@ async function discoverEncounters(input) {
     }
 }
 function calculateCost(inputTokens, outputTokens) {
-    // GPT-4o-mini pricing (as of Oct 2024)
-    const INPUT_PRICE_PER_1M = 0.15; // $0.15 per 1M tokens
-    const OUTPUT_PRICE_PER_1M = 0.60; // $0.60 per 1M tokens
+    // GPT-5-mini pricing (as of Oct 2025)
+    const INPUT_PRICE_PER_1M = 0.25; // $0.25 per 1M tokens (verified)
+    const OUTPUT_PRICE_PER_1M = 2.00; // $2.00 per 1M tokens (verified)
     const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M;
     const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M;
     return inputCost + outputCost;

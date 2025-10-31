@@ -10,7 +10,7 @@ export interface PromptInput {
 }
 /**
  * Build prompt for encounter discovery (Task 1)
- * GPT-4o-mini text analysis
+ * GPT-5-mini text analysis
  */
 export declare function buildEncounterDiscoveryPrompt(input: PromptInput): string;
 //# sourceMappingURL=aiPrompts.d.ts.map

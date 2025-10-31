@@ -647,6 +647,28 @@ class V3Worker {
             ai_model: pass05Result.aiModel,
         });
         // =============================================================================
+        // TEMPORARY: PASS 1 DISABLED FOR PASS 0.5 BASELINE VALIDATION TESTING
+        // =============================================================================
+        // Date: October 31, 2025
+        // Purpose: Validate Pass 0.5 baseline prompt improvements without burning tokens on Pass 1
+        // Test Plan: shared/docs/.../test-03-ocr-vs-vision-strategy/BASELINE_VALIDATION_PLAN.md
+        // TODO: Remove this block after baseline validation complete
+        // =============================================================================
+        this.logger.info('Pass 1 DISABLED for testing - returning early after Pass 0.5', {
+            shell_file_id: payload.shell_file_id,
+            note: 'Temporary modification for baseline validation testing'
+        });
+        return {
+            success: true,
+            shell_file_id: payload.shell_file_id,
+            pass_05_only: true,
+            pass_05_result: pass05Result,
+            message: 'Pass 0.5 completed successfully. Pass 1 temporarily disabled for testing.'
+        };
+        // =============================================================================
+        // END TEMPORARY MODIFICATION
+        // =============================================================================
+        // =============================================================================
         // PASS 1: ENTITY DETECTION (existing code continues)
         // =============================================================================
         // Build Pass1Input from storage-based payload + OCR result

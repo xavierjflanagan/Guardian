@@ -70,6 +70,16 @@ function validateEncounterType(type) {
  */
 async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFileId) {
     const parsed = JSON.parse(aiResponse);
+    // CRITICAL: Validate page ranges have valid end values
+    for (const aiEnc of parsed.encounters) {
+        for (const range of aiEnc.pageRanges) {
+            if (range[1] === null || range[1] === undefined) {
+                console.warn(`[Pass 0.5] Invalid page range [${range[0]}, ${range[1]}] for encounter "${aiEnc.encounterType}". ` +
+                    `AI returned NULL end page. Correcting to [${range[0]}, ${range[0]}] for single-page encounter.`);
+                range[1] = range[0]; // Fix NULL by assuming single-page
+            }
+        }
+    }
     // CRITICAL: Validate non-overlapping page ranges (Phase 1 requirement)
     validateNonOverlappingPageRanges(parsed.encounters);
     const encounters = [];
@@ -137,7 +147,9 @@ function extractSpatialBounds(pageRanges, ocrOutput) {
     const bounds = [];
     for (const range of pageRanges) {
         const [startPage, endPage] = range;
-        for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+        // Handle NULL end page: treat as same page (defensive coding for Phase 1)
+        const actualEndPage = endPage ?? startPage;
+        for (let pageNum = startPage; pageNum <= actualEndPage; pageNum++) {
             const ocrPage = ocrOutput.fullTextAnnotation.pages[pageNum - 1];
             if (!ocrPage)
                 continue;
