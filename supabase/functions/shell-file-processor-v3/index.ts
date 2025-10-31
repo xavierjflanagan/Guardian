@@ -303,6 +303,8 @@ function validateUploadRequest(data: ShellFileUploadRequest): any {
     'image/jpeg',
     'image/png',
     'image/tiff',
+    'image/heic',  // iPhone HEIC format
+    'image/heif',  // HEIF format
     'text/plain',
   ];
   
