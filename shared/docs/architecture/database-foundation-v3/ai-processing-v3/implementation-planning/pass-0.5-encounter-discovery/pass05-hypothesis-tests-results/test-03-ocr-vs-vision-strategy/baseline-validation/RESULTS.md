@@ -11,10 +11,10 @@
 
 | Test # | Test Name | Status | Result | Issues Found |
 |--------|-----------|--------|--------|--------------|
+| 4 | Medication Photo (JPEG) | ✅ Complete | PASS | Format limitations: PDFs and HEIC not supported (OCR issue) |
 | 5 | Large File Batching (142 pages) | ⏳ Pending | - | - |
 | 1 | Multi-Document Upload (11 files) | ⏳ Pending | - | - |
 | 2 | Multi-Page Unified Document (15 pages) | ⏳ Pending | - | - |
-| 4 | Medication Photo | ⏳ Pending | - | - |
 | 3 | Real-World Visit Detection | ⏳ Pending | - | - |
 
 ---
@@ -168,9 +168,10 @@ TBD
 
 ## Test 4: Medication Photo (Antibiotic Box)
 
-**File:** Xavier's antibiotic box photo
-**Upload Date:** TBD
-**Shell File ID:** TBD
+**File:** photo_medication_box.jpeg
+**Upload Date:** October 31, 2025, 10:17 AM UTC
+**Shell File ID:** 75968dc3-e42e-42c8-8057-43fd153150d7
+**Job ID:** fb055eb8-c90c-4145-9a53-c440852c86f8
 
 ### Expected Outcome
 - 1 encounter: `pseudo_medication_list`
@@ -178,23 +179,55 @@ TBD
 - Appropriate confidence level
 
 ### Actual Outcome
-TBD
+- 1 encounter detected: `pseudo_medication_list` (CORRECT)
+- Confidence: 0.93 (high)
+- Processing time: 40.13 seconds
+- Cost: $0.0047
 
 ### Manifest Data
 ```json
-TBD
+{
+  "encounters": [
+    {
+      "encounterId": "3957b2eb-9239-4787-aae7-071ab2ac714f",
+      "encounterType": "pseudo_medication_list",
+      "confidence": 0.93,
+      "pageRanges": [[1, 1]],
+      "facility": "Sydney Hospital and Sydney Eye Hospital Pharmacy Department",
+      "provider": null,
+      "dateRange": null,
+      "extractedText": "4d UNTIL ALL USED TO BE TAKEN Do not take antacids or mineral supplements within two hours of each d",
+      "isRealWorldVisit": false
+    }
+  ],
+  "totalPages": 1,
+  "ocrAverageConfidence": 0.9557
+}
 ```
 
 ### AI Processing Session
 ```json
-TBD
+{
+  "aiModel": "gpt-5-mini-2025-08-07",
+  "success": true,
+  "aiCostUsd": 0.0047345,
+  "processingTimeMs": 35443
+}
 ```
 
 ### Analysis
-TBD
+PASS - All criteria met:
+- Correctly classified as `pseudo_medication_list` (not a real healthcare visit)
+- High confidence (0.93)
+- Extracted facility name from pharmacy label
+- OCR quality excellent (95.57%)
+- Processing time acceptable (40s)
+- Correctly identified as NOT a real-world visit (isRealWorldVisit: false)
+
+Note: Single medication photo correctly distinguished from actual encounter documentation.
 
 ### Result
-- [ ] PASS
+- [X] PASS
 - [ ] FAIL
 
 ---
