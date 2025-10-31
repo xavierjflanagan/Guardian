@@ -64,11 +64,11 @@ async function discoverEncounters(input) {
         // Model-specific parameters (same pattern as Pass 1)
         if (isGPT5) {
             // GPT-5: Uses max_completion_tokens, temperature fixed at 1.0
-            requestParams.max_completion_tokens = 8000; // Generous limit for encounter discovery
+            requestParams.max_completion_tokens = 32000; // Safe limit for GPT-5-mini (supports up to 128k)
         }
         else {
             // GPT-4o and earlier: Uses max_tokens and custom temperature
-            requestParams.max_tokens = 8000;
+            requestParams.max_tokens = 32000;
             requestParams.temperature = 0.1; // Low temperature for consistent extraction
         }
         // Call OpenAI API
