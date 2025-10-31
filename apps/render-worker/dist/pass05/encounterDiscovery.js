@@ -56,7 +56,7 @@ async function discoverEncounters(input) {
                     content: prompt
                 }
             ],
-            temperature: 0.1, // Low temperature for consistent extraction
+            // NOTE: GPT-5-mini only supports default temperature (1.0) - custom values not allowed
             response_format: { type: 'json_object' }
         });
         // Parse AI response
