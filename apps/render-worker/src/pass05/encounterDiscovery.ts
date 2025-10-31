@@ -122,8 +122,8 @@ export async function discoverEncounters(
 
 function calculateCost(inputTokens: number, outputTokens: number): number {
   // GPT-5-mini pricing (as of Oct 2025)
-  const INPUT_PRICE_PER_1M = 0.15;  // $0.15 per 1M tokens (verify current pricing)
-  const OUTPUT_PRICE_PER_1M = 0.60;  // $0.60 per 1M tokens (verify current pricing)
+  const INPUT_PRICE_PER_1M = 0.25;  // $0.25 per 1M tokens (verified)
+  const OUTPUT_PRICE_PER_1M = 2.00;  // $2.00 per 1M tokens (verified)
 
   const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M;
   const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M;

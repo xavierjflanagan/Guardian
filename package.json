@@ -35,15 +35,17 @@
     "pnpm": ">=9.0.0"
   },
   "devDependencies": {
+    "@kno2/ccdaview": "^1.0.13",
     "@turbo/gen": "^1.10.0",
     "husky": "^9.1.7",
+    "puppeteer": "^24.27.0",
     "tsx": "^3.14.0",
-    "turbo": "^1.10.0"
+    "turbo": "^1.10.0",
+    "xml2js": "^0.6.2"
   },
   "dependencies": {
     "@types/xml2js": "^0.4.14",
     "csv-parser": "^3.2.0",
-    "fs-extra": "^11.3.2",
-    "xml2js": "^0.6.2"
+    "fs-extra": "^11.3.2"
   }
 }
