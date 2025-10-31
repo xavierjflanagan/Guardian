@@ -12,9 +12,9 @@ import { Pass1EntityDetector, Pass1Input, Pass1Config, Pass1DatabaseRecords, AIP
 import { runPass05, Pass05Input } from './pass05';
 import { calculateSHA256 } from './utils/checksum';
 import { persistOCRArtifacts, loadOCRArtifacts } from './utils/ocr-persistence';
-import { downscaleImageBase64 } from './utils/image-processing';
-import { retryGoogleVision, retryStorageDownload, retryStorageUpload } from './utils/retry';
+import { retryGoogleVision, retryStorageDownload } from './utils/retry';
 import { createLogger, maskPatientId, Logger } from './utils/logger';
+import { preprocessForOCR, type PreprocessResult } from './utils/format-processor';
 
 // Load environment variables
 dotenv.config();
@@ -506,135 +506,110 @@ class V3Worker {
     // NEW: Check for existing OCR artifacts (reuse if available)
     let ocrResult = await loadOCRArtifacts(this.supabase, payload.shell_file_id, this.logger['correlation_id']);
 
-    // Phase 2: Track processed image state for analytics
-    let processed = { b64: fileBuffer.toString('base64'), width: 0, height: 0, outMime: payload.mime_type };
-
     if (ocrResult) {
       this.logger.info('Reusing existing OCR artifacts', {
         shell_file_id: payload.shell_file_id,
       });
     } else {
-      // Phase 2: Image downscaling before OCR
-      // Check for emergency bypass (future format conversion integration point)
-      const BYPASS_DOWNSCALING = process.env.BYPASS_IMAGE_DOWNSCALING === 'true';
-      const isImageOrPDF = /^(image\/|application\/pdf)/.test(payload.mime_type);
-
-      if (isImageOrPDF && !BYPASS_DOWNSCALING) {
-        this.logger.info('Phase 2: Processing image/PDF before OCR', {
-          shell_file_id: payload.shell_file_id,
-          mime_type: payload.mime_type,
-        });
-
-        try {
-          processed = await downscaleImageBase64(processed.b64, payload.mime_type, 1600, 78, this.logger['correlation_id']);
-
-          if (processed.width && processed.height) {
-            this.logger.info('Image downscaled', {
-              shell_file_id: payload.shell_file_id,
-              width: processed.width,
-              height: processed.height,
-              output_mime: processed.outMime,
-            });
-          } else {
-            this.logger.info('Image processed without dimensions', {
-              shell_file_id: payload.shell_file_id,
-              output_mime: processed.outMime,
-            });
-          }
-        } catch (error: any) {
-          // Handle unsupported formats gracefully
-          if (error.message.includes('not yet supported') || error.message.includes('planned for Phase')) {
-            this.logger.info('Unsupported format for downscaling', {
-              shell_file_id: payload.shell_file_id,
-              mime_type: payload.mime_type,
-              error_message: error.message,
-            });
-            // Continue with original file for now
-            processed = { b64: fileBuffer.toString('base64'), width: 0, height: 0, outMime: payload.mime_type };
-          } else {
-            throw error; // Re-throw unexpected errors
-          }
-        }
-      } else if (BYPASS_DOWNSCALING) {
-        this.logger.info('Image downscaling bypassed via BYPASS_IMAGE_DOWNSCALING flag', {
-          shell_file_id: payload.shell_file_id,
-        });
-      } else {
-        this.logger.debug('Non-image file, skipping downscaling', {
-          shell_file_id: payload.shell_file_id,
-          mime_type: payload.mime_type,
-        });
-      }
-
-      // NEW: Run OCR processing (moved from Edge Function)
-      this.logger.info('Running OCR processing', {
+      // PHASE 1: FORMAT PREPROCESSING (Extract pages from multi-page formats)
+      this.logger.info('Format preprocessing: Extracting pages', {
         shell_file_id: payload.shell_file_id,
-        output_mime: processed.outMime,
+        mime_type: payload.mime_type,
       });
-      const ocrSpatialData = await processWithGoogleVisionOCR(processed.b64, processed.outMime);
 
-      // Transform to expected OCR result format
-      // GUARDRAIL: Skip normalization if dimensions missing
-      if (processed.width === 0 || processed.height === 0) {
-        this.logger.warn('Missing processed image dimensions, skipping bbox normalization', {
+      const base64Data = fileBuffer.toString('base64');
+      let preprocessResult: PreprocessResult;
+
+      try {
+        preprocessResult = await preprocessForOCR(base64Data, payload.mime_type, {
+          maxWidth: 1600,
+          jpegQuality: 85,
+          correlationId: this.logger['correlation_id'],
+        });
+
+        this.logger.info('Format preprocessing complete', {
+          shell_file_id: payload.shell_file_id,
+          totalPages: preprocessResult.totalPages,
+          originalFormat: preprocessResult.originalFormat,
+          conversionApplied: preprocessResult.conversionApplied,
+          processingTimeMs: preprocessResult.processingTimeMs,
+        });
+      } catch (error: any) {
+        this.logger.error('Format preprocessing failed', error as Error, {
           shell_file_id: payload.shell_file_id,
         });
-        // Use raw OCR bounding boxes without normalization
-        ocrResult = {
-          pages: [{
-            page_number: 1,
-            size: { width_px: 0, height_px: 0 }, // Indicate no normalization
-            lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
-              text: item.text,
-              bbox: {
-                x: item.bounding_box.x,
-                y: item.bounding_box.y,
-                w: item.bounding_box.width,
-                h: item.bounding_box.height
-              },
-              bbox_norm: null, // Skip normalization
-              confidence: item.confidence,
-              reading_order: idx
-            })),
-            tables: [],
-            provider: ocrSpatialData.ocr_provider,
-            processing_time_ms: ocrSpatialData.processing_time_ms
-          }]
-        };
-      } else {
-        // Normal normalization with actual dimensions
-        const pageWidth = processed.width;
-        const pageHeight = processed.height;
-        
-        ocrResult = {
-          pages: [{
-            page_number: 1,
-            size: { width_px: pageWidth, height_px: pageHeight },
-            lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
-              text: item.text,
-              bbox: {
-                x: item.bounding_box.x,
-                y: item.bounding_box.y,
-                w: item.bounding_box.width,
-                h: item.bounding_box.height
-              },
-              bbox_norm: {
-                x: item.bounding_box.x / pageWidth,
-                y: item.bounding_box.y / pageHeight,
-                w: item.bounding_box.width / pageWidth,
-                h: item.bounding_box.height / pageHeight
-              },
-              confidence: item.confidence,
-              reading_order: idx
-            })),
-            tables: [],
-            provider: ocrSpatialData.ocr_provider,
-            processing_time_ms: ocrSpatialData.processing_time_ms
-          }]
-        };
+        throw error;
       }
 
-      // NEW: Persist OCR artifacts for future reuse
+      // PHASE 2: OCR EACH PAGE
+      this.logger.info('Running OCR on extracted pages', {
+        shell_file_id: payload.shell_file_id,
+        pageCount: preprocessResult.pages.length,
+      });
+
+      const ocrPages: any[] = [];
+
+      for (const page of preprocessResult.pages) {
+        this.logger.info(`Processing page ${page.pageNumber}/${preprocessResult.totalPages}`, {
+          shell_file_id: payload.shell_file_id,
+          pageNumber: page.pageNumber,
+          width: page.width,
+          height: page.height,
+        });
+
+        // Run OCR on this page
+        const ocrSpatialData = await processWithGoogleVisionOCR(page.base64, page.mime);
+
+        // Transform to OCR page format
+        const ocrPage = {
+          page_number: page.pageNumber,
+          size: { width_px: page.width || 0, height_px: page.height || 0 },
+          lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
+            text: item.text,
+            bbox: {
+              x: item.bounding_box.x,
+              y: item.bounding_box.y,
+              w: item.bounding_box.width,
+              h: item.bounding_box.height,
+            },
+            bbox_norm:
+              page.width && page.height
+                ? {
+                    x: item.bounding_box.x / page.width,
+                    y: item.bounding_box.y / page.height,
+                    w: item.bounding_box.width / page.width,
+                    h: item.bounding_box.height / page.height,
+                  }
+                : null,
+            confidence: item.confidence,
+            reading_order: idx,
+          })),
+          tables: [],
+          provider: ocrSpatialData.ocr_provider,
+          processing_time_ms: ocrSpatialData.processing_time_ms,
+        };
+
+        ocrPages.push(ocrPage);
+
+        this.logger.info(`Page ${page.pageNumber} OCR complete`, {
+          shell_file_id: payload.shell_file_id,
+          pageNumber: page.pageNumber,
+          textLength: ocrSpatialData.extracted_text.length,
+          confidence: ocrSpatialData.ocr_confidence,
+        });
+      }
+
+      // Build final multi-page OCR result
+      ocrResult = {
+        pages: ocrPages,
+      };
+
+      this.logger.info('All pages OCR complete', {
+        shell_file_id: payload.shell_file_id,
+        totalPages: ocrPages.length,
+      });
+
+      // Persist OCR artifacts for future reuse
       await persistOCRArtifacts(
         this.supabase,
         payload.shell_file_id,
@@ -643,67 +618,6 @@ class V3Worker {
         fileChecksum,
         this.logger['correlation_id']
       );
-      
-      // IDEMPOTENCY: Store processed image with checksum caching
-      if (isImageOrPDF && processed.width && processed.height) {
-        const processedBuf = Buffer.from(processed.b64, 'base64');
-        const processedChecksum = await calculateSHA256(processedBuf);
-        
-        // Check if already processed (avoid redundant uploads)
-        const { data: sf } = await this.supabase
-          .from('shell_files')
-          .select('processed_image_checksum')
-          .eq('id', payload.shell_file_id)
-          .single();
-        
-        if (sf?.processed_image_checksum !== processedChecksum) {
-          // STORAGE HYGIENE: Deterministic path with sanitized segments
-          const sanitizedPatientId = payload.patient_id.replace(/[^a-zA-Z0-9-_]/g, '');
-          const sanitizedFileId = payload.shell_file_id.replace(/[^a-zA-Z0-9-_]/g, '');
-          
-          // Deterministic extension based on outMime
-          const ext = processed.outMime === 'image/png' ? '.png' : 
-                       processed.outMime === 'image/webp' ? '.webp' : 
-                       processed.outMime === 'image/tiff' ? '.tiff' : '.jpg';
-          const processedPath = `${sanitizedPatientId}/${sanitizedFileId}-processed${ext}`;
-
-          const uploadResult = await retryStorageUpload(async () => {
-            return await this.supabase.storage
-              .from('medical-docs')
-              .upload(processedPath, processedBuf, {
-                contentType: processed.outMime,
-                upsert: true  // Overwrite if exists
-              });
-          });
-
-          if (uploadResult.error) {
-            const error: any = new Error(`Failed to upload processed image: ${uploadResult.error.message}`);
-            error.status = 500;
-            throw error;
-          }
-          
-          // Update metadata
-          await this.supabase
-            .from('shell_files')
-            .update({
-              processed_image_path: processedPath,
-              processed_image_checksum: processedChecksum,
-              processed_image_mime: processed.outMime
-            })
-            .eq('id', payload.shell_file_id);
-
-
-          this.logger.info('Stored processed image', {
-            shell_file_id: payload.shell_file_id,
-            processed_path: processedPath,
-            output_mime: processed.outMime,
-          });
-        } else {
-          this.logger.debug('Processed image unchanged (checksum match), skipping upload', {
-            shell_file_id: payload.shell_file_id,
-          });
-        }
-      }
     }
 
     // =============================================================================
@@ -813,17 +727,15 @@ class V3Worker {
     // =============================================================================
 
     // Build Pass1Input from storage-based payload + OCR result
-    // Phase 2: Use processed file size for accurate analytics when downscaled
-    const processedBuffer = processed?.b64 ? Buffer.from(processed.b64, 'base64') : fileBuffer;
     const pass1Input: Pass1Input = {
       shell_file_id: payload.shell_file_id,
       patient_id: payload.patient_id,
       processing_session_id: processingSessionId,  // Reuse Pass 0.5 session ID
       raw_file: {
-        file_data: processed?.b64 ?? fileBuffer.toString('base64'),
-        file_type: processed?.outMime ?? payload.mime_type,
+        file_data: fileBuffer.toString('base64'),
+        file_type: payload.mime_type,
         filename: payload.uploaded_filename,
-        file_size: processedBuffer.length  // Use actual processed buffer size
+        file_size: fileBuffer.length
       },
       ocr_spatial_data: {
         extracted_text: ocrResult.pages.map((p: any) => p.lines.map((l: any) => l.text).join(' ')).join(' '),
