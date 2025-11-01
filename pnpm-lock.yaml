@@ -87,6 +87,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.38.0
         version: 2.54.0
+      '@types/heic-convert':
+        specifier: ^2.1.0
+        version: 2.1.0
       dotenv:
         specifier: ^16.3.1
         version: 16.6.1
@@ -109,9 +112,6 @@ importers:
       '@types/express':
         specifier: ^4.17.19
         version: 4.17.23
-      '@types/heic-convert':
-        specifier: ^2.1.0
-        version: 2.1.0
       '@types/jest':
         specifier: ^29.5.5
         version: 29.5.14
