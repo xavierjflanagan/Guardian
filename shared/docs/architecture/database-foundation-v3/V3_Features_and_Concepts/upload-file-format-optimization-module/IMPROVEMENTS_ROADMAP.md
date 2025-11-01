@@ -12,6 +12,7 @@ This document captures recommended improvements to the Format Processor Module b
 1. **GPT-5 Mini blind review** (context-aware, Oct 2025 knowledge)
 2. **Opus 4.1 blind review** (blinded, no context, fresh perspective)
 3. **Implementation learnings** from Phase 1-3 deployment
+4. **User insights** (click-to-source requirements, BBOX necessity)
 
 Each recommendation is evaluated with:
 - **Priority:** CRITICAL / HIGH / MEDIUM / LOW / REJECTED
@@ -19,9 +20,132 @@ Each recommendation is evaluated with:
 - **Impact:** Business value
 - **Decision:** Accept / Reject with justification
 
+## Summary
+
+**Total Improvements Evaluated:** 12
+- **CRITICAL (3):** Store processed images, EXIF rotation, HEIC dimensions
+- **MEDIUM (3):** Per-page cost tracking, min resolution gate, configurable DPI
+- **REJECTED (6):** PNG format, PDF text bypass, GCS migration, store derived images, auto-tune quality, Opus 4.1 PNG recommendation
+
 ---
 
 ## Critical Fixes (Priority 0 - Immediate)
+
+### 0. Store Processed JPEG Pages (PRODUCTION BLOCKER)
+
+**Source:** User insight + Opus 4.1 validation
+**Priority:** CRITICAL - BLOCKS CLICK-TO-SOURCE FEATURE
+**Effort:** 2 hours
+**Impact:** Enables core feature (click-to-source with BBOX highlighting)
+
+**Problem:**
+- Current: Only store originals + OCR JSON (with BBOX coordinates)
+- BBOX coordinates reference processed JPEG pages that don't exist
+- Click-to-source feature IMPOSSIBLE without reference images
+- Can't retroactively convert BBOX from processed dimensions to original
+
+**Current Flow (BROKEN):**
+```
+1. Original → Supabase Storage ✓
+2. Format processor → JPEG pages (memory only)
+3. JPEG → Google Vision OCR
+4. BBOX coordinates returned (reference non-existent JPEGs) ✗
+5. JPEG pages DISCARDED ✗
+6. Click-to-source: Can't show BBOX (no image!) ✗
+```
+
+**Required Flow (FIXED):**
+```
+1. Original → Supabase Storage (originals/)
+2. Format processor → JPEG pages (memory)
+3. Store JPEG pages → Supabase Storage (processed/) ✓ NEW!
+4. JPEG → Google Vision OCR
+5. BBOX coordinates (reference stored JPEGs) ✓
+6. Click-to-source: Load JPEG + overlay BBOX ✓
+```
+
+**Implementation:**
+
+Update format processor to return storage metadata:
+```typescript
+interface ProcessedPage {
+  pageNumber: number;
+  base64: string;           // For OCR input
+  storagePath?: string;     // NEW: Where this page is stored
+  mime: string;
+  width: number;
+  height: number;
+  originalFormat: string;
+}
+```
+
+Update worker to store pages before OCR:
+```typescript
+async function processDocument(preprocessResult, shellFileId, patientId) {
+  const storagePaths = [];
+
+  // NEW: Store each processed page
+  for (const page of preprocessResult.pages) {
+    const path = `${patientId}/${shellFileId}/processed/page-${page.pageNumber}.jpg`;
+
+    await supabase.storage
+      .from('medical-docs')
+      .upload(path, Buffer.from(page.base64, 'base64'), {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
+
+    storagePaths.push(path);
+  }
+
+  // Send to OCR
+  const ocrResult = await googleVisionOCR(preprocessResult.pages);
+
+  // Store OCR with page references
+  await persistOCRArtifacts(supabase, shellFileId, {
+    ...ocrResult,
+    processed_image_paths: storagePaths, // NEW!
+  });
+}
+```
+
+**Storage Costs (JUSTIFIED):**
+```
+8-page PDF:
+- Original: 80 KB
+- Processed JPEGs: 8 × 200 KB = 1.6 MB
+- Total: 1.68 MB
+
+100-page PDF:
+- Original: 5 MB
+- Processed JPEGs: 100 × 200 KB = 20 MB
+- Total: 25 MB
+
+Monthly (1000 docs, avg 10 pages):
+- Storage: ~2 GB
+- Cost: $0.042/month (~4 cents)
+
+This is NOT expensive - this is ESSENTIAL for click-to-source!
+```
+
+**Why You Can't Convert BBOX Back to Original:**
+```
+Original HEIC: 4000×3000 (portrait, EXIF rotated)
+Processed JPEG: 1600×1200 (auto-rotated, downscaled)
+BBOX on JPEG: {x: 800, y: 400, width: 200, height: 50}
+
+To convert back requires:
+1. Reverse rotation (which angle? EXIF may be stripped)
+2. Reverse downscaling (2.5x factor)
+3. Account for cropping/padding
+4. Hope aspect ratio didn't change
+
+= IMPOSSIBLE to do accurately
+```
+
+**Decision:** ✅ ACCEPT - CRITICAL for click-to-source feature
+
+---
 
 ### 1. Add EXIF Auto-Rotation
 
@@ -102,64 +226,58 @@ return {
 
 ## High-Value Enhancements (Phase 2.1 - Next Session)
 
-### 3. PDF Text Layer Bypass
+### 3. PDF Text Layer Bypass (REJECTED - BREAKS BBOX)
 
 **Source:** GPT-5 (cost optimization)
-**Priority:** HIGH
-**Effort:** 1-2 hours
-**Impact:** 50%+ cost savings on electronic PDFs
+**Priority:** REJECTED BY USER
+**Effort:** N/A
+**Impact:** Would break click-to-source feature
 
-**Problem:**
-- Many medical PDFs have extractable text layers (EMR exports, electronic reports)
-- Currently rendering all PDFs to images → expensive OCR
-- Text extraction is free, instant, and perfect accuracy
+**Original Suggestion:**
+- Many medical PDFs have extractable text layers (EMR exports)
+- Extract text directly instead of rendering → save OCR costs
+- Cost: $0.006/page OCR → $0/page text extraction
+- Speed: 5.5s/page → 0.1s/page (55x faster)
 
-**Solution:**
-```typescript
-// Before rendering, check for text layer
-async function extractPdfPages(base64Pdf, ...args) {
-  const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+**Why REJECTED (User Insight):**
+```
+Text extraction provides text but NO BBOX spatial coordinates!
 
-  // NEW: Try text extraction first
-  const textPages = await tryExtractTextLayer(pdfBuffer);
+Click-to-source feature requires:
+1. Extract text ✓ (text extraction can do this)
+2. Get BBOX coordinates ✗ (text extraction CAN'T do this)
+3. Store reference image ✗ (no image if we skip OCR)
+4. Highlight source in UI ✗ (impossible without BBOX + image)
 
-  if (textPages && textPages.length > 0) {
-    // Has text layer - use direct extraction (fast, free)
-    console.log('[PDF Processor] Using text layer extraction');
-    return textPages.map((text, i) => ({
-      pageNumber: i + 1,
-      extractedText: text,
-      base64: null, // No image needed
-      isTextExtraction: true,
-    }));
-  }
-
-  // No text layer or corrupted - fall back to image rendering
-  console.log('[PDF Processor] Falling back to image rendering');
-  // ... existing Poppler rendering logic
-}
+Without BBOX, click-to-source is broken!
 ```
 
-**Implementation:**
-- Use `pdf-parse` or `pdftotext` for text extraction
-- Detect text layer presence before rendering
-- Fall back to image rendering if no text or corrupted
-- Track metrics: text_extracted vs image_rendered
+**Why This Matters:**
+- Exora's core value: Clinical entity traceability
+- Users must click through to SOURCE document
+- See EXACT location where data was extracted
+- Regulatory compliance (audit trail)
 
-**Impact Analysis:**
-- **Hospital discharge summaries:** Electronic → text extraction (90% of files)
-- **Scanned documents:** No text layer → image rendering (10% of files)
-- **Cost savings:** $0.006/page OCR → $0 text extraction (100% savings)
-- **Processing time:** 5.5s/page → 0.1s/page (55x faster)
-- **Quality:** OCR 96% accuracy → text extraction 100% accuracy
+**Alternative Considered:**
+Could we extract BOTH text AND render images for BBOX?
+- Problem: Wastes rendering cost if we already have text
+- Reality: Must render anyway for BBOX capture
+- Conclusion: Just use OCR for everything (gets both text + BBOX)
 
-**Risk:**
-- Some PDFs have corrupted text layers (garbage text)
-- Mitigation: Quality check extracted text, fall back if nonsensical
+**Correct Approach:**
+```
+All PDFs → Render to images → Google Vision OCR
+  ↓
+Outputs:
+  - Extracted text ✓
+  - BBOX coordinates ✓
+  - Confidence scores ✓
+  - Reference images ✓ (if we store them - see improvement #0!)
 
-**ROI:** VERY HIGH - Common use case, huge cost/speed/quality wins
+This provides EVERYTHING needed for click-to-source!
+```
 
-**Decision:** ✅ ACCEPT - Implement in Phase 2.1
+**Decision:** ❌ REJECT - OCR is mandatory for BBOX capture
 
 ---
 
@@ -495,17 +613,17 @@ While the PNG recommendation is rejected, Opus 4.1 raised valuable architectural
 
 ## Implementation Phases
 
-### Phase 2.1 (Next Session - 3 hours)
+### Phase 2.1 (Next Session - 4.5 hours)
 
-**Critical Fixes:**
+**CRITICAL Fixes:**
+0. Store processed JPEG pages (2 hours) - BLOCKS CLICK-TO-SOURCE
 1. Add EXIF auto-rotation (15 min)
 2. Extract HEIC dimensions (10 min)
 
-**High-Value Features:**
-3. PDF text layer bypass (2 hours)
+**HIGH-VALUE Features:**
 4. Add pageErrors[] field (1 hour)
 
-**Total:** 3.5 hours
+**Total:** ~4 hours
 
 ### Phase 2.2 (Future Session - 2 hours)
 
@@ -526,9 +644,9 @@ While the PNG recommendation is rejected, Opus 4.1 raised valuable architectural
 ## Success Metrics
 
 ### Phase 2.1 Success Criteria:
+- ✅ Processed JPEG pages stored in Supabase (click-to-source enabled)
 - ✅ Rotated iPhone photos auto-correct orientation
 - ✅ HEIC files return real dimensions
-- ✅ Electronic PDFs use text extraction (50%+ cost savings)
 - ✅ 100-page PDFs with 1 bad page process 99 pages successfully
 
 ### Phase 2.2 Success Criteria:
