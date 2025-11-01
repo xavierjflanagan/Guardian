@@ -49,3 +49,22 @@ yarn-error.log*
 next-env.d.ts
 .vercel
 
+# ----------------------------------------
+# Build artifacts (worker dist files)
+dist/
+*.map
+
+# ----------------------------------------
+# Supabase temporary files
+.temp/
+*/.temp/
+
+# ----------------------------------------
+# Sample/test medical records (too large for git)
+sample-medical-records/
+
+# ----------------------------------------
+# Session exports and planning docs (should be in docs/)
+*-this-session-*.txt
+session-*.txt
+
