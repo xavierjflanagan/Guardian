@@ -60,6 +60,13 @@ dist/
 */.temp/
 
 # ----------------------------------------
+# Medical code data files (large raw/processed datasets)
+# Keep: Documentation markdown files
+# Exclude: Raw data downloads and processed JSON files
+data/medical-codes/*/raw/
+data/medical-codes/*/processed/
+
+# ----------------------------------------
 # Sample/test medical records (too large for git)
 sample-medical-records/
 

@@ -1348,7 +1348,7 @@ CREATE TABLE IF NOT EXISTS universal_medical_codes (
     embedding VECTOR(1536),
 
     -- Classification and search optimization
-    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy')),
+    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy', 'lab_result', 'vital_sign', 'physical_finding')),
     search_text TEXT NOT NULL,
     synonyms TEXT[] DEFAULT ARRAY[]::TEXT[],
 
@@ -1394,11 +1394,17 @@ CREATE TABLE IF NOT EXISTS regional_medical_codes (
 
     -- Regional context
     country_code CHAR(3) NOT NULL, -- ISO 3166-1 alpha-3
-    region_specific_data JSONB DEFAULT '{}',
+
+    -- Code system-specific columns (flat structure for performance and type safety)
+    -- Note: Replaces region_specific_data JSONB to avoid performance overhead
+    synonyms TEXT[] DEFAULT ARRAY[]::TEXT[],
     authority_required BOOLEAN DEFAULT FALSE,
+    pbs_authority_required BOOLEAN DEFAULT FALSE,  -- PBS-specific
+    mbs_complexity_level TEXT,                     -- MBS-specific
+    tga_approved BOOLEAN DEFAULT FALSE,            -- TGA-specific
 
     -- Classification and search optimization
-    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy')),
+    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('medication', 'condition', 'procedure', 'observation', 'allergy', 'lab_result', 'vital_sign', 'physical_finding')),
     search_text TEXT NOT NULL,
 
     -- Versioning (Migration 26 - 2025-10-15)

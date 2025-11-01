@@ -36,12 +36,12 @@ Step 1: DATA ACQUISITION (User Action)
     ├─> See: DATA-ACQUISITION-GUIDE.md
     └─> Output: Raw files in data/medical-codes/<system>/raw/
 
-Step 2: PARSING (PBS Complete, Others Pending)
+Step 2: PARSING (PBS & LOINC Complete)
 ├── Parse RxNorm RRF files → JSON (pending UMLS approval)
 ├── Parse SNOMED-CT RF2 files → JSON (pending UMLS approval)
-├── Parse LOINC CSV → JSON (pending UMLS approval)
-├── Parse PBS CSV → JSON (✅ READY TO RUN)
-├── Parse MBS CSV → JSON (pending implementation)
+├── Parse LOINC CSV → JSON (✅ COMPLETE - 102,891 codes)
+├── Parse PBS CSV → JSON (✅ COMPLETE - ran successfully)
+├── Parse MBS CSV → JSON (❌ DELETED - billing codes not useful)
 └── Parse ICD-10-AM CSV → JSON (optional)
     │
     ├─> See: PARSING-STRATEGY.md
@@ -84,11 +84,11 @@ Step 4: DATABASE POPULATION (Script Ready)
 2. **populate-database.ts** - TypeScript script for database population
 
 ### Parser Implementation Status
-- **parse-pbs.ts** - ✅ PBS CSV parser (READY TO RUN)
+- **parse-pbs.ts** - ✅ PBS CSV parser (COMPLETE - ran successfully)
+- **parse-loinc.ts** - ✅ LOINC CSV parser (COMPLETE - 102,891 codes parsed)
 - **parse-rxnorm.ts** - ⏳ RxNorm RRF parser (pending UMLS approval)
 - **parse-snomed.ts** - ⏳ SNOMED-CT RF2 parser (pending UMLS approval)
-- **parse-loinc.ts** - ⏳ LOINC CSV parser (pending UMLS approval)
-- **parse-mbs.ts** - ⏸️ MBS CSV parser (pending implementation)
+- **parse-mbs.ts** - ⏸️ MBS CSV parser (deleted - billing codes not clinically useful)
 - **parse-icd10am.ts** - ⏸️ ICD-10-AM CSV parser (optional)
 
 ---
@@ -180,7 +180,7 @@ data/medical-codes/
 ├── snomed/processed/
 │   └── snomed_codes.json         # ~10 MB, 100,000 records
 ├── loinc/processed/
-│   └── loinc_codes.json          # ~5 MB, 50,000 records
+│   └── loinc_codes.json          # ✅ 143 MB, 102,891 records
 ├── pbs/processed/
 │   └── pbs_codes.json            # ~300 KB, 3,000 records
 ├── mbs/processed/
@@ -290,24 +290,26 @@ SELECT code_system, country_code, COUNT(*) FROM regional_medical_codes GROUP BY 
 - [X] Database population guide written
 - [X] Directory structure created (all 6 code systems)
 - [X] PBS data downloaded and organized (32 CSV files, primary: items.csv 7.6 MB)
-- [X] MBS data downloaded and saved (MBS-XML-20251101.XML, 7.8 MB)
+- [X] MBS data downloaded and saved (MBS-XML-20251101.XML, 7.8 MB) - then deleted (billing codes not useful)
 - [X] UMLS account registration submitted
+- [X] LOINC data downloaded (Loinc_2.81 - 108,248 total codes)
+- [X] LOINC parser implemented and run (102,891 codes parsed, 5,357 panels excluded)
+- [X] PBS parser implemented and run successfully
+- [X] MBS codes deleted from database (6,001 codes removed - billing codes not clinically useful)
 
 ### In Progress ⏳
 - [⏳] UMLS account approval (1-2 business days expected)
-- [ ] User will download RxNorm, SNOMED, LOINC after UMLS approval
-- [⏳] PBS parser implementation (✅ COMPLETE - ready to run)
-- [ ] MBS parser implementation
+- [ ] User will download RxNorm, SNOMED after UMLS approval
 
 ### Not Started ⏸️
-- [ ] RxNorm, SNOMED, LOINC parser implementation (pending UMLS approval)
-- [ ] Embedding generation execution (requires parsed data)
-- [ ] Database population execution (requires embedded data)  
+- [ ] RxNorm, SNOMED parser implementation (pending UMLS approval)
+- [ ] Embedding generation execution (ready for PBS + LOINC)
+- [ ] Database population execution (ready for PBS + LOINC with embeddings)
 - [ ] Vector search testing and validation
 
 ### Ready to Start
-- **PBS parser** - Data available in `data/medical-codes/pbs/raw/2025-10-01-PBS-API-CSV-files/tables_as_csv/`
-- **MBS parser** - Data available in `data/medical-codes/mbs/raw/MBS-XML-20251101.XML`
+- **Embedding generation** - PBS and LOINC JSON files ready (~106K codes)
+- **Database population** - After embeddings generated
 
 ---
 
@@ -387,6 +389,7 @@ SELECT code_system, country_code, COUNT(*) FROM regional_medical_codes GROUP BY 
 
 ---
 
-**Last Updated:** 2025-10-16
-**Status:** Phase 2 active - PBS parser ready, library-agnostic approach implemented
-**Next Milestone:** Run PBS parser, implement MBS parser, complete data acquisition
+**Last Updated:** 2025-10-31
+**Status:** Phase 2 major progress - LOINC and PBS parsers complete (102,891 + PBS codes ready)
+**Next Milestone:** Generate embeddings for PBS + LOINC, then populate database
+**Critical Decision:** Entity type expansion strategy implemented (vital_sign searches include observations via hybrid search)
