@@ -19,6 +19,7 @@ import type { ProcessedPage, PreprocessResult, FormatProcessorConfig } from './t
 import { extractTiffPages } from './tiff-processor';
 import { extractPdfPages } from './pdf-processor';
 import convert from 'heic-convert';
+import sharp from 'sharp';
 
 /**
  * Preprocess a file for OCR
@@ -60,6 +61,7 @@ export async function preprocessForOCR(
     return {
       pages,
       totalPages: pages.length,
+      successfulPages: pages.filter(p => p.base64).length,
       processingTimeMs: Date.now() - startTime,
       originalFormat: mimeType,
       conversionApplied: true,
@@ -78,6 +80,7 @@ export async function preprocessForOCR(
     return {
       pages,
       totalPages: pages.length,
+      successfulPages: pages.filter(p => p.base64).length,
       processingTimeMs: Date.now() - startTime,
       originalFormat: mimeType,
       conversionApplied: true,
@@ -108,12 +111,16 @@ export async function preprocessForOCR(
       // Wrap ArrayBuffer in Node.js Buffer for convenience methods
       const jpegBuffer = Buffer.from(jpegArrayBuffer);
 
+      // Extract dimensions from converted JPEG using Sharp
+      const jpegMeta = await sharp(jpegBuffer).metadata();
+
       const heicProcessingTime = Date.now() - heicStartTime;
 
       console.log('[Format Processor] HEIC conversion complete', {
         correlationId,
         inputSizeBytes: heicBuffer.length,
         outputSizeBytes: jpegBuffer.length,
+        dimensions: `${jpegMeta.width}x${jpegMeta.height}`,
         processingTimeMs: heicProcessingTime,
       });
 
@@ -124,12 +131,13 @@ export async function preprocessForOCR(
             pageNumber: 1,
             base64: jpegBuffer.toString('base64'),
             mime: 'image/jpeg',
-            width: 0, // Unknown (heic-convert doesn't provide dimensions)
-            height: 0, // Unknown
+            width: jpegMeta.width || 0,   // Real dimensions from metadata
+            height: jpegMeta.height || 0, // Real dimensions from metadata
             originalFormat: mimeType,
           },
         ],
         totalPages: 1,
+        successfulPages: 1,
         processingTimeMs: Date.now() - startTime,
         originalFormat: mimeType,
         conversionApplied: true,
@@ -153,29 +161,61 @@ export async function preprocessForOCR(
     mimeType === 'image/bmp' ||
     mimeType === 'image/webp'
   ) {
-    console.log('[Format Processor] Pass-through (no conversion needed)', {
+    console.log('[Format Processor] Processing single-page image', {
       correlationId,
       mimeType,
-      processingTimeMs: Date.now() - startTime,
     });
 
-    // Return as-is (single page, no conversion)
-    return {
-      pages: [
-        {
-          pageNumber: 1,
-          base64: base64Data,
-          mime: 'image/jpeg', // Note: We claim JPEG even if it's PNG/etc for simplicity
-          width: 0, // Unknown (not extracted)
-          height: 0, // Unknown (not extracted)
-          originalFormat: mimeType,
-        },
-      ],
-      totalPages: 1,
-      processingTimeMs: Date.now() - startTime,
-      originalFormat: mimeType,
-      conversionApplied: false,
-    };
+    try {
+      // Decode base64 to buffer
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Process through Sharp for EXIF auto-rotation, optimization, and dimension extraction
+      const pipeline = sharp(buffer)
+        .rotate() // Auto-rotate using EXIF orientation (critical for iPhone photos)
+        .resize(config?.maxWidth || 1600, null, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: config?.jpegQuality || 85 });
+
+      const optimizedBuffer = await pipeline.toBuffer();
+      const metadata = await sharp(optimizedBuffer).metadata();
+
+      console.log('[Format Processor] Image processing complete', {
+        correlationId,
+        inputSizeBytes: buffer.length,
+        outputSizeBytes: optimizedBuffer.length,
+        dimensions: `${metadata.width}x${metadata.height}`,
+        processingTimeMs: Date.now() - startTime,
+      });
+
+      // Return processed JPEG with metadata
+      return {
+        pages: [
+          {
+            pageNumber: 1,
+            base64: optimizedBuffer.toString('base64'),
+            mime: 'image/jpeg',
+            width: metadata.width || 0,
+            height: metadata.height || 0,
+            originalFormat: mimeType,
+          },
+        ],
+        totalPages: 1,
+        successfulPages: 1,
+        processingTimeMs: Date.now() - startTime,
+        originalFormat: mimeType,
+        conversionApplied: mimeType !== 'image/jpeg' && mimeType !== 'image/jpg',
+      };
+    } catch (error) {
+      console.error('[Format Processor] Image processing failed', {
+        correlationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new Error(`Image processing failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   // Unsupported format

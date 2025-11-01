@@ -77,8 +77,9 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
             sessionId,
             pageCount: pageFiles.length,
         });
-        // Step 4: Process each extracted page
+        // Step 4: Process each extracted page (with per-page error handling)
         const pages = [];
+        const pageErrors = [];
         for (let i = 0; i < pageFiles.length; i++) {
             const pageFile = pageFiles[i];
             const pagePath = (0, path_1.join)(tempDir, pageFile);
@@ -91,56 +92,100 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
                 pageNumber,
                 filename: pageFile,
             });
-            // Read the extracted JPEG
-            const pageBuffer = await fs_1.promises.readFile(pagePath);
-            // Load with Sharp for potential downscaling
-            const pageImage = (0, sharp_1.default)(pageBuffer);
-            const pageMeta = await pageImage.metadata();
-            // Build processing pipeline
-            let pipeline = pageImage;
-            // Optional: Downscale if needed
-            if (maxWidth && pageMeta.width && pageMeta.width > maxWidth) {
-                console.log(`[PDF Processor] Downscaling page ${pageNumber} from ${pageMeta.width}px to ${maxWidth}px`, {
+            try {
+                // Read the extracted JPEG
+                const pageBuffer = await fs_1.promises.readFile(pagePath);
+                // Load with Sharp for potential downscaling
+                const pageImage = (0, sharp_1.default)(pageBuffer);
+                const pageMeta = await pageImage.metadata();
+                // Build processing pipeline with EXIF auto-rotation
+                let pipeline = pageImage.rotate(); // Auto-rotate using EXIF orientation
+                // Optional: Downscale if needed
+                if (maxWidth && pageMeta.width && pageMeta.width > maxWidth) {
+                    console.log(`[PDF Processor] Downscaling page ${pageNumber} from ${pageMeta.width}px to ${maxWidth}px`, {
+                        correlationId,
+                        sessionId,
+                        pageNumber,
+                        originalWidth: pageMeta.width,
+                        targetWidth: maxWidth,
+                    });
+                    pipeline = pipeline.resize({
+                        width: maxWidth,
+                        withoutEnlargement: true,
+                        kernel: 'lanczos3', // High-quality resampling
+                    });
+                }
+                // Convert to JPEG with specified quality
+                const jpegBuffer = await pipeline
+                    .jpeg({
+                    quality,
+                    chromaSubsampling: '4:4:4', // Best quality
+                    mozjpeg: true, // Better compression
+                })
+                    .toBuffer();
+                // Get final dimensions
+                const jpegMeta = await (0, sharp_1.default)(jpegBuffer).metadata();
+                const pageProcessingTime = Date.now() - pageStartTime;
+                console.log(`[PDF Processor] Page ${pageNumber} processed`, {
                     correlationId,
                     sessionId,
                     pageNumber,
-                    originalWidth: pageMeta.width,
-                    targetWidth: maxWidth,
+                    outputWidth: jpegMeta.width,
+                    outputHeight: jpegMeta.height,
+                    outputSizeBytes: jpegBuffer.length,
+                    processingTimeMs: pageProcessingTime,
                 });
-                pipeline = pipeline.resize({
-                    width: maxWidth,
-                    withoutEnlargement: true,
-                    kernel: 'lanczos3', // High-quality resampling
+                // Store successfully processed page
+                pages.push({
+                    pageNumber,
+                    base64: jpegBuffer.toString('base64'),
+                    mime: 'image/jpeg',
+                    width: jpegMeta.width || 0,
+                    height: jpegMeta.height || 0,
+                    originalFormat: 'application/pdf',
                 });
             }
-            // Convert to JPEG with specified quality
-            const jpegBuffer = await pipeline
-                .jpeg({
-                quality,
-                chromaSubsampling: '4:4:4', // Best quality
-                mozjpeg: true, // Better compression
-            })
-                .toBuffer();
-            // Get final dimensions
-            const jpegMeta = await (0, sharp_1.default)(jpegBuffer).metadata();
-            const pageProcessingTime = Date.now() - pageStartTime;
-            console.log(`[PDF Processor] Page ${pageNumber} processed`, {
+            catch (pageError) {
+                // Page processing failed - add error page
+                console.error(`[PDF Processor] Page ${pageNumber} failed`, {
+                    correlationId,
+                    sessionId,
+                    pageNumber,
+                    error: pageError instanceof Error ? pageError.message : String(pageError),
+                });
+                pages.push({
+                    pageNumber,
+                    base64: null,
+                    mime: 'image/jpeg',
+                    width: 0,
+                    height: 0,
+                    originalFormat: 'application/pdf',
+                    error: {
+                        message: pageError instanceof Error ? pageError.message : String(pageError),
+                        code: 'PAGE_PROCESSING_FAILED',
+                        details: pageError,
+                    },
+                });
+                pageErrors.push({
+                    pageNumber,
+                    error: pageError instanceof Error ? pageError.message : String(pageError),
+                });
+            }
+        }
+        // Check if ALL pages failed
+        const successfulPages = pages.filter(p => p.base64).length;
+        if (successfulPages === 0) {
+            throw new Error(`All ${pageFiles.length} pages failed to process. ` +
+                `First error: ${pageErrors[0]?.error || 'Unknown'}`);
+        }
+        // Log partial success if some pages failed
+        if (pageErrors.length > 0) {
+            console.warn(`[PDF Processor] Partial success: ${successfulPages}/${pageFiles.length} pages processed`, {
                 correlationId,
                 sessionId,
-                pageNumber,
-                outputWidth: jpegMeta.width,
-                outputHeight: jpegMeta.height,
-                outputSizeBytes: jpegBuffer.length,
-                processingTimeMs: pageProcessingTime,
-            });
-            // Store processed page
-            pages.push({
-                pageNumber,
-                base64: jpegBuffer.toString('base64'),
-                mime: 'image/jpeg',
-                width: jpegMeta.width || 0,
-                height: jpegMeta.height || 0,
-                originalFormat: 'application/pdf',
+                successfulPages,
+                failedPages: pageErrors.length,
+                failedPageNumbers: pageErrors.map(e => e.pageNumber).join(', '),
             });
         }
         const totalTime = Date.now() - startTime;

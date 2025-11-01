@@ -15,6 +15,7 @@ import { persistOCRArtifacts, loadOCRArtifacts } from './utils/ocr-persistence';
 import { retryGoogleVision, retryStorageDownload } from './utils/retry';
 import { createLogger, maskPatientId, Logger } from './utils/logger';
 import { preprocessForOCR, type PreprocessResult } from './utils/format-processor';
+import { storeProcessedImages, type ProcessedImageMetadata } from './utils/storage/store-processed-images';
 
 // Load environment variables
 dotenv.config();
@@ -530,6 +531,7 @@ class V3Worker {
         this.logger.info('Format preprocessing complete', {
           shell_file_id: payload.shell_file_id,
           totalPages: preprocessResult.totalPages,
+          successfulPages: preprocessResult.successfulPages,
           originalFormat: preprocessResult.originalFormat,
           conversionApplied: preprocessResult.conversionApplied,
           processingTimeMs: preprocessResult.processingTimeMs,
@@ -541,6 +543,32 @@ class V3Worker {
         throw error;
       }
 
+      // NEW: Store processed JPEG pages for click-to-source feature
+      let imageMetadata: ProcessedImageMetadata | undefined;
+      try {
+        imageMetadata = await storeProcessedImages(
+          this.supabase,
+          payload.patient_id,
+          payload.shell_file_id,
+          preprocessResult.pages,
+          this.logger['correlation_id']
+        );
+
+        this.logger.info('Processed images stored', {
+          shell_file_id: payload.shell_file_id,
+          pageCount: imageMetadata.pages.length,
+          totalBytes: imageMetadata.totalBytes,
+          folderPath: imageMetadata.folderPath,
+        });
+      } catch (error: any) {
+        // CRITICAL: Fail the job if image storage fails
+        // Click-to-source feature requires processed images
+        this.logger.error('Failed to store processed images', error as Error, {
+          shell_file_id: payload.shell_file_id,
+        });
+        throw new Error(`CRITICAL: Failed to store processed images: ${error.message}`);
+      }
+
       // PHASE 2: OCR EACH PAGE
       this.logger.info('Running OCR on extracted pages', {
         shell_file_id: payload.shell_file_id,
@@ -550,6 +578,16 @@ class V3Worker {
       const ocrPages: any[] = [];
 
       for (const page of preprocessResult.pages) {
+        // Skip pages that failed to process (null base64)
+        if (!page.base64) {
+          this.logger.warn(`Skipping page ${page.pageNumber} - processing failed`, {
+            shell_file_id: payload.shell_file_id,
+            pageNumber: page.pageNumber,
+            error: page.error?.message,
+          });
+          continue;
+        }
+
         this.logger.info(`Processing page ${page.pageNumber}/${preprocessResult.totalPages}`, {
           shell_file_id: payload.shell_file_id,
           pageNumber: page.pageNumber,
@@ -609,15 +647,40 @@ class V3Worker {
         totalPages: ocrPages.length,
       });
 
-      // Persist OCR artifacts for future reuse
+      // Persist OCR artifacts for future reuse (with processed image references)
       await persistOCRArtifacts(
         this.supabase,
         payload.shell_file_id,
         payload.patient_id,
         ocrResult,
         fileChecksum,
+        imageMetadata,  // NEW: Include processed image metadata
         this.logger['correlation_id']
       );
+
+      // NEW: Update shell_files record with processed image metadata
+      if (imageMetadata) {
+        const { error: updateError } = await this.supabase
+          .from('shell_files')
+          .update({
+            processed_image_path: imageMetadata.folderPath,
+            processed_image_checksum: imageMetadata.combinedChecksum,
+            processed_image_mime: 'image/jpeg',
+          })
+          .eq('id', payload.shell_file_id);
+
+        if (updateError) {
+          this.logger.error('Failed to update shell_files with processed image metadata', updateError as Error, {
+            shell_file_id: payload.shell_file_id,
+          });
+          // Log error but don't fail the job - OCR and images are already stored
+        } else {
+          this.logger.info('Updated shell_files with processed image metadata', {
+            shell_file_id: payload.shell_file_id,
+            processed_image_path: imageMetadata.folderPath,
+          });
+        }
+      }
     }
 
     // =============================================================================

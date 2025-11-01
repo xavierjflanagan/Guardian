@@ -9,8 +9,8 @@
 export interface ProcessedPage {
     /** 1-indexed page number for user display */
     pageNumber: number;
-    /** Base64-encoded JPEG image data */
-    base64: string;
+    /** Base64-encoded JPEG image data (null if page failed to process) */
+    base64: string | null;
     /** Output MIME type (always JPEG after preprocessing) */
     mime: 'image/jpeg';
     /** Image width in pixels */
@@ -19,6 +19,12 @@ export interface ProcessedPage {
     height: number;
     /** Original format before conversion (e.g., 'image/tiff', 'application/pdf') */
     originalFormat?: string;
+    /** Optional error information if page processing failed */
+    error?: {
+        message: string;
+        code: string;
+        details?: any;
+    };
 }
 /**
  * Result of format preprocessing
@@ -34,6 +40,13 @@ export interface PreprocessResult {
     originalFormat: string;
     /** Whether format conversion was applied */
     conversionApplied: boolean;
+    /** Summary of page errors (if any pages failed) */
+    pageErrors?: Array<{
+        pageNumber: number;
+        error: string;
+    }>;
+    /** Count of successfully processed pages */
+    successfulPages: number;
 }
 /**
  * Configuration options for format processor
