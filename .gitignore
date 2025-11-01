@@ -50,9 +50,32 @@ next-env.d.ts
 .vercel
 
 # ----------------------------------------
+# Build artifacts (worker dist files)
+dist/
+*.map
+
+# ----------------------------------------
+# Supabase temporary files
+.temp/
+*/.temp/
+
+# ----------------------------------------
 # Medical code data files (large raw/processed datasets)
 # Keep: Documentation markdown files
 # Exclude: Raw data downloads and processed JSON files
 data/medical-codes/*/raw/
 data/medical-codes/*/processed/
+
+# ----------------------------------------
+# Sample/test medical records (too large for git)
+sample-medical-records/
+
+# ----------------------------------------
+# Session exports and planning docs (should be in docs/)
+*-this-session-*.txt
+session-*.txt
+
+# ----------------------------------------
+# Archive directory (old/backup files)
+.archive/
 

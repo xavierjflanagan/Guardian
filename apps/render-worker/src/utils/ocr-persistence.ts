@@ -7,6 +7,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { calculateSHA256 } from './checksum';
 import { retryStorageDownload, retryStorageUpload } from './retry';
 import { createLogger, maskPatientId } from './logger';
+import type { ProcessedImageMetadata } from './storage/store-processed-images';
 
 export interface OCRPage {
   page_number: number;
@@ -44,12 +45,18 @@ interface OCRManifest {
     original_dimensions_available: boolean;
     normalization_valid: boolean;
   };
+  // NEW: Processed images path for click-to-source feature
+  processed_images_path?: string;  // Folder path for all processed images
   pages: Array<{
     page_number: number;
     artifact_path: string;
     bytes: number;
     width_px: number;
     height_px: number;
+    // NEW: Processed image references for click-to-source
+    processed_image_path?: string;     // Path to processed JPEG image
+    processed_image_bytes?: number;    // Image file size
+    processed_image_checksum?: string; // Image SHA-256 hash
   }>;
   created_at: string;
 }
@@ -60,6 +67,7 @@ export async function persistOCRArtifacts(
   patientId: string,  // Uses patient_id to match storage pattern
   ocrResult: any,
   fileChecksum: string,
+  processedImageMetadata?: ProcessedImageMetadata,  // NEW: Optional processed image metadata
   correlationId?: string
 ): Promise<void> {
   const startTime = Date.now();
@@ -69,21 +77,30 @@ export async function persistOCRArtifacts(
   });
 
   const basePath = `${patientId}/${shellFileId}-ocr`;
-  
-  // Build page artifacts
-  const pageArtifacts = ocrResult.pages.map((page: any, idx: number) => ({
-    page_number: idx + 1,
-    artifact_path: `page-${idx + 1}.json`,
-    bytes: JSON.stringify(page).length,
-    width_px: page.size?.width_px || 0,
-    height_px: page.size?.height_px || 0
-  }));
+
+  // Build page artifacts with processed image references
+  const pageArtifacts = ocrResult.pages.map((page: any, idx: number) => {
+    const pageNumber = idx + 1;
+    const imageMeta = processedImageMetadata?.pages.find(p => p.pageNumber === pageNumber);
+
+    return {
+      page_number: pageNumber,
+      artifact_path: `page-${pageNumber}.json`,
+      bytes: JSON.stringify(page).length,
+      width_px: page.size?.width_px || 0,
+      height_px: page.size?.height_px || 0,
+      // NEW: Include processed image metadata if available
+      processed_image_path: imageMeta?.path,
+      processed_image_bytes: imageMeta?.bytes,
+      processed_image_checksum: imageMeta?.checksum,
+    };
+  });
 
   // Create manifest
   const manifest: OCRManifest = {
     shell_file_id: shellFileId,
     provider: 'google_vision',
-    version: 'v1.2024.10',
+    version: 'v1.2024.11', // Bumped version for processed image support
     page_count: ocrResult.pages.length,
     total_bytes: pageArtifacts.reduce((sum: number, p: any) => sum + p.bytes, 0),
     checksum: await calculateSHA256(Buffer.from(JSON.stringify(ocrResult))),
@@ -95,6 +112,8 @@ export async function persistOCRArtifacts(
       original_dimensions_available: true,
       normalization_valid: !!(ocrResult.pages[0]?.size?.width_px && ocrResult.pages[0]?.size?.height_px)
     },
+    // NEW: Folder path for processed images
+    processed_images_path: processedImageMetadata?.folderPath,
     pages: pageArtifacts,
     created_at: new Date().toISOString()
   };
@@ -160,7 +179,7 @@ export async function persistOCRArtifacts(
       shell_file_id: shellFileId,
       manifest_path: `${basePath}/manifest.json`,
       provider: 'google_vision',
-      artifact_version: 'v1.2024.10',
+      artifact_version: 'v1.2024.11', // Updated version for processed image support
       file_checksum: fileChecksum,
       checksum: manifest.checksum,
       pages: ocrResult.pages.length,

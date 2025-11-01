@@ -10,26 +10,35 @@ const checksum_1 = require("./checksum");
 const retry_1 = require("./retry");
 const logger_1 = require("./logger");
 async function persistOCRArtifacts(supabase, shellFileId, patientId, // Uses patient_id to match storage pattern
-ocrResult, fileChecksum, correlationId) {
+ocrResult, fileChecksum, processedImageMetadata, // NEW: Optional processed image metadata
+correlationId) {
     const startTime = Date.now();
     const logger = (0, logger_1.createLogger)({
         context: 'ocr-persistence',
         correlation_id: correlationId,
     });
     const basePath = `${patientId}/${shellFileId}-ocr`;
-    // Build page artifacts
-    const pageArtifacts = ocrResult.pages.map((page, idx) => ({
-        page_number: idx + 1,
-        artifact_path: `page-${idx + 1}.json`,
-        bytes: JSON.stringify(page).length,
-        width_px: page.size?.width_px || 0,
-        height_px: page.size?.height_px || 0
-    }));
+    // Build page artifacts with processed image references
+    const pageArtifacts = ocrResult.pages.map((page, idx) => {
+        const pageNumber = idx + 1;
+        const imageMeta = processedImageMetadata?.pages.find(p => p.pageNumber === pageNumber);
+        return {
+            page_number: pageNumber,
+            artifact_path: `page-${pageNumber}.json`,
+            bytes: JSON.stringify(page).length,
+            width_px: page.size?.width_px || 0,
+            height_px: page.size?.height_px || 0,
+            // NEW: Include processed image metadata if available
+            processed_image_path: imageMeta?.path,
+            processed_image_bytes: imageMeta?.bytes,
+            processed_image_checksum: imageMeta?.checksum,
+        };
+    });
     // Create manifest
     const manifest = {
         shell_file_id: shellFileId,
         provider: 'google_vision',
-        version: 'v1.2024.10',
+        version: 'v1.2024.11', // Bumped version for processed image support
         page_count: ocrResult.pages.length,
         total_bytes: pageArtifacts.reduce((sum, p) => sum + p.bytes, 0),
         checksum: await (0, checksum_1.calculateSHA256)(Buffer.from(JSON.stringify(ocrResult))),
@@ -41,6 +50,8 @@ ocrResult, fileChecksum, correlationId) {
             original_dimensions_available: true,
             normalization_valid: !!(ocrResult.pages[0]?.size?.width_px && ocrResult.pages[0]?.size?.height_px)
         },
+        // NEW: Folder path for processed images
+        processed_images_path: processedImageMetadata?.folderPath,
         pages: pageArtifacts,
         created_at: new Date().toISOString()
     };
@@ -92,7 +103,7 @@ ocrResult, fileChecksum, correlationId) {
         shell_file_id: shellFileId,
         manifest_path: `${basePath}/manifest.json`,
         provider: 'google_vision',
-        artifact_version: 'v1.2024.10',
+        artifact_version: 'v1.2024.11', // Updated version for processed image support
         file_checksum: fileChecksum,
         checksum: manifest.checksum,
         pages: ocrResult.pages.length,

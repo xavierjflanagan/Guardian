@@ -296,23 +296,14 @@ function validateUploadRequest(data: ShellFileUploadRequest): any {
       message: 'File size exceeds 50MB limit',
     };
   }
-  
-  // Validate mime type (basic healthcare document types)
-  const allowedTypes = [
-    'application/pdf',
-    'image/jpeg',
-    'image/png',
-    'image/tiff',
-    'text/plain',
-  ];
-  
-  if (!allowedTypes.includes(data.mime_type)) {
-    return {
-      code: ErrorCode.INVALID_FILE_TYPE,
-      message: `Unsupported file type: ${data.mime_type}`,
-    };
-  }
-  
+
+  // MIME type validation removed (October 31, 2025)
+  // Rationale: Let Google Cloud Vision OCR handle format validation
+  // - OCR supports many formats (JPEG, PNG, GIF, BMP, WebP, ICO, HEIC, HEIF, PDF, TIFF, RAW)
+  // - Whitelist creates maintenance burden and blocks valid formats
+  // - OCR will return clear error for truly unsupported formats
+  // - Size limit (50MB) provides sufficient protection
+
   return null;
 }
 

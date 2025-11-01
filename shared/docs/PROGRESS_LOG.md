@@ -2,6 +2,42 @@
 
 > This file is updated at the end of every coding session. It tracks daily/weekly progress, major changes, and next steps.
 
+## [2025-11-01] Work Session Summary
+- **Start Time:** ~16:00 AEDT (November 1, 2025)
+- **End Time:** 23:18 AEDT (November 1, 2025)
+- **R&D Hours:** 7.0 hours
+- **Claude's Structured Summary:**
+  - **Key Accomplishments:**
+    - **Pass 0.5 File Format Support OPERATIONAL**: Format processor module now accepting multi-page PDFs and HEIC formats with successful processing through Pass 0.5 encounter discovery pipeline
+    - **Phase 2.1 Downstream Analysis COMPLETED**: Comprehensive investigation revealing Pass 1 Entity Detection was using original files instead of processed JPEGs - critical format inconsistency bug identified and partially fixed
+    - **Option 1 Quick Fix DEPLOYED**: Pass 1 now downloads processed JPEG from storage ensuring format consistency between Vision AI and OCR (deployed commit 64b7638)
+    - **Pass 1.5 Medical Code Infrastructure ADVANCING**: LOINC code library successfully uploaded and cleaned in Supabase, overnight vector embedding generation running for display column (~228K codes)
+    - **Parallel Development Workflow VALIDATED**: Windsurf IDE (Pass 1.5 medical codes) + Claude Code/Cursor (Pass 0.5 + format optimization) demonstrated effective dual-stream development with context isolation
+  - **Impact & Decisions:** **Critical Bug Discovery**: Pass 1 was sending original HEIC/TIFF/PDF files to Vision AI while OCR used processed JPEGs, causing format inconsistencies and potential BBOX coordinate mismatches - Option 1 fix deployed but Pass 1 currently disabled for Pass 0.5 testing. **Multi-Page Challenge Identified**: Theoretical analysis suggests multi-page documents (PDFs/TIFFs) only process page 1 in Vision AI (~80% entity loss), requires Option 2 implementation for page iteration. **Architecture Documentation**: Created comprehensive Phase 2.1 downstream impact analysis (59-page document) with detailed remediation options, cost analysis, and implementation roadmap. **Pass 1 Status Clarification**: Pass 1 improvements deployed but inactive due to early return statement for Pass 0.5 isolation testing.
+- **Blockers:** Pass 1 disabled in pipeline (intentional for Pass 0.5 testing), multi-page Vision AI processing requires Option 2 implementation (~6 hours), messy files/folders need cleanup and archival
+- **Next Session Focus:** Continue Pass 0.5 testing and validation, complete LOINC embedding verification, begin SNOMED CT code library processing, enable Pass 1 when Pass 0.5 testing complete, follow upload-file-format-optimization-module design document
+- **User's Verbatim Log:**
+  > I worked seven hours R&D on this primarily pass 0.5 in the file format optimisation module which is working well it's now accepting PDFs and HEIC formats. It's also accepting multi pages and generally working well past 0.5 is working well too so need to do a lot more test on it though which I will do tomorrow but tomorrow I'll also need to do a lot more of the work from the improvement_roadmap.MD file. I've also been working concurrently this whole session via Windsurf using Claude code inference on Windsurf and on Windsurf I've been doing 1.5 medical code library build out. I've now successfully uploaded and clean the LOINC code library. It's now in super and we're now currently embedding the display column to get the vectors. It's gonna run overnight and then will test that tomorrow morning as well and then we'll move onto doing the same whole thing for SNOMED CT codes. Note that past one is currently disabled in the pipeline flow so will need to flick it back on when we're ready when we're finished singling out past 0.5. there's also quite a few messy files floating around now we need a little bit of a tidy up archive a few folders and files. and we also need to continue following the design for the file format optimisation module as per chat export file; shared/docs/architecture/database-foundation-v3/V3_Features_and_Concepts/upload-file-format-optimization-module/2025-11-01-this-session-is-being-continued-from-a-previous-co.txt
+---
+
+## [2025-10-31] Work Session Summary
+- **Start Time:** ~02:00 AM AEDT (October 31, 2025)
+- **End Time:** 23:19 AEDT (October 31, 2025)
+- **R&D Hours:** 10.0 hours
+- **Claude's Structured Summary:**
+  - **Key Accomplishments:**
+    - **Format Processor Module Phase 1 COMPLETE**: Implemented TIFF multi-page support using Sharp library, fixing critical data loss bug where only first page of multi-page files was processed - 2-page TIFF now correctly detects 2 separate encounters (medication list + lab report)
+    - **Pass 0.5 Baseline Validation Progress**: Successfully validated 3/7 tests (43% complete) - medication photo PASS, lab report PASS, multi-page TIFF PASS - all with high confidence (0.93-0.96) and zero false positives
+    - **Pass 1.5 Medical Code Libraries Integration**: Australian SNOMED CT code library and LOINC code library uploaded/in-process for database embedding, establishing foundation for clinical terminology resolution
+    - **Parallel Development Success**: Windsurf IDE handling Pass 1.5 medical code work while Cursor handled Pass 0.5 testing - dual-stream development workflow validated as effective
+    - **Critical Bug Discovery & Resolution**: Identified Google Cloud Vision OCR limitation (only processes first page of TIFF/PDF), designed and implemented format processor module architecture with page extraction pipeline
+  - **Impact & Decisions:** **Strategic Architecture**: Format processor module establishes pattern for Phase 2 (PDF support) and Phase 3 (HEIC conversion) - proven extraction→conversion→OCR→combine pipeline. **Testing Methodology**: Validated Pass 0.5 OCR-based encounter detection with 100% accuracy on completed tests, establishing confidence in baseline approach before A/B testing. **Development Workflow**: Dual-IDE parallel development (Windsurf for Pass 1.5, Cursor for Pass 0.5) demonstrated productivity gains and context isolation benefits. **Cost Optimization**: GPT-5-mini validation ($0.005 per test) vs Pass 1 full pipeline ($5-10) enabling rapid iteration on Pass 0.5 prompts.
+- **Blockers:** PDF format not yet supported - blocking 4/7 baseline validation tests (57%); Phase 2 implementation required (est. 90-120 minutes)
+- **Next Session Focus:** Implement Format Processor Phase 2 (PDF page extraction), test 142-page hospital encounter, complete remaining baseline validation tests, validate batching logic
+- **User's Verbatim Log:**
+  > 10 hours RnD work today. primarily on past 0.5 build out made some good headway there. I also reopened and restarted up WindsurfIDE to be more productive which was great on Windsurf. I was doing past 1.5 at the same time as Cursor was doing past 0.5 which worked quite well past 1.5. We've now got the Australian SNOMED CT code library and the LOINC code library the LOINC code library is now been uploaded or is in the process of being uploaded to the database after being reviewed and cleaned. we will then do the embedding on it. in regards to pass 0.5 we gave into some issues with file format stopping our testing because we're still testing the main prompts that's using OCR which is generally working but we still have a lot more test to do in order for those tests to actually work we need to have the file format optimisation built so we built that out we did one test tonight before I logged off which worked which was assessing to amalgamated files that have been combined into one to see whether the system will identify them as two separate encounters which I did further work on this tomorrow.
+---
+
 ## [2025-10-24] Work Session Summary
 - **Start Time:** [Full day session - Pass 1.5 troubleshooting and strategic pivot]
 - **R&D Hours:** 6.0 hours

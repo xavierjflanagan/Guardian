@@ -68,9 +68,13 @@ export async function discoverEncounters(
       ocrPages: input.ocrOutput.fullTextAnnotation.pages
     });
 
-    // Call GPT-5-mini (text analysis for both OCR strategies)
-    const response = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+    // Detect GPT-5 vs GPT-4o (same pattern as Pass 1)
+    const model = 'gpt-5-mini';
+    const isGPT5 = model.startsWith('gpt-5');
+
+    // Build request parameters with model-specific handling
+    const requestParams: any = {
+      model: model,
       messages: [
         {
           role: 'system',
@@ -81,9 +85,21 @@ export async function discoverEncounters(
           content: prompt
         }
       ],
-      temperature: 0.1,  // Low temperature for consistent extraction
       response_format: { type: 'json_object' }
-    });
+    };
+
+    // Model-specific parameters (same pattern as Pass 1)
+    if (isGPT5) {
+      // GPT-5: Uses max_completion_tokens, temperature fixed at 1.0
+      requestParams.max_completion_tokens = 32000; // Safe limit for GPT-5-mini (supports up to 128k)
+    } else {
+      // GPT-4o and earlier: Uses max_tokens and custom temperature
+      requestParams.max_tokens = 32000;
+      requestParams.temperature = 0.1; // Low temperature for consistent extraction
+    }
+
+    // Call OpenAI API
+    const response = await openai.chat.completions.create(requestParams);
 
     // Parse AI response
     const aiOutput = response.choices[0].message.content;
