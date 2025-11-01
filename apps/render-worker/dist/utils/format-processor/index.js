@@ -78,8 +78,9 @@ async function preprocessForOCR(base64Data, mimeType, config) {
             // Decode base64 to buffer
             const heicBuffer = Buffer.from(base64Data, 'base64');
             // Convert HEIC to JPEG using heic-convert (pure JavaScript)
+            // Note: Type definitions say ArrayBufferLike, but runtime requires iterable (Uint8Array)
             const jpegArrayBuffer = await (0, heic_convert_1.default)({
-                buffer: heicBuffer.buffer, // Extract ArrayBuffer from Node.js Buffer
+                buffer: new Uint8Array(heicBuffer),
                 format: 'JPEG',
                 quality: config?.jpegQuality || 0.85, // 0-1 scale (converts from 0-100)
             });
