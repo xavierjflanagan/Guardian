@@ -18,13 +18,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.preprocessForOCR = preprocessForOCR;
 const tiff_processor_1 = require("./tiff-processor");
+const pdf_processor_1 = require("./pdf-processor");
 /**
  * Preprocess a file for OCR
  *
  * Routes to appropriate processor based on MIME type:
- * - Multi-page TIFF → Extract pages, convert to JPEG
+ * - Multi-page TIFF → Extract pages, convert to JPEG (Phase 1 ✅)
+ * - Multi-page PDF → Extract pages, convert to JPEG (Phase 2 ✅)
  * - Single-page JPEG/PNG → Pass through (no conversion needed)
- * - PDF → Extract pages (Phase 2 - not yet implemented)
  * - HEIC → Convert to JPEG (Phase 3 - not yet implemented)
  *
  * @param base64Data - Base64-encoded file data
@@ -51,10 +52,16 @@ async function preprocessForOCR(base64Data, mimeType, config) {
             conversionApplied: true,
         };
     }
-    // Phase 2: PDF Support (NOT YET IMPLEMENTED)
+    // Phase 2: PDF Support (IMPLEMENTED)
     if (mimeType === 'application/pdf') {
-        throw new Error('PDF format not yet supported. Phase 2 implementation pending. ' +
-            'See: shared/docs/.../upload-file-format-optimization-module/IMPLEMENTATION_PLAN.md');
+        const pages = await (0, pdf_processor_1.extractPdfPages)(base64Data, config?.maxWidth, config?.jpegQuality, correlationId);
+        return {
+            pages,
+            totalPages: pages.length,
+            processingTimeMs: Date.now() - startTime,
+            originalFormat: mimeType,
+            conversionApplied: true,
+        };
     }
     // Phase 3: HEIC/HEIF Support (NOT YET IMPLEMENTED)
     if (mimeType === 'image/heic' || mimeType === 'image/heif') {
@@ -93,7 +100,7 @@ async function preprocessForOCR(base64Data, mimeType, config) {
     }
     // Unsupported format
     throw new Error(`Unsupported format for OCR preprocessing: ${mimeType}. ` +
-        `Supported formats: TIFF (Phase 1), JPEG, PNG, GIF, BMP, WebP. ` +
-        `Coming soon: PDF (Phase 2), HEIC/HEIF (Phase 3).`);
+        `Supported formats: TIFF (Phase 1 ✅), PDF (Phase 2 ✅), JPEG, PNG, GIF, BMP, WebP. ` +
+        `Coming soon: HEIC/HEIF (Phase 3).`);
 }
 //# sourceMappingURL=index.js.map

@@ -19,9 +19,9 @@ import type { ProcessedPage, PreprocessResult, FormatProcessorConfig } from './t
  * Preprocess a file for OCR
  *
  * Routes to appropriate processor based on MIME type:
- * - Multi-page TIFF → Extract pages, convert to JPEG
+ * - Multi-page TIFF → Extract pages, convert to JPEG (Phase 1 ✅)
+ * - Multi-page PDF → Extract pages, convert to JPEG (Phase 2 ✅)
  * - Single-page JPEG/PNG → Pass through (no conversion needed)
- * - PDF → Extract pages (Phase 2 - not yet implemented)
  * - HEIC → Convert to JPEG (Phase 3 - not yet implemented)
  *
  * @param base64Data - Base64-encoded file data
