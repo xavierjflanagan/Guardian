@@ -1,0 +1,194 @@
+Since you're building a pure extraction pipeline with source citation capabilities, here's a much simpler and more efficient approach:
+
+## **Single Format Strategy: PNG**
+
+Convert everything to **PNG** as your single processing format. Here's why:
+
+## Simplified Pipeline Architecture
+
+```
+Any Input File → PNG (single format) → OCR with BBOX → AI Processing → Database
+       ↓                                      ↓
+  Store Original                    Store BBOX coordinates
+  (for citation)                    (for click-to-source)
+```
+
+## Why PNG is Optimal for Your Use Case
+
+1. **Universal OCR compatibility** - Every OCR engine works best with images
+2. **Preserves spatial information** - BBOX coordinates map perfectly to PNG pixels
+3. **Lossless** - No quality degradation that could affect OCR accuracy
+4. **Consistent processing** - One pipeline for everything, no format-specific logic
+5. **Simple coordinate mapping** - Direct pixel-to-BBOX relationship for citations
+
+## Implementation Architecture
+
+### 1. **Conversion Layer**
+```python
+class UnifiedProcessor:
+    def process_any_file(self, file_path):
+        # Convert EVERYTHING to PNG
+        if file_path.endswith(('.jpg', '.jpeg', '.heic', '.webp')):
+            png_pages = [self.image_to_png(file_path)]
+        elif file_path.endswith('.pdf'):
+            png_pages = self.pdf_to_png_pages(file_path)
+        elif file_path.endswith(('.docx', '.doc')):
+            # Convert to PDF first, then to PNG
+            temp_pdf = self.doc_to_pdf(file_path)
+            png_pages = self.pdf_to_png_pages(temp_pdf)
+        
+        return png_pages
+```
+
+### 2. **OCR Processing with Spatial Data**
+```python
+def ocr_with_bbox(png_path):
+    # Run OCR and get BBOX coordinates
+    result = {
+        'text': extracted_text,
+        'bbox_data': [
+            {
+                'word': 'diabetes',
+                'confidence': 0.98,
+                'bbox': {'x': 100, 'y': 200, 'width': 80, 'height': 20},
+                'page': 1
+            },
+            # ... more words with coordinates
+        ]
+    }
+    return result
+```
+
+### 3. **Storage Structure**
+```sql
+-- Simple schema
+CREATE TABLE documents (
+    id UUID PRIMARY KEY,
+    original_file_url TEXT,  -- S3/blob storage link
+    png_pages JSONB,         -- Array of PNG URLs
+    ocr_output JSONB,        -- Full OCR with BBOX
+    extracted_data JSONB     -- AI-processed structured data
+);
+
+-- For click-to-source
+CREATE TABLE citations (
+    id UUID PRIMARY KEY,
+    document_id UUID REFERENCES documents(id),
+    extracted_text TEXT,
+    source_bbox JSONB,  -- {page: 1, x: 100, y: 200, width: 80, height: 20}
+    confidence FLOAT
+);
+```
+
+## Key Technical Decisions
+
+### **PDF to PNG Conversion**
+```python
+# Use pdf2image or PyMuPDF
+from pdf2image import convert_from_path
+
+def pdf_to_png_pages(pdf_path):
+    # 300 DPI for good OCR accuracy
+    pages = convert_from_path(pdf_path, dpi=300)
+    png_paths = []
+    for i, page in enumerate(pages):
+        png_path = f"page_{i+1}.png"
+        page.save(png_path, 'PNG')
+        png_paths.append(png_path)
+    return png_paths
+```
+
+### **HEIC Handling**
+```python
+# Use pillow-heif
+from PIL import Image
+import pillow_heif
+
+def heic_to_png(heic_path):
+    pillow_heif.register_heif_opener()
+    img = Image.open(heic_path)
+    png_path = heic_path.replace('.heic', '.png')
+    img.save(png_path, 'PNG')
+    return png_path
+```
+
+### **Click-to-Source Implementation**
+```python
+def get_source_snippet(document_id, text_fragment):
+    # 1. Find the BBOX coordinates for the text
+    doc = get_document(document_id)
+    bbox_match = find_bbox_for_text(text_fragment, doc.ocr_output)
+    
+    # 2. Return the PNG page and coordinates
+    return {
+        'png_url': doc.png_pages[bbox_match['page']],
+        'highlight_box': bbox_match['bbox'],
+        'original_file': doc.original_file_url
+    }
+```
+
+## Why This Approach is Perfect for Exora
+
+1. **Simplicity** - One format, one pipeline, no branching logic
+2. **Speed** - No multiple conversion paths or format detection
+3. **Accuracy** - Images give best OCR results vs. extracting from PDFs
+4. **Citation-ready** - BBOX coordinates map directly to PNG pixels
+5. **Cost-effective** - Simple processing = lower compute costs
+6. **Debugging** - Easy to visually verify OCR results on PNGs
+
+## Practical Processing Flow
+
+```python
+class ExoraDocumentProcessor:
+    def __init__(self):
+        self.target_dpi = 300
+        self.ocr_engine = 'tesseract'  # or Azure Form Recognizer
+        
+    def process_document(self, uploaded_file):
+        # 1. Store original
+        original_url = self.store_original(uploaded_file)
+        
+        # 2. Convert to PNG (always)
+        png_pages = self.convert_to_png(uploaded_file)
+        
+        # 3. OCR with spatial data
+        ocr_results = []
+        for page_num, png in enumerate(png_pages):
+            page_ocr = self.ocr_with_bbox(png)
+            page_ocr['page'] = page_num
+            ocr_results.append(page_ocr)
+        
+        # 4. AI processing
+        structured_data = self.ai_extract(ocr_results)
+        
+        # 5. Store everything
+        return {
+            'original': original_url,
+            'pngs': png_pages,
+            'ocr_bbox': ocr_results,
+            'extracted': structured_data
+        }
+    
+    def show_source(self, document_id, text):
+        # Find text in OCR output
+        # Return PNG URL + BBOX for highlighting
+        pass
+```
+
+## Additional Benefits
+
+- **No PDF parsing complexity** - PDFs are notoriously complex; converting to PNG sidesteps all issues
+- **Consistent quality** - Always 300 DPI PNGs regardless of input
+- **Works with handwriting** - Medical notes often handwritten; PNG preserves perfectly
+- **No text extraction issues** - Some PDFs have corrupted text layers; PNG ignores this
+- **Simple image preprocessing** - Can apply deskew, denoise, etc. uniformly
+
+## For Your Specific Needs
+
+Since you're doing medical record reviews for clinical trials (APOL1, AZD2373 studies), this approach means:
+- Every eligibility criterion can be traced back to exact source location
+- Auditors can click any extracted data point and see the original
+- No ambiguity about where data came from
+- Perfect for regulatory compliance without the overhead
+
+This is much cleaner than trying to maintain multiple formats or complex conversion logic. Just convert everything to PNG and process uniformly!
