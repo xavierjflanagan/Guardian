@@ -789,16 +789,76 @@ class V3Worker {
     // PASS 1: ENTITY DETECTION (existing code continues)
     // =============================================================================
 
+    // =============================================================================
+    // PHASE 1.5: DOWNLOAD FIRST PROCESSED IMAGE FOR VISION AI
+    // =============================================================================
+    // CRITICAL: Vision AI must use the same processed JPEG that OCR used
+    // This ensures format consistency (JPEG not HEIC/TIFF/PDF) and dimension matching
+
+    this.logger.info('Downloading first processed image for Vision AI', {
+      shell_file_id: payload.shell_file_id,
+    });
+
+    // Get processed image path from shell_files (set during format preprocessing)
+    const { data: shellFileRecord, error: shellFileError } = await this.supabase
+      .from('shell_files')
+      .select('processed_image_path')
+      .eq('id', payload.shell_file_id)
+      .single();
+
+    if (shellFileError) {
+      throw new Error(`Database error fetching shell_file record: ${shellFileError?.message || 'Unknown error'}`);
+    }
+
+    if (!shellFileRecord) {
+      throw new Error(`Shell file ${payload.shell_file_id} not found in database`);
+    }
+
+    if (!shellFileRecord!.processed_image_path) {
+      throw new Error(
+        `Missing processed_image_path for shell_file ${payload.shell_file_id}. ` +
+        `This should have been set during format preprocessing.`
+      );
+    }
+
+    // Non-null assertions: validated by error checks above
+    const processedImagePath: string = shellFileRecord!.processed_image_path!;
+    const firstPagePath = `${processedImagePath}/page-1.jpg`;
+
+    const imageDownloadResult = await retryStorageDownload(async () => {
+      return await this.supabase.storage
+        .from('medical-docs')
+        .download(firstPagePath);
+    });
+
+    if (imageDownloadResult.error || !imageDownloadResult.data) {
+      throw new Error(
+        `Failed to download processed image for Vision AI: ${imageDownloadResult.error?.message}`
+      );
+    }
+
+    // Non-null assertion: validated by error check above
+    const imageBlob = imageDownloadResult.data!;
+    const processedImageBuffer = Buffer.from(await imageBlob.arrayBuffer());
+    const processedImageBase64 = processedImageBuffer.toString('base64');
+
+    this.logger.info('First processed image downloaded for Vision AI', {
+      shell_file_id: payload.shell_file_id,
+      image_path: firstPagePath,
+      image_size_bytes: processedImageBuffer.length,
+    });
+
     // Build Pass1Input from storage-based payload + OCR result
+    // CRITICAL: Use first processed JPEG page (not original file) for format consistency
     const pass1Input: Pass1Input = {
       shell_file_id: payload.shell_file_id,
       patient_id: payload.patient_id,
       processing_session_id: processingSessionId,  // Reuse Pass 0.5 session ID
       raw_file: {
-        file_data: fileBuffer.toString('base64'),
-        file_type: payload.mime_type,
+        file_data: processedImageBase64,           // ✅ Processed JPEG from storage (same as OCR input)
+        file_type: 'image/jpeg',                   // ✅ Consistent format (not original MIME type)
         filename: payload.uploaded_filename,
-        file_size: fileBuffer.length
+        file_size: processedImageBuffer.length
       },
       ocr_spatial_data: {
         extracted_text: ocrResult.pages.map((p: any) => p.lines.map((l: any) => l.text).join(' ')).join(' '),
