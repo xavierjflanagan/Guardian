@@ -68,3 +68,7 @@ sample-medical-records/
 *-this-session-*.txt
 session-*.txt
 
+# ----------------------------------------
+# Archive directory (old/backup files)
+.archive/
+
