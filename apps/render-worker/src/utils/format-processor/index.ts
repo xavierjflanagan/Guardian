@@ -18,6 +18,7 @@
 import type { ProcessedPage, PreprocessResult, FormatProcessorConfig } from './types';
 import { extractTiffPages } from './tiff-processor';
 import { extractPdfPages } from './pdf-processor';
+import convert from 'heic-convert';
 
 /**
  * Preprocess a file for OCR
@@ -83,12 +84,63 @@ export async function preprocessForOCR(
     };
   }
 
-  // Phase 3: HEIC/HEIF Support (NOT YET IMPLEMENTED)
+  // Phase 3: HEIC/HEIF Support (IMPLEMENTED)
   if (mimeType === 'image/heic' || mimeType === 'image/heif') {
-    throw new Error(
-      'HEIC/HEIF format not yet supported. Phase 3 implementation pending. ' +
-        'See: shared/docs/.../upload-file-format-optimization-module/IMPLEMENTATION_PLAN.md'
-    );
+    console.log('[Format Processor] Converting HEIC to JPEG', {
+      correlationId,
+      mimeType,
+    });
+
+    const heicStartTime = Date.now();
+
+    try {
+      // Decode base64 to buffer
+      const heicBuffer = Buffer.from(base64Data, 'base64');
+
+      // Convert HEIC to JPEG using heic-convert (pure JavaScript)
+      const jpegArrayBuffer = await convert({
+        buffer: heicBuffer.buffer, // Extract ArrayBuffer from Node.js Buffer
+        format: 'JPEG',
+        quality: config?.jpegQuality || 0.85, // 0-1 scale (converts from 0-100)
+      });
+
+      // Wrap ArrayBuffer in Node.js Buffer for convenience methods
+      const jpegBuffer = Buffer.from(jpegArrayBuffer);
+
+      const heicProcessingTime = Date.now() - heicStartTime;
+
+      console.log('[Format Processor] HEIC conversion complete', {
+        correlationId,
+        inputSizeBytes: heicBuffer.length,
+        outputSizeBytes: jpegBuffer.length,
+        processingTimeMs: heicProcessingTime,
+      });
+
+      // Return as single-page JPEG
+      return {
+        pages: [
+          {
+            pageNumber: 1,
+            base64: jpegBuffer.toString('base64'),
+            mime: 'image/jpeg',
+            width: 0, // Unknown (heic-convert doesn't provide dimensions)
+            height: 0, // Unknown
+            originalFormat: mimeType,
+          },
+        ],
+        totalPages: 1,
+        processingTimeMs: Date.now() - startTime,
+        originalFormat: mimeType,
+        conversionApplied: true,
+      };
+    } catch (error) {
+      console.error('[Format Processor] HEIC conversion failed', {
+        correlationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new Error(`HEIC conversion failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   // Pass-through for already-supported single-page formats
