@@ -120,30 +120,27 @@ Metadata should be grouped with the clinical content it DESCRIBES, based on matc
 **Common Patterns and Solutions:**
 
 **Pattern A: Metadata at End (Most Common)**
-```
+
 Pages 1-10: Clinical content (Dr. Smith, Hospital A)
-Pages 11-12: Metadata (Dr. Smith's signature, document IDs)
+Pages 11-12: Metadata (Dr. Smith signature, document IDs)
 Page 13: New clinical header (Dr. Jones, Hospital B)
-→ Group pages 11-12 with pages 1-10 (same provider)
-→ Boundary at page 12/13 (provider change)
-```
+RESULT: Group pages 11-12 with pages 1-10 (same provider)
+BOUNDARY: Page 12/13 (provider change)
 
 **Pattern B: Metadata at Start**
-```
+
 Pages 1-2: Cover page with document metadata (Hospital A)
 Pages 3-10: Clinical content (Dr. Smith, Hospital A)
-→ Group pages 1-2 with pages 3-10 (same facility)
-→ No boundary until different provider/facility appears
-```
+RESULT: Group pages 1-2 with pages 3-10 (same facility)
+BOUNDARY: No boundary until different provider/facility appears
 
 **Pattern C: Multiple Documents with Metadata**
-```
+
 Pages 1-5: Clinical (Dr. Smith)
 Pages 6-7: Metadata (Dr. Smith signature)
 Pages 8-9: Metadata/cover (Dr. Jones, Hospital B)
 Pages 10-15: Clinical (Dr. Jones, Hospital B)
-→ Boundary at page 7/8 (provider change in metadata signals new document)
-```
+RESULT: Boundary at page 7/8 (provider change in metadata signals new document)
 
 **Key Principle:**
 Content type changes (clinical ↔ metadata) are WEAK signals. Provider/facility changes are STRONG signals. Use provider continuity to determine document boundaries, regardless of whether metadata appears before, after, or between clinical content.
