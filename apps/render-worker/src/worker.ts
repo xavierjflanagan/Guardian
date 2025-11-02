@@ -580,6 +580,7 @@ class V3Worker {
       // Batched parallel OCR processing (10 pages at a time)
       const BATCH_SIZE = parseInt(process.env.OCR_BATCH_SIZE || '10', 10);
       const OCR_TIMEOUT_MS = parseInt(process.env.OCR_TIMEOUT_MS || '30000', 10); // 30 sec per page
+      const MEMORY_LIMIT_MB = 480; // Safety threshold (512 MB limit - 32 MB buffer)
       const validPages = preprocessResult.pages.filter(p => p.base64); // Skip failed pages
 
       this.logger.info('Starting batched parallel OCR', {
@@ -589,131 +590,195 @@ class V3Worker {
         batchSize: BATCH_SIZE,
       });
 
-      // Process pages in batches
-      for (let batchStart = 0; batchStart < validPages.length; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, validPages.length);
-        const batch = validPages.slice(batchStart, batchEnd);
-        const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1;
-        const totalBatches = Math.ceil(validPages.length / BATCH_SIZE);
+      // Process pages in batches with comprehensive error handling
+      try {
+        for (let batchStart = 0; batchStart < validPages.length; batchStart += BATCH_SIZE) {
+          const batchEnd = Math.min(batchStart + BATCH_SIZE, validPages.length);
+          const batch = validPages.slice(batchStart, batchEnd);
+          const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1;
+          const totalBatches = Math.ceil(validPages.length / BATCH_SIZE);
 
-        this.logger.info(`Processing batch ${batchNumber}/${totalBatches}`, {
-          shell_file_id: payload.shell_file_id,
-          batchStart: batchStart + 1,
-          batchEnd,
-          batchSize: batch.length,
-        });
+          this.logger.info(`Processing batch ${batchNumber}/${totalBatches}`, {
+            shell_file_id: payload.shell_file_id,
+            batchStart: batchStart + 1,
+            batchEnd,
+            batchSize: batch.length,
+          });
 
-        // Check memory before processing batch
-        const memBefore = process.memoryUsage();
-        this.logger.info('Memory before batch', {
-          shell_file_id: payload.shell_file_id,
-          batchNumber,
-          heapUsedMB: Math.round(memBefore.heapUsed / 1024 / 1024),
-          heapTotalMB: Math.round(memBefore.heapTotal / 1024 / 1024),
-          rssMB: Math.round(memBefore.rss / 1024 / 1024),
-        });
+          // Check memory before processing batch
+          const memBefore = process.memoryUsage();
+          const rssMB = Math.round(memBefore.rss / 1024 / 1024);
 
-        // Process batch in parallel with timeout protection
-        const batchResults = await Promise.all(
-          batch.map(async (page) => {
-            const timeoutPromise = new Promise<never>((_, reject) => {
-              setTimeout(() => reject(new Error(`OCR timeout after ${OCR_TIMEOUT_MS}ms`)), OCR_TIMEOUT_MS);
-            });
+          this.logger.info('Memory before batch', {
+            shell_file_id: payload.shell_file_id,
+            batchNumber,
+            heapUsedMB: Math.round(memBefore.heapUsed / 1024 / 1024),
+            heapTotalMB: Math.round(memBefore.heapTotal / 1024 / 1024),
+            rssMB,
+          });
 
-            try {
-              this.logger.info(`Processing page ${page.pageNumber}/${preprocessResult.totalPages}`, {
-                shell_file_id: payload.shell_file_id,
+          // Safety check: abort if approaching memory limit
+          if (rssMB > MEMORY_LIMIT_MB) {
+            throw new Error(
+              `Memory limit approaching (${rssMB} MB / ${MEMORY_LIMIT_MB} MB threshold). ` +
+              `Processed ${ocrPages.length}/${validPages.length} pages before aborting.`
+            );
+          }
+
+          // Process batch in parallel with improved timeout handling
+          const batchResults = await Promise.allSettled(
+            batch.map(async (page) => {
+              let timeoutId: NodeJS.Timeout | null = null;
+
+              try {
+                this.logger.info(`Processing page ${page.pageNumber}/${preprocessResult.totalPages}`, {
+                  shell_file_id: payload.shell_file_id,
+                  pageNumber: page.pageNumber,
+                  width: page.width,
+                  height: page.height,
+                });
+
+                // Create timeout promise with cleanup
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                  timeoutId = setTimeout(() => {
+                    reject(new Error(`OCR timeout after ${OCR_TIMEOUT_MS}ms`));
+                  }, OCR_TIMEOUT_MS);
+                });
+
+                // Race between OCR and timeout
+                const ocrSpatialData = await Promise.race([
+                  processWithGoogleVisionOCR(page.base64!, page.mime),
+                  timeoutPromise,
+                ]);
+
+                // Clear timeout since OCR succeeded
+                if (timeoutId) clearTimeout(timeoutId);
+
+                // Free memory: nullify base64 after successful OCR
+                page.base64 = null;
+
+                // Transform to OCR page format
+                const ocrPage = {
+                  page_number: page.pageNumber,
+                  size: { width_px: page.width || 0, height_px: page.height || 0 },
+                  lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
+                    text: item.text,
+                    bbox: {
+                      x: item.bounding_box.x,
+                      y: item.bounding_box.y,
+                      w: item.bounding_box.width,
+                      h: item.bounding_box.height,
+                    },
+                    bbox_norm:
+                      page.width && page.height
+                        ? {
+                            x: item.bounding_box.x / page.width,
+                            y: item.bounding_box.y / page.height,
+                            w: item.bounding_box.width / page.width,
+                            h: item.bounding_box.height / page.height,
+                          }
+                        : null,
+                    confidence: item.confidence,
+                    reading_order: idx,
+                  })),
+                  tables: [],
+                  provider: ocrSpatialData.ocr_provider,
+                  processing_time_ms: ocrSpatialData.processing_time_ms,
+                };
+
+                this.logger.info(`Page ${page.pageNumber} OCR complete`, {
+                  shell_file_id: payload.shell_file_id,
+                  pageNumber: page.pageNumber,
+                  textLength: ocrSpatialData.extracted_text.length,
+                  confidence: ocrSpatialData.ocr_confidence,
+                });
+
+                return ocrPage;
+              } catch (error) {
+                // Clear timeout on error
+                if (timeoutId) clearTimeout(timeoutId);
+
+                // Free memory even on error
+                page.base64 = null;
+
+                this.logger.error(`Page ${page.pageNumber} OCR failed`, error as Error, {
+                  shell_file_id: payload.shell_file_id,
+                  pageNumber: page.pageNumber,
+                  errorMessage: error instanceof Error ? error.message : String(error),
+                });
+
+                throw error;
+              }
+            })
+          );
+
+          // Process batch results - check for failures
+          const successfulPages: any[] = [];
+          const failedPages: Array<{ pageNumber: number; error: string }> = [];
+
+          batchResults.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+              successfulPages.push(result.value);
+            } else {
+              const page = batch[index];
+              failedPages.push({
                 pageNumber: page.pageNumber,
-                width: page.width,
-                height: page.height,
+                error: result.reason instanceof Error ? result.reason.message : String(result.reason),
               });
-
-              // Race between OCR and timeout
-              // page.base64 is guaranteed to be non-null because validPages filters out null values
-              const ocrSpatialData = await Promise.race([
-                processWithGoogleVisionOCR(page.base64!, page.mime),
-                timeoutPromise,
-              ]);
-
-              // Transform to OCR page format
-              const ocrPage = {
-                page_number: page.pageNumber,
-                size: { width_px: page.width || 0, height_px: page.height || 0 },
-                lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
-                  text: item.text,
-                  bbox: {
-                    x: item.bounding_box.x,
-                    y: item.bounding_box.y,
-                    w: item.bounding_box.width,
-                    h: item.bounding_box.height,
-                  },
-                  bbox_norm:
-                    page.width && page.height
-                      ? {
-                          x: item.bounding_box.x / page.width,
-                          y: item.bounding_box.y / page.height,
-                          w: item.bounding_box.width / page.width,
-                          h: item.bounding_box.height / page.height,
-                        }
-                      : null,
-                  confidence: item.confidence,
-                  reading_order: idx,
-                })),
-                tables: [],
-                provider: ocrSpatialData.ocr_provider,
-                processing_time_ms: ocrSpatialData.processing_time_ms,
-              };
-
-              this.logger.info(`Page ${page.pageNumber} OCR complete`, {
-                shell_file_id: payload.shell_file_id,
-                pageNumber: page.pageNumber,
-                textLength: ocrSpatialData.extracted_text.length,
-                confidence: ocrSpatialData.ocr_confidence,
-              });
-
-              return ocrPage;
-            } catch (error) {
-              this.logger.error(`Page ${page.pageNumber} OCR failed`, error as Error, {
-                shell_file_id: payload.shell_file_id,
-                pageNumber: page.pageNumber,
-              });
-              throw error; // Propagate error to fail the job
             }
-          })
-        );
+          });
 
-        // Add batch results to main array
-        ocrPages.push(...batchResults);
+          // If ANY pages failed in this batch, fail the entire job
+          if (failedPages.length > 0) {
+            throw new Error(
+              `Batch ${batchNumber} failed: ${failedPages.length}/${batch.length} pages failed. ` +
+              `Failed pages: ${failedPages.map(p => p.pageNumber).join(', ')}. ` +
+              `First error: ${failedPages[0].error}`
+            );
+          }
 
-        // Memory cleanup after batch
-        const memAfter = process.memoryUsage();
-        this.logger.info(`Batch ${batchNumber}/${totalBatches} complete`, {
-          shell_file_id: payload.shell_file_id,
-          batchNumber,
-          pagesProcessed: ocrPages.length,
-          totalPages: validPages.length,
-          heapUsedMB: Math.round(memAfter.heapUsed / 1024 / 1024),
-          heapTotalMB: Math.round(memAfter.heapTotal / 1024 / 1024),
-          rssMB: Math.round(memAfter.rss / 1024 / 1024),
-        });
+          // Add successful batch results to main array
+          ocrPages.push(...successfulPages);
 
-        // Force garbage collection if available (requires --expose-gc flag)
-        if (global.gc) {
-          this.logger.info('Forcing garbage collection', {
+          // Memory cleanup after batch
+          const memAfter = process.memoryUsage();
+          this.logger.info(`Batch ${batchNumber}/${totalBatches} complete`, {
             shell_file_id: payload.shell_file_id,
             batchNumber,
+            pagesProcessed: ocrPages.length,
+            totalPages: validPages.length,
+            heapUsedMB: Math.round(memAfter.heapUsed / 1024 / 1024),
+            heapTotalMB: Math.round(memAfter.heapTotal / 1024 / 1024),
+            rssMB: Math.round(memAfter.rss / 1024 / 1024),
           });
-          global.gc();
 
-          const memAfterGC = process.memoryUsage();
-          this.logger.info('Memory after GC', {
-            shell_file_id: payload.shell_file_id,
-            batchNumber,
-            heapUsedMB: Math.round(memAfterGC.heapUsed / 1024 / 1024),
-            heapTotalMB: Math.round(memAfterGC.heapTotal / 1024 / 1024),
-            rssMB: Math.round(memAfterGC.rss / 1024 / 1024),
-          });
+          // Force garbage collection if available (requires --expose-gc flag)
+          if (global.gc) {
+            this.logger.info('Forcing garbage collection', {
+              shell_file_id: payload.shell_file_id,
+              batchNumber,
+            });
+            global.gc();
+
+            const memAfterGC = process.memoryUsage();
+            this.logger.info('Memory after GC', {
+              shell_file_id: payload.shell_file_id,
+              batchNumber,
+              heapUsedMB: Math.round(memAfterGC.heapUsed / 1024 / 1024),
+              heapTotalMB: Math.round(memAfterGC.heapTotal / 1024 / 1024),
+              rssMB: Math.round(memAfterGC.rss / 1024 / 1024),
+            });
+          }
         }
+      } catch (batchError) {
+        // Comprehensive error logging for batch processing failures
+        this.logger.error('Batched OCR processing failed', batchError as Error, {
+          shell_file_id: payload.shell_file_id,
+          pagesCompleted: ocrPages.length,
+          totalPages: validPages.length,
+          errorMessage: batchError instanceof Error ? batchError.message : String(batchError),
+        });
+        throw batchError;
       }
 
       // Build final multi-page OCR result
