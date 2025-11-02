@@ -90,6 +90,7 @@ interface OCRSpatialData {
   ocr_confidence: number;
   processing_time_ms: number;
   ocr_provider: string;
+  raw_gcv_response: any; // Full GCV API response for debugging and reprocessing
 }
 
 /**
@@ -307,6 +308,7 @@ async function processWithGoogleVisionOCR(
     ocr_confidence: avgConfidence,
     processing_time_ms: processingTime,
     ocr_provider: 'google_cloud_vision',
+    raw_gcv_response: result.responses?.[0] || null, // Store for debugging and reprocessing
   };
 }
 
@@ -796,6 +798,7 @@ class V3Worker {
                   tables: [],
                   provider: ocrSpatialData.ocr_provider,
                   processing_time_ms: ocrSpatialData.processing_time_ms,
+                  raw_gcv_response: ocrSpatialData.raw_gcv_response, // Store for debugging
                 };
 
                 this.logger.info(`Page ${page.pageNumber} OCR complete`, {
@@ -914,7 +917,36 @@ class V3Worker {
         this.logger['correlation_id']
       );
 
-      // NEW: Update shell_files record with processed image metadata
+      // Store raw GCV responses in shell_files for debugging and analysis
+      const rawGCVResponses = ocrResult.pages
+        .filter((p: any) => p.raw_gcv_response)
+        .map((p: any) => ({
+          page_number: p.page_number,
+          raw_response: p.raw_gcv_response
+        }));
+
+      if (rawGCVResponses.length > 0) {
+        const { error: ocrStorageError } = await this.supabase
+          .from('shell_files')
+          .update({
+            ocr_raw_jsonb: { pages: rawGCVResponses }
+          })
+          .eq('id', payload.shell_file_id);
+
+        if (ocrStorageError) {
+          this.logger.error('Failed to store raw OCR responses', ocrStorageError as Error, {
+            shell_file_id: payload.shell_file_id,
+          });
+          // Log error but don't fail - this is for debugging only
+        } else {
+          this.logger.info('Stored raw OCR responses in database', {
+            shell_file_id: payload.shell_file_id,
+            pages_stored: rawGCVResponses.length,
+          });
+        }
+      }
+
+      // Update shell_files record with processed image metadata
       if (imageMetadata) {
         const { error: updateError } = await this.supabase
           .from('shell_files')
