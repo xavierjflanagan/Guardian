@@ -90,7 +90,8 @@ interface OCRSpatialData {
   ocr_confidence: number;
   processing_time_ms: number;
   ocr_provider: string;
-  raw_gcv_response: any; // Full GCV API response for debugging and reprocessing
+  original_gcv_text: string; // Original unsorted text from GCV for comparison
+  page_dimensions?: { width: number; height: number }; // Page dimensions for context
 }
 
 /**
@@ -242,6 +243,17 @@ async function processWithGoogleVisionOCR(
     throw new Error('No text detected in document');
   }
 
+  // Capture original GCV text (potentially scrambled in multi-column documents)
+  const originalGCVText = annotation.text || '';
+
+  // Capture page dimensions for context
+  const pageDimensions = annotation.pages?.[0]
+    ? {
+        width: annotation.pages[0].width || 0,
+        height: annotation.pages[0].height || 0,
+      }
+    : undefined;
+
   // SPATIAL SORTING FIX: Sort blocks spatially before extracting text
   // This fixes multi-column reading bug where GCV returns text in detection order
   let extractedText = '';
@@ -250,7 +262,7 @@ async function processWithGoogleVisionOCR(
     extractedText = extractTextFromBlocks(sortedBlocks);
   } else {
     // Fallback to GCV's text if no blocks found (should be rare)
-    extractedText = annotation.text || '';
+    extractedText = originalGCVText;
   }
 
   // Build spatial mapping from pages (keeping original structure for bbox data)
@@ -308,7 +320,8 @@ async function processWithGoogleVisionOCR(
     ocr_confidence: avgConfidence,
     processing_time_ms: processingTime,
     ocr_provider: 'google_cloud_vision',
-    raw_gcv_response: result.responses?.[0] || null, // Store for debugging and reprocessing
+    original_gcv_text: originalGCVText,
+    page_dimensions: pageDimensions,
   };
 }
 
@@ -798,7 +811,10 @@ class V3Worker {
                   tables: [],
                   provider: ocrSpatialData.ocr_provider,
                   processing_time_ms: ocrSpatialData.processing_time_ms,
-                  raw_gcv_response: ocrSpatialData.raw_gcv_response, // Store for debugging
+                  // Store lightweight text comparison data
+                  original_gcv_text: ocrSpatialData.original_gcv_text,
+                  spatially_sorted_text: ocrSpatialData.extracted_text,
+                  page_dimensions: ocrSpatialData.page_dimensions,
                 };
 
                 this.logger.info(`Page ${page.pageNumber} OCR complete`, {
@@ -917,31 +933,33 @@ class V3Worker {
         this.logger['correlation_id']
       );
 
-      // Store raw GCV responses in shell_files for debugging and analysis
-      const rawGCVResponses = ocrResult.pages
-        .filter((p: any) => p.raw_gcv_response)
+      // Store lightweight OCR text comparison data for debugging
+      const ocrComparisonData = ocrResult.pages
+        .filter((p: any) => p.original_gcv_text && p.spatially_sorted_text)
         .map((p: any) => ({
           page_number: p.page_number,
-          raw_response: p.raw_gcv_response
+          original_gcv_text: p.original_gcv_text,
+          spatially_sorted_text: p.spatially_sorted_text,
+          dimensions: p.page_dimensions || p.size,
         }));
 
-      if (rawGCVResponses.length > 0) {
+      if (ocrComparisonData.length > 0) {
         const { error: ocrStorageError } = await this.supabase
           .from('shell_files')
           .update({
-            ocr_raw_jsonb: { pages: rawGCVResponses }
+            ocr_raw_jsonb: { pages: ocrComparisonData }
           })
           .eq('id', payload.shell_file_id);
 
         if (ocrStorageError) {
-          this.logger.error('Failed to store raw OCR responses', ocrStorageError as Error, {
+          this.logger.error('Failed to store OCR comparison data', ocrStorageError as Error, {
             shell_file_id: payload.shell_file_id,
           });
           // Log error but don't fail - this is for debugging only
         } else {
-          this.logger.info('Stored raw OCR responses in database', {
+          this.logger.info('Stored OCR comparison data in database', {
             shell_file_id: payload.shell_file_id,
-            pages_stored: rawGCVResponses.length,
+            pages_stored: ocrComparisonData.length,
           });
         }
       }

@@ -176,6 +176,15 @@ async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unu
     if (!annotation) {
         throw new Error('No text detected in document');
     }
+    // Capture original GCV text (potentially scrambled in multi-column documents)
+    const originalGCVText = annotation.text || '';
+    // Capture page dimensions for context
+    const pageDimensions = annotation.pages?.[0]
+        ? {
+            width: annotation.pages[0].width || 0,
+            height: annotation.pages[0].height || 0,
+        }
+        : undefined;
     // SPATIAL SORTING FIX: Sort blocks spatially before extracting text
     // This fixes multi-column reading bug where GCV returns text in detection order
     let extractedText = '';
@@ -185,7 +194,7 @@ async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unu
     }
     else {
         // Fallback to GCV's text if no blocks found (should be rare)
-        extractedText = annotation.text || '';
+        extractedText = originalGCVText;
     }
     // Build spatial mapping from pages (keeping original structure for bbox data)
     const spatialMapping = [];
@@ -237,6 +246,8 @@ async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unu
         ocr_confidence: avgConfidence,
         processing_time_ms: processingTime,
         ocr_provider: 'google_cloud_vision',
+        original_gcv_text: originalGCVText,
+        page_dimensions: pageDimensions,
     };
 }
 // =============================================================================
@@ -643,6 +654,10 @@ class V3Worker {
                                 tables: [],
                                 provider: ocrSpatialData.ocr_provider,
                                 processing_time_ms: ocrSpatialData.processing_time_ms,
+                                // Store lightweight text comparison data
+                                original_gcv_text: ocrSpatialData.original_gcv_text,
+                                spatially_sorted_text: ocrSpatialData.extracted_text,
+                                page_dimensions: ocrSpatialData.page_dimensions,
                             };
                             this.logger.info(`Page ${page.pageNumber} OCR complete`, {
                                 shell_file_id: payload.shell_file_id,
@@ -739,7 +754,36 @@ class V3Worker {
             // Persist OCR artifacts for future reuse (with processed image references)
             await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum, imageMetadata, // NEW: Include processed image metadata
             this.logger['correlation_id']);
-            // NEW: Update shell_files record with processed image metadata
+            // Store lightweight OCR text comparison data for debugging
+            const ocrComparisonData = ocrResult.pages
+                .filter((p) => p.original_gcv_text && p.spatially_sorted_text)
+                .map((p) => ({
+                page_number: p.page_number,
+                original_gcv_text: p.original_gcv_text,
+                spatially_sorted_text: p.spatially_sorted_text,
+                dimensions: p.page_dimensions || p.size,
+            }));
+            if (ocrComparisonData.length > 0) {
+                const { error: ocrStorageError } = await this.supabase
+                    .from('shell_files')
+                    .update({
+                    ocr_raw_jsonb: { pages: ocrComparisonData }
+                })
+                    .eq('id', payload.shell_file_id);
+                if (ocrStorageError) {
+                    this.logger.error('Failed to store OCR comparison data', ocrStorageError, {
+                        shell_file_id: payload.shell_file_id,
+                    });
+                    // Log error but don't fail - this is for debugging only
+                }
+                else {
+                    this.logger.info('Stored OCR comparison data in database', {
+                        shell_file_id: payload.shell_file_id,
+                        pages_stored: ocrComparisonData.length,
+                    });
+                }
+            }
+            // Update shell_files record with processed image metadata
             if (imageMetadata) {
                 const { error: updateError } = await this.supabase
                     .from('shell_files')
