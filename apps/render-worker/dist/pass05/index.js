@@ -3,11 +3,21 @@
  * Pass 0.5: Healthcare Encounter Discovery
  * Main Entry Point
  *
- * PHASE 1 MVP: Task 1 only (encounter discovery)
- * - Runs for ALL uploads (even 1-page files)
- * - Skips batching analysis if <18 pages
+ * PURPOSE:
+ * 1. Review ENTIRE document (all pages)
+ * 2. Detect and classify encounters
+ * 3. Determine batch separation points for downstream processing
  *
- * PHASE 2 (Future): Task 1 + Task 2 (batching for ≥18 pages)
+ * CURRENT IMPLEMENTATION:
+ * - Processes files of any size (no hardcoded page limit)
+ * - Batch boundary detection: Not yet implemented (returns null)
+ * - GPT-5 token limit: Unknown (testing in progress)
+ *
+ * FUTURE CONSIDERATION (100+ page files):
+ * - If file exceeds GPT-5 input token limit, may need "pre-batching"
+ * - Pre-batching would split file BEFORE Pass 0.5 (rough cuts)
+ * - Then Pass 0.5 runs on each pre-batch to determine real batch boundaries
+ * - Without pre-batching, very large files may fail at GPT-5 token ceiling
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runPass05 = runPass05;
@@ -37,18 +47,9 @@ async function runPass05(input) {
                 aiModel: existingManifest.ai_model_used
             };
         }
-        // Phase 1 MVP: Check page count threshold
-        if (input.pageCount >= 18) {
-            // Files ≥18 pages: Fail gracefully (batching not yet implemented)
-            return {
-                success: false,
-                error: 'File too large for Phase 1 MVP. Batching implementation pending. Maximum 17 pages.',
-                processingTimeMs: Date.now() - startTime,
-                aiCostUsd: 0,
-                aiModel: 'n/a'
-            };
-        }
-        // TASK 1: Encounter Discovery (always runs for <18 pages)
+        // TASK 1: Encounter Discovery (runs for all file sizes)
+        // Note: GPT-5 token limit will organically reveal itself through testing
+        // If very large files (100+ pages) fail, implement pre-batching strategy
         const encounterResult = await (0, encounterDiscovery_1.discoverEncounters)({
             shellFileId: input.shellFileId,
             patientId: input.patientId,

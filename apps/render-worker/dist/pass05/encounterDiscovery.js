@@ -44,7 +44,7 @@ async function discoverEncounters(input) {
             ocrPages: input.ocrOutput.fullTextAnnotation.pages
         });
         // Detect GPT-5 vs GPT-4o (same pattern as Pass 1)
-        const model = 'gpt-5-mini';
+        const model = 'gpt-5';
         const isGPT5 = model.startsWith('gpt-5');
         // Build request parameters with model-specific handling
         const requestParams = {

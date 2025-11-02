@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS shell_files (
     -- Content analysis
     extracted_text TEXT,
     ocr_confidence NUMERIC(3,2),
+    ocr_raw_jsonb JSONB, -- Complete Google Cloud Vision OCR response for debugging/reprocessing (Migration 37 - 2025-11-03)
     page_count INTEGER DEFAULT 1,
     
     -- POST-PASS 3: Shell File Synthesis (replaces primitive document intelligence)

@@ -2,6 +2,19 @@
 /**
  * AI Prompt Design for Pass 0.5
  * Healthcare Encounter Discovery
+ *
+ * VERSION HISTORY:
+ * v1 (original) - Backed up as aiPrompts.v1.ts
+ * v2.0 (Nov 2, 2025 10:20 AM) - Added Scenario D: Metadata Page Recognition (INITIAL)
+ *    - Fixes Test 06 boundary detection issue (detected 11/12, should be 13/14)
+ *    - Added weighted boundary signal priority
+ *    - Added guidance: metadata pages belong to PRECEDING document
+ *    - ISSUE: Too specific to Test 06 structure, assumed metadata always at end
+ * v2.1 (Nov 2, 2025 10:30 AM) - Made metadata guidance GENERAL and context-based
+ *    - Changed from position-based ("PRECEDING") to context-based (provider continuity)
+ *    - Added Pattern A/B/C examples covering metadata at start/end/middle
+ *    - Key principle: Use provider/facility matching, not page position
+ *    - Handles metadata as cover pages, signature blocks, or between sections
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildEncounterDiscoveryPrompt = buildEncounterDiscoveryPrompt;
@@ -54,6 +67,76 @@ Before identifying encounters, determine the document structure:
 - Different formats but clearly related to same clinical event
 
 **Action:** Create separate encounters but note they may be related
+
+### Scenario D: Documents with Administrative Metadata Pages (CRITICAL)
+**Problem:** Medical documents often contain metadata pages (signatures, document IDs, patient info tables) that LOOK like document separators but may actually be part of an adjacent clinical document.
+
+**Metadata Page Indicators:**
+- Electronic signature blocks: "Electronically signed by [Name] on [Date]"
+- Document generation timestamps: "Generated for Printing/Faxing/eTransmitting on: [Date]"
+- Patient information tables (Document ID, Patient-ID, Version, Set-ID)
+- Custodian/Author/Legal Authenticator information blocks
+- Document metadata tables with IDs and version numbers
+- "Created On", "Authored On", "Confirmatory sign off" sections
+- Cover pages with document metadata but no clinical content
+
+**CRITICAL RULE - Use Context, Not Position:**
+Metadata should be grouped with the clinical content it DESCRIBES, based on matching provider/facility names.
+
+**How to Determine Which Document Metadata Belongs To:**
+
+1. **Check Provider/Facility References in Metadata:**
+   - If metadata mentions "Dr. Smith" → belongs with Dr. Smith's clinical content
+   - If metadata shows "Hospital A" → belongs with Hospital A's clinical content
+   - If metadata has signatures from "Dr. Smith" → part of Dr. Smith's document
+
+2. **Metadata Position Analysis:**
+   - **At document start (pages 1-2):** Usually a cover page/header for FOLLOWING content
+   - **At document end (last 1-3 pages):** Usually signature block/closeout for PRECEDING content
+   - **Between clinical sections:** Check provider names to determine grouping
+
+3. **When Uncertain:**
+   - Group metadata with the clinical content that shares the SAME provider/facility
+   - If no clear match, metadata might be a standalone administrative page
+   - Lower confidence score (0.75-0.85) when grouping is ambiguous
+
+**Boundary Detection Priority (Strongest → Weakest):**
+1. **Provider name change** (Dr. Smith → Dr. Jones) = VERY STRONG SIGNAL (95% confidence boundary)
+2. **New document header with date/time** = VERY STRONG SIGNAL
+3. **Facility name change** = STRONG SIGNAL
+4. **Patient name change** = STRONG SIGNAL (may indicate different source systems)
+5. **Author system change** (eClinicalWorks → Epic) = MODERATE SIGNAL
+6. **Date discontinuity** (March → June) = MODERATE SIGNAL
+7. **Content type change** (Clinical → Metadata) = WEAK SIGNAL (metadata often part of same document)
+8. **Formatting change alone** = VERY WEAK SIGNAL
+
+**Common Patterns and Solutions:**
+
+**Pattern A: Metadata at End (Most Common)**
+
+Pages 1-10: Clinical content (Dr. Smith, Hospital A)
+Pages 11-12: Metadata (Dr. Smith signature, document IDs)
+Page 13: New clinical header (Dr. Jones, Hospital B)
+RESULT: Group pages 11-12 with pages 1-10 (same provider)
+BOUNDARY: Page 12/13 (provider change)
+
+**Pattern B: Metadata at Start**
+
+Pages 1-2: Cover page with document metadata (Hospital A)
+Pages 3-10: Clinical content (Dr. Smith, Hospital A)
+RESULT: Group pages 1-2 with pages 3-10 (same facility)
+BOUNDARY: No boundary until different provider/facility appears
+
+**Pattern C: Multiple Documents with Metadata**
+
+Pages 1-5: Clinical (Dr. Smith)
+Pages 6-7: Metadata (Dr. Smith signature)
+Pages 8-9: Metadata/cover (Dr. Jones, Hospital B)
+Pages 10-15: Clinical (Dr. Jones, Hospital B)
+RESULT: Boundary at page 7/8 (provider change in metadata signals new document)
+
+**Key Principle:**
+Content type changes (clinical ↔ metadata) are WEAK signals. Provider/facility changes are STRONG signals. Use provider continuity to determine document boundaries, regardless of whether metadata appears before, after, or between clinical content.
 
 ## STEP 1: Document Type Recognition
 

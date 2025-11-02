@@ -93,6 +93,107 @@ interface OCRSpatialData {
 }
 
 /**
+ * Sort text blocks spatially for correct reading order
+ * Fixes multi-column reading bug where GCV returns text in detection order, not reading order
+ *
+ * Algorithm:
+ * 1. Group blocks into horizontal rows by Y-coordinate
+ * 2. Sort rows top-to-bottom
+ * 3. Within each row, sort blocks left-to-right by X-coordinate
+ *
+ * @param blocks - GCV blocks with boundingBox vertices
+ * @returns Sorted blocks in natural reading order (top-to-bottom, left-to-right)
+ */
+function sortBlocksSpatially(blocks: any[]): any[] {
+  if (!blocks || blocks.length === 0) {
+    return blocks;
+  }
+
+  // Calculate bbox for each block
+  const blocksWithBbox = blocks.map(block => {
+    const vertices = block.boundingBox?.vertices || [];
+    if (vertices.length < 4) {
+      return { block, y: 0, x: 0, height: 0 };
+    }
+
+    const y = Math.min(...vertices.map((v: any) => v.y || 0));
+    const x = Math.min(...vertices.map((v: any) => v.x || 0));
+    const maxY = Math.max(...vertices.map((v: any) => v.y || 0));
+    const height = maxY - y;
+
+    return { block, y, x, height };
+  });
+
+  // Sort by Y first (top-to-bottom)
+  blocksWithBbox.sort((a, b) => a.y - b.y);
+
+  // Group into rows (blocks with overlapping Y ranges)
+  const rows: typeof blocksWithBbox[] = [];
+  let currentRow: typeof blocksWithBbox = [];
+  let currentRowMaxY = 0;
+
+  for (const item of blocksWithBbox) {
+    // Check if this block overlaps with current row's Y range
+    // Use height-based threshold: block is in same row if it starts within current row's height
+    const isInCurrentRow = currentRow.length === 0 ||
+      (item.y < currentRowMaxY && item.y >= currentRow[0].y - currentRow[0].height * 0.5);
+
+    if (isInCurrentRow) {
+      currentRow.push(item);
+      currentRowMaxY = Math.max(currentRowMaxY, item.y + item.height);
+    } else {
+      // Start new row
+      if (currentRow.length > 0) {
+        rows.push(currentRow);
+      }
+      currentRow = [item];
+      currentRowMaxY = item.y + item.height;
+    }
+  }
+
+  // Don't forget last row
+  if (currentRow.length > 0) {
+    rows.push(currentRow);
+  }
+
+  // Sort each row left-to-right by X
+  rows.forEach(row => {
+    row.sort((a, b) => a.x - b.x);
+  });
+
+  // Flatten back to sorted blocks
+  return rows.flatMap(row => row.map(item => item.block));
+}
+
+/**
+ * Extract text from sorted blocks in reading order
+ * @param blocks - Sorted GCV blocks
+ * @returns Concatenated text with proper spacing and line breaks
+ */
+function extractTextFromBlocks(blocks: any[]): string {
+  const textParts: string[] = [];
+
+  for (const block of blocks) {
+    if (block.paragraphs) {
+      for (const paragraph of block.paragraphs) {
+        if (paragraph.words) {
+          const paragraphText = paragraph.words
+            .map((word: any) => word.symbols?.map((s: any) => s.text).join('') || '')
+            .filter((text: string) => text.length > 0)
+            .join(' ');
+
+          if (paragraphText) {
+            textParts.push(paragraphText);
+          }
+        }
+      }
+    }
+  }
+
+  return textParts.join('\n');
+}
+
+/**
  * Process document with Google Cloud Vision OCR
  * Moved from Edge Function to Worker for instant upload response
  */
@@ -140,17 +241,28 @@ async function processWithGoogleVisionOCR(
     throw new Error('No text detected in document');
   }
 
-  // Extract full text
-  const extractedText = annotation.text || '';
+  // SPATIAL SORTING FIX: Sort blocks spatially before extracting text
+  // This fixes multi-column reading bug where GCV returns text in detection order
+  let extractedText = '';
+  if (annotation.pages && annotation.pages[0]?.blocks) {
+    const sortedBlocks = sortBlocksSpatially(annotation.pages[0].blocks);
+    extractedText = extractTextFromBlocks(sortedBlocks);
+  } else {
+    // Fallback to GCV's text if no blocks found (should be rare)
+    extractedText = annotation.text || '';
+  }
 
-  // Build spatial mapping from pages
+  // Build spatial mapping from pages (keeping original structure for bbox data)
   const spatialMapping: OCRSpatialData['spatial_mapping'] = [];
-  
+
   // Process pages and blocks
   if (annotation.pages) {
     for (const page of annotation.pages) {
       if (page.blocks) {
-        for (const block of page.blocks) {
+        // Use spatially sorted blocks for consistent ordering
+        const sortedBlocks = sortBlocksSpatially(page.blocks);
+
+        for (const block of sortedBlocks) {
           if (block.paragraphs) {
             for (const paragraph of block.paragraphs) {
               if (paragraph.words) {
@@ -162,7 +274,7 @@ async function processWithGoogleVisionOCR(
                     const y = Math.min(...vertices.map((v: any) => v.y || 0));
                     const maxX = Math.max(...vertices.map((v: any) => v.x || 0));
                     const maxY = Math.max(...vertices.map((v: any) => v.y || 0));
-                    
+
                     spatialMapping.push({
                       text,
                       bounding_box: {

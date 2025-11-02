@@ -2,11 +2,21 @@
  * Pass 0.5: Healthcare Encounter Discovery
  * Main Entry Point
  *
- * PHASE 1 MVP: Task 1 only (encounter discovery)
- * - Runs for ALL uploads (even 1-page files)
- * - Skips batching analysis if <18 pages
+ * PURPOSE:
+ * 1. Review ENTIRE document (all pages)
+ * 2. Detect and classify encounters
+ * 3. Determine batch separation points for downstream processing
  *
- * PHASE 2 (Future): Task 1 + Task 2 (batching for ≥18 pages)
+ * CURRENT IMPLEMENTATION:
+ * - Processes files of any size (no hardcoded page limit)
+ * - Batch boundary detection: Not yet implemented (returns null)
+ * - GPT-5 token limit: Unknown (testing in progress)
+ *
+ * FUTURE CONSIDERATION (100+ page files):
+ * - If file exceeds GPT-5 input token limit, may need "pre-batching"
+ * - Pre-batching would split file BEFORE Pass 0.5 (rough cuts)
+ * - Then Pass 0.5 runs on each pre-batch to determine real batch boundaries
+ * - Without pre-batching, very large files may fail at GPT-5 token ceiling
  */
 import { Pass05Input, Pass05Output } from './types';
 export type { Pass05Input, Pass05Output } from './types';
