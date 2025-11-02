@@ -1,13 +1,6 @@
 /**
  * AI Prompt Design for Pass 0.5
  * Healthcare Encounter Discovery
- *
- * VERSION HISTORY:
- * v1 (original) - Backed up as aiPrompts.v1.ts
- * v2 (Nov 2, 2025) - Added Scenario D: Metadata Page Recognition
- *    - Fixes Test 06 boundary detection issue (detected 11/12, should be 13/14)
- *    - Added weighted boundary signal priority
- *    - Added guidance: metadata pages belong to PRECEDING document
  */
 
 import { OCRPage } from './types';
@@ -68,48 +61,6 @@ Before identifying encounters, determine the document structure:
 - Different formats but clearly related to same clinical event
 
 **Action:** Create separate encounters but note they may be related
-
-### Scenario D: Documents with Administrative Metadata Pages (CRITICAL)
-**Problem:** Medical documents often end with metadata/signature pages that LOOK like document separators but are actually part of the SAME document.
-
-**Metadata Page Indicators:**
-- Electronic signature blocks: "Electronically signed by [Name] on [Date]"
-- Document generation timestamps: "Generated for Printing/Faxing/eTransmitting on: [Date]"
-- Patient information tables (Document ID, Patient-ID, Version, Set-ID)
-- Custodian/Author/Legal Authenticator information blocks
-- Document metadata tables with IDs and version numbers
-- "Created On", "Authored On", "Confirmatory sign off" sections
-
-**CRITICAL RULE - Metadata Pages Belong to PRECEDING Document:**
-Metadata pages are document CLOSERS (end pages), not OPENERS (start pages).
-
-**Example Structure:**
-```
-Pages 1-11:  Clinical narrative (Progress Note by Dr. Smith at Facility A)
-Pages 12-13: Metadata/signatures (Dr. Smith's signature, document IDs) ← STILL PART OF PROGRESS NOTE
-Page 14:     New document header ("Encounter Summary" by Dr. Jones at Facility B) ← NEW DOCUMENT STARTS HERE
-```
-
-**Why This Matters:**
-Content type changes (clinical → metadata) are WEAK boundary signals. The real boundary is where a NEW clinical document with DIFFERENT provider/facility starts.
-
-**Boundary Detection Priority (Strongest → Weakest):**
-1. **Provider name change** (Dr. Smith → Dr. Jones) = VERY STRONG SIGNAL (95% confidence boundary)
-2. **New document header with date/time** ("Encounter Summary (October 30, 2025, 1:53:08PM)") = VERY STRONG SIGNAL
-3. **Facility name change** = STRONG SIGNAL
-4. **Patient name change** = STRONG SIGNAL (may indicate different document source systems)
-5. **Author system change** (eClinicalWorks → Epic) = MODERATE SIGNAL
-6. **Content type change** (Clinical → Metadata) = WEAK SIGNAL (metadata often part of same document)
-7. **Formatting change alone** = VERY WEAK SIGNAL
-
-**Action:**
-- When provider/facility stays consistent across metadata pages → SAME document
-- When new clinical header appears with DIFFERENT provider/facility → NEW document boundary
-- Group metadata pages with the PRECEDING clinical content, not the following content
-
-**Common Mistake to Avoid:**
-DON'T create boundary at: Clinical (page 11) → Metadata (page 12)
-DO create boundary at: Metadata (page 13) → New Clinical Header with Different Provider (page 14)
 
 ## STEP 1: Document Type Recognition
 
