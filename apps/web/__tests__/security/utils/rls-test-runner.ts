@@ -59,7 +59,7 @@ type ComplianceCategory = 'australian_privacy_act' | 'hipaa_technical' | 'hipaa_
  */
 export class RLSTestRunner {
   private config: RLSTestConfig
-  private adminClient: SupabaseClient
+  private adminClient: SupabaseClient<any, 'public', any>
   private testUsers: Map<string, TestUserContext> = new Map()
   private auditLogger?: SecurityAuditLogger
 
