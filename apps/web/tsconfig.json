@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     "../../services/supabase/functions/**",
-    "../../tools/scripts/**"
+    "../../tools/scripts/**",
+    "__tests__/**"
   ]
 }
