@@ -6,6 +6,8 @@
 /**
  * Pass 0.5 Shell File Manifest
  * Output of encounter discovery (Task 1)
+ *
+ * v2.3 ADDITION: page_assignments array with explicit page-to-encounter mapping
  */
 export interface ShellFileManifest {
   shellFileId: string;
@@ -21,8 +23,37 @@ export interface ShellFileManifest {
   // Task 1: Encounter discovery (always present)
   encounters: EncounterMetadata[];
 
+  // v2.3: Page-by-page assignments with justifications (MANDATORY for v2.3+)
+  page_assignments?: PageAssignment[];
+
   // Task 2: Batching (null in Phase 1 MVP)
   batching: null | BatchingPlan;
+}
+
+/**
+ * Page Assignment with Justification (v2.3)
+ * Forces explicit page-to-encounter mapping with reasoning
+ */
+export interface PageAssignment {
+  /**
+   * Page number (1-indexed)
+   */
+  page: number;
+
+  /**
+   * Encounter ID this page belongs to
+   * Must match an encounter_id in the encounters array
+   */
+  encounter_id: string;
+
+  /**
+   * Brief justification for this page assignment (15-20 words)
+   * Examples:
+   * - "Continuation of discharge summary, same provider and facility"
+   * - "NEW Encounter Summary header, different provider and facility"
+   * - "Signature block for previous encounter, Dr Smith closeout"
+   */
+  justification: string;
 }
 
 export interface EncounterMetadata {

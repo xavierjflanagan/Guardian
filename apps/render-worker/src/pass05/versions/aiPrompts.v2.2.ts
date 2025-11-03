@@ -19,12 +19,6 @@
  *    - Generation dates (report printed) vs Encounter dates (clinical visit)
  *    - Prevents mistaking new encounter documents for metadata pages
  *    - Pattern D example: Don't confuse close generation dates with same encounter
- * v2.3 (Nov 3, 2025) - Page-by-Page Assignment with Justifications
- *    - Forces explicit page-to-encounter assignment for all pages
- *    - Requires brief justification (15-20 words) for each page assignment
- *    - Exposes contradictions at boundary pages through required reasoning
- *    - Addresses Test 06 failure: model ignored boundary signals in v2.2
- *    - Chain-of-thought approach to improve instruction compliance
  */
 
 import { OCRPage } from './types';
@@ -380,70 +374,12 @@ Your \`confidence\` should reflect:
 - MEDIUM (0.65-0.85): Some missing info (no provider OR vague facility) but clearly separate document
 - LOW (0.40-0.65): Ambiguous boundaries or missing key info
 
-## CRITICAL: Page-by-Page Assignment Process (v2.3)
-
-**IMPORTANT: You MUST assign EVERY page explicitly to an encounter and provide a brief justification.**
-
-This requirement ensures you consciously evaluate each page assignment decision, especially at encounter boundaries.
-
-### Assignment Rules
-
-1. **For each page** (page 1 through page ${input.pageCount}):
-   - Assign it to an encounter using encounter_id
-   - Provide a brief justification (15-20 words maximum)
-
-2. **Use consistent encounter IDs** across page_assignments and encounters arrays
-   - Example: "enc-1", "enc-2", "enc-3"
-   - IDs must match between page_assignments and encounters
-
-3. **Justification Guidelines:**
-
-   **For continuation pages (same encounter):**
-   - "Continuation of [document type], same provider and facility"
-   - "Middle section of [encounter type], consistent formatting"
-   - "Part of same clinical note, no boundary signals"
-
-   **For boundary pages (new encounter starting):**
-   - "NEW Encounter Summary header, signals new document starting"
-   - "Provider change from [Name A] to [Name B], new encounter"
-   - "Facility change from [Facility X] to [Facility Y]"
-   - "Different encounter date [Date1] vs previous [Date2]"
-   - "New document header with different letterhead/format"
-
-   **For metadata/administrative pages:**
-   - "Signature block for [provider name] encounter"
-   - "Document metadata/contact details for preceding encounter"
-   - "Administrative cover page for [encounter type]"
-
-### Critical Decision Points
-
-**When you encounter a page that could belong to either of two encounters:**
-- Ask yourself: "What are the boundary signals on this page?"
-- Check for: Encounter Summary headers, provider changes, facility changes, date changes
-- **Document headers ALWAYS signal new encounters** (even if dates are close)
-- Write your reasoning in the justification
-
-**Example critical page (like Test 06 page 14):**
-- If you see "Encounter Summary" header: "NEW Encounter Summary header, different provider and facility"
-- NOT: "Signature page for previous encounter" (wrong if Encounter Summary header present)
-
-### Why This Matters
-
-This process prevents errors like:
-- Assigning page 14 to encounter 1 when it has "Encounter Summary" header for encounter 2
-- Ignoring provider/facility changes at page boundaries
-- Being misled by temporal proximity of dates
-
-**Your justifications will be reviewed to understand your reasoning.**
-
 ## Instructions
 
 1. **Read the entire document** (all ${input.pageCount} pages)
 2. **Apply Timeline Test** to each potential encounter
-3. **Assign EACH page to an encounter with justification** (page-by-page process above)
-4. **Ensure non-overlapping page ranges**
-5. **For each encounter, extract:**
-   - \`encounter_id\`: Unique ID (e.g., "enc-1", "enc-2")
+3. **Ensure non-overlapping page ranges**
+4. **For each encounter, extract:**
    - Type (from lists above)
    - \`isRealWorldVisit\`: true (past completed), false (planned future OR pseudo)
    - Date range (null if vague date)
@@ -452,25 +388,13 @@ This process prevents errors like:
    - Page ranges (non-overlapping, can be non-contiguous like [[1,3],[7,8]])
    - Confidence (0.0-1.0)
 
-6. **Return JSON** with TWO sections:
-   - \`page_assignments\`: Array of page assignments with justifications
-   - \`encounters\`: Array of encounter details
-
-Examples below show the new format:
+5. **Return JSON** - Examples below show common scenarios in order of likelihood:
 
 **Example 1: Single Administrative Summary (MOST COMMON)**
 \`\`\`json
 {
-  "page_assignments": [
-    {
-      "page": 1,
-      "encounter_id": "enc-1",
-      "justification": "Single-page Patient Health Summary document from South Coast Medical"
-    }
-  ],
   "encounters": [
     {
-      "encounter_id": "enc-1",
       "encounterType": "pseudo_admin_summary",
       "isRealWorldVisit": false,
       "dateRange": null,
@@ -487,16 +411,8 @@ Examples below show the new format:
 **Example 2: Single Real-World Clinical Visit (COMMON)**
 \`\`\`json
 {
-  "page_assignments": [
-    {"page": 1, "encounter_id": "enc-1", "justification": "Discharge summary header, admission date March 10, Dr Jane Smith"},
-    {"page": 2, "encounter_id": "enc-1", "justification": "Continuation of discharge summary, same provider and facility"},
-    {"page": 3, "encounter_id": "enc-1", "justification": "Procedure details section, part of same discharge document"},
-    {"page": 4, "encounter_id": "enc-1", "justification": "Medications and follow-up plan, same discharge summary"},
-    {"page": 5, "encounter_id": "enc-1", "justification": "Final page with signature, Dr Jane Smith closeout"}
-  ],
   "encounters": [
     {
-      "encounter_id": "enc-1",
       "encounterType": "discharge_summary",
       "isRealWorldVisit": true,
       "dateRange": {
@@ -516,19 +432,8 @@ Examples below show the new format:
 **Example 3: Multiple Distinct Documents (LESS COMMON but system MUST support)**
 \`\`\`json
 {
-  "page_assignments": [
-    {"page": 1, "encounter_id": "enc-1", "justification": "Discharge summary header, City Hospital, Dr Smith, March 10-15"},
-    {"page": 2, "encounter_id": "enc-1", "justification": "Continuation of discharge, same provider and facility"},
-    {"page": 3, "encounter_id": "enc-1", "justification": "Discharge signature page, Dr Smith closeout"},
-    {"page": 4, "encounter_id": "enc-2", "justification": "NEW document: Pathology header, PathLab Services, different format"},
-    {"page": 5, "encounter_id": "enc-2", "justification": "Continuation of pathology results, same lab facility"},
-    {"page": 6, "encounter_id": "enc-3", "justification": "NEW Consultation header, Medical Centre, Dr Jones, March 20"},
-    {"page": 7, "encounter_id": "enc-3", "justification": "Continuation of outpatient consultation, same provider"},
-    {"page": 8, "encounter_id": "enc-3", "justification": "Final page of consultation with Dr Jones signature"}
-  ],
   "encounters": [
     {
-      "encounter_id": "enc-1",
       "encounterType": "discharge_summary",
       "isRealWorldVisit": true,
       "dateRange": {"start": "2024-03-10", "end": "2024-03-15"},
@@ -539,7 +444,6 @@ Examples below show the new format:
       "extractedText": "Discharge Summary - Surgical admission..."
     },
     {
-      "encounter_id": "enc-2",
       "encounterType": "pseudo_lab_report",
       "isRealWorldVisit": false,
       "dateRange": null,
@@ -550,7 +454,6 @@ Examples below show the new format:
       "extractedText": "PATHOLOGY REPORT - FBC: Hb 145 g/L (135-175), WBC 7.2 x10^9/L..."
     },
     {
-      "encounter_id": "enc-3",
       "encounterType": "outpatient",
       "isRealWorldVisit": true,
       "dateRange": {"start": "2024-03-20"},
@@ -572,12 +475,9 @@ Examples below show the new format:
 
 ## Important Notes
 
-- **page_assignments is MANDATORY**: You must assign ALL ${input.pageCount} pages explicitly
-- **Justifications are MANDATORY**: Every page assignment needs a brief justification (15-20 words)
-- **encounter_id consistency**: Same IDs must appear in both page_assignments and encounters arrays
 - If multiple pages discuss the same encounter, use page ranges: [[1,5], [10,12]]
 - For pseudo-encounters, leave dateRange, provider, facility as null
-- If no encounters found, return empty arrays: {"page_assignments": [], "encounters": []}
+- If no encounters found, return empty array: {"encounters": []}
 - Confidence should reflect certainty in encounter identification (not OCR quality)
 - extractedText should be first 100 characters of encounter content (for debugging)
 

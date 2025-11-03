@@ -13,7 +13,8 @@ import {
   GoogleCloudVisionOCR,
   BoundingBox,
   BoundingBoxNorm,
-  SpatialBound
+  SpatialBound,
+  PageAssignment
 } from './types';
 
 const supabase = createClient(
@@ -22,7 +23,15 @@ const supabase = createClient(
 );
 
 interface AIEncounterResponse {
+  // v2.3: Page assignments with justifications (MANDATORY for v2.3+)
+  page_assignments?: Array<{
+    page: number;
+    encounter_id: string;
+    justification: string;
+  }>;
+
   encounters: Array<{
+    encounter_id?: string;  // v2.3: AI-assigned ID (e.g., "enc-1", "enc-2")
     encounterType: string;
     isRealWorldVisit: boolean;
     dateRange?: { start: string; end?: string };
@@ -32,6 +41,54 @@ interface AIEncounterResponse {
     confidence: number;
     extractedText?: string;
   }>;
+}
+
+/**
+ * v2.3: Validate page assignments (if present)
+ * Ensures all pages assigned, encounter IDs match, justifications present
+ */
+function validatePageAssignments(
+  pageAssignments: Array<{ page: number; encounter_id: string; justification: string }>,
+  encounters: Array<{ encounter_id?: string; encounterType: string }>,
+  totalPages?: number
+): void {
+  // Check all pages are assigned (if totalPages known)
+  if (totalPages) {
+    const assignedPages = new Set(pageAssignments.map(pa => pa.page));
+    if (assignedPages.size !== totalPages) {
+      console.warn(
+        `[Pass 0.5 v2.3] Page assignment count mismatch: ` +
+        `${assignedPages.size} pages assigned, but document has ${totalPages} pages`
+      );
+    }
+
+    // Check for missing pages
+    for (let page = 1; page <= totalPages; page++) {
+      if (!assignedPages.has(page)) {
+        console.warn(`[Pass 0.5 v2.3] Page ${page} not assigned to any encounter`);
+      }
+    }
+  }
+
+  // Check encounter_id consistency
+  const encounterIds = new Set(encounters.map(e => e.encounter_id).filter(Boolean));
+  const assignmentEncounterIds = new Set(pageAssignments.map(pa => pa.encounter_id));
+
+  for (const id of assignmentEncounterIds) {
+    if (!encounterIds.has(id)) {
+      throw new Error(
+        `[Pass 0.5 v2.3] Page assignment references unknown encounter_id "${id}". ` +
+        `Encounter IDs in encounters array: ${Array.from(encounterIds).join(', ')}`
+      );
+    }
+  }
+
+  // Check justifications present
+  for (const pa of pageAssignments) {
+    if (!pa.justification || pa.justification.trim().length === 0) {
+      console.warn(`[Pass 0.5 v2.3] Page ${pa.page} missing justification`);
+    }
+  }
 }
 
 /**
@@ -100,15 +157,23 @@ function validateEncounterType(type: string): type is EncounterType {
 /**
  * Parse AI response and enrich with spatial bbox data from OCR
  * Note: Idempotency handled at runPass05() level
+ *
+ * v2.3: Returns page_assignments if present in AI response
  */
 export async function parseEncounterResponse(
   aiResponse: string,
   ocrOutput: GoogleCloudVisionOCR,
   patientId: string,
-  shellFileId: string
-): Promise<{ encounters: EncounterMetadata[] }> {
+  shellFileId: string,
+  totalPages?: number
+): Promise<{ encounters: EncounterMetadata[]; page_assignments?: PageAssignment[] }> {
 
   const parsed: AIEncounterResponse = JSON.parse(aiResponse);
+
+  // v2.3: Validate page_assignments if present
+  if (parsed.page_assignments) {
+    validatePageAssignments(parsed.page_assignments, parsed.encounters, totalPages);
+  }
 
   // CRITICAL: Validate page ranges have valid end values
   for (const aiEnc of parsed.encounters) {
@@ -193,7 +258,16 @@ export async function parseEncounterResponse(
     });
   }
 
-  return { encounters };
+  // v2.3: Return page_assignments if present (for analysis and debugging)
+  const result: { encounters: EncounterMetadata[]; page_assignments?: PageAssignment[] } = {
+    encounters
+  };
+
+  if (parsed.page_assignments) {
+    result.page_assignments = parsed.page_assignments;
+  }
+
+  return result;
 }
 
 /**

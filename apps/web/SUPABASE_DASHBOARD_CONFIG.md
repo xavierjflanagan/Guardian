@@ -1,3 +1,5 @@
+3rd Nov 2025
+
 # Supabase Dashboard Configuration for Magic Link Authentication
 
 ## CRITICAL: Complete these steps to fix magic link authentication

@@ -8,7 +8,7 @@
  */
 
 import OpenAI from 'openai';
-import { GoogleCloudVisionOCR, EncounterMetadata } from './types';
+import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 import { buildEncounterDiscoveryPrompt } from './aiPrompts';
 import { buildOCROptimizedPrompt } from './aiPromptsOCR';
 // import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
@@ -26,6 +26,7 @@ export interface EncounterDiscoveryInput {
 export interface EncounterDiscoveryOutput {
   success: boolean;
   encounters?: EncounterMetadata[];
+  page_assignments?: PageAssignment[];  // v2.3: Optional page-by-page assignments
   error?: string;
   aiModel: string;
   aiCostUsd: number;
@@ -107,7 +108,14 @@ export async function discoverEncounters(
       throw new Error('Empty response from AI');
     }
 
-    const parsed = await parseEncounterResponse(aiOutput, input.ocrOutput, input.patientId, input.shellFileId);
+    // v2.3: Pass totalPages for page assignment validation
+    const parsed = await parseEncounterResponse(
+      aiOutput,
+      input.ocrOutput,
+      input.patientId,
+      input.shellFileId,
+      input.pageCount  // v2.3: Enable page assignment validation
+    );
 
     // Calculate cost
     const inputTokens = response.usage?.prompt_tokens || 0;
@@ -117,6 +125,7 @@ export async function discoverEncounters(
     return {
       success: true,
       encounters: parsed.encounters,
+      page_assignments: parsed.page_assignments,  // v2.3: Include if present
       aiModel: response.model,  // Dynamic from OpenAI response
       aiCostUsd: cost,
       inputTokens,

@@ -1,16 +1,74 @@
-# Pass 0.5 Prompt Improvements - Version 2.2
+# Pass 0.5 Prompt Improvements - Future Enhancements (Post-v2.2)
+
+**IMPORTANT VERSION CLARIFICATION:**
+- **Prompt v2.2** (Document Header vs Metadata) was IMPLEMENTED on Nov 2, 2025 11:00 PM
+- **This document** proposes ADDITIONAL enhancements beyond v2.2 (future appointment references, bbox awareness)
+- This document should be considered "v2.3 PROPOSED" or "Future Enhancements DRAFT"
 
 **Date:** November 3, 2025
 **Purpose:** Address nested encounter references and bbox accuracy requirements
 **Review Type:** End-to-end fresh analysis
-**Status:** Proposed changes, pending implementation
+**Status:** PROPOSED - Not yet implemented. aiPrompts.ts is currently at v2.2 (metadata distinction).
+
+---
+
+## UPDATE: Test 06 Frankenstein - Current Boundary Detection Failure (Nov 3, 2025)
+
+**Test Run:** Job Queue ID `2bb36794-1d5a-4a75-9092-be5a6905f8c3`
+**Prompt Version Used:** v2.2 (Document Header vs Metadata distinction)
+**Model:** GPT-5-2025-08-07
+**OCR Quality:** 97.1% confidence, pages correctly ordered 1-20
+
+### Expected vs Actual Results
+
+**Expected Boundaries:**
+- Encounter 1: Pages 1-13 (Progress Note, Oct 27, 2025, PA-C Ehret, Interventional Spine & Pain PC)
+- Encounter 2: Pages 14-20 (Emergency, June 22, 2025, Dr. Tinkham, Piedmont Healthcare)
+
+**Actual Results:**
+- Encounter 1: Pages 1-14 (WRONG - included Emergency page 14)
+- Encounter 2: Pages 15-20 (WRONG - started one page late)
+
+### Root Cause Analysis
+
+**OCR Data Quality:** EXCELLENT - No issues found
+- Page ordering: Perfect (1-20 sequence maintained)
+- Page 13 end text: Clear signature block for PA-C Ehret, Oct 27
+- Page 14 start text: Clear "Encounter Summary (October 30, 2025, 1:53:08PM -0400)" header
+- Boundary markers captured correctly: Provider change, facility change, date change, patient ID system change
+
+**Prompt Instructions:** PRESENT BUT IGNORED
+- v2.2 includes explicit Pattern D example (lines 165-172) matching this exact scenario
+- Warns: "Don't be misled by generation date (Oct 30) being close to previous encounter (Oct 27)"
+- Model received correct OCR text with all boundary markers
+- Model still assigned page 14 to first encounter despite explicit instructions
+
+### Why The Model Failed Despite v2.2 Instructions
+
+**Hypothesis:** The model was confused by temporal proximity (Oct 27 → Oct 30 generation date) and ignored:
+1. "Encounter Summary" header (should be VERY STRONG SIGNAL per prompt line 130)
+2. Provider change (Ehret → Tinkham)
+3. Facility change (Interventional Spine → Piedmont Healthcare)
+4. Encounter date change (Oct 27 → June 22)
+5. Patient ID system change (523307 → PDHZTKZ8QTL9KKT)
+
+**Conclusion:** v2.2 prompt instructions are comprehensive but the GPT-5 model is not following them. This suggests:
+- Prompt length (490 lines) may cause instruction compliance issues
+- Critical rules need stronger emphasis/positioning
+- Or model-level instruction following problem with GPT-5
+
+### Proposed Solutions
+
+See main recommendations below. Key insight: Adding new features (bbox, spatial awareness) won't fix this if the model ignores existing explicit instructions.
 
 ---
 
 ## Executive Summary
 
-**Current Prompt Analysis (v2.1):**
-The existing prompt handles document boundaries and metadata pages well, but has THREE critical gaps:
+**NOTE:** This document was originally written analyzing v2.1. Since then, v2.2 (Document Header vs Metadata distinction) has been implemented. The analysis below refers to gaps that existed in v2.1.
+
+**Original Prompt Analysis (v2.1 → v2.2 transition):**
+The v2.1 prompt handled document boundaries well, but had THREE critical gaps (now partially addressed by v2.2):
 
 1. **Missing Future Appointment Reference Guidance** - No clear rules for when "Next appointment with Dr. X" is a scheduling note vs. separate encounter
 2. **No Bbox/Spatial Data Requirements** - Prompt never mentions bounding boxes or spatial coordinates

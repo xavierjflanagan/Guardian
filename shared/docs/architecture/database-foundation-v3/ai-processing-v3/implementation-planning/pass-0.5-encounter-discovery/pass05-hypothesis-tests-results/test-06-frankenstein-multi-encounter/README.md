@@ -1,54 +1,157 @@
 # Test 06: Frankenstein Multi-Encounter PDF
+## Current Status & Results
 
-**Quick Reference**
+---
 
-## Test Overview
+## Latest Test Run (November 3, 2025)
 
-**Status:** PASSED
-**Date:** November 2, 2025
-**Purpose:** Validate encounter boundary detection with multiple encounters in single document
+**Status:** FAILED (Page boundary detection error)
+**Job Queue ID:** `2bb36794-1d5a-4a75-9092-be5a6905f8c3`
+**Shell File ID:** `c34dfdfc-1116-4e25-b1a1-ec9578631f75`
+**Prompt Version:** v2.2 (Document Header vs Metadata distinction)
+**AI Model:** GPT-5-2025-08-07
 
-## Key Results
+### Test Results
 
-- **Encounters Detected:** 2 out of 2 (SUCCESS)
-- **Boundary Detection:** Working (split at page 11/12)
-- **Processing Time:** 48.39 seconds
-- **Cost:** $0.0374 total
+**Expected Boundaries:**
+- Encounter 1: Pages 1-13 (Progress Note, Oct 27, 2025, Ehret, Interventional Spine & Pain PC)
+- Encounter 2: Pages 14-20 (Emergency, June 22, 2025, Tinkham, Piedmont Healthcare)
 
-## File Structure
+**Actual Results:**
+- Encounter 1: Pages 1-14 (WRONG - included Emergency page 14)
+- Encounter 2: Pages 15-20 (WRONG - started one page late)
 
-- `RESULTS.md` - Complete test results and analysis
-- `README.md` - This file (quick reference)
+**Root Cause:** AI model interpretation failure despite having correct OCR data and explicit prompt instructions.
 
-## Quick Stats
+---
+
+## Key Files
+
+### Current Analysis
+- **`ROOT_CAUSE_ANALYSIS_NOV_3_2025.md`** - Comprehensive root cause analysis with evidence
+- **`GPT5_ACTUAL_RESULTS_CORRECTED.md`** - Latest test run details
+- **`extract-ocr-order.ts`** - OCR page ordering extraction script
+- **`test-ocr-order.js`** - OCR validation test script
+
+### Archived Files (Nov 2 iterations)
+- **`archive-nov-2-iterations/`** - Earlier test runs and analyses
+  - RESULTS.md - Initial test pass (boundary at 11/12)
+  - BOUNDARY_ISSUE_ANALYSIS.md - Earlier boundary investigation
+  - GPT5_BREAKTHROUGH_RESULTS.md - Intermediate results
+  - V1_VS_V2.1_FIELD_BY_FIELD_COMPARISON.md - Prompt version comparison
+  - V2.1_OUTPUT_ANALYSIS.md - v2.1 output analysis
+  - V2.1_TESTING_PLAN.md - v2.1 testing approach
+  - comparison_queries.sql - SQL queries for comparisons
+
+---
+
+## Test Composition
+
+**Source File:** `sample-medical-records/patient-006-emma-thompson/pdfs/006_Emma_Thompson_Frankenstein_Progress_note_Emergency_summary.pdf`
+
+**Combined 2 Distinct Medical Records:**
+1. **Pages 1-13:** Progress Note (October 27, 2025)
+   - Provider: Mara Ehret, PA-C
+   - Facility: Interventional Spine & Pain PC
+   - Type: Specialist consultation / follow-up
+   - EHR System: eClinicalWorks (Patient ID: 523307)
+
+2. **Pages 14-20:** Emergency Department Visit (June 22, 2025)
+   - Provider: Matthew T. Tinkham, MD
+   - Facility: Piedmont Eastside Medical Emergency Department
+   - Type: Emergency / Motor vehicle crash
+   - EHR System: Epic (Patient ID: PDHZTKZ8QTL9KKT)
+
+---
+
+## Technical Details
 
 | Metric | Value |
 |--------|-------|
 | File Size | 776 KB |
 | Total Pages | 20 |
-| Encounters | 2 (specialist + emergency) |
-| Boundary Accuracy | Detected correctly (offset by 4 pages) |
-| Classification | 100% correct |
-| Confidence | 94-95% |
-
-## Test Composition
-
-**Combined 2 PDFs:**
-1. 7-page specialist consultation (Oct 27, 2025)
-2. 13-page emergency department visit (Jun 22, 2025)
-
-**Pass 0.5 Detected:**
-1. Specialist consultation: Pages 1-11 (95% confidence)
-2. Emergency department: Pages 12-20 (94% confidence)
-
-## Verdict
-
-TEST PASSED - Core encounter boundary detection validated. Boundary offset by 4 pages needs investigation but doesn't affect functionality.
-
-## Next Test
-
-Test 07: Threshold discovery with 200+ page document
+| Encounters | 2 (correct count detected) |
+| Boundary Error | +1 page offset |
+| OCR Quality | 97.1% average confidence |
+| Processing Time | 58.88 seconds |
+| AI Cost | $0.0102 |
 
 ---
 
-For detailed analysis, see `RESULTS.md`
+## Key Findings
+
+### What Worked
+- OCR page ordering: Perfect (1-20 sequential)
+- OCR text quality: Excellent (97.1% confidence)
+- Encounter count detection: Correct (2 encounters)
+- Encounter type classification: Correct (specialist + emergency)
+- Provider/facility extraction: Correct for both encounters
+
+### What Failed
+- Page boundary detection: Off by 1 page
+- Assigned page 14 to first encounter instead of second
+- Model ignored "Encounter Summary" header on page 14
+- Model ignored provider/facility changes at page 13/14 boundary
+- Model ignored prompt's Pattern D instructions
+
+### Root Cause
+- AI model (GPT-5) interpretation failure
+- Model likely confused by temporal proximity (Oct 27 → Oct 30 metadata date)
+- Ignored explicit prompt instructions about document headers
+- Returned high confidence (0.95) despite rule violations
+
+---
+
+## Recommended Solutions
+
+1. **Page-by-page assignment with justifications** (HIGH PRIORITY)
+   - Force model to justify each page assignment
+   - Exposes contradictions at decision points
+   - Minimal implementation cost
+
+2. **Confidence-based validation layer** (HIGH PRIORITY)
+   - Post-processing validation of boundary signals
+   - Detects weak boundaries lacking strong indicators
+   - Safety net for model errors
+
+3. **Prompt restructure** (MEDIUM PRIORITY)
+   - Move critical rules to top of prompt
+   - Strengthen instruction hierarchy
+   - Reduce prompt length if possible
+
+4. **Test alternative models** (MEDIUM PRIORITY)
+   - Compare GPT-4o instruction-following behavior
+   - Evaluate if GPT-5-specific issue
+
+---
+
+## Historical Context
+
+**Previous Test Runs (Nov 2, 2025):**
+- Multiple iterations with v2.0, v2.1, v2.2 prompts
+- Boundaries varied between pages 11/12, 13/14, 14/15
+- Led to Pattern D example being added to v2.2
+- OCR spatial sorting implemented to fix multi-column issues
+
+**Evolution:**
+- Test 06 initially created to validate multi-encounter detection
+- Revealed boundary detection challenges
+- Prompted OCR sorting improvements
+- Now reveals model instruction compliance issues
+
+---
+
+## Next Steps
+
+1. Implement page-by-page assignment approach
+2. Test with GPT-4o for comparison
+3. Consider prompt restructure if page-by-page doesn't fully solve
+4. Document ongoing test results in this directory
+
+---
+
+**Last Updated:** November 3, 2025
+**Status:** Active investigation - Root cause identified, solutions proposed
+**Related Documentation:**
+- `ROOT_CAUSE_ANALYSIS_NOV_3_2025.md` - Detailed analysis
+- `../../PASS05_PROMPT_IMPROVEMENTS_V2.2.md` - Prompt evolution documentation
