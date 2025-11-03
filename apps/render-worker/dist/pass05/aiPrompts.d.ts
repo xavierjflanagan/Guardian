@@ -14,6 +14,11 @@
  *    - Added Pattern A/B/C examples covering metadata at start/end/middle
  *    - Key principle: Use provider/facility matching, not page position
  *    - Handles metadata as cover pages, signature blocks, or between sections
+ * v2.2 (Nov 2, 2025 11:00 PM) - Document Header vs Metadata distinction
+ *    - Added critical distinction: "Encounter Summary" headers are STARTERS, not metadata
+ *    - Generation dates (report printed) vs Encounter dates (clinical visit)
+ *    - Prevents mistaking new encounter documents for metadata pages
+ *    - Pattern D example: Don't confuse close generation dates with same encounter
  */
 import { OCRPage } from './types';
 export interface PromptInput {

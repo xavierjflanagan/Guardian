@@ -6,44 +6,40 @@ export async function middleware(request: NextRequest) {
   const sitePassword = process.env.SITE_PASSWORD;
   const isPasswordProtected = !!sitePassword;
   
-  // If Supabase redirected to the site root with a PKCE code, forward to the callback page
-  if (request.nextUrl.searchParams.has('code') && !request.nextUrl.pathname.startsWith('/auth/')) {
+  // If Supabase redirected to the site root with auth params, forward to the callback page
+  const hasAuthParams = request.nextUrl.searchParams.has('code') || 
+                        request.nextUrl.searchParams.has('token') ||
+                        request.nextUrl.searchParams.has('access_token') ||
+                        request.nextUrl.searchParams.has('refresh_token');
+  
+  if (hasAuthParams && !request.nextUrl.pathname.startsWith('/auth/')) {
     const forwardUrl = new URL('/auth/callback', request.url);
-    // Preserve query string (includes `code` and others)
+    // Preserve query string (includes auth tokens and other params)
     forwardUrl.search = request.nextUrl.search;
+    console.log('Auth params detected, forwarding to callback:', forwardUrl.pathname + forwardUrl.search);
     return NextResponse.redirect(forwardUrl);
   }
   
+  // Early bypass for static assets and special pages (before any auth checks)
+  if (request.nextUrl.pathname.startsWith('/_next/') ||
+      request.nextUrl.pathname.startsWith('/favicon.ico') ||
+      request.nextUrl.pathname === '/_password-login.html' ||
+      request.nextUrl.pathname === '/_maintenance.html') {
+    return NextResponse.next();
+  }
+  
+  // Check password protection, but don't return early - we need to run Supabase auth logic
+  let passwordValid = true;
   if (isPasswordProtected) {
-    // Allow access to auth callbacks, login page and static assets
-    if (request.nextUrl.pathname === '/site-login' ||
-        request.nextUrl.pathname.startsWith('/auth/') ||
-        request.nextUrl.pathname.startsWith('/_next/') ||
-        request.nextUrl.pathname.startsWith('/favicon.ico') ||
-        request.nextUrl.pathname === '/_password-login.html') {
-      
-      // For auth callbacks, create a minimal response that preserves auth state
-      if (request.nextUrl.pathname.startsWith('/auth/')) {
-        const response = NextResponse.next();
-        // Ensure auth callbacks bypass password protection completely
-        console.log('Auth callback detected, bypassing password protection:', request.nextUrl.pathname);
-        return response;
-      }
-      
-      return NextResponse.next();
-    }
+    // Allow access to auth callbacks and login pages
+    const isAuthPath = request.nextUrl.pathname === '/site-login' ||
+                       request.nextUrl.pathname.startsWith('/auth/') ||
+                       request.nextUrl.pathname.includes('sign-in');
     
-    // Check if user has valid password cookie
-    const passwordCookie = request.cookies.get('site-access');
-    if (!passwordCookie || passwordCookie.value !== sitePassword) {
-      // Don't redirect auth-related requests to password page
-      if (request.nextUrl.pathname.includes('auth') || request.nextUrl.searchParams.has('code')) {
-        console.log('Auth-related request detected, preserving auth flow');
-        return NextResponse.next();
-      }
-      
-      // Redirect to password page
-      return NextResponse.rewrite(new URL('/_password-login.html', request.url));
+    if (!isAuthPath) {
+      // Check if user has valid password cookie
+      const passwordCookie = request.cookies.get('site-access');
+      passwordValid = passwordCookie?.value === sitePassword;
     }
   }
   
@@ -190,6 +186,24 @@ export async function middleware(request: NextRequest) {
   });
 
   // Note: CORS headers handled at platform level, not in middleware
+
+  // Check password protection AFTER Supabase session refresh
+  // This ensures auth cookies are properly set before we check password
+  if (!passwordValid) {
+    // Don't redirect auth-related requests to password page - check for any auth params
+    const hasAuthParams = request.nextUrl.searchParams.has('code') || 
+                          request.nextUrl.searchParams.has('token') ||
+                          request.nextUrl.searchParams.has('access_token') ||
+                          request.nextUrl.searchParams.has('refresh_token');
+    
+    if (request.nextUrl.pathname.includes('auth') || hasAuthParams) {
+      console.log('Auth-related request detected, preserving auth flow');
+      return response;
+    }
+    
+    // Redirect to password page
+    return NextResponse.rewrite(new URL('/_password-login.html', request.url));
+  }
 
   return response
 }

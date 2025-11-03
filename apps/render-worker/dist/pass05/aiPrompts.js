@@ -15,6 +15,11 @@
  *    - Added Pattern A/B/C examples covering metadata at start/end/middle
  *    - Key principle: Use provider/facility matching, not page position
  *    - Handles metadata as cover pages, signature blocks, or between sections
+ * v2.2 (Nov 2, 2025 11:00 PM) - Document Header vs Metadata distinction
+ *    - Added critical distinction: "Encounter Summary" headers are STARTERS, not metadata
+ *    - Generation dates (report printed) vs Encounter dates (clinical visit)
+ *    - Prevents mistaking new encounter documents for metadata pages
+ *    - Pattern D example: Don't confuse close generation dates with same encounter
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildEncounterDiscoveryPrompt = buildEncounterDiscoveryPrompt;
@@ -80,6 +85,20 @@ Before identifying encounters, determine the document structure:
 - "Created On", "Authored On", "Confirmatory sign off" sections
 - Cover pages with document metadata but no clinical content
 
+### CRITICAL: Document Header Pages vs Administrative Metadata Pages
+
+**Document Header/Title Pages (Strong Encounter Boundary Signal):**
+- Headers containing: "Encounter Summary", "Clinical Summary", "Visit Summary", "Patient Visit"
+- Often include document generation metadata: "Generated for Printing on [Date]", "Created on [Date]"
+- These mark the START of a NEW encounter, NOT metadata for a previous one
+
+**Critical Distinction:**
+- **Generation/Created Date** (in header): When the report was printed/generated (metadata)
+- **Encounter Date** (in body text): When the clinical visit actually occurred (clinical data)
+- Example: "Encounter Summary (Created Oct 30)" with "Visit Date: June 22" → encounter date is June 22, not Oct 30
+
+**RULE:** Document title pages with "Encounter/Clinical/Visit Summary" are encounter STARTERS, not metadata pages for previous encounters. Don't be misled by generation dates that are close to previous encounter dates.
+
 **CRITICAL RULE - Use Context, Not Position:**
 Metadata should be grouped with the clinical content it DESCRIBES, based on matching provider/facility names.
 
@@ -101,14 +120,15 @@ Metadata should be grouped with the clinical content it DESCRIBES, based on matc
    - Lower confidence score (0.75-0.85) when grouping is ambiguous
 
 **Boundary Detection Priority (Strongest → Weakest):**
-1. **Provider name change** (Dr. Smith → Dr. Jones) = VERY STRONG SIGNAL (95% confidence boundary)
-2. **New document header with date/time** = VERY STRONG SIGNAL
-3. **Facility name change** = STRONG SIGNAL
-4. **Patient name change** = STRONG SIGNAL (may indicate different source systems)
-5. **Author system change** (eClinicalWorks → Epic) = MODERATE SIGNAL
-6. **Date discontinuity** (March → June) = MODERATE SIGNAL
-7. **Content type change** (Clinical → Metadata) = WEAK SIGNAL (metadata often part of same document)
-8. **Formatting change alone** = VERY WEAK SIGNAL
+1. **New "Encounter Summary" / "Clinical Summary" / "Visit Summary" document header** = VERY STRONG SIGNAL (98% confidence boundary)
+2. **Provider name change** (Dr. Smith → Dr. Jones) = VERY STRONG SIGNAL (95% confidence boundary)
+3. **New document header with date/time** = VERY STRONG SIGNAL
+4. **Facility name change** = STRONG SIGNAL
+5. **Patient name change** = STRONG SIGNAL (may indicate different source systems)
+6. **Author system change** (eClinicalWorks → Epic) = MODERATE SIGNAL
+7. **Date discontinuity** (March → June) = MODERATE SIGNAL
+8. **Content type change** (Clinical → Metadata) = WEAK SIGNAL (metadata often part of same document)
+9. **Formatting change alone** = VERY WEAK SIGNAL
 
 **Common Patterns and Solutions:**
 
@@ -134,6 +154,14 @@ Pages 6-7: Metadata (Dr. Smith signature)
 Pages 8-9: Metadata/cover (Dr. Jones, Hospital B)
 Pages 10-15: Clinical (Dr. Jones, Hospital B)
 RESULT: Boundary at page 7/8 (provider change in metadata signals new document)
+
+**Pattern D: Document Header Page Confusion**
+
+Page 13: Clinical content ending (Dr. Smith, signed October 27)
+Page 14: "Encounter Summary (Generated October 30)" + "Encounter Date: June 22" (Dr. Jones)
+RESULT: Page 14 is START of NEW encounter (Dr. Jones, June 22), NOT metadata for page 13
+BOUNDARY: Page 13/14 (new document header + provider change)
+KEY: Don't be misled by generation date (Oct 30) being close to previous encounter (Oct 27). The actual encounter date (June 22) and provider change confirm this is a separate encounter.
 
 **Key Principle:**
 Content type changes (clinical ↔ metadata) are WEAK signals. Provider/facility changes are STRONG signals. Use provider continuity to determine document boundaries, regardless of whether metadata appears before, after, or between clinical content.
