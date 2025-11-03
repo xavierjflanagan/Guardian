@@ -347,6 +347,7 @@ async function processShellFileUpload(
         file_size_bytes: data.file_size_bytes,
         mime_type: data.mime_type,
         storage_path: data.file_path,
+        page_count: data.estimated_pages || estimatePages(data.file_size_bytes, data.mime_type),
         status: 'uploaded', // VERIFIED: Uses 'status' column
         idempotency_key: idempotencyKey,
         created_at: new Date().toISOString(),
