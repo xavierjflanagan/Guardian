@@ -424,6 +424,10 @@ class V3Worker {
         finally {
             // Remove from active jobs
             this.activeJobs.delete(jobId);
+            // P0 FIX: Explicit memory cleanup after each job
+            // Purpose: Prevent memory accumulation over time (multi-pass processing uses 70-85MB per large file)
+            // Context: Memory leak pattern discovered 2025-11-03 - worker accumulates memory until OOM crash
+            await this.cleanupJobMemory(jobId);
         }
     }
     // Process shell file (document upload)
@@ -1137,6 +1141,41 @@ class V3Worker {
             .eq('worker_id', this.workerId); // Ensure we only update jobs we own
         if (error) {
             this.logger.error('Failed to mark job as failed', error, { job_id: jobId });
+        }
+    }
+    // P0 FIX: Cleanup job memory to prevent accumulation
+    // Date: 2025-11-03
+    // Context: Worker was accumulating memory over time (70-85MB per large file job)
+    // After 2.5 hours of operation, worker would OOM crash on large files
+    // Solution: Explicit garbage collection after each job
+    async cleanupJobMemory(jobId) {
+        try {
+            // Log memory before cleanup
+            const beforeMemory = process.memoryUsage();
+            const beforeHeapMB = Math.round(beforeMemory.heapUsed / 1024 / 1024);
+            // Force garbage collection if available
+            if (global.gc) {
+                global.gc();
+                const afterMemory = process.memoryUsage();
+                const afterHeapMB = Math.round(afterMemory.heapUsed / 1024 / 1024);
+                const freedMB = beforeHeapMB - afterHeapMB;
+                this.logger.info('Memory cleanup completed', {
+                    job_id: jobId,
+                    heap_before_mb: beforeHeapMB,
+                    heap_after_mb: afterHeapMB,
+                    freed_mb: freedMB,
+                });
+            }
+            else {
+                this.logger.warn('Garbage collection not available - run Node with --expose-gc flag', {
+                    job_id: jobId,
+                    heap_used_mb: beforeHeapMB,
+                });
+            }
+        }
+        catch (error) {
+            // Don't fail the job if cleanup fails
+            this.logger.error('Memory cleanup failed', error, { job_id: jobId });
         }
     }
     // Update job heartbeat

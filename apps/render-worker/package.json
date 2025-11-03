@@ -5,7 +5,7 @@
   "main": "dist/worker.js",
   "scripts": {
     "build": "tsc --project ./tsconfig.json",
-    "start": "node --expose-gc dist/worker.js",
+    "start": "node --expose-gc --max-old-space-size=450 dist/worker.js",
     "dev": "tsx src/worker.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
