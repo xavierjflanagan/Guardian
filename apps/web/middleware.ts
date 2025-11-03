@@ -2,10 +2,17 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Redirect www to non-www (canonical domain for auth cookies)
+  if (request.nextUrl.hostname === 'www.exorahealth.com.au') {
+    const url = request.nextUrl.clone();
+    url.hostname = 'exorahealth.com.au';
+    return NextResponse.redirect(url, 301);
+  }
+
   // Check for password protection first
   const sitePassword = process.env.SITE_PASSWORD;
   const isPasswordProtected = !!sitePassword;
-  
+
   // Early bypass for static assets and special pages (before any auth checks)
   if (request.nextUrl.pathname.startsWith('/_next/') ||
       request.nextUrl.pathname.startsWith('/favicon.ico') ||
