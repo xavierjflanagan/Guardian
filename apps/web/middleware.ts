@@ -6,20 +6,6 @@ export async function middleware(request: NextRequest) {
   const sitePassword = process.env.SITE_PASSWORD;
   const isPasswordProtected = !!sitePassword;
   
-  // If Supabase redirected to the site root with auth params, forward to the callback page
-  const hasAuthParams = request.nextUrl.searchParams.has('code') || 
-                        request.nextUrl.searchParams.has('token') ||
-                        request.nextUrl.searchParams.has('access_token') ||
-                        request.nextUrl.searchParams.has('refresh_token');
-  
-  if (hasAuthParams && !request.nextUrl.pathname.startsWith('/auth/')) {
-    const forwardUrl = new URL('/auth/callback', request.url);
-    // Preserve query string (includes auth tokens and other params)
-    forwardUrl.search = request.nextUrl.search;
-    console.log('Auth params detected, forwarding to callback:', forwardUrl.pathname + forwardUrl.search);
-    return NextResponse.redirect(forwardUrl);
-  }
-  
   // Early bypass for static assets and special pages (before any auth checks)
   if (request.nextUrl.pathname.startsWith('/_next/') ||
       request.nextUrl.pathname.startsWith('/favicon.ico') ||

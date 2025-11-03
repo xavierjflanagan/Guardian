@@ -14,9 +14,36 @@ export default function AuthCallbackPage() {
     let isMounted = true;
     const run = async () => {
       try {
+        // Debug logging for troubleshooting
+        console.log('[Auth Callback] URL:', window.location.href);
+        console.log('[Auth Callback] Query params:', window.location.search);
+        console.log('[Auth Callback] Hash fragment:', window.location.hash);
+
         // Let the client library detect the PKCE params in the URL and exchange for a session
-        const { error: sessionError } = await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        console.log('[Auth Callback] Initial session check:', {
+          hasSession: !!sessionData?.session,
+          error: sessionError
+        });
         if (sessionError) throw sessionError;
+
+        // Defensive token exchange: if session not auto-detected, try explicit exchange
+        if (!sessionData?.session) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+          if (urlParams.has('code') || urlParams.has('token') || hashParams.has('access_token')) {
+            console.log('[Auth Callback] No session detected, attempting explicit token exchange');
+            const { data: exchangeData, error: exchangeError } =
+              await supabase.auth.exchangeCodeForSession(window.location.href);
+
+            if (exchangeError) {
+              console.log('[Auth Callback] Token exchange error:', exchangeError);
+            } else if (exchangeData?.session) {
+              console.log('[Auth Callback] Token exchange successful');
+            }
+          }
+        }
 
         // The PKCE exchange is performed automatically by @supabase/ssr createBrowserClient
         // when detectSessionInUrl is true (configured in supabaseClientSSR.ts).
