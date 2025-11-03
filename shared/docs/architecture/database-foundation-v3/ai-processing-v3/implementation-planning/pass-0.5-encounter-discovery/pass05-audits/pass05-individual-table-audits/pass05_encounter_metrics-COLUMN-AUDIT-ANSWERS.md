@@ -1,21 +1,27 @@
 # Pass 0.5 Column Audit: pass05_encounter_metrics
 
-**Date:** 2025-11-03
-**Status:** AUDIT IN PROGRESS
+**Date:** 2025-11-03 (original), 2025-11-04 (user review + updates)
+**Status:** AUDIT COMPLETE - USER REVIEWED AND APPROVED
 **Context:** Comprehensive analysis of `pass05_encounter_metrics` table columns
 **Table Purpose:** Pass 0.5 session-level performance, cost tracking, and encounter detection metrics
 
 **Location:** shared/docs/architecture/database-foundation-v3/current_schema/08_job_coordination.sql:219
 
+**Key Decisions:**
+- Remove `pages_per_encounter` (redundant, wrong table, prompt bloat)
+- Remove `batch_count` (premature without batch size policy)
+- Add `page_separation_analysis` JSONB to shell_files table (not this table)
+- Focus Pass 0.5 on identifying inter-page dependencies (constraints not solutions)
+
 ---
 
 ## User-Reported Issues
 
-### Issue 1: Incorrect pages_per_encounter for Frankenstein File
+### Issue 1: pages_per_encounter Column - Redundant and Wrong Table
 **Manifest ID:** ab2b90d5-da79-4f21-9610-971e667731a9 (20-page frankenstein file)
 
 **Problem:**
-- `pages_per_encounter` assigned **10 pages for BOTH encounters** (incorrect)
+- `pages_per_encounter` assigned **10 pages for BOTH encounters** (incorrect user expectation)
 - Should have been **13 and 7 pages** respectively
 - `total_pages` correctly stated **20 pages**
 
@@ -23,67 +29,163 @@
 - Column: `pages_per_encounter NUMERIC(5,2)`
 - Column is calculated as an **average** (total_pages / encounters_detected)
 - Calculation: 20 pages ÷ 2 encounters = **10.00 pages per encounter**
-- This is mathematically correct as an average but **semantically misleading**
+- This is mathematically correct as an average but **not useful**
 
 **Root Cause:**
-The column name `pages_per_encounter` (singular) implies individual encounter page counts, but it's actually storing the **average pages per encounter** across all encounters in the document.
+Per-encounter page counts are **already stored** in `healthcare_encounters.page_ranges` (as array length). This metric is:
+1. **Redundant** - derivable from existing data
+2. **Wrong table** - encounter metadata belongs with encounters, not metrics
+3. **Prompt bloat** - asking Pass 0.5 to output page counts adds unnecessary JSON complexity
+4. **No downstream value** - Pass 1/Pass 2 query page_ranges directly, dashboard doesn't need page counts
+
+**Data Location Analysis:**
+- **Pass 1/Pass 2:** Query `healthcare_encounters.page_ranges` to know which pages belong to which encounter (need page numbers, not counts)
+- **Dashboard Timeline:** Users care about date, type, provider, facility - not page counts
+- **System Metrics:** Average is derivative data with limited monitoring value
+- **Page counts derivable:** `SELECT encounter_id, array_length(page_ranges, 1) AS page_count FROM healthcare_encounters WHERE shell_file_id = ?`
 
 **Impact:**
-- Users expect individual encounter page counts
-- Current metric provides no insight into page count distribution
-- Cannot identify page count accuracy without querying `healthcare_encounters.page_ranges`
+- Adds JSON output complexity to Pass 0.5 prompt
+- Increases token usage for data already implicit in page_ranges
+- Lives in wrong table (metrics table, not encounter metadata table)
 
-**Proposed Fix:**
-1. Rename column to `avg_pages_per_encounter` for clarity
-2. Add new column: `page_count_distribution` JSONB storing per-encounter page counts
-3. Example: `{"encounter_1": 13, "encounter_2": 7, "avg": 10.0}`
-
-**Action Plan:**
-- [ ] Create migration to rename `pages_per_encounter` → `avg_pages_per_encounter`
-- [ ] Add `page_count_distribution` JSONB column
-- [ ] Update Pass 0.5 worker to populate distribution data
-- [ ] Update frontend displays to show individual page counts
+**Revised Action Plan:**
+- [ ] REMOVE `pages_per_encounter` column entirely from pass05_encounter_metrics table
+- [ ] KEEP `total_pages` column (useful system metric for file size tracking)
+- [ ] DO NOT ADD `page_count_distribution` (prompt bloat, no downstream value)
+- [ ] Document: Page counts per encounter derivable via query on healthcare_encounters.page_ranges
+- [ ] Update Pass 0.5 worker: Remove page count calculation from output (reduce prompt bloat)
 
 ---
 
-### Issue 2: Batching Columns - Purpose and Implementation Unclear
+### Issue 2: Batching - Major Redesign Required
 **Manifest ID:** b70f6cf2-73e1-4014-88cd-5265965c63af (142-page PDF)
 
 **Problem:**
 - `batching_required` = `TRUE` for 142-page PDF
-- `batch_count` = `1` (what does this mean?)
+- `batch_count` = `1` (meaningless without knowing optimal batch size)
 - User question: "Where is the actual batching happening?"
+- Current implementation unclear and premature
 
-**Analysis:**
-- Columns:
-  - `batching_required BOOLEAN NOT NULL DEFAULT FALSE`
-  - `batch_count INTEGER DEFAULT 1`
-- **Purpose:** Pass 0.5 should identify ideal batching points (encounter boundaries)
-- **Current Implementation:** Unknown - no evidence of batching logic in Pass 0.5 worker
+**Strategic Context - Pass 0.5's Batching Role:**
 
-**Investigation Questions:**
-1. What triggers `batching_required = TRUE`? Page count threshold?
-2. What does `batch_count = 1` mean? (1 batch = no batching?)
-3. Where is batching logic implemented? Pass 1? Pass 2?
-4. How are ideal batch boundaries determined?
+Pass 0.5's role is to help break up large multi-page files into small manageable batches so that Pass 1 and Pass 2 can do their job without context bloat, and to reduce processing time by allowing parallelization of batches.
 
-**Expected Behavior:**
-- `batching_required = TRUE` when `page_count > [threshold]`
-- `batch_count` = number of batches suggested (e.g., 3 for 142-page file)
-- Batching should happen **at encounter boundaries** (not mid-encounter)
-- Batch boundaries should be stored in a separate table or column
+**Why Pass 0.5 Reviews Entire File:**
+When batching occurs and 1-2 pages are extracted out of context, the AI can still understand what's going on because it's provided with the **healthcare encounter manifest** that has a summary and all the context of the "bigger picture."
 
-**Current State:**
-- Columns exist but logic is unclear
-- 142-page file marked as needing batching but only 1 batch?
-- No evidence of batch boundary recommendations
+**The Critical Problem - Inter-Page Dependencies:**
+We must not separate pages that have context overflowing between them. Pass 0.5's key role is to identify:
 
-**Action Plan:**
-- [ ] Search Pass 0.5 worker code for batching logic
-- [ ] Clarify what `batch_count = 1` means (is it a placeholder?)
-- [ ] Define batching threshold (e.g., page_count > 50)
-- [ ] Add `batch_boundaries` JSONB column to store suggested boundaries
-- [ ] Implement batching recommendation logic in Pass 0.5 worker
+**A) UNSAFE BOUNDARIES** - Pages that CANNOT be separated:
+- Page 2-3: Paragraph spills from page 2 to page 3 → MUST stay together
+- Page 5-6: Table starts at end of page 5, trails into top of page 6 → MUST stay together
+- Page 8-9: List continuation across boundary → MUST stay together
+
+**B) SAFE BOUNDARIES** - Pages that CAN be separated:
+- Page 7-8: No context overflow, clean separation → CAN split here
+- Page 10-11: Distinct sections, no dependency → CAN split here
+
+**Analysis - Why Current Approach Is Wrong:**
+
+**Current Columns:**
+- `batching_required BOOLEAN NOT NULL DEFAULT FALSE`
+- `batch_count INTEGER DEFAULT 1`
+
+**Problems:**
+1. **batch_count = 1 is meaningless** - We don't know optimal batch size yet (no Pass 1 load testing)
+2. **Wrong table** - Batching metadata belongs with file record (shell_files), not performance metrics table
+3. **Wrong output** - Should output "constraints" (dependencies), not "solutions" (batch boundaries)
+4. **Premature optimization** - Can't define batch boundaries without knowing:
+   - Pass 1 max context size (needs load testing)
+   - Pass 2 processing requirements (not built yet)
+   - Optimal batch size for cost/performance trade-offs
+
+**What Pass 0.5 Actually Needs to Do:**
+1. Identify which page boundaries are **UNSAFE TO BREAK** (paragraph/table/list overflow)
+2. Identify which page boundaries are **SAFE TO BREAK** (clean separation points)
+3. Provide encounter manifest context for downstream batch processing
+4. Let a **future batching function** create optimal batches respecting these constraints
+
+**Revised Architecture:**
+
+**In pass05_encounter_metrics table (keep simple flag only):**
+```sql
+batching_required BOOLEAN  -- TRUE when total_pages > threshold (e.g., 20 pages)
+-- REMOVE batch_count (premature, meaningless without batch size policy)
+```
+
+**In shell_files table (NEW COLUMN for inter-page dependency analysis):**
+```sql
+page_separation_analysis JSONB
+-- Structure:
+{
+  "safe_split_points": [1, 4, 7, 10, 15],  // Can split AFTER these pages (clean boundaries)
+  "inseparable_groups": [
+    {"pages": [2, 3], "reason": "paragraph_overflow", "detected_at": "bottom_of_2_to_top_of_3"},
+    {"pages": [5, 6], "reason": "table_overflow", "spans": "bottom_5_to_mid_6"},
+    {"pages": [11, 12, 13], "reason": "multi_page_table", "spans": "full_pages"}
+  ],
+  "analysis_metadata": {
+    "total_pages": 20,
+    "total_safe_splits": 5,
+    "total_inseparable_groups": 3,
+    "analyzed_at": "2025-11-04T07:45:00Z"
+  }
+}
+```
+
+**Future Batching Function (DEFER IMPLEMENTATION):**
+- Will read `shell_files.page_separation_analysis`
+- Apply batch size policy (once determined from Pass 1 load testing)
+- Create batches respecting `inseparable_groups` constraints
+- Only split at `safe_split_points`
+- Implementation deferred until:
+  - Pass 1 load testing complete (know max context size)
+  - Pass 2 built (know processing requirements)
+  - Batch size optimization data available
+
+**Future Enhancement - Multiple Encounters Per Page (DOCUMENT ONLY):**
+
+**Current Constraint:** 1 encounter per page (simple implementation)
+
+**Future Possibility:** Encounters can start/end at any Y-coordinate within page
+- Requires: `encounter_bounding_box JSONB` in healthcare_encounters table
+- Structure: `{"y_start": 0, "y_end": 450, "page_height": 1000}`
+- Example: Page 5 has two encounters - one ends halfway (y=500), next starts at y=500
+- Enables: More granular encounter detection for dense documents
+
+**Decision:** Keep simple for now (1 encounter per page). Revisit in Pass 2 design phase when we have real-world data on encounter density patterns.
+
+**Revised Action Plan:**
+
+**In pass05_encounter_metrics table:**
+- [ ] KEEP `batching_required BOOLEAN` (simple flag: TRUE when total_pages > 20)
+- [ ] REMOVE `batch_count INTEGER` (premature, meaningless without batch size policy)
+- [ ] DO NOT ADD `batch_boundaries` (wrong table, premature design)
+
+**In shell_files table:**
+- [ ] ADD `page_separation_analysis JSONB` column
+- [ ] Structure: safe_split_points array + inseparable_groups array with reasons
+- [ ] Update Pass 0.5 worker to analyze inter-page dependencies:
+  - Detect paragraph overflow across page boundaries (OCR text analysis)
+  - Detect table/list overflow across page boundaries (visual analysis)
+  - Output safe_split_points array (clean separation points)
+  - Output inseparable_groups with detailed reasoning
+- [ ] Update Pass 0.5 prompt: Add instructions for page dependency analysis
+
+**Batching Function (DEFER IMPLEMENTATION):**
+- [ ] Document batching function requirements (don't implement yet)
+- [ ] Wait for Pass 1 load testing to determine max context size
+- [ ] Wait for Pass 2 requirements to finalize batch processing needs
+- [ ] Defer batch size optimization until we have processing data
+
+**Future Enhancement (DOCUMENT ONLY):**
+- [ ] Document multiple encounters per page possibility with Y-axis bounding boxes
+- [ ] Note current constraint: 1 encounter per page (keep simple)
+- [ ] Revisit during Pass 2 design phase based on real-world encounter density data  
+
+
 
 ---
 
@@ -235,19 +337,21 @@ The column name `pages_per_encounter` (singular) implies individual encounter pa
 | Column | Type | Purpose | Issues | Verdict |
 |--------|------|---------|--------|---------|
 | `total_pages` | INTEGER NOT NULL | Total pages in document | None | KEEP |
-| `pages_per_encounter` | NUMERIC(5,2) | Average pages per encounter | MISLEADING NAME | RENAME |
+| `pages_per_encounter` | NUMERIC(5,2) | Average pages per encounter | REDUNDANT, WRONG TABLE | REMOVE |
 
 **Analysis:**
 - See Issue 1 above for detailed analysis
-- `pages_per_encounter` should be `avg_pages_per_encounter`
-- Need additional column for per-encounter page count distribution
+- `pages_per_encounter` is redundant - derivable from `healthcare_encounters.page_ranges`
+- Per-encounter page counts belong with encounter records, not performance metrics
+- Adds unnecessary JSON output to Pass 0.5 prompt (prompt bloat)
+- No downstream consumers need this metric
 
 **Verdict:**
-- `total_pages`: KEEP
-- `pages_per_encounter`: RENAME to `avg_pages_per_encounter`
+- `total_pages`: KEEP (useful system metric)
+- `pages_per_encounter`: REMOVE (redundant, wrong table, prompt bloat)
 
-**Proposed Addition:**
-- `page_count_distribution` JSONB: Per-encounter page counts
+**No Additions Needed:**
+- Page counts per encounter derivable via: `SELECT encounter_id, array_length(page_ranges, 1) FROM healthcare_encounters`
 
 ---
 
@@ -255,19 +359,22 @@ The column name `pages_per_encounter` (singular) implies individual encounter pa
 
 | Column | Type | Purpose | Issues | Verdict |
 |--------|------|---------|--------|---------|
-| `batching_required` | BOOLEAN NOT NULL DEFAULT FALSE | Document needs batching | UNCLEAR LOGIC | CLARIFY |
-| `batch_count` | INTEGER DEFAULT 1 | Number of batches | UNCLEAR MEANING | CLARIFY |
+| `batching_required` | BOOLEAN NOT NULL DEFAULT FALSE | Document needs batching | Simple flag OK | KEEP |
+| `batch_count` | INTEGER DEFAULT 1 | Number of batches | PREMATURE, MEANINGLESS | REMOVE |
 
 **Analysis:**
 - See Issue 2 above for detailed analysis
-- Purpose unclear
-- Implementation uncertain
-- 142-page file has `batching_required = TRUE` but `batch_count = 1` (contradiction?)
+- `batching_required` is useful as simple flag (TRUE when total_pages > 20)
+- `batch_count` is meaningless without knowing optimal batch size (no Pass 1 load testing yet)
+- Actual batching metadata (page dependencies) belongs in shell_files table, not metrics table
+- Batching function implementation deferred until Pass 1/Pass 2 requirements known
 
-**Verdict:** KEEP but CLARIFY logic and add documentation
+**Verdict:**
+- `batching_required`: KEEP (simple flag for large documents)
+- `batch_count`: REMOVE (premature optimization, no batch size policy yet)
 
-**Proposed Addition:**
-- `batch_boundaries` JSONB: Suggested batch boundaries (page ranges)
+**No Additions to This Table:**
+- Batching metadata moved to shell_files.page_separation_analysis (see Issue 2)
 
 ---
 
@@ -292,27 +399,57 @@ The column name `pages_per_encounter` (singular) implies individual encounter pa
 ## Summary
 
 **Total Columns:** 28
-**Columns to Keep:** 26
-**Columns to Rename:** 1 (`pages_per_encounter` → `avg_pages_per_encounter`)
-**Columns to Add:** 2 (`page_count_distribution`, `batch_boundaries`)
-**Columns Needing Clarification:** 2 (`batching_required`, `batch_count`)
+**Columns to Keep:** 25 (unchanged)
+**Columns to Remove:** 2 (`pages_per_encounter`, `batch_count`)
+**Columns Needing Clarification:** 1 (`batching_required` - define threshold)
+**Columns to Add to shell_files:** 1 (`page_separation_analysis` JSONB)
 
 ---
 
 ## Action Plan
 
-### High Priority
-1. **Rename Column:** `pages_per_encounter` → `avg_pages_per_encounter`
-2. **Add Column:** `page_count_distribution` JSONB (per-encounter page counts)
-3. **Investigate:** Batching logic - what triggers `batching_required`?
-4. **Clarify:** What does `batch_count = 1` mean?
+### High Priority - pass05_encounter_metrics Table Cleanup
 
-### Medium Priority
-5. **Add Column:** `batch_boundaries` JSONB (suggested batch page ranges)
-6. **Document:** Batching threshold (when `batching_required = TRUE`)
-7. **Update Worker:** Populate new `page_count_distribution` column
+1. **Remove Column:** `pages_per_encounter` (redundant, wrong table, prompt bloat)
+   - Create migration to drop column
+   - Update Pass 0.5 worker to remove page count calculation from output
+   - Reduces JSON complexity and token usage
 
-### Low Priority
+2. **Remove Column:** `batch_count` (premature, meaningless without batch size policy)
+   - Create migration to drop column
+   - Keep `batching_required` boolean flag only
+
+3. **Define Threshold:** `batching_required = TRUE` when `total_pages > 20`
+   - Document in schema comments
+   - Update Pass 0.5 worker logic
+
+### High Priority - shell_files Table Enhancement
+
+4. **Add Column:** `page_separation_analysis` JSONB to shell_files table
+   - Structure: safe_split_points array + inseparable_groups array
+   - Create migration with proper indexing (GIN index for JSONB)
+   - Add schema documentation
+
+5. **Update Pass 0.5 Worker:** Implement inter-page dependency analysis
+   - Detect paragraph overflow across page boundaries (OCR text analysis)
+   - Detect table/list overflow across page boundaries (visual analysis)
+   - Output safe_split_points array (clean separation points)
+   - Output inseparable_groups with detailed reasoning
+   - Update prompt with dependency analysis instructions
+
+### Medium Priority - Documentation
+
+6. **Document Batching Strategy:**
+   - Pass 0.5 identifies constraints (not solutions)
+   - Future batching function will create batches respecting constraints
+   - Defer implementation until Pass 1 load testing + Pass 2 requirements known
+
+7. **Document Future Enhancement:** Multiple encounters per page with Y-axis bounding boxes
+   - Note current constraint: 1 encounter per page (keep simple)
+   - Revisit during Pass 2 design phase
+
+### Low Priority - Optimization Analysis
+
 8. **Review:** Token usage patterns for cost optimization
 9. **Analyze:** OCR confidence thresholds for quality gates
 
@@ -320,7 +457,20 @@ The column name `pages_per_encounter` (singular) implies individual encounter pa
 
 ## Questions for User
 
-1. What is the intended page count threshold for `batching_required = TRUE`?
-2. Should `batch_count = 1` mean "no batching needed" or "process as single batch"?
-3. Where should batch boundaries be stored? (This table or separate table?)
-4. Do we need per-page OCR confidence or is average sufficient?
+**ANSWERED - Based on user feedback:**
+
+1. ✅ **Page count threshold for batching:** Use 20 pages as threshold for `batching_required = TRUE`
+2. ✅ **batch_count removal:** Confirmed - remove column (premature without batch size policy)
+3. ✅ **Batching metadata location:** Move to shell_files.page_separation_analysis (not this table)
+4. ✅ **Prompt bloat minimization:** Remove pages_per_encounter to reduce JSON output complexity
+
+**OPEN QUESTIONS:**
+
+5. Should `page_separation_analysis` include confidence scores for dependency detection?
+   - Example: `{"pages": [2,3], "reason": "paragraph_overflow", "confidence": 0.95}`
+   - Trade-off: More data vs prompt complexity
+
+6. Do we need per-page OCR confidence or is average sufficient?
+   - Current: Average across all pages
+   - Alternative: Store per-page confidence in separate column/table
+   - Use case: Identify low-quality pages for manual review prioritization
