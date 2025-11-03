@@ -16,7 +16,7 @@
  *    - Handles metadata as cover pages, signature blocks, or between sections
  */
 
-import { OCRPage } from './types';
+import { OCRPage } from '../types';
 
 export interface PromptInput {
   fullText: string;

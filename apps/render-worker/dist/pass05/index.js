@@ -72,6 +72,7 @@ async function runPass05(input) {
             totalPages: input.pageCount,
             ocrAverageConfidence: calculateAverageConfidence(input.ocrOutput),
             encounters: encounterResult.encounters,
+            page_assignments: encounterResult.page_assignments, // v2.3: Include if present
             batching: null // Phase 1: always null
         };
         // Write manifest and encounters to database

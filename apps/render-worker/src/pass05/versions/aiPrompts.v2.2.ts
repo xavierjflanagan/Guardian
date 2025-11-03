@@ -21,7 +21,7 @@
  *    - Pattern D example: Don't confuse close generation dates with same encounter
  */
 
-import { OCRPage } from './types';
+import { OCRPage } from '../types';
 
 export interface PromptInput {
   fullText: string;

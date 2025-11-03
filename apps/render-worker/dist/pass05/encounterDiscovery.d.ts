@@ -6,7 +6,7 @@
  * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
  */
-import { GoogleCloudVisionOCR, EncounterMetadata } from './types';
+import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 export interface EncounterDiscoveryInput {
     shellFileId: string;
     patientId: string;
@@ -16,6 +16,7 @@ export interface EncounterDiscoveryInput {
 export interface EncounterDiscoveryOutput {
     success: boolean;
     encounters?: EncounterMetadata[];
+    page_assignments?: PageAssignment[];
     error?: string;
     aiModel: string;
     aiCostUsd: number;

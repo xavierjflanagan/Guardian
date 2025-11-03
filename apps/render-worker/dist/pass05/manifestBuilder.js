@@ -11,6 +11,41 @@ exports.parseEncounterResponse = parseEncounterResponse;
 const supabase_js_1 = require("@supabase/supabase-js");
 const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 /**
+ * v2.3: Validate page assignments (if present)
+ * Ensures all pages assigned, encounter IDs match, justifications present
+ */
+function validatePageAssignments(pageAssignments, encounters, totalPages) {
+    // Check all pages are assigned (if totalPages known)
+    if (totalPages) {
+        const assignedPages = new Set(pageAssignments.map(pa => pa.page));
+        if (assignedPages.size !== totalPages) {
+            console.warn(`[Pass 0.5 v2.3] Page assignment count mismatch: ` +
+                `${assignedPages.size} pages assigned, but document has ${totalPages} pages`);
+        }
+        // Check for missing pages
+        for (let page = 1; page <= totalPages; page++) {
+            if (!assignedPages.has(page)) {
+                console.warn(`[Pass 0.5 v2.3] Page ${page} not assigned to any encounter`);
+            }
+        }
+    }
+    // Check encounter_id consistency
+    const encounterIds = new Set(encounters.map(e => e.encounter_id).filter(Boolean));
+    const assignmentEncounterIds = new Set(pageAssignments.map(pa => pa.encounter_id));
+    for (const id of assignmentEncounterIds) {
+        if (!encounterIds.has(id)) {
+            throw new Error(`[Pass 0.5 v2.3] Page assignment references unknown encounter_id "${id}". ` +
+                `Encounter IDs in encounters array: ${Array.from(encounterIds).join(', ')}`);
+        }
+    }
+    // Check justifications present
+    for (const pa of pageAssignments) {
+        if (!pa.justification || pa.justification.trim().length === 0) {
+            console.warn(`[Pass 0.5 v2.3] Page ${pa.page} missing justification`);
+        }
+    }
+}
+/**
  * Validate that page ranges do not overlap between encounters
  * Phase 1 requirement: Each page belongs to exactly one encounter
  */
@@ -67,9 +102,15 @@ function validateEncounterType(type) {
 /**
  * Parse AI response and enrich with spatial bbox data from OCR
  * Note: Idempotency handled at runPass05() level
+ *
+ * v2.3: Returns page_assignments if present in AI response
  */
-async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFileId) {
+async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFileId, totalPages) {
     const parsed = JSON.parse(aiResponse);
+    // v2.3: Validate page_assignments if present
+    if (parsed.page_assignments) {
+        validatePageAssignments(parsed.page_assignments, parsed.encounters, totalPages);
+    }
     // CRITICAL: Validate page ranges have valid end values
     for (const aiEnc of parsed.encounters) {
         for (const range of aiEnc.pageRanges) {
@@ -137,7 +178,14 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             extractedText: aiEnc.extractedText
         });
     }
-    return { encounters };
+    // v2.3: Return page_assignments if present (for analysis and debugging)
+    const result = {
+        encounters
+    };
+    if (parsed.page_assignments) {
+        result.page_assignments = parsed.page_assignments;
+    }
+    return result;
 }
 /**
  * Extract bounding boxes from OCR for specified page ranges

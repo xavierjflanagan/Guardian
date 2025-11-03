@@ -3,7 +3,7 @@
  * Healthcare Encounter Discovery
  */
 
-import { OCRPage } from './types';
+import { OCRPage } from '../types';
 
 export interface PromptInput {
   fullText: string;

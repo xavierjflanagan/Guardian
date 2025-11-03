@@ -19,6 +19,12 @@
  *    - Generation dates (report printed) vs Encounter dates (clinical visit)
  *    - Prevents mistaking new encounter documents for metadata pages
  *    - Pattern D example: Don't confuse close generation dates with same encounter
+ * v2.3 (Nov 3, 2025) - Page-by-Page Assignment with Justifications
+ *    - Forces explicit page-to-encounter assignment for all pages
+ *    - Requires brief justification (15-20 words) for each page assignment
+ *    - Exposes contradictions at boundary pages through required reasoning
+ *    - Addresses Test 06 failure: model ignored boundary signals in v2.2
+ *    - Chain-of-thought approach to improve instruction compliance
  */
 import { OCRPage } from './types';
 export interface PromptInput {

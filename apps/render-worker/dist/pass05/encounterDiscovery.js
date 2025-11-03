@@ -78,7 +78,9 @@ async function discoverEncounters(input) {
         if (!aiOutput) {
             throw new Error('Empty response from AI');
         }
-        const parsed = await (0, manifestBuilder_1.parseEncounterResponse)(aiOutput, input.ocrOutput, input.patientId, input.shellFileId);
+        // v2.3: Pass totalPages for page assignment validation
+        const parsed = await (0, manifestBuilder_1.parseEncounterResponse)(aiOutput, input.ocrOutput, input.patientId, input.shellFileId, input.pageCount // v2.3: Enable page assignment validation
+        );
         // Calculate cost
         const inputTokens = response.usage?.prompt_tokens || 0;
         const outputTokens = response.usage?.completion_tokens || 0;
@@ -86,6 +88,7 @@ async function discoverEncounters(input) {
         return {
             success: true,
             encounters: parsed.encounters,
+            page_assignments: parsed.page_assignments, // v2.3: Include if present
             aiModel: response.model, // Dynamic from OpenAI response
             aiCostUsd: cost,
             inputTokens,
