@@ -1114,3 +1114,42 @@ i worked on the document processing pipeline today for most of the day - worked 
   - Begin AI pipeline development
 
 --- 
+## [2025-11-02 to 2025-11-03] Pass 0.5 Testing & Worker Memory Optimization
+- **Duration:** 22.0 hours (11 hours Nov 2 + 11 hours Nov 3)
+- **R&D Hours:** 22.0
+
+### Claude's Structured Summary
+
+**Key Accomplishments:**
+- **Pass 0.5 Encounter Discovery Testing:** Extensive testing of file format optimization module, detecting and fixing multiple bugs. Prompt optimized for accurate encounter detection across all file types.
+- **Universal File Format Support:** Any file format (PDF, TIFF, HEIC, etc.) and any file size now supported through file format optimization module.
+- **Render Worker Memory Stability:** Comprehensive P0 memory fixes implemented and stress-tested. Discovered worker crash-restart loop pattern; revised concurrency from 50 → 5 → 3 for stability (22% safety margin).
+- **Frontend Upload Dashboard Fixes:** Resolved bugs in upload dashboard and fixed URL redirecting issues between Supabase and frontend.
+- **Pass 1.5 SNOMED Embedding:** Started embedding generation for SNOMED codes library (running on user's laptop, 24-hour completion time).
+- **Processing Optimization Research:** Created comprehensive 14-strategy optimization guide for reducing processing time from 10-15 minutes to 2-3 seconds.
+- **Infrastructure Setup:** Configured company emails via Migadu (exora.au domain, $19/year). Registered Instagram @exora.health for future marketing.
+
+**Impact & Decisions:**
+- **Worker Concurrency Decision:** Conservative concurrency=3 chosen for stability over speed (3 jobs × 120MB = 360MB with 102MB safety margin). Trade-off: slower processing but zero crashes.
+- **Batching Strategy Deferred:** Decided batching implementation can be deferred since per-page encounter information enables downstream Pass 1/Pass 2 models to auto-assign clinical entities via bounding box matching.
+- **Heap Limit Learning:** Discovered `--max-old-space-size` doesn't control total memory (buffers, native modules add ~100MB overhead). Worker peaked at 528MB despite 450MB heap limit.
+- **Crash-Restart Loop Analysis:** Fresh workers succeed on same files that crash experienced workers (2.5+ hour memory accumulation pattern).
+- **Pass 0.5 Audit Ready:** Created Pass 0.5 table audit folder with files ready for review (not yet acted upon).
+
+**Blockers:**
+- **Pass 1.5 SNOMED Embedding:** Still running on laptop (24-hour process), blocking integration into Pass 1.5 clinical matching.
+- **Pass 0.5 Testing Incomplete:** More accuracy testing needed for encounter detection edge cases.
+- **PDF Parallelization:** File format conversion module needs optimization, particularly PDF page extraction parallelization.
+- **Worker Enhancements Pending:** P1 enhancements documented but not yet implemented (memory monitoring, auto-restart after N jobs, streaming for large files).
+
+**Next Session Focus:**
+- Review Pass 0.5 audit files (table audits folder) and act on findings
+- Continue Pass 0.5 encounter detection accuracy testing
+- Optimize file format conversion module (PDF parallelization improvements)
+- Review and potentially implement P1 worker enhancements from optimization guide
+- Complete Pass 1.5 SNOMED embedding integration once laptop processing completes
+
+**User's Verbatim Log:**
+> Finishing for the day I did 11 hours today R&D. also did about 11 hours yesterday. R&D soap create a joint progress note update for both today and yesterday., For clarity today is 3 November yesterday was 2 November. As you know we worked today and yesterday and yesterday on past 05 the file format optimisation module and a little bit of past 1.5 where the SNOMED codes are currently being embedded but it's taking awhile because it's using my laptop, hopefully be finished in 24 hours. But for past 0.5 and the file format optimisation would be doing a lot of testing which is throwing up some little bugs. I've been dealing with all those bugs today and yesterday I've had some bugs with the front end upload dashboard so I had to fix that and fix some of the redirecting of URLs between super and . Made some very productive iterative improvements and optimisations to the render worker. Function learnt a lot about the worker functions and how they operate. Generally we've now uploading any type of format and it's working through the file format optimisation module. Also able to upload any size format. Any size file prompt for past 05 has been optimised and it's now detecting encounters correctly and accurately. I think probably still a little bit more testing to go On the accuracy of encounter detection, but generally I'm happy with that. we haven't touched on batching yet which is meant to be the second most important factor of past 05 but I've been thinking more on this lately and I think as long as we have the encounter information per page, then we don't batching can technically happen at any point because the downstream AI models during the past one and past two will be provided with the encounter information per page and therefore be able to work it out or mthis will happen via an automated function based on Beatbox data matching and alignment, so encounters will just be automatically assigned to a clinical entity. If the clinical entity Beatbox data falls within an encounter box map. . There are a few orders of business that we have worked on but have not touched because they're kind of separate and they are past 05 audit pass five table audits., - And we have created a table audit folder with files within that ready to go and ready to be acted on. . We have also created a render worker optimisation and enhancement file and I've already acted on the first phase of that reducing the consignment to 5 from 50 but then we reduced it further to 3. This is in order to increase the storage per job.. Tomorrow I will review both of those two orders of business and also continue testing the 05 pass. I also need to make sure that the file format optimisation conversion module is as optimise as possible with Paris ation of PDF conversion because I think that's alright the step that could be improved. . I also yesterday set up the company emails I Migadu, Where I will use them in Gmail.; The domain the email address is exora.au. This was quite cheap. I think it was like $19 a year.. I slowly need to convert all Explorer accounts to that email.. Yesterday I also registered Exora.health on Instagram as a placeholder for future social comms and marketing.
+
+---

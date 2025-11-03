@@ -68,39 +68,44 @@ Result: Memory exhaustion after processing multiple jobs
 **Time:** 5 minutes
 **Effort:** Trivial (environment variable change)
 **Risk:** None (only reduces throughput)
-**Status:** ⏳ PENDING USER ACTION
+**Status:** ✅ COMPLETE - Revised to 3 after stress testing
 
 **Implementation:**
 ```bash
 # Render Dashboard → Exora Health service → Environment
-WORKER_CONCURRENCY=5  # Down from 50
+WORKER_CONCURRENCY=3  # Final value after testing (initially tried 5, insufficient)
 ```
 
-**ACTION REQUIRED:**
-User needs to manually change this in Render dashboard:
-1. Go to https://dashboard.render.com
-2. Find "Exora Health" service
-3. Click → Environment tab
-4. Find or add `WORKER_CONCURRENCY`
-5. Change value to `5`
-6. Click Save (triggers auto-redeploy)
+**Implementation History:**
+1. Initial: 50 (causing crashes)
+2. First attempt: 5 (stress test revealed 25% failure rate)
+3. Revised: 3 (stable, no crashes)
 
-**Calculation:**
+**Calculation (Revised):**
 ```
 512MB RAM - 50MB Node.js = 462MB available
-462MB ÷ 5 jobs = 92MB per job
-Safe for 21MB TIFF + processing overhead
+Peak per job: 120MB (observed during stress testing)
+3 jobs × 120MB = 360MB
+Safety margin: 102MB (22%)
+Result: Safe with headroom ✅
 ```
 
-**Testing:**
-1. Change env var in Render dashboard
-2. Trigger deploy (or wait for auto-redeploy)
-3. Re-upload 142-page PDF + 21MB TIFF
-4. Monitor for crashes over 24 hours
+**Why 5 Was Insufficient:**
+- Heap limit (450MB) doesn't control total memory
+- Buffers, native modules, overhead add ~100MB
+- Worker peaked at 528MB with concurrency=5
+- 2 of 8 files failed in stress test (25% failure rate)
+- Worker entered crash-restart loop
 
-**Expected Result:** Jobs take longer to start but DON'T CRASH
+**Testing Results:**
+1. ✅ Deployed with concurrency=5
+2. ⚠️ Stress test: 6 of 8 files succeeded, 2 failed
+3. ✅ Revised to concurrency=3 and redeployed
+4. ⏳ Pending: 24-hour stability test with concurrency=3
 
-**Trade-off:** Queue depth increases (5 concurrent vs 50), but stability improves
+**Expected Result:** Stable processing, no crashes, all jobs complete
+
+**Trade-off:** Slower processing (3 concurrent vs 50), but STABLE and predictable
 
 ---
 

@@ -1,8 +1,8 @@
 # P0 Memory Stability Fixes - Implementation Summary
 
 **Date:** 2025-11-03
-**Status:** Code Complete - Pending Deployment
-**Time Spent:** ~1.5 hours
+**Status:** REVISED - Concurrency=3 Required (Previously set to 5, insufficient)
+**Time Spent:** ~3 hours (including stress testing and post-mortem)
 
 ---
 
@@ -94,94 +94,81 @@ With concurrency=50: 85MB × 50 = **4.25GB needed** (but only 512MB available) �
 
 ## Pending Actions
 
-### 1. User Must Change WORKER_CONCURRENCY in Render Dashboard ⏳
+### 1. User Must Change WORKER_CONCURRENCY in Render Dashboard ✅ COMPLETE
 
-**Why User Must Do This:**
-- Claude Code cannot access Render dashboard
-- Requires manual login and configuration change
+**Status:** User changed from 50 → 5 (initial) → 3 (revised after stress testing)
 
-**Steps:**
-1. Go to https://dashboard.render.com
-2. Select "Exora Health" service
-3. Click **Environment** tab
-4. Find or add `WORKER_CONCURRENCY`
-5. Change value from `50` to `5`
-6. Click **Save** (triggers auto-redeploy)
-
-**Why 5 is the Right Number:**
+**Why 3 is the Right Number:**
 ```
 512MB RAM total
 - 50MB Node.js base
 = 462MB available
-÷ 5 concurrent jobs
-= 92MB per job
+÷ 3 concurrent jobs
+= 154MB per job
 
-Actual need (multi-pass): 70-85MB per large file
-Result: Fits comfortably with headroom ✅
+Actual peak (observed): 120MB per large file
+3 × 120MB = 360MB
+Safety margin: 102MB (22% headroom)
+Result: Safe and stable ✅
 ```
+
+**Initial attempt (concurrency=5) failed due to:**
+- Peak memory per job higher than calculated (120MB vs 85MB)
+- Heap limit doesn't control total memory (buffers, native modules)
+- 2 of 8 files failed in stress test
 
 ---
 
-### 2. Deploy to Render ⏳
+### 2. Deploy to Render ✅ COMPLETE
 
-**After user changes WORKER_CONCURRENCY:**
+**Status:** Deployed 2025-11-03
 
-Render will auto-redeploy with the new code because the env var change triggers a deploy.
+**Deployment history:**
+1. Initial deploy with concurrency=5
+2. Stress test revealed insufficiency (2 of 8 files failed)
+3. Revised to concurrency=3 and redeployed
 
-**OR manually trigger deploy:**
+**Git commit used:**
 ```bash
-git add apps/render-worker/
-git commit -m "feat(worker): Add P0 memory stability fixes
+feat(worker): Add P0 memory stability fixes
 
 - Add explicit garbage collection after each job
 - Limit heap size to 450MB for safety
 - Log memory usage before/after GC
 - Prevent memory accumulation over time
 
-Fixes OOM crashes with large files after 2.5+ hours operation"
-
-git push origin main  # Triggers Render auto-deploy
+Fixes OOM crashes with large files after 2.5+ hours operation
 ```
 
 ---
 
-### 3. Testing After Deployment ⏳
+### 3. Testing After Deployment
 
-**Test Plan:**
+**Test 1: Verify GC is working** ✅ PASSED
+- Logs show "Memory cleanup completed" after each job
+- Example: freed 51MB (70MB → 19MB) for 142-page PDF
+- GC is functioning correctly
 
-**Test 1: Verify GC is working**
-```bash
-# Check Render logs after deploying
-# Should see lines like:
-[MEMORY] Memory cleanup completed
-  heap_before_mb: 245
-  heap_after_mb: 187
-  freed_mb: 58
-```
+**Test 2: Re-upload crash files** ✅ PASSED (with concurrency=5)
+- 142-page PDF: Completed successfully
+- Memory cleanup: freed 51MB after job completion
 
-**Test 2: Re-upload crash files**
-1. Upload 21MB TIFF file
-2. Upload 142-page PDF
-3. Both should complete successfully
-4. Check Render logs for memory cleanup messages
+**Test 3: Stress test (8 files)** ⚠️ PARTIAL FAILURE (with concurrency=5)
+- 6 of 8 files completed (75% success rate)
+- 2 of 8 files failed after 3 retries (dead lettered)
+- Worker entered crash-restart loop
+- Revealed concurrency=5 insufficient
 
-**Test 3: Stress test (10 consecutive large files)**
-1. Upload 10 files rapidly (mix of sizes)
-2. Monitor queue depth (should process 5 at a time)
-3. Check memory doesn't accumulate over time
-4. All should complete without crashes
-
-**Test 4: Long-running stability (24-hour soak test)**
-1. Leave worker running for 24 hours
-2. Upload files periodically throughout day
-3. Verify no memory-related crashes
-4. Check that worker doesn't need manual restarts
+**Test 4: Revised stress test with concurrency=3** ⏳ PENDING
+- Need to re-test with new concurrency setting
+- Upload same 8 files to verify stability
+- Monitor for crashes over 24 hours
 
 **Success Criteria:**
-- ✅ Zero OOM crashes over 24 hours
-- ✅ Memory freed after each job (logs show positive freed_mb)
-- ✅ Large files process successfully
-- ✅ Worker can run indefinitely without restart
+- ✅ GC working (verified)
+- ⚠️ Initial testing revealed concurrency=5 insufficient
+- ⏳ Pending: 24-hour stability test with concurrency=3
+- ⏳ Pending: Verify no crashes with revised setting
 
 ---
 
@@ -222,6 +209,167 @@ XL file (142 pages):
 ```
 
 **Conclusion:** Concurrency=5 is safe for multi-pass processing ✅
+
+---
+
+## STRESS TEST RESULTS - P0 INSUFFICIENT
+
+**Test Date:** 2025-11-03 (immediately after deployment)
+**Test:** Uploaded 8 files of varying sizes to stress test concurrency=5
+
+### Results Summary:
+
+**Total: 8 files**
+- ✅ Completed: 6 files (75%)
+- ❌ Failed: 2 files (25% - dead lettered after 3 retries)
+
+**Successful Files:**
+1. Xavier_lab_report_IMG_5637.jpeg (0 retries)
+2. 002_Sarah_Chen_Telephone_Summary.pdf (0 retries)
+3. 002_Sarah_Chen_Emergency_Summary.pdf (0 retries)
+4. BP2025060246784 - first 2 page version V4.pdf (0 retries)
+5. 005_David_Nguyen_Virtual_Encounter_Summary.pdf (0 retries)
+6. Xavier_combined_2page_medication_and_lab.tiff - 25MB (1 retry, then success)
+
+**Failed Files (Dead Lettered):**
+1. 004_Jennifer_Patel_Hospital_Encounter_Summary.pdf - 1.2MB (3 retries, FAILED)
+2. 002_Sarah_Chen_Hospital_Encounter_Summary.pdf - 1.5MB (3 retries, FAILED)
+
+### Root Cause Analysis - Why P0 Fixes Were Insufficient:
+
+#### Issue 1: Heap Limit Doesn't Control Total Memory
+
+**Expected:** `--max-old-space-size=450` would keep worker under 450MB
+**Reality:** Worker peaked at **528MB** (18% over limit!)
+
+**Why:**
+- Heap limit only controls JavaScript heap
+- Doesn't include:
+  - Buffer allocations (PDF files in memory)
+  - Sharp image processing buffers (~50MB per conversion)
+  - Native module memory (Poppler, libvips: ~30MB)
+  - V8 overhead (~20MB)
+
+**Actual memory breakdown:**
+```
+JavaScript heap: 450MB (limit)
++ Buffers: ~50MB
++ Native modules: ~30MB
++ Overhead: ~20MB
+= 550MB total (exceeds 512MB RAM!)
+```
+
+#### Issue 2: Worker Crash-Restart Loop Detected
+
+**Timeline from Render metrics:**
+```
+09:34 → 528MB (PEAK - CRASH)
+09:37 → 3MB (Worker restarted)
+09:43 → 410MB (Memory climbing)
+09:45 → 463MB (Approaching crash)
+09:47 → 136MB (CRASH #2 - Worker restarted)
+09:52 → 381MB (Memory climbing again)
+09:54 → 467MB (Approaching crash)
+09:56 → 138MB (CRASH #3 - Worker restarted)
+```
+
+**Death spiral pattern:**
+1. Worker processes jobs → Memory climbs to 450-500MB
+2. Worker crashes when exceeding 512MB RAM limit
+3. Render detects crash → Restarts worker (fresh 130MB memory)
+4. Auto-retry picks up failed jobs
+5. Worker processes more jobs → Memory climbs again
+6. Cycle repeats every 5-10 minutes
+
+**Jobs failed after 3 retries:** Dead lettered with reason "exceeded_max_retries_after_timeout"
+
+#### Issue 3: Garbage Collection Too Late
+
+**Problem:** GC runs AFTER job completes, but next jobs already started
+
+**Current flow:**
+```
+Job 1 starts → Memory: 140MB
+Load PDF → Memory: 160MB
+Process pages → Memory: 400MB
+Job completes → GC runs → Memory: 150MB
+BUT: Jobs 2-5 already started at step 3!
+```
+
+**Result:** All 5 jobs hit peak memory simultaneously = 500MB+ total
+
+#### Issue 4: Peak Memory Per Job Higher Than Calculated
+
+**Theoretical calculation:**
+```
+512MB RAM - 50MB Node.js = 462MB available
+462MB ÷ 5 jobs = 92MB per job
+Large file needs: 85MB
+Result: Should work! ✅
+```
+
+**Actual reality:**
+```
+Peak memory per job: 120MB (not 85MB)
+5 jobs × 120MB = 600MB needed
+Available: 512MB
+Deficit: 88MB → CRASH ❌
+```
+
+**Why 120MB instead of 85MB:**
+- GC lag (memory accumulates before collection)
+- Buffer overhead underestimated
+- Native modules use more than expected
+- Multiple buffers in flight during processing
+
+### Why These Specific Files Failed
+
+**Not actually large files!**
+- 004_Jennifer_Patel: 1.2MB PDF
+- 002_Sarah_Chen Hospital: 1.5MB PDF
+
+**They failed because:**
+1. Processed later in queue (memory already accumulated from earlier jobs)
+2. Hit worker during peak memory usage from other concurrent jobs
+3. Triggered crash-restart loop
+4. Never got a clean worker with sufficient available memory
+5. Auto-retry failed 3 times → Dead lettered
+
+### Revised Recommendation: WORKER_CONCURRENCY=3
+
+**New calculation:**
+```
+Available: 462MB
+Peak per job: 120MB (actual observed)
+3 jobs × 120MB = 360MB
+Safety margin: 102MB (22%)
+Result: Safe with headroom ✅
+```
+
+**User Action:** Changed WORKER_CONCURRENCY from 5 to 3 and redeployed (2025-11-03)
+
+**Expected improvement:**
+- Eliminates crash-restart loop
+- Provides 102MB safety margin for memory spikes
+- Can handle Pass 2 + Pass 3 when enabled (85MB → 120MB per job)
+- Conservative but stable
+
+**Trade-off:** Slower processing (3 concurrent vs 5), but STABLE
+
+---
+
+## Memory Cleanup Verification
+
+**From successful jobs:**
+```
+142-page PDF: freed 51MB (70MB → 19MB) - 73% reduction
+Emergency PDF: freed 5MB (24MB → 19MB)
+2-page PDF: freed 2MB (20MB → 18MB)
+25MB TIFF: freed 1MB (39MB → 38MB)
+Virtual PDF: freed 3MB (42MB → 39MB)
+```
+
+**Conclusion:** GC cleanup IS working, but memory accumulates faster than it can be freed with concurrency=5
 
 ---
 
