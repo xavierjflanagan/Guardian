@@ -1,0 +1,10 @@
+{
+  "entity_id": 5,
+  "entity_text": "Pregnancy test",
+  "variant_type": "layperson",
+  "query": "pregnant test positive negative",
+  "expected_entity_type": "observation",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:20.600Z",
+  "results": []
+}

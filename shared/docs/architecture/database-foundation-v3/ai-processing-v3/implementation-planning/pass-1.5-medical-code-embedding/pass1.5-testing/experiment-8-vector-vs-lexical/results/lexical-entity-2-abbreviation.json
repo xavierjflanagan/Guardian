@@ -1,0 +1,65 @@
+{
+  "entity_id": 2,
+  "entity_text": "Hemoglobin A1c test",
+  "variant_type": "abbreviation",
+  "query": "HbA1c",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:00.031Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "55454-3",
+      "display_name": "Deprecated Hemoglobin A1c in Blood",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 2,
+      "code_value": "41960-6",
+      "display_name": "Type of HbA1c measurement device",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 3,
+      "code_value": "41961-4",
+      "display_name": "HbA1c measurement device Vendor name",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 4,
+      "code_value": "41962-2",
+      "display_name": "HbA1c measurement device Vendor model code",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 5,
+      "code_value": "41963-0",
+      "display_name": "HbA1c measurement device Vendor serial number",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 6,
+      "code_value": "41964-8",
+      "display_name": "HbA1c measurement device Vendor software version",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

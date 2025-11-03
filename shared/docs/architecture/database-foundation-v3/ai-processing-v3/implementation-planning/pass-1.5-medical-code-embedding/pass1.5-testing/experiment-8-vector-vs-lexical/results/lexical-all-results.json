@@ -1,0 +1,811 @@
+[
+  {
+    "entity_id": 1,
+    "entity_text": "Blood glucose measurement",
+    "variant_type": "clinical",
+    "query": "glucose serum plasma blood measurement",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:38:48.079Z",
+    "results": []
+  },
+  {
+    "entity_id": 1,
+    "entity_text": "Blood glucose measurement",
+    "variant_type": "layperson",
+    "query": "blood sugar level test",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:38:50.056Z",
+    "results": []
+  },
+  {
+    "entity_id": 1,
+    "entity_text": "Blood glucose measurement",
+    "variant_type": "abbreviation",
+    "query": "BG BSL glucose",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:38:51.959Z",
+    "results": []
+  },
+  {
+    "entity_id": 2,
+    "entity_text": "Hemoglobin A1c test",
+    "variant_type": "clinical",
+    "query": "hemoglobin a1c glycated blood",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:38:55.102Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "41995-2",
+        "display_name": "Hemoglobin A1c [Mass/volume] in Blood",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "55454-3",
+        "display_name": "Deprecated Hemoglobin A1c in Blood",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 2,
+    "entity_text": "Hemoglobin A1c test",
+    "variant_type": "layperson",
+    "query": "a1c diabetes blood test",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:38:57.104Z",
+    "results": []
+  },
+  {
+    "entity_id": 2,
+    "entity_text": "Hemoglobin A1c test",
+    "variant_type": "abbreviation",
+    "query": "HbA1c",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:00.031Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "55454-3",
+        "display_name": "Deprecated Hemoglobin A1c in Blood",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "41960-6",
+        "display_name": "Type of HbA1c measurement device",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "41961-4",
+        "display_name": "HbA1c measurement device Vendor name",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "41962-2",
+        "display_name": "HbA1c measurement device Vendor model code",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "41963-0",
+        "display_name": "HbA1c measurement device Vendor serial number",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "41964-8",
+        "display_name": "HbA1c measurement device Vendor software version",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 3,
+    "entity_text": "Blood pressure measurement",
+    "variant_type": "clinical",
+    "query": "blood pressure systolic diastolic",
+    "expected_entity_type": "vital_sign",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:03.117Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "55284-4",
+        "display_name": "Blood pressure systolic and diastolic",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "45372-0",
+        "display_name": "Blood pressure systolic and diastolic--post phlebotomy",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "50402-7",
+        "display_name": "Blood pressure systolic and diastolic--after transfusion",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "50403-5",
+        "display_name": "Blood pressure systolic and diastolic--before transfusion",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 3,
+    "entity_text": "Blood pressure measurement",
+    "variant_type": "layperson",
+    "query": "BP reading pressure",
+    "expected_entity_type": "vital_sign",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:07.145Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "72076-3",
+        "display_name": "Blood pressure home reading",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 3,
+    "entity_text": "Blood pressure measurement",
+    "variant_type": "abbreviation",
+    "query": "BP SBP DBP",
+    "expected_entity_type": "vital_sign",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:09.352Z",
+    "results": []
+  },
+  {
+    "entity_id": 4,
+    "entity_text": "Total cholesterol test",
+    "variant_type": "clinical",
+    "query": "cholesterol total serum plasma",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:11.043Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "54373-6",
+        "display_name": "Cholesterol.non-esterified [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0.659705
+      },
+      {
+        "rank": 2,
+        "code_value": "54467-6",
+        "display_name": "Cholesterol in HDL 2a/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "54468-4",
+        "display_name": "Cholesterol in HDL 2b/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "54469-2",
+        "display_name": "Cholesterol in HDL 3a/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "54470-0",
+        "display_name": "Cholesterol in HDL 3b/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "54471-8",
+        "display_name": "Cholesterol in HDL 3c/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 7,
+        "code_value": "55440-2",
+        "display_name": "Cholesterol.in LDL (real) [Mass/volume] in Serum or Plasma by VAP",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 8,
+        "code_value": "55607-6",
+        "display_name": "Triglyceride/Cholesterol in HDL [Molar ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 9,
+        "code_value": "55838-7",
+        "display_name": "Cholesterol/Phospholipid [Molar ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 10,
+        "code_value": "55839-5",
+        "display_name": "Cholesterol ester transfer protein [Units/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 11,
+        "code_value": "55840-3",
+        "display_name": "Cholesterol esters [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 12,
+        "code_value": "56132-4",
+        "display_name": "Cholesterol in HDL 2a [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 13,
+        "code_value": "56134-0",
+        "display_name": "Cholesterol in IDL 1 [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 14,
+        "code_value": "56135-7",
+        "display_name": "Cholesterol in IDL 2 [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 15,
+        "code_value": "57936-7",
+        "display_name": "Cholesterol in HDL 2a [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 16,
+        "code_value": "57937-5",
+        "display_name": "Cholesterol in HDL 3a [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 17,
+        "code_value": "59250-1",
+        "display_name": "Tocopherols/Cholesterol [Molar ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 18,
+        "code_value": "74435-9",
+        "display_name": "Cholesterol.non-esterified/Cholesterol.total in Serum or Plasma by Gas chromatography",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 19,
+        "code_value": "66126-4",
+        "display_name": "Cholesterol in VLDL [Moles/volume] in Serum or Plasma by calculation",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 20,
+        "code_value": "66499-5",
+        "display_name": "Cholesterol in VLDL.beta [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 4,
+    "entity_text": "Total cholesterol test",
+    "variant_type": "layperson",
+    "query": "cholesterol level blood test",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:13.343Z",
+    "results": []
+  },
+  {
+    "entity_id": 4,
+    "entity_text": "Total cholesterol test",
+    "variant_type": "abbreviation",
+    "query": "TC chol",
+    "expected_entity_type": "lab_result",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:15.257Z",
+    "results": []
+  },
+  {
+    "entity_id": 5,
+    "entity_text": "Pregnancy test",
+    "variant_type": "clinical",
+    "query": "pregnancy test result",
+    "expected_entity_type": "observation",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:18.267Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "66563-8",
+        "display_name": "Pregnancy test result [PhenX]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "85675-7",
+        "display_name": "Serologic test result for Mother --pre pregnancy",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 5,
+    "entity_text": "Pregnancy test",
+    "variant_type": "layperson",
+    "query": "pregnant test positive negative",
+    "expected_entity_type": "observation",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:20.600Z",
+    "results": []
+  },
+  {
+    "entity_id": 5,
+    "entity_text": "Pregnancy test",
+    "variant_type": "abbreviation",
+    "query": "preg test",
+    "expected_entity_type": "observation",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:24.543Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "57530-8",
+        "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --pre dose dexamethasone",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "57531-6",
+        "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --1 day post dose dexamethasone",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "51674-0",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --6th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "56522-6",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --30 minutes post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "57532-4",
+        "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --2 days post dose dexamethasone",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "16298-2",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --45 minutes post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 7,
+        "code_value": "16299-0",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --6 hours post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 8,
+        "code_value": "51670-8",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --baseline",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 9,
+        "code_value": "51672-4",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --4th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 10,
+        "code_value": "51673-2",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --5th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 11,
+        "code_value": "51675-7",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --7th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 12,
+        "code_value": "51676-5",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --2nd specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 13,
+        "code_value": "51677-3",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --1st specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 14,
+        "code_value": "51678-1",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --3rd specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  },
+  {
+    "entity_id": 6,
+    "entity_text": "ECG findings",
+    "variant_type": "clinical",
+    "query": "electrocardiogram findings impression",
+    "expected_entity_type": "observation",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:26.941Z",
+    "results": []
+  },
+  {
+    "entity_id": 6,
+    "entity_text": "ECG findings",
+    "variant_type": "layperson",
+    "query": "heart test results ECG",
+    "expected_entity_type": "observation",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:29.274Z",
+    "results": []
+  },
+  {
+    "entity_id": 6,
+    "entity_text": "ECG findings",
+    "variant_type": "abbreviation",
+    "query": "EKG ECG",
+    "expected_entity_type": "observation",
+    "method": "lexical",
+    "timestamp": "2025-11-02T01:39:32.134Z",
+    "results": [
+      {
+        "rank": 1,
+        "code_value": "76637-8",
+        "display_name": "Total beats during EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "76638-6",
+        "display_name": "R-R interval (Maximum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "76639-4",
+        "display_name": "R-R interval (Minimum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "76643-6",
+        "display_name": "R-R interval.standard deviation (Heart rate variability) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "76644-4",
+        "display_name": "R-R interval.coefficient of variation by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "76645-1",
+        "display_name": "Cardiac stress test EKG study Type",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 7,
+        "code_value": "8618-1",
+        "display_name": "Recording duration by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 8,
+        "code_value": "8622-3",
+        "display_name": "Ventricular morphology [Interpretation] by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 9,
+        "code_value": "44976-9",
+        "display_name": "P-R Interval {Electrocardiograph lead}",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 10,
+        "code_value": "8894-8",
+        "display_name": "P wave Atrium by EKG",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 11,
+        "code_value": "58253-6",
+        "display_name": "Electrocardiograms recorded",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 12,
+        "code_value": "76000-9",
+        "display_name": "Paced heart rate by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 13,
+        "code_value": "76281-5",
+        "display_name": "Type of arrhythmia on EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 14,
+        "code_value": "76282-3",
+        "display_name": "Heart rate.beat-to-beat by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 15,
+        "code_value": "9861-6",
+        "display_name": "Style Pacemaker lead by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 16,
+        "code_value": "9866-5",
+        "display_name": "Axis [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 17,
+        "code_value": "9868-1",
+        "display_name": "Conduction [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 18,
+        "code_value": "9869-9",
+        "display_name": "Hypertrophy [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 19,
+        "code_value": "9870-7",
+        "display_name": "Intraventricular conduction [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 20,
+        "code_value": "9872-3",
+        "display_name": "Myocardial ischemia [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ]
+  }
+]

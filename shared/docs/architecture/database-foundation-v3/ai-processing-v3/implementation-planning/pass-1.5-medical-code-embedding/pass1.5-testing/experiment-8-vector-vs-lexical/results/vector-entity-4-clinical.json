@@ -1,0 +1,171 @@
+{
+  "entity_id": 4,
+  "entity_text": "Total cholesterol test",
+  "variant_type": "clinical",
+  "query": "cholesterol total serum plasma",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:09.223Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "47228-2",
+      "display_name": "Cholesterol non HDL/Cholesterol.total [Mass Ratio] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.705532
+    },
+    {
+      "rank": 2,
+      "code_value": "110258-1",
+      "display_name": "Cholesterol [Measurement] in Serum or Plasma",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.68228
+    },
+    {
+      "rank": 3,
+      "code_value": "2095-8",
+      "display_name": "Cholesterol in HDL/Cholesterol.total [Mass Ratio] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.681361
+    },
+    {
+      "rank": 4,
+      "code_value": "2093-3",
+      "display_name": "Cholesterol [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.680041
+    },
+    {
+      "rank": 5,
+      "code_value": "43396-1",
+      "display_name": "Cholesterol non HDL [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.664452
+    },
+    {
+      "rank": 6,
+      "code_value": "54373-6",
+      "display_name": "Cholesterol.non-esterified [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.659705
+    },
+    {
+      "rank": 7,
+      "code_value": "2094-1",
+      "display_name": "Cholesterol.non-esterified [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.653014
+    },
+    {
+      "rank": 8,
+      "code_value": "108018-3",
+      "display_name": "Cholesterol in LDL [Measurement] in Serum or Plasma",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.638397
+    },
+    {
+      "rank": 9,
+      "code_value": "91116-4",
+      "display_name": "Cholesterol in LDL 5 [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.629555
+    },
+    {
+      "rank": 10,
+      "code_value": "91109-9",
+      "display_name": "Cholesterol in LDL 5 [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.622788
+    },
+    {
+      "rank": 11,
+      "code_value": "9322-9",
+      "display_name": "Cholesterol.total/Cholesterol in HDL [Percentile]",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.601806
+    },
+    {
+      "rank": 12,
+      "code_value": "96258-9",
+      "display_name": "Cholesterol in LDL [Moles/volume] in Serum or Plasma by Calculated by Martin-Hopkins",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.580524
+    },
+    {
+      "rank": 13,
+      "code_value": "1990-1",
+      "display_name": "Cholecalciferol (Vit D3) [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.576268
+    },
+    {
+      "rank": 14,
+      "code_value": "33958-0",
+      "display_name": "Cholecalciferol (Vit D3) [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.565118
+    },
+    {
+      "rank": 15,
+      "code_value": "81021-8",
+      "display_name": "Cholesterol intake 24 hour Estimated",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.564517
+    },
+    {
+      "rank": 16,
+      "code_value": "12531-0",
+      "display_name": "Deprecated Cholesterol [Mass/volume] in Body fluid",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.541698
+    },
+    {
+      "rank": 17,
+      "code_value": "9342-7",
+      "display_name": "Cholesterol [Percentile]",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.533947
+    },
+    {
+      "rank": 18,
+      "code_value": "11094-0",
+      "display_name": "Dichlorodiphenyltrichloroethane [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.506844
+    },
+    {
+      "rank": 19,
+      "code_value": "23854-3",
+      "display_name": "Dioxin [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.477915
+    },
+    {
+      "rank": 20,
+      "code_value": "2885-2",
+      "display_name": "Protein [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.464636
+    }
+  ]
+}

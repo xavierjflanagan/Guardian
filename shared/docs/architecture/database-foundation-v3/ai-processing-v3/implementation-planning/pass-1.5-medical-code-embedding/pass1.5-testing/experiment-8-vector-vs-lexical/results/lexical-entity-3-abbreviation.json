@@ -1,0 +1,10 @@
+{
+  "entity_id": 3,
+  "entity_text": "Blood pressure measurement",
+  "variant_type": "abbreviation",
+  "query": "BP SBP DBP",
+  "expected_entity_type": "vital_sign",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:09.352Z",
+  "results": []
+}

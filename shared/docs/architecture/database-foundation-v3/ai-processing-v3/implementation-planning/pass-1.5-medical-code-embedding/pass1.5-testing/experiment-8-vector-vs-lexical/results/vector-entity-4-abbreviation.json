@@ -1,0 +1,139 @@
+{
+  "entity_id": 4,
+  "entity_text": "Total cholesterol test",
+  "variant_type": "abbreviation",
+  "query": "TC chol",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:11.610Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "93191-5",
+      "display_name": "HTR2C gene c.-759C>T [Genotype] in Blood or Tissue by Molecular genetics method Nominal",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.373422
+    },
+    {
+      "rank": 2,
+      "code_value": "72657-0",
+      "display_name": "Procainamide [Mass/volume] in Serum or Plasma --trough",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.347255
+    },
+    {
+      "rank": 3,
+      "code_value": "74986-1",
+      "display_name": "Hydroxychloroquine [Mass/volume] in Serum or Plasma --trough",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.325441
+    },
+    {
+      "rank": 4,
+      "code_value": "39239-9",
+      "display_name": "Anticipatory guidance or health education type CPHS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.32389
+    },
+    {
+      "rank": 5,
+      "code_value": "76442-3",
+      "display_name": "Primary health condition",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.304066
+    },
+    {
+      "rank": 6,
+      "code_value": "46640-9",
+      "display_name": "Secondary diagnosis [RFC]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.303285
+    },
+    {
+      "rank": 7,
+      "code_value": "45236-7",
+      "display_name": "HIV treatment cohort",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.302525
+    },
+    {
+      "rank": 8,
+      "code_value": "64100-1",
+      "display_name": "Contraindication",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.294208
+    },
+    {
+      "rank": 9,
+      "code_value": "87536-9",
+      "display_name": "Treatment or health behavior affected by challenges",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.291821
+    },
+    {
+      "rank": 10,
+      "code_value": "20995-7",
+      "display_name": "Cortisol [Interpretation] in Serum or Plasma--1 hour post dose corticotropin",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.288613
+    },
+    {
+      "rank": 11,
+      "code_value": "46683-9",
+      "display_name": "Extreme heat [RFC]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.277061
+    },
+    {
+      "rank": 12,
+      "code_value": "28087-5",
+      "display_name": "Defensive coping [CCC]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.271661
+    },
+    {
+      "rank": 13,
+      "code_value": "45231-8",
+      "display_name": "HIV treatment prior to enrollment",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.267791
+    },
+    {
+      "rank": 14,
+      "code_value": "18630-4",
+      "display_name": "Primary diagnosis",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.266503
+    },
+    {
+      "rank": 15,
+      "code_value": "46682-1",
+      "display_name": "Extreme cold [RFC]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.26599
+    },
+    {
+      "rank": 16,
+      "code_value": "21905-5",
+      "display_name": "Primary tumor.clinical [Class] Cancer",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.265057
+    }
+  ]
+}

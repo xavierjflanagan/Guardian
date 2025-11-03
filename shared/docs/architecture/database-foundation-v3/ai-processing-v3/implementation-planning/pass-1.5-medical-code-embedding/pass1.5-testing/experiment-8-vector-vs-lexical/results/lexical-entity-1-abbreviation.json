@@ -1,0 +1,10 @@
+{
+  "entity_id": 1,
+  "entity_text": "Blood glucose measurement",
+  "variant_type": "abbreviation",
+  "query": "BG BSL glucose",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:38:51.959Z",
+  "results": []
+}

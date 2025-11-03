@@ -1,0 +1,171 @@
+{
+  "entity_id": 3,
+  "entity_text": "Blood pressure measurement",
+  "variant_type": "layperson",
+  "query": "BP reading pressure",
+  "expected_entity_type": "vital_sign",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:06.855Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "8457-4",
+      "display_name": "Mean blood pressure--standing",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.645928
+    },
+    {
+      "rank": 2,
+      "code_value": "76285-6",
+      "display_name": "Pulmonary capillary Blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.631674
+    },
+    {
+      "rank": 3,
+      "code_value": "76284-9",
+      "display_name": "Pulmonary artery Blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.629361
+    },
+    {
+      "rank": 4,
+      "code_value": "8479-8",
+      "display_name": "Systolic blood pressure by palpation",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.62646
+    },
+    {
+      "rank": 5,
+      "code_value": "76533-9",
+      "display_name": "Blood pressure by Noninvasive",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.624228
+    },
+    {
+      "rank": 6,
+      "code_value": "8456-6",
+      "display_name": "Mean blood pressure--sitting",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.606512
+    },
+    {
+      "rank": 7,
+      "code_value": "18684-1",
+      "display_name": "First Blood pressure Set",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.603546
+    },
+    {
+      "rank": 8,
+      "code_value": "71895-7",
+      "display_name": "Pediatric blood pressure screening results",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.602023
+    },
+    {
+      "rank": 9,
+      "code_value": "8454-1",
+      "display_name": "Diastolic blood pressure--standing",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.59858
+    },
+    {
+      "rank": 10,
+      "code_value": "76212-0",
+      "display_name": "Invasive Blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.59839
+    },
+    {
+      "rank": 11,
+      "code_value": "76539-6",
+      "display_name": "Blood pressure device Cuff pressure.diastolic",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.598284
+    },
+    {
+      "rank": 12,
+      "code_value": "76287-2",
+      "display_name": "Pulmonary capillary Mean blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.594466
+    },
+    {
+      "rank": 13,
+      "code_value": "45372-0",
+      "display_name": "Blood pressure systolic and diastolic--post phlebotomy",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.59422
+    },
+    {
+      "rank": 14,
+      "code_value": "76288-0",
+      "display_name": "Pulmonary capillary Systolic blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.588785
+    },
+    {
+      "rank": 15,
+      "code_value": "76286-4",
+      "display_name": "Pulmonary capillary Diastolic blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.586604
+    },
+    {
+      "rank": 16,
+      "code_value": "8587-8",
+      "display_name": "Pulmonary artery wedge Mean blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.58469
+    },
+    {
+      "rank": 17,
+      "code_value": "76534-7",
+      "display_name": "Systolic blood pressure by Noninvasive",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.581608
+    },
+    {
+      "rank": 18,
+      "code_value": "75994-4",
+      "display_name": "Pulmonary artery wedge pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.574037
+    },
+    {
+      "rank": 19,
+      "code_value": "60995-8",
+      "display_name": "Pulmonary artery wedge Systolic blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.571909
+    },
+    {
+      "rank": 20,
+      "code_value": "76535-4",
+      "display_name": "Diastolic blood pressure by Noninvasive",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.570315
+    }
+  ]
+}

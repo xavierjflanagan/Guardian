@@ -1,0 +1,47 @@
+{
+  "entity_id": 3,
+  "entity_text": "Blood pressure measurement",
+  "variant_type": "clinical",
+  "query": "blood pressure systolic diastolic",
+  "expected_entity_type": "vital_sign",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:03.117Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "55284-4",
+      "display_name": "Blood pressure systolic and diastolic",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 2,
+      "code_value": "45372-0",
+      "display_name": "Blood pressure systolic and diastolic--post phlebotomy",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 3,
+      "code_value": "50402-7",
+      "display_name": "Blood pressure systolic and diastolic--after transfusion",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 4,
+      "code_value": "50403-5",
+      "display_name": "Blood pressure systolic and diastolic--before transfusion",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

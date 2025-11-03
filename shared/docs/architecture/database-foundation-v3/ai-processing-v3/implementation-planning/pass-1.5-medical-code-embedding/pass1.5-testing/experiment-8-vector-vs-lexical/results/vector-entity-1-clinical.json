@@ -1,0 +1,171 @@
+{
+  "entity_id": 1,
+  "entity_text": "Blood glucose measurement",
+  "variant_type": "clinical",
+  "query": "glucose serum plasma blood measurement",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:37:57.067Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "14749-6",
+      "display_name": "Glucose [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.725642
+    },
+    {
+      "rank": 2,
+      "code_value": "21004-7",
+      "display_name": "Glucose tolerance [Interpretation] in Serum or Plasma",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.688902
+    },
+    {
+      "rank": 3,
+      "code_value": "16911-0",
+      "display_name": "Glucose [Presence] in Urine --8th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.538761
+    },
+    {
+      "rank": 4,
+      "code_value": "16908-6",
+      "display_name": "Glucose [Presence] in Urine --5th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.529905
+    },
+    {
+      "rank": 5,
+      "code_value": "35613-9",
+      "display_name": "Glutethimide [Mass/volume] in Serum or Plasma by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.519291
+    },
+    {
+      "rank": 6,
+      "code_value": "5622-6",
+      "display_name": "Chromium [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.502146
+    },
+    {
+      "rank": 7,
+      "code_value": "25374-0",
+      "display_name": "Chromium [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.48497
+    },
+    {
+      "rank": 8,
+      "code_value": "77138-6",
+      "display_name": "Chloride [Moles/volume] in Serum, Plasma or Blood",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.462393
+    },
+    {
+      "rank": 9,
+      "code_value": "63112-7",
+      "display_name": "Blackberry IgG Ab [Mass/volume] in Serum",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.448986
+    },
+    {
+      "rank": 10,
+      "code_value": "65363-4",
+      "display_name": "Glutathione [Moles/volume] in Blood",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.437235
+    },
+    {
+      "rank": 11,
+      "code_value": "55346-1",
+      "display_name": "cloBAZam+Norclobazam [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.436255
+    },
+    {
+      "rank": 12,
+      "code_value": "5594-7",
+      "display_name": "Beryllium [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.429839
+    },
+    {
+      "rank": 13,
+      "code_value": "79609-4",
+      "display_name": "Glutathione.oxidized [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.426747
+    },
+    {
+      "rank": 14,
+      "code_value": "52899-2",
+      "display_name": "Beryllium [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.425586
+    },
+    {
+      "rank": 15,
+      "code_value": "55558-1",
+      "display_name": "Nicotine [Moles/volume] in Serum or Plasma by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.422731
+    },
+    {
+      "rank": 16,
+      "code_value": "3853-9",
+      "display_name": "Nicotine [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.422342
+    },
+    {
+      "rank": 17,
+      "code_value": "111396-8",
+      "display_name": "Chromium [Measurement] in Urine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.419188
+    },
+    {
+      "rank": 18,
+      "code_value": "108506-7",
+      "display_name": "Platinum [Measurement] in Urine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.417674
+    },
+    {
+      "rank": 19,
+      "code_value": "29282-1",
+      "display_name": "Glutethimide [Presence] in Gastric fluid",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.410848
+    },
+    {
+      "rank": 20,
+      "code_value": "55557-3",
+      "display_name": "Nicotine [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.407884
+    }
+  ]
+}
