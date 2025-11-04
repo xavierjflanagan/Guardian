@@ -245,13 +245,14 @@ CREATE TABLE IF NOT EXISTS pass05_encounter_metrics (
     encounter_confidence_average NUMERIC(3,2),
     encounter_types_found TEXT[],
 
+    -- Cost metrics (Migration 39 - 2025-11-04: moved from shell_file_manifests)
+    ai_cost_usd NUMERIC(10,6),
+
     -- Page analysis
     total_pages INTEGER NOT NULL,
-    pages_per_encounter NUMERIC(5,2),
 
     -- Batching
     batching_required BOOLEAN NOT NULL DEFAULT FALSE,
-    batch_count INTEGER DEFAULT 1,
 
     -- Audit trail
     user_agent TEXT,
@@ -1289,7 +1290,7 @@ BEGIN
 END;
 $$;
 
--- Pass 0.5 Atomic Manifest Write Function (Migration 35 - 2025-10-30)
+-- Pass 0.5 Atomic Manifest Write Function (Migration 35 - 2025-10-30, updated Migration 39 - 2025-11-04)
 CREATE OR REPLACE FUNCTION write_pass05_manifest_atomic(
   -- Manifest data
   p_shell_file_id UUID,
@@ -1298,7 +1299,6 @@ CREATE OR REPLACE FUNCTION write_pass05_manifest_atomic(
   p_total_encounters_found INTEGER,
   p_ocr_average_confidence NUMERIC(3,2),
   p_batching_required BOOLEAN,
-  p_batch_count INTEGER,
   p_manifest_data JSONB,
   p_ai_model_used TEXT,
   p_ai_cost_usd NUMERIC(10,6),
@@ -1337,6 +1337,7 @@ BEGIN
   */
 
   -- 1. Insert manifest (will fail if already exists due to unique constraint)
+  -- Note: batch_count removed (Migration 39), ai_cost_usd moved to metrics (Migration 39)
   INSERT INTO shell_file_manifests (
     shell_file_id,
     patient_id,
@@ -1344,10 +1345,8 @@ BEGIN
     total_encounters_found,
     ocr_average_confidence,
     batching_required,
-    batch_count,
     manifest_data,
     ai_model_used,
-    ai_cost_usd,
     processing_time_ms
   ) VALUES (
     p_shell_file_id,
@@ -1356,15 +1355,14 @@ BEGIN
     p_total_encounters_found,
     p_ocr_average_confidence,
     p_batching_required,
-    p_batch_count,
     p_manifest_data,
     p_ai_model_used,
-    p_ai_cost_usd,
     p_processing_time_ms
   )
   RETURNING manifest_id INTO v_manifest_id;
 
   -- 2. UPSERT metrics (idempotent on processing_session_id)
+  -- Note: pages_per_encounter removed (Migration 39), batch_count removed (Migration 39), ai_cost_usd added (Migration 39)
   INSERT INTO pass05_encounter_metrics (
     patient_id,
     shell_file_id,
@@ -1378,13 +1376,12 @@ BEGIN
     input_tokens,
     output_tokens,
     total_tokens,
+    ai_cost_usd,
     ocr_average_confidence,
     encounter_confidence_average,
     encounter_types_found,
     total_pages,
-    pages_per_encounter,
-    batching_required,
-    batch_count
+    batching_required
   ) VALUES (
     p_patient_id,
     p_shell_file_id,
@@ -1398,16 +1395,12 @@ BEGIN
     p_input_tokens,
     p_output_tokens,
     p_input_tokens + p_output_tokens,
+    p_ai_cost_usd,
     p_ocr_average_confidence,
     p_encounter_confidence_average,
     p_encounter_types_found,
     p_total_pages,
-    CASE
-      WHEN p_encounters_detected > 0 THEN ROUND((p_total_pages::numeric / p_encounters_detected::numeric), 2)
-      ELSE 0
-    END,
-    p_batching_required,
-    p_batch_count
+    p_batching_required
   )
   ON CONFLICT (processing_session_id) DO UPDATE SET
     encounters_detected = EXCLUDED.encounters_detected,
@@ -1419,6 +1412,7 @@ BEGIN
     input_tokens = EXCLUDED.input_tokens,
     output_tokens = EXCLUDED.output_tokens,
     total_tokens = EXCLUDED.total_tokens,
+    ai_cost_usd = EXCLUDED.ai_cost_usd,
     ocr_average_confidence = EXCLUDED.ocr_average_confidence,
     encounter_confidence_average = EXCLUDED.encounter_confidence_average,
     encounter_types_found = EXCLUDED.encounter_types_found
@@ -1428,7 +1422,8 @@ BEGIN
   UPDATE shell_files
   SET
     pass_0_5_completed = TRUE,
-    pass_0_5_completed_at = NOW()
+    pass_0_5_completed_at = NOW(),
+    updated_at = NOW()
   WHERE id = p_shell_file_id;
 
   -- Return success with IDs

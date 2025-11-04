@@ -88,6 +88,13 @@ export interface EncounterMetadata {
    */
   confidence: number;
 
+  /**
+   * Plain English summary of encounter (Migration 38)
+   * Example: "Annual physical exam with Dr. Smith at City Medical Center"
+   * TODO: AI prompt needs to generate this field
+   */
+  summary?: string;
+
   extractedText?: string;  // Sample text from encounter (for debugging)
 }
 

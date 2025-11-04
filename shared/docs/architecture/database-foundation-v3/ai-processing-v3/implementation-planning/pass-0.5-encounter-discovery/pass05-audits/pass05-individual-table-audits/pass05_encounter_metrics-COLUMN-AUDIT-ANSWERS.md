@@ -474,3 +474,30 @@ page_separation_analysis JSONB
    - Current: Average across all pages
    - Alternative: Store per-page confidence in separate column/table
    - Use case: Identify low-quality pages for manual review prioritization
+
+
+
+
+
+
+
+Xaviers little spiel on batching vision:
+ we need to do a lot more thinking
+  and planning for this issueand concept. Pass 05s role is to help break up large multi page files into small
+  manageable batches so that pass 1 and pass 2 can do there job without context bloat, and to help reduce pass 1
+  and pass 2 processing time by allowing parralelization of batches. The purpose of getting pass05 to review
+  the entire file and determine the healthcare encounter ifnormation and summarize the entire file as a whole is
+  so that when batching occurs and 1 or a couple of pages are batched off and taken out of context, the ai can
+  still udnerstand whats going on as it is provided with the healthcare eneouncter manifest that has a summary
+  and all the context of the 'bigger picture'. The things we need to worry about re batching is that we dont
+  seperate two pages that have context overlowing between them, so a key role of pass 05 is to identify and
+  record either A)where the intersection/gap between two pages cannot be broken or invesrely B) identify all
+  inter-page relationships that can be broken and seperated (eg., page 2 and page 3 have a pargraph that spills
+  over form page 2 to page 3 so they cant be seperated and have to go intot he same batch, page 5 and 6 have a
+  table starting at teh end of page 5, but trails over into the top of page 6, and if seperated the info at the
+  top of page 6 would be uniterpretable, so hence page 5 and 6 have to be batched together, but page 7 and 8 can
+  be seperated as there is not cross over in context between them, safe to seperate them).  
+Then, once pass05
+  has provided that batching info as output, we can have a function that does the actual batching for downstream
+  processing. But i dont know yet what the max batch count will be, and what the default ideal batch count
+  ought to be as we havent dont load testing on pass 1 and havent even finished building pass 2 yet. 

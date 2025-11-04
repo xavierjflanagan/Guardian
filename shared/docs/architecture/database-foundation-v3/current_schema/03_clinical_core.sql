@@ -155,10 +155,11 @@ CREATE TABLE IF NOT EXISTS shell_files (
     processed_image_checksum TEXT, -- SHA256 checksum for idempotency
     processed_image_mime TEXT, -- MIME type of processed image
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30)
+    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 39 - 2025-11-04)
     pass_0_5_completed BOOLEAN DEFAULT FALSE, -- True if Pass 0.5 encounter discovery completed successfully
     pass_0_5_completed_at TIMESTAMPTZ, -- When Pass 0.5 completed
     pass_0_5_error TEXT, -- Pass 0.5 error message if failed
+    page_separation_analysis JSONB, -- Migration 39: Inter-page dependency analysis for batching (safe_split_points, inseparable_groups)
 
     -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -307,16 +308,14 @@ CREATE TABLE IF NOT EXISTS shell_file_manifests (
     total_encounters_found INTEGER NOT NULL,
     ocr_average_confidence NUMERIC(3,2),
 
-    -- Batching metadata (Phase 2)
+    -- Batching metadata (Migration 39 - 2025-11-04: batch_count removed, analysis moved to shell_files.page_separation_analysis)
     batching_required BOOLEAN NOT NULL DEFAULT FALSE,
-    batch_count INTEGER DEFAULT 1,
 
     -- Manifest content (JSONB structure: encounters array with spatial bounds, page ranges, encounter metadata)
     manifest_data JSONB NOT NULL,
 
-    -- AI audit
+    -- AI audit (Migration 39 - 2025-11-04: ai_cost_usd moved to pass05_encounter_metrics)
     ai_model_used TEXT NOT NULL,
-    ai_cost_usd NUMERIC(10,6),
 
     -- Uniqueness constraint
     CONSTRAINT unique_manifest_per_shell_file UNIQUE(shell_file_id)
@@ -537,26 +536,25 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     plan TEXT, -- Treatment plan
     
     -- Administrative
-    visit_duration_minutes INTEGER,
     billing_codes TEXT[], -- CPT codes for billing
-    
-    -- File Links  
+
+    -- File Links
     primary_shell_file_id UUID REFERENCES shell_files(id),
     related_shell_file_ids UUID[] DEFAULT '{}',
-    
+
     -- V3 AI Processing Integration
-    ai_extracted BOOLEAN DEFAULT FALSE,
-    ai_confidence NUMERIC(4,3) CHECK (ai_confidence BETWEEN 0 AND 1),
+    source_method TEXT NOT NULL CHECK (source_method IN ('ai_pass_0_5', 'ai_pass_2', 'manual_entry', 'import')), -- Migration 38: Replaced ai_extracted boolean with granular tracking
     requires_review BOOLEAN DEFAULT FALSE,
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30)
+    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 38 - 2025-11-04)
     page_ranges INT[][] DEFAULT '{}', -- Page ranges in source document [[1,5], [10,12]]
     spatial_bounds JSONB, -- Bounding box coordinates for encounter region
     identified_in_pass TEXT DEFAULT 'pass_2', -- 'pass_0_5', 'pass_1', 'pass_2'
     is_real_world_visit BOOLEAN DEFAULT TRUE, -- Timeline Test: date + (provider OR facility)
     pass_0_5_confidence NUMERIC(3,2), -- AI confidence in encounter detection
     ocr_average_confidence NUMERIC(3,2), -- Average OCR quality for this encounter
-    encounter_date_end TIMESTAMPTZ, -- End date for multi-day encounters
+    encounter_date_end TIMESTAMPTZ, -- End date for multi-day encounters (NULL = ongoing, populated = completed)
+    date_source TEXT CHECK (date_source IN ('ai_extracted', 'file_metadata', 'upload_date')), -- Migration 38: Track date provenance
     is_planned_future BOOLEAN DEFAULT FALSE, -- True for scheduled appointments/procedures
 
     -- Phase 2: Master Encounter Grouping (Migration 34 - 2025-10-30)
@@ -565,7 +563,6 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     all_shell_file_ids UUID[] DEFAULT ARRAY[]::UUID[], -- All documents referencing this encounter
 
     -- Quality and Audit
-    confidence_score NUMERIC(4,3) CHECK (confidence_score BETWEEN 0 AND 1),
     archived BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -57,6 +57,27 @@ YYYY-MM-DD_NN_descriptive_name.sql
 
 Example: `2025-10-08_18_add_processing_time_minutes.sql`
 
+**CRITICAL: Sequential Numbering**
+
+The `NN` number MUST follow sequential order. To determine the next number:
+
+1. **List existing migrations** sorted by number:
+   ```bash
+   ls -1 migration_history/*.sql | sort
+   ```
+
+2. **Find the highest number** (e.g., `2025-11-03_37_add_ocr_raw_storage.sql` means last was 37)
+
+3. **Use the next sequential number** (if last was 37, use 38; if last was 38, use 39)
+
+4. **Current count**: As of 2025-11-04, the last migration is **38**. Next migration should be **39**.
+
+**Why This Matters:**
+- Sequential numbers create clear migration order
+- Prevents conflicts when multiple developers work on migrations
+- Makes it easy to identify missing migrations
+- Supports automated migration tooling in the future
+
 ### 2. Migration Script Template
 
 ```sql

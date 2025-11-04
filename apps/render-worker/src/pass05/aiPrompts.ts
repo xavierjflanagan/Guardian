@@ -290,6 +290,24 @@ Documents containing clinical info but NOT representing a discrete visit.
 
 **If date is vague:** Create pseudo-encounter, leave \`dateRange\` null
 
+### Date Range: Start vs End Dates (Migration 38)
+**When to populate dateRange.end:**
+
+**Single-day encounters (MOST COMMON):**
+- GP visit: {"start": "2024-03-15"} (no end date)
+- Emergency Department: {"start": "2024-01-20"} (no end date)
+- Outpatient consultation: {"start": "2024-02-10"} (no end date)
+
+**Multi-day encounters (USE END DATE):**
+- Hospital admission: {"start": "2024-03-10", "end": "2024-03-15"} (admission → discharge)
+- Inpatient stay: {"start": "2024-06-01", "end": "2024-06-05"}
+
+**Planned future encounters:**
+- Scheduled appointment: {"start": "2024-05-20"} (no end date yet)
+- Planned surgery: {"start": "2024-04-15"} (no end date until completed)
+
+**RULE:** Only populate \`end\` date when document explicitly shows both admission AND discharge dates. For single-day visits or future appointments, use \`start\` only.
+
 ### What NOT to Create as Separate Encounters
 
 **DO NOT split unified documents into sections:**
@@ -374,11 +392,66 @@ Don't artificially force everything into one encounter, but also don't split uni
   - VALID: Encounter A: pages [1,2,3], Encounter B: pages [4,5,6]
   - INVALID: Encounter A: pages [1,2,3], Encounter B: pages [3,4,5] (page 3 overlaps)
 
-### 2. Confidence Scoring
-Your \`confidence\` should reflect:
-- HIGH (0.85-1.0): Clear dates, provider, facility, distinct page boundaries
-- MEDIUM (0.65-0.85): Some missing info (no provider OR vague facility) but clearly separate document
-- LOW (0.40-0.65): Ambiguous boundaries or missing key info
+### 2. Confidence Scoring (Migration 38 - Updated Guidelines)
+Your \`confidence\` should reflect certainty in encounter identification and boundaries:
+
+**VERY HIGH (0.95-1.00): Crystal clear identification**
+- Specific date (YYYY-MM-DD format)
+- Clear provider AND facility names
+- Distinct document boundaries (headers, letterhead changes)
+- No ambiguity in page assignment
+- Examples: Hospital discharge summary with all details, dated consultation note
+
+**HIGH (0.85-0.94): Mostly clear with minor gaps**
+- Specific date OR month/year
+- Provider OR facility (one may be missing)
+- Clear document structure but some missing details
+- Examples: Dated clinic visit without facility name, consultation with provider but vague date precision
+
+**MEDIUM (0.70-0.84): Some uncertainty**
+- Vague date (e.g., "March 2024" without day) OR missing date
+- Unclear provider/facility information
+- Some ambiguity in page boundaries
+- Examples: Admin summary with partial information, pseudo-encounter with limited metadata
+
+**LOW (0.50-0.69): Significant uncertainty**
+- Very vague or no date
+- Missing provider AND facility
+- Unclear document boundaries
+- Examples: Metadata pages with minimal context, fragmented documents
+
+**CRITICAL: Below 0.50 indicates you should reconsider the encounter classification**
+
+### 3. Summary Generation (Migration 38 - REQUIRED for all encounters)
+
+Every encounter MUST include a plain English summary (1-2 sentences) that helps users understand what the encounter was about.
+
+**Summary Guidelines:**
+
+**For Real-World Visits:**
+- Include: type of visit, provider/facility, date, and main reason/outcome
+- Examples:
+  - "Hospital admission for appendectomy with Dr Sarah Chen at City Hospital from June 10-15, 2024, with successful surgery and recovery."
+  - "Annual GP checkup with Dr James Wilson on March 5, 2024, including blood pressure check and medication review."
+  - "Emergency Department visit for chest pain at St Vincent's on January 20, 2024, ruled out cardiac event, diagnosed anxiety."
+
+**For Pseudo-Encounters (Admin Summaries):**
+- Describe what type of information is contained
+- Examples:
+  - "Comprehensive health summary including current medications, immunization history, and past medical conditions."
+  - "Medication list showing five active prescriptions for diabetes, hypertension, and cholesterol management."
+  - "Full blood count pathology report showing hemoglobin, white blood cell count, and platelet results."
+
+**For Planned Encounters:**
+- Include: type of appointment, provider, date scheduled
+- Example: "Scheduled cardiology consultation with Dr Lisa Brown on May 15, 2024, for follow-up of recent ECG findings."
+
+**Summary Quality Requirements:**
+- **Content-aware**: Reflect actual encounter content, not generic descriptions
+- **Concise**: 1-2 sentences maximum (15-30 words ideal)
+- **Patient-friendly**: Use plain English, avoid excessive medical jargon
+- **Informative**: User should understand the visit purpose/outcome from summary alone
+- **NO speculation**: Only include information explicitly stated in document
 
 ## CRITICAL: Page-by-Page Assignment Process (v2.3)
 
@@ -451,6 +524,7 @@ This process prevents errors like:
    - Facility name (null if not mentioned)
    - Page ranges (non-overlapping, can be non-contiguous like [[1,3],[7,8]])
    - Confidence (0.0-1.0)
+   - \`summary\`: Plain English description of encounter (1-2 sentences, content-aware) **REQUIRED - Migration 38**
 
 6. **Return JSON** with TWO sections:
    - \`page_assignments\`: Array of page assignments with justifications
@@ -478,6 +552,7 @@ Examples below show the new format:
       "facility": "South Coast Medical",
       "pageRanges": [[1, 1]],
       "confidence": 0.95,
+      "summary": "Comprehensive health summary for Xavier Flanagan including current medications, immunization history, and past medical conditions from South Coast Medical.",
       "extractedText": "Patient Health Summary - Xavier Flanagan DOB: 25/04/1994 Current Medications: Metformin 500mg..."
     }
   ]
@@ -507,6 +582,7 @@ Examples below show the new format:
       "facility": "St Vincent's Hospital",
       "pageRanges": [[1, 5]],
       "confidence": 0.95,
+      "summary": "Hospital admission for laparoscopic cholecystectomy with Dr Jane Smith at St Vincent's Hospital from March 10-15, 2024, with successful surgery and recovery.",
       "extractedText": "Discharge Summary - Admission for cholecystectomy..."
     }
   ]
@@ -536,6 +612,7 @@ Examples below show the new format:
       "facility": "City Hospital",
       "pageRanges": [[1, 3]],
       "confidence": 0.92,
+      "summary": "Surgical admission to City Hospital with Dr Smith from March 10-15, 2024, for planned procedure with successful outcome.",
       "extractedText": "Discharge Summary - Surgical admission..."
     },
     {
@@ -547,6 +624,7 @@ Examples below show the new format:
       "facility": "PathLab Services",
       "pageRanges": [[4, 5]],
       "confidence": 0.88,
+      "summary": "Full blood count pathology report from PathLab Services showing hemoglobin, white blood cell count, and other hematology results.",
       "extractedText": "PATHOLOGY REPORT - FBC: Hb 145 g/L (135-175), WBC 7.2 x10^9/L..."
     },
     {
@@ -558,6 +636,7 @@ Examples below show the new format:
       "facility": "Medical Centre",
       "pageRanges": [[6, 8]],
       "confidence": 0.90,
+      "summary": "Post-surgical follow-up consultation with Dr Jones at Medical Centre on March 20, 2024, to review recovery progress.",
       "extractedText": "Outpatient consultation - Post-surgical follow-up..."
     }
   ]
