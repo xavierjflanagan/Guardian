@@ -1034,7 +1034,11 @@ class V3Worker {
       patientId: payload.patient_id,
       ocrOutput: {
         fullTextAnnotation: {
-          text: ocrResult.pages.map((p: any) => p.lines.map((l: any) => l.text).join(' ')).join('\n'),
+          text: ocrResult.pages.map((p: any, idx: number) =>
+            `--- PAGE ${idx + 1} START ---\n` +
+            p.lines.map((l: any) => l.text).join(' ') +
+            `\n--- PAGE ${idx + 1} END ---`
+          ).join('\n\n'),
           pages: ocrResult.pages.map((page: any) => ({
             width: page.size.width_px || 1000,
             height: page.size.height_px || 1400,
