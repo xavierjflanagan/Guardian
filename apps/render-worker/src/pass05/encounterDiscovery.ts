@@ -5,11 +5,16 @@
  * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
  * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
+ *
+ * Version Selection (via PASS_05_VERSION env var):
+ * - 'v2.4' (default): Current production prompt (v2.4)
+ * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
  */
 
 import OpenAI from 'openai';
 import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 import { buildEncounterDiscoveryPrompt } from './aiPrompts';
+import { buildEncounterDiscoveryPromptV27 } from './aiPrompts.v2.7';
 import { buildOCROptimizedPrompt } from './aiPromptsOCR';
 // import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
 import { parseEncounterResponse } from './manifestBuilder';
@@ -43,10 +48,11 @@ export async function discoverEncounters(
 ): Promise<EncounterDiscoveryOutput> {
 
   try {
-    // Read strategy from environment variable (defaults to 'ocr')
+    // Read strategy and version from environment variables
     const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'ocr_optimized' | 'vision';
+    const version = (process.env.PASS_05_VERSION || 'v2.4') as 'v2.4' | 'v2.7';
 
-    console.log(`[Pass 0.5] Using strategy: ${strategy}`);
+    console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
 
     // Vision strategy requires image loading infrastructure (not yet implemented)
     if (strategy === 'vision') {
@@ -57,10 +63,16 @@ export async function discoverEncounters(
       );
     }
 
-    // Select prompt builder based on strategy
-    const promptBuilder = strategy === 'ocr_optimized'
-      ? buildOCROptimizedPrompt
-      : buildEncounterDiscoveryPrompt;
+    // Select prompt builder based on strategy and version
+    let promptBuilder;
+    if (strategy === 'ocr_optimized') {
+      promptBuilder = buildOCROptimizedPrompt;
+    } else {
+      // For 'ocr' strategy, choose version
+      promptBuilder = version === 'v2.7'
+        ? buildEncounterDiscoveryPromptV27
+        : buildEncounterDiscoveryPrompt;
+    }
 
     // Build prompt with OCR text
     const prompt = promptBuilder({

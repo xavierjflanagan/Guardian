@@ -25,6 +25,14 @@
  *    - Exposes contradictions at boundary pages through required reasoning
  *    - Addresses Test 06 failure: model ignored boundary signals in v2.2
  *    - Chain-of-thought approach to improve instruction compliance
+ * v2.4 (Nov 4, 2025) - Lab Report Date Extraction Fix (Migration 38 follow-up)
+ *    - CRITICAL FIX: Lab reports with specific dates now apply Timeline Test
+ *    - Lab report with date + facility → real-world encounter (timeline-worthy)
+ *    - Lab report without date → pseudo_lab_report (not timeline-worthy)
+ *    - Resolves PASS05-001: Lab test dates now populate encounter_date field
+ *    - Updated pseudo_lab_report classification to exclude dated reports
+ *    - Same fix applied to imaging reports
+ *    - Updated Example 3 to show dated lab report as timeline-worthy encounter
  */
 
 import { OCRPage } from './types';
@@ -220,13 +228,18 @@ A completed past visit that meets BOTH criteria:
 2. **Provider OR Facility**: Named provider (Dr. Smith) OR specific facility (City Hospital) OR clinical setting (Emergency Department)
 
 **Examples:**
-- "Admitted to St Vincent's Hospital 2024-03-10" (date + facility)
-- "GP visit with Dr. Jones on 2024-01-15" (date + provider)
-- "Emergency Department attendance, January 2024" (date + clinical setting)
-- "Patient presented to GP last month" (vague date → pseudo-encounter)
-- "Recent hospital admission" (no specific date → pseudo-encounter)
+- "Admitted to St Vincent's Hospital 2024-03-10" (date + facility) - timeline-worthy
+- "GP visit with Dr. Jones on 2024-01-15" (date + provider) - timeline-worthy
+- "Emergency Department attendance, January 2024" (date + clinical setting) - timeline-worthy
+- "Pathology report collected 03-Jul-2025 at NSW Health Pathology" (date + facility) - timeline-worthy
+- "Imaging study dated 15-Mar-2024 from City Radiology" (date + facility) - timeline-worthy
+- "Patient presented to GP last month" (vague date) - pseudo-encounter
+- "Recent hospital admission" (no specific date) - pseudo-encounter
+- "Lab report with no collection date" (no date) - pseudo-encounter
 
 **Encounter Types:** \`inpatient\`, \`outpatient\`, \`emergency_department\`, \`specialist_consultation\`, \`gp_appointment\`, \`telehealth\`
+
+**NOTE:** Lab reports and imaging reports with specific dates qualify as timeline-worthy encounters (usually \`outpatient\` type).
 
 ### Planned Encounter (Future Scheduled)
 Future appointment or referral with specific date and provider/facility:
@@ -239,11 +252,19 @@ Future appointment or referral with specific date and provider/facility:
 ### Pseudo-Encounter (NOT Timeline-Worthy)
 Documents containing clinical info but NOT representing a discrete visit.
 
+**CRITICAL DISTINCTION - Lab Reports and Imaging:**
+Lab reports and imaging reports with **specific dates + facility** ARE timeline-worthy:
+- "Pathology report collected 03-Jul-2025 at NSW Health Pathology" → **Real-world encounter** (apply Timeline Test)
+- "Imaging report dated 15-Mar-2024 from City Radiology" → **Real-world encounter** (apply Timeline Test)
+- Lab/imaging report with vague/no date → Pseudo-encounter
+
 **When to use pseudo-encounters:**
 - Administrative summaries (health summaries, GP summaries)
 - Insurance/Medicare cards
 - Standalone medication lists (no specific visit context)
 - Referral letters (the letter itself, not the visit it refers to)
+- Lab reports **without specific collection dates**
+- Imaging reports **without specific dates**
 
 **CRITICAL - Pseudo-Encounter Subtypes:**
 
@@ -273,15 +294,21 @@ Documents containing clinical info but NOT representing a discrete visit.
    - Has its own page range
    - Different format from surrounding pages
 
+4. **Does NOT have specific collection date:**
+   - If lab report has specific date (YYYY-MM-DD) + facility → apply Timeline Test (likely real-world encounter)
+   - If lab report lacks collection date or has vague date → \`pseudo_lab_report\`
+
 **DO NOT use \`pseudo_lab_report\` for:**
+- Lab reports with specific collection dates and facility (use Timeline Test instead - likely outpatient or diagnostic encounter type)
 - Immunization/vaccination records (these are procedures, not lab tests)
 - Medication lists
 - Vital signs within consultation notes
 - Test results mentioned in a larger summary document
 
 **Use \`pseudo_imaging_report\` ONLY for:**
-- Radiology reports: X-ray, CT, MRI, ultrasound interpretations with radiologist findings
+- Radiology reports WITHOUT specific dates: X-ray, CT, MRI, ultrasound interpretations with radiologist findings
 - Must have imaging interpretation/findings (not just order or mention)
+- If imaging report has specific date + facility → apply Timeline Test (likely real-world encounter)
 - NOT procedure notes that mention imaging
 
 ### Date Precision Requirements
@@ -596,8 +623,8 @@ Examples below show the new format:
     {"page": 1, "encounter_id": "enc-1", "justification": "Discharge summary header, City Hospital, Dr Smith, March 10-15"},
     {"page": 2, "encounter_id": "enc-1", "justification": "Continuation of discharge, same provider and facility"},
     {"page": 3, "encounter_id": "enc-1", "justification": "Discharge signature page, Dr Smith closeout"},
-    {"page": 4, "encounter_id": "enc-2", "justification": "NEW document: Pathology header, PathLab Services, different format"},
-    {"page": 5, "encounter_id": "enc-2", "justification": "Continuation of pathology results, same lab facility"},
+    {"page": 4, "encounter_id": "enc-2", "justification": "NEW document: Pathology header dated March 18, PathLab Services, different format"},
+    {"page": 5, "encounter_id": "enc-2", "justification": "Continuation of pathology results with collection date, same lab facility"},
     {"page": 6, "encounter_id": "enc-3", "justification": "NEW Consultation header, Medical Centre, Dr Jones, March 20"},
     {"page": 7, "encounter_id": "enc-3", "justification": "Continuation of outpatient consultation, same provider"},
     {"page": 8, "encounter_id": "enc-3", "justification": "Final page of consultation with Dr Jones signature"}
@@ -617,15 +644,15 @@ Examples below show the new format:
     },
     {
       "encounter_id": "enc-2",
-      "encounterType": "pseudo_lab_report",
-      "isRealWorldVisit": false,
-      "dateRange": null,
+      "encounterType": "outpatient",
+      "isRealWorldVisit": true,
+      "dateRange": {"start": "2024-03-18"},
       "provider": null,
       "facility": "PathLab Services",
       "pageRanges": [[4, 5]],
       "confidence": 0.88,
-      "summary": "Full blood count pathology report from PathLab Services showing hemoglobin, white blood cell count, and other hematology results.",
-      "extractedText": "PATHOLOGY REPORT - FBC: Hb 145 g/L (135-175), WBC 7.2 x10^9/L..."
+      "summary": "Full blood count pathology report collected March 18, 2024 at PathLab Services showing hemoglobin, white blood cell count, and other hematology results.",
+      "extractedText": "PATHOLOGY REPORT - Collection Date: March 18, 2024 - FBC: Hb 145 g/L (135-175), WBC 7.2 x10^9/L..."
     },
     {
       "encounter_id": "enc-3",
@@ -655,7 +682,8 @@ Examples below show the new format:
 - **Justifications are MANDATORY**: Every page assignment needs a brief justification (15-20 words)
 - **encounter_id consistency**: Same IDs must appear in both page_assignments and encounters arrays
 - If multiple pages discuss the same encounter, use page ranges: [[1,5], [10,12]]
-- For pseudo-encounters, leave dateRange, provider, facility as null
+- For pseudo-encounters **without specific dates**, leave dateRange as null (but populate provider/facility if present)
+- For encounters with specific dates, ALWAYS populate dateRange and date_source (even if pseudo-encounter type)
 - If no encounters found, return empty arrays: {"page_assignments": [], "encounters": []}
 - Confidence should reflect certainty in encounter identification (not OCR quality)
 - extractedText should be first 100 characters of encounter content (for debugging)
