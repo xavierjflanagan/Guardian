@@ -927,6 +927,31 @@ class V3Worker {
         totalPages: ocrPages.length,
       });
 
+      // FIX: Update shell_files.page_count with actual OCR page count
+      // Date: 2025-11-05
+      // Context: Edge Function estimates page_count using formulas (PDFs: ~10 pages/MB, Images: 1 page)
+      // Issue: Worker gets actual page count from OCR but never updated shell_files.page_count
+      // Result: All uploads had wrong page_count (e.g., 8 vs 20, 1 vs 2)
+      // Solution: Update with actual OCR page count after OCR completes
+      const actualPageCount = ocrPages.length;
+      const { error: pageCountError } = await this.supabase
+        .from('shell_files')
+        .update({ page_count: actualPageCount })
+        .eq('id', payload.shell_file_id);
+
+      if (pageCountError) {
+        this.logger.error('Failed to update page_count', pageCountError as Error, {
+          shell_file_id: payload.shell_file_id,
+          actual_page_count: actualPageCount,
+        });
+        // Log error but don't fail - this is for data integrity only
+      } else {
+        this.logger.info('Updated page_count with actual OCR count', {
+          shell_file_id: payload.shell_file_id,
+          page_count: actualPageCount,
+        });
+      }
+
       // Persist OCR artifacts for future reuse (with processed image references)
       await persistOCRArtifacts(
         this.supabase,
