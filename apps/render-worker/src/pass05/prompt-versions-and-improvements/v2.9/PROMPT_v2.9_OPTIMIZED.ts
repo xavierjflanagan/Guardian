@@ -404,11 +404,11 @@ Your response must be valid JSON with this exact structure:
 
 **dateRange:**
 - Use ISO date format: YYYY-MM-DD (preferred) or YYYY-MM (if only month known)
-- **For single-day encounters:** Set `start` and `end` to the SAME date (explicit completion)
-- **For multi-day encounters:** Set `start` = admission date, `end` = discharge date
-- **For ongoing encounters:** Set `start` = admission date, `end = null`
-- **For unknown end date:** Set `start` = found date, `end = null`
-- **For pseudo-encounters without dates:** Set entire `dateRange = null`
+- **For single-day encounters:** Set "start" and "end" to the SAME date (explicit completion)
+- **For multi-day encounters:** Set "start" = admission date, "end" = discharge date
+- **For ongoing encounters:** Set "start" = admission date, end = null
+- **For unknown end date:** Set "start" = found date, end = null
+- **For pseudo-encounters without dates:** Set entire dateRange = null
 - For planned encounters, populate with future date(s)
 
 **encounterTimeframeStatus:**
