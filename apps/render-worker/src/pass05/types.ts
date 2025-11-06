@@ -61,11 +61,27 @@ export interface EncounterMetadata {
   encounterType: EncounterType;
   isRealWorldVisit: boolean;
 
-  // Temporal data
+  // Temporal data (v2.9: Updated for Migration 42)
   dateRange?: {
-    start: string;  // ISO date
-    end?: string;   // ISO date (optional for single-day encounters)
+    start: string;  // ISO date (encounter start date)
+    end?: string;   // ISO date (encounter end date - NULL for ongoing, same as start for single-day)
   };
+
+  /**
+   * Encounter timeframe status (v2.9 - Migration 42)
+   * - completed: Encounter has ended (single-day OR multi-day with discharge)
+   * - ongoing: Currently admitted/ongoing care (hospital stay without discharge)
+   * - unknown_end_date: Start date found but unclear if completed or ongoing
+   */
+  encounterTimeframeStatus?: 'completed' | 'ongoing' | 'unknown_end_date';
+
+  /**
+   * Date source tracking (v2.9 - Migration 42)
+   * - ai_extracted: Date successfully extracted from document content
+   * - file_metadata: Fallback to file creation metadata (pseudo encounters)
+   * - upload_date: Last resort fallback to upload timestamp (pseudo encounters)
+   */
+  dateSource?: 'ai_extracted' | 'file_metadata' | 'upload_date';
 
   // Provider/facility (only for real-world visits)
   provider?: string;
@@ -91,7 +107,6 @@ export interface EncounterMetadata {
   /**
    * Plain English summary of encounter (Migration 38)
    * Example: "Annual physical exam with Dr. Smith at City Medical Center"
-   * TODO: AI prompt needs to generate this field
    */
   summary?: string;
 

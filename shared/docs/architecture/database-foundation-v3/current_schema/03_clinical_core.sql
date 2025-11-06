@@ -504,23 +504,23 @@ CREATE INDEX IF NOT EXISTS idx_patient_interventions_event_id ON patient_interve
 CREATE TABLE IF NOT EXISTS healthcare_encounters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    
+
     -- Encounter Classification
     encounter_type TEXT NOT NULL, -- 'outpatient', 'inpatient', 'emergency', 'specialist', 'telehealth', 'diagnostic'
-    encounter_date TIMESTAMPTZ,
-    
+    encounter_start_date TIMESTAMPTZ, -- Migration 42: Renamed from encounter_date for semantic clarity
+
     -- Provider and Facility Information
     provider_name TEXT,
     provider_type TEXT, -- 'primary_care', 'specialist', 'hospital', 'urgent_care'
     facility_name TEXT,
     specialty TEXT, -- 'cardiology', 'dermatology', 'family_medicine'
-    
+
     -- Clinical Context
     chief_complaint TEXT, -- Patient's main concern
     summary TEXT, -- Visit summary
     clinical_impression TEXT, -- Provider's assessment
     plan TEXT, -- Treatment plan
-    
+
     -- Administrative
     billing_codes TEXT[], -- CPT codes for billing
 
@@ -532,15 +532,16 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     source_method TEXT NOT NULL CHECK (source_method IN ('ai_pass_0_5', 'ai_pass_2', 'manual_entry', 'import')), -- Migration 38: Replaced ai_extracted boolean with granular tracking
     requires_review BOOLEAN DEFAULT FALSE,
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 38 - 2025-11-04)
+    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 38 - 2025-11-04, updated Migration 42 - 2025-11-06)
     page_ranges INT[][] DEFAULT '{}', -- Page ranges in source document [[1,5], [10,12]]
     spatial_bounds JSONB, -- Bounding box coordinates for encounter region
     identified_in_pass TEXT DEFAULT 'pass_2', -- 'pass_0_5', 'pass_1', 'pass_2'
     is_real_world_visit BOOLEAN DEFAULT TRUE, -- Timeline Test: date + (provider OR facility)
     pass_0_5_confidence NUMERIC(3,2), -- AI confidence in encounter detection
     ocr_average_confidence NUMERIC(3,2), -- Average OCR quality for this encounter
-    encounter_date_end TIMESTAMPTZ, -- End date for multi-day encounters (NULL = ongoing, populated = completed)
-    date_source TEXT CHECK (date_source IN ('ai_extracted', 'file_metadata', 'upload_date')), -- Migration 38: Track date provenance
+    encounter_date_end TIMESTAMPTZ, -- End date for multi-day encounters (NULL = ongoing, same as start = single-day)
+    encounter_timeframe_status TEXT NOT NULL DEFAULT 'completed' CHECK (encounter_timeframe_status IN ('completed', 'ongoing', 'unknown_end_date')), -- Migration 42: Explicit encounter completion status
+    date_source TEXT NOT NULL DEFAULT 'upload_date' CHECK (date_source IN ('ai_extracted', 'file_metadata', 'upload_date')), -- Migration 38/42: Track date provenance (made NOT NULL in Migration 42)
     is_planned_future BOOLEAN DEFAULT FALSE, -- True for scheduled appointments/procedures
 
     -- Phase 2: Master Encounter Grouping (Migration 34 - 2025-10-30)
@@ -1563,10 +1564,10 @@ CREATE INDEX IF NOT EXISTS idx_interventions_ai_review ON patient_interventions(
 
 -- V3 Healthcare Encounters indexes
 CREATE INDEX IF NOT EXISTS idx_encounters_patient ON healthcare_encounters(patient_id) WHERE archived IS NOT TRUE;
-CREATE INDEX IF NOT EXISTS idx_encounters_date ON healthcare_encounters(patient_id, encounter_date DESC) WHERE archived IS NOT TRUE;
+CREATE INDEX IF NOT EXISTS idx_encounters_start_date ON healthcare_encounters(patient_id, encounter_start_date DESC) WHERE archived IS NOT TRUE; -- Migration 42: Updated for renamed column
 CREATE INDEX IF NOT EXISTS idx_encounters_type ON healthcare_encounters(encounter_type) WHERE archived IS NOT TRUE;
 CREATE INDEX IF NOT EXISTS idx_encounters_provider ON healthcare_encounters USING GIN(to_tsvector('english', provider_name)) WHERE archived IS NOT TRUE;
-CREATE INDEX IF NOT EXISTS idx_encounters_ai_extracted ON healthcare_encounters(ai_extracted, ai_confidence) WHERE ai_extracted = TRUE;
+-- Migration 42: Removed idx_encounters_ai_extracted (ai_extracted and ai_confidence columns no longer exist)
 
 -- Pass 0.5 indexes (Migration 34 - 2025-10-30)
 CREATE INDEX IF NOT EXISTS idx_encounters_identified_in_pass ON healthcare_encounters(identified_in_pass);

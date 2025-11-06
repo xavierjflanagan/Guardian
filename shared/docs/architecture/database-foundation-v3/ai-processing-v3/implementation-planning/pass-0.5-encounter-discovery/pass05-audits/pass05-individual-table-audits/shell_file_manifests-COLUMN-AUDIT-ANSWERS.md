@@ -1,34 +1,63 @@
 # Pass 0.5 Column Audit: shell_file_manifests
 
 **Date:** 2025-11-06 (6th November 2025 audit)
-**Status:** COMPREHENSIVE REVIEW COMPLETE
+**Status:** ✅ IMPLEMENTED (Migration 41 complete)
 **Context:** Full column-by-column analysis of `shell_file_manifests` table
 **Table Purpose:** Lightweight Pass 0.5 encounter discovery output - metadata for Pass 1/2 consumption
 
 **Location:** shared/docs/architecture/database-foundation-v3/current_schema/03_clinical_core.sql (CREATE TABLE shell_file_manifests)
 
-**Key Findings:**
-- All columns populated correctly
-- pass_0_5_version not tracking actual version (shows "1.0.0", should be "v2.8")
-- batching_required always FALSE (Migration 39 removed batching logic)
-- manifest_data structure matches v2.8 specification
-- Processing metrics accurately tracked
+---
+
+## IMPLEMENTATION STATUS
+
+**Migration 41 Executed:** 2025-11-06
+
+**Changes Applied:**
+- ✅ Removed `batching_required` column (logic moved to shell_files.page_separation_analysis per Migration 39)
+
+**Worker Updates Deployed:**
+- ✅ Worker now populates `pass_0_5_version` from environment variable (databaseWriter.ts:58)
+- ✅ Worker includes `summary` field in manifest_data.encounters[] array (manifestBuilder.ts:262)
+- ✅ RPC function updated to accept pass_0_5_version parameter (08_job_coordination.sql:1301)
+
+**Environment Configuration:**
+- ✅ PASS_05_VERSION environment variable should be set to track actual version (e.g., "v2.8")
+  - Note: Currently defaults to "v2.8" if env var not set
+
+**Source of Truth Updated:**
+- ✅ current_schema/03_clinical_core.sql (lines 281-327: batching_required removed, pass_0_5_version default updated)
+- ✅ current_schema/08_job_coordination.sql (RPC function signature updated)
+
+**Verification:**
+- ✅ Schema changes applied successfully
+- ✅ Worker code deployed and operational
+- ✅ Test uploads completing successfully with new schema
+
+**See:** `migration_history/2025-11-06_41_shell_file_manifests_cleanup.sql`
 
 ---
 
-## Executive Summary
+## ORIGINAL AUDIT FINDINGS (Pre-Implementation)
 
-**Status:** MOSTLY WORKING CORRECTLY
+**Key Findings:**
+- All columns populated correctly
+- pass_0_5_version not tracking actual version (shows "1.0.0", should be "v2.8") → RESOLVED (now populated from env var)
+- batching_required always FALSE (Migration 39 removed batching logic) → RESOLVED (column removed)
+- manifest_data structure matches v2.8 specification ✅
+- Processing metrics accurately tracked ✅
 
 **Critical Issues:** NONE
 
 **Design Issues:**
-1. **pass_0_5_version Column** - Hardcoded to "1.0.0" instead of tracking actual Pass 0.5 version (v2.8)
-2. **batching_required Column** - Always FALSE (batching analysis moved to shell_files.page_separation_analysis per Migration 39)
+1. **pass_0_5_version Column** - Hardcoded to "1.0.0" instead of tracking actual Pass 0.5 version (v2.8) → RESOLVED
+2. **batching_required Column** - Always FALSE (batching analysis moved to shell_files.page_separation_analysis per Migration 39) → RESOLVED
 
-**Recommendation:**
-- Update worker to populate pass_0_5_version with actual version (v2.8, v2.7, etc.)
-- Consider removing batching_required column (vestigial after Migration 39)
+---
+
+## Executive Summary (Historical)
+
+**Status at Audit:** MOSTLY WORKING CORRECTLY (now fully resolved)
 
 ---
 

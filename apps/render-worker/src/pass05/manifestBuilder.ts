@@ -35,6 +35,8 @@ interface AIEncounterResponse {
     encounterType: string;
     isRealWorldVisit: boolean;
     dateRange?: { start: string; end?: string };
+    encounterTimeframeStatus?: 'completed' | 'ongoing' | 'unknown_end_date';  // v2.9: Migration 42
+    dateSource?: 'ai_extracted' | 'file_metadata' | 'upload_date';  // v2.9: Migration 42
     provider?: string;
     facility?: string;
     pageRanges: number[][];
@@ -160,6 +162,7 @@ function validateEncounterType(type: string): type is EncounterType {
  * Note: Idempotency handled at runPass05() level
  *
  * v2.3: Returns page_assignments if present in AI response
+ * v2.9: Implements two-branch logic for date waterfall (Migration 42)
  */
 export async function parseEncounterResponse(
   aiResponse: string,
@@ -170,6 +173,15 @@ export async function parseEncounterResponse(
 ): Promise<{ encounters: EncounterMetadata[]; page_assignments?: PageAssignment[] }> {
 
   const parsed: AIEncounterResponse = JSON.parse(aiResponse);
+
+  // v2.9: Retrieve file metadata for date fallback logic
+  const { data: shellFileData } = await supabase
+    .from('shell_files')
+    .select('created_at, original_filename')
+    .eq('id', shellFileId)
+    .single();
+
+  const fileCreatedAt = shellFileData?.created_at ? new Date(shellFileData.created_at) : new Date();
 
   // v2.3: Validate page_assignments if present
   if (parsed.page_assignments) {
@@ -215,6 +227,41 @@ export async function parseEncounterResponse(
     // Extract spatial bounds from OCR for this encounter's pages (use normalized ranges)
     const spatialBounds = extractSpatialBounds(normalizedPageRanges, ocrOutput);
 
+    // v2.9: Two-Branch Logic (Migration 42)
+    // Branch A: Real-world encounters (direct AI mapping)
+    // Branch B: Pseudo encounters (date waterfall fallback)
+    let encounterStartDate: string | null;
+    let encounterDateEnd: string | null;
+    let encounterTimeframeStatus: 'completed' | 'ongoing' | 'unknown_end_date';
+    let dateSource: 'ai_extracted' | 'file_metadata' | 'upload_date';
+
+    if (aiEnc.isRealWorldVisit) {
+      // Branch A: Real-world encounters - direct mapping from AI
+      encounterStartDate = aiEnc.dateRange?.start || null;
+      encounterDateEnd = aiEnc.dateRange?.end || null;
+      encounterTimeframeStatus = aiEnc.encounterTimeframeStatus || 'completed';
+      dateSource = aiEnc.dateSource || 'ai_extracted';
+    } else {
+      // Branch B: Pseudo encounters - date waterfall fallback
+      if (aiEnc.dateRange?.start) {
+        // AI extracted date from document (e.g., lab collection date)
+        encounterStartDate = aiEnc.dateRange.start;
+        dateSource = 'ai_extracted';
+      } else if (fileCreatedAt) {
+        // Fallback to file creation date
+        encounterStartDate = fileCreatedAt.toISOString().split('T')[0]; // YYYY-MM-DD
+        dateSource = 'file_metadata';
+      } else {
+        // Last resort: current date
+        encounterStartDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        dateSource = 'upload_date';
+      }
+
+      // Pseudo encounters: start = end (completed observation)
+      encounterDateEnd = encounterStartDate;
+      encounterTimeframeStatus = 'completed';
+    }
+
     // Pre-create encounter in database to get UUID
     // UPSERT for idempotency: safe to retry if manifest write fails
     const { data: dbEncounter, error } = await supabase
@@ -224,8 +271,10 @@ export async function parseEncounterResponse(
           patient_id: patientId,  // Required NOT NULL field
           encounter_type: aiEnc.encounterType as EncounterType,  // Safe now (validated)
           is_real_world_visit: aiEnc.isRealWorldVisit,
-          encounter_date: aiEnc.dateRange?.start || null,
-          encounter_date_end: aiEnc.dateRange?.end || null,  // For multi-day encounters (Migration 38)
+          encounter_start_date: encounterStartDate,  // Migration 42: Renamed from encounter_date
+          encounter_date_end: encounterDateEnd,  // For multi-day encounters (Migration 38/42)
+          encounter_timeframe_status: encounterTimeframeStatus,  // Migration 42: Explicit completion status
+          date_source: dateSource,  // Migration 38/42: Track date provenance with waterfall logic
           provider_name: aiEnc.provider || null,
           facility_name: aiEnc.facility || null,
           primary_shell_file_id: shellFileId,  // Link to source document
@@ -234,11 +283,10 @@ export async function parseEncounterResponse(
           identified_in_pass: 'pass_0_5',
           pass_0_5_confidence: aiEnc.confidence,
           source_method: 'ai_pass_0_5',  // Migration 38: Replaced ai_extracted boolean
-          date_source: (aiEnc.dateRange?.start) ? 'ai_extracted' : null,  // Migration 38: Track date provenance
           summary: aiEnc.summary || null  // Migration 38: AI-generated plain English description
         },
         {
-          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_date,page_ranges',
+          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_start_date,page_ranges',  // Migration 42: Updated conflict key
           ignoreDuplicates: false  // Update existing record
         }
       )
@@ -253,7 +301,12 @@ export async function parseEncounterResponse(
       encounterId: dbEncounter.id,
       encounterType: aiEnc.encounterType as EncounterType,  // Safe now (validated)
       isRealWorldVisit: aiEnc.isRealWorldVisit,
-      dateRange: aiEnc.dateRange,
+      dateRange: {
+        start: encounterStartDate || undefined,
+        end: encounterDateEnd || undefined
+      },
+      encounterTimeframeStatus: encounterTimeframeStatus,  // v2.9: Migration 42
+      dateSource: dateSource,  // v2.9: Migration 42
       provider: aiEnc.provider,
       facility: aiEnc.facility,
       pageRanges: normalizedPageRanges,  // Return normalized ranges

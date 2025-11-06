@@ -1,18 +1,52 @@
 # Pass 0.5 Column Audit: shell_files
 
 **Date:** 2025-11-06 (6th November 2025 audit)
-**Status:** COMPREHENSIVE REVIEW IN PROGRESS
+**Status:** ✅ IMPLEMENTED (Migration 40 complete)
 **Context:** Full column-by-column analysis of `shell_files` table
 **Table Purpose:** Track uploaded medical documents through V3 processing pipeline (OCR → Pass 0.5 → Pass 1 → Pass 2 → Pass 3)
 
 **Location:** shared/docs/architecture/database-foundation-v3/current_schema/03_clinical_core.sql:96
 
+---
+
+## IMPLEMENTATION STATUS
+
+**Migration 40 Executed:** 2025-11-06
+
+**Changes Applied:**
+- ✅ Added `processed_image_size_bytes` column (stores total size of all processed JPEG pages)
+- ✅ Removed `file_type` column (deferred to Pass 3 ai_synthesized_summary)
+- ✅ Removed `file_subtype` column (redundant with encounter-level classification)
+- ✅ Removed `confidence_score` column (vestigial, never populated)
+- ✅ Removed `provider_name` column (moved to healthcare_encounters table)
+- ✅ Removed `facility_name` column (moved to healthcare_encounters table)
+- ✅ Removed `upload_context` column (vestigial, never populated)
+- ✅ Dropped constraint `shell_files_file_type_check`
+- ✅ Dropped index `idx_shell_files_type`
+
+**Worker Updates Deployed:**
+- ✅ Worker now populates `processed_image_size_bytes` after page processing (worker.ts:1005)
+
+**Source of Truth Updated:**
+- ✅ current_schema/03_clinical_core.sql (lines 116-144)
+
+**Verification:**
+- ✅ 120 existing records preserved (no data loss)
+- ✅ Schema changes applied successfully
+- ✅ Worker deployed and operational
+
+**See:** `migration_history/2025-11-06_40_shell_files_schema_cleanup.sql`
+
+---
+
+## ORIGINAL AUDIT FINDINGS (Pre-Implementation)
+
 **Key Findings:**
 - **CRITICAL:** Many columns consistently NULL across all recent uploads
 - **FIXED:** page_count now accurate after worker fix (was estimation, now actual OCR count)
-- **ISSUE:** file_type, file_subtype never populated by any pass
-- **ISSUE:** provider_name, facility_name never populated despite available in source documents
-- **ARCHITECTURAL:** Processed image file size not tracked (only original file size)
+- **ISSUE:** file_type, file_subtype never populated by any pass → RESOLVED (columns removed)
+- **ISSUE:** provider_name, facility_name never populated despite available in source documents → RESOLVED (moved to healthcare_encounters)
+- **ARCHITECTURAL:** Processed image file size not tracked (only original file size) → RESOLVED (added processed_image_size_bytes)
 
 ---
 

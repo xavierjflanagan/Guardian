@@ -16,6 +16,7 @@ import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types
 import { buildEncounterDiscoveryPrompt } from './aiPrompts';
 import { buildEncounterDiscoveryPromptV27 } from './aiPrompts.v2.7';
 import { buildEncounterDiscoveryPromptV28 } from './aiPrompts.v2.8';
+import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
 import { buildOCROptimizedPrompt } from './aiPromptsOCR';
 // import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
 import { parseEncounterResponse } from './manifestBuilder';
@@ -51,7 +52,7 @@ export async function discoverEncounters(
   try {
     // Read strategy and version from environment variables
     const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'ocr_optimized' | 'vision';
-    const version = (process.env.PASS_05_VERSION || 'v2.4') as 'v2.4' | 'v2.7' | 'v2.8';
+    const version = (process.env.PASS_05_VERSION || 'v2.4') as 'v2.4' | 'v2.7' | 'v2.8' | 'v2.9';
 
     console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
 
@@ -70,11 +71,13 @@ export async function discoverEncounters(
       promptBuilder = buildOCROptimizedPrompt;
     } else {
       // For 'ocr' strategy, choose version
-      promptBuilder = version === 'v2.8'
-        ? buildEncounterDiscoveryPromptV28
-        : version === 'v2.7'
-          ? buildEncounterDiscoveryPromptV27
-          : buildEncounterDiscoveryPrompt;
+      promptBuilder = version === 'v2.9'
+        ? buildEncounterDiscoveryPromptV29
+        : version === 'v2.8'
+          ? buildEncounterDiscoveryPromptV28
+          : version === 'v2.7'
+            ? buildEncounterDiscoveryPromptV27
+            : buildEncounterDiscoveryPrompt;
     }
 
     // Build prompt with OCR text

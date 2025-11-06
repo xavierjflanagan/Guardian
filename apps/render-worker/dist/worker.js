@@ -908,6 +908,34 @@ class V3Worker {
             ai_model: pass05Result.aiModel,
         });
         // =============================================================================
+        // MEMORY FIX: Force garbage collection to free job data immediately
+        // =============================================================================
+        // Date: 2025-11-06
+        // Problem: Memory stays elevated (399MB) after jobs complete instead of returning to baseline (135MB)
+        // Root Cause: Large objects (fileBuffer, preprocessResult, ocrPages, ocrResult) get promoted
+        //             to V8's "old generation" heap and aren't collected until full GC cycle
+        // Solution: Force immediate GC before function returns to free ~250MB of job data
+        // Impact: Should return memory to ~135MB baseline after each job
+        // Note: Variables will go out of scope when function returns, but forcing GC ensures
+        //       immediate cleanup rather than waiting for next automatic GC cycle
+        // =============================================================================
+        const memBeforeCleanup = process.memoryUsage();
+        const heapBeforeMB = Math.round(memBeforeCleanup.heapUsed / 1024 / 1024);
+        // Force immediate garbage collection to free large job data
+        // Large objects being freed: fileBuffer, preprocessResult, ocrPages, ocrResult (~250MB total)
+        if (global.gc) {
+            global.gc();
+            const memAfterCleanup = process.memoryUsage();
+            const heapAfterMB = Math.round(memAfterCleanup.heapUsed / 1024 / 1024);
+            const freedMB = heapBeforeMB - heapAfterMB;
+            this.logger.info('Post-job memory cleanup completed', {
+                shell_file_id: payload.shell_file_id,
+                heap_before_mb: heapBeforeMB,
+                heap_after_mb: heapAfterMB,
+                freed_mb: freedMB,
+            });
+        }
+        // =============================================================================
         // TEMPORARY: PASS 1 DISABLED FOR PASS 0.5 BASELINE VALIDATION TESTING
         // =============================================================================
         // Date: October 31, 2025
