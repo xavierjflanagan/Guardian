@@ -1298,7 +1298,7 @@ CREATE OR REPLACE FUNCTION write_pass05_manifest_atomic(
   p_total_pages INTEGER,
   p_total_encounters_found INTEGER,
   p_ocr_average_confidence NUMERIC(3,2),
-  p_pass_0_5_version TEXT DEFAULT 'v2.8',  -- Migration 41: Track Pass 0.5 version from environment
+  p_pass_0_5_version TEXT,  -- Migration 41: Track Pass 0.5 version from environment (worker always passes explicitly)
   p_manifest_data JSONB,
   p_ai_model_used TEXT,
   p_ai_cost_usd NUMERIC(10,6),
