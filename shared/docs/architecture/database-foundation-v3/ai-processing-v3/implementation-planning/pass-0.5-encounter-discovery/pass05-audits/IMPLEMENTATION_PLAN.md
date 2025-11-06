@@ -65,23 +65,44 @@ This document tracks the implementation of fixes identified in the Pass 0.5 colu
 ---
 
 ### Phase 2: shell_file_manifests Table
-**Migration Number:** 41 (pending)
+**Migration Number:** 41
 **Migration File:** `2025-11-06_41_shell_file_manifests_cleanup.sql`
+**Impact Analysis:** `2025-11-06_41_shell_file_manifests_IMPACT_ANALYSIS.md`
 
-**Status:** ⏸️ PENDING USER REVIEW
+**Status:** COMPLETED (2025-11-06)
+
+**Touchpoint 1 (Complete):**
+- [x] Migration script created
+- [x] Impact analysis documented
+- [x] Worker code changes identified (3 updates: manifestBuilder.ts, databaseWriter.ts, RPC function)
+- [x] Environment variable requirement documented (PASS_05_VERSION)
+- [x] User approval received
+- [x] Ready for Touchpoint 2 execution
+
+**Touchpoint 2 (Complete - 2025-11-06):**
+- [x] Migration executed via Supabase MCP
+- [x] Verification queries confirmed success
+- [x] batching_required column removed successfully
+- [x] Existing records preserved (no data loss)
 
 **Schema Changes:**
-- [ ] DROP COLUMN `batching_required` (logic moved to shell_files.page_separation_analysis per Migration 39)
+- [x] DROP COLUMN `batching_required` (logic moved to shell_files.page_separation_analysis per Migration 39)
 
 **Worker Updates Required:**
-- [ ] Populate `pass_0_5_version` from environment variable (PASS_05_VERSION=v2.8)
+- [x] Populate `pass_0_5_version` from environment variable (databaseWriter.ts:58 - process.env.PASS_05_VERSION || 'v2.8')
+- [x] Include `summary` field in manifest_data.encounters[] array (manifestBuilder.ts:262)
+- [x] Update RPC function to accept pass_0_5_version parameter (08_job_coordination.sql:1301)
+
+**Environment Configuration:**
+- [ ] Add PASS_05_VERSION=v2.8 to Render.com worker environment variables (PENDING - will be set before worker deploy)
 
 **Source of Truth Updates:**
-- [ ] current_schema/03_clinical_core.sql (shell_file_manifests table definition)
+- [x] current_schema/03_clinical_core.sql (lines 281-327: shell_file_manifests table definition - batching_required removed, pass_0_5_version default updated)
+- [x] current_schema/08_job_coordination.sql (RPC function updated to accept pass_0_5_version parameter)
 
-**Priority:** MEDIUM (vestigial column cleanup)
+**Priority:** COMPLETE - Schema updated, worker code ready for deploy
 
-**User Review Status:** AWAITING REVIEW of shell_file_manifests-COLUMN-AUDIT-ANSWERS.md
+**User Review Status:** APPROVED (2025-11-06 - user feedback at shell_file_manifests-COLUMN-AUDIT-ANSWERS.md:736)
 
 ---
 

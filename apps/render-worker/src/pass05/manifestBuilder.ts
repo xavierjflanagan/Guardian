@@ -259,6 +259,7 @@ export async function parseEncounterResponse(
       pageRanges: normalizedPageRanges,  // Return normalized ranges
       spatialBounds,
       confidence: aiEnc.confidence,
+      summary: aiEnc.summary,  // Migration 41: Include encounter summary in manifest for Pass 1/2 context
       extractedText: aiEnc.extractedText
     });
   }

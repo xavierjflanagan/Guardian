@@ -288,7 +288,7 @@ CREATE TABLE IF NOT EXISTS shell_file_manifests (
 
     -- Manifest metadata
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    pass_0_5_version TEXT NOT NULL DEFAULT '1.0.0',
+    pass_0_5_version TEXT NOT NULL DEFAULT 'v2.8',  -- Migration 41: Track Pass 0.5 version from environment
     processing_time_ms INTEGER,
 
     -- File analysis
@@ -296,10 +296,8 @@ CREATE TABLE IF NOT EXISTS shell_file_manifests (
     total_encounters_found INTEGER NOT NULL,
     ocr_average_confidence NUMERIC(3,2),
 
-    -- Batching metadata (Migration 39 - 2025-11-04: batch_count removed, analysis moved to shell_files.page_separation_analysis)
-    batching_required BOOLEAN NOT NULL DEFAULT FALSE,
-
     -- Manifest content (JSONB structure: encounters array with spatial bounds, page ranges, encounter metadata)
+    -- Note: batching_required removed (Migration 41 - 2025-11-06: column vestigial after Migration 39)
     manifest_data JSONB NOT NULL,
 
     -- AI audit (Migration 39 - 2025-11-04: ai_cost_usd moved to pass05_encounter_metrics)

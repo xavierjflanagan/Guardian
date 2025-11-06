@@ -1298,7 +1298,7 @@ CREATE OR REPLACE FUNCTION write_pass05_manifest_atomic(
   p_total_pages INTEGER,
   p_total_encounters_found INTEGER,
   p_ocr_average_confidence NUMERIC(3,2),
-  p_batching_required BOOLEAN,
+  p_pass_0_5_version TEXT DEFAULT 'v2.8',  -- Migration 41: Track Pass 0.5 version from environment
   p_manifest_data JSONB,
   p_ai_model_used TEXT,
   p_ai_cost_usd NUMERIC(10,6),
@@ -1338,13 +1338,14 @@ BEGIN
 
   -- 1. Insert manifest (will fail if already exists due to unique constraint)
   -- Note: batch_count removed (Migration 39), ai_cost_usd moved to metrics (Migration 39)
+  -- Note: batching_required removed (Migration 41), pass_0_5_version added (Migration 41)
   INSERT INTO shell_file_manifests (
     shell_file_id,
     patient_id,
     total_pages,
     total_encounters_found,
     ocr_average_confidence,
-    batching_required,
+    pass_0_5_version,
     manifest_data,
     ai_model_used,
     processing_time_ms
@@ -1354,7 +1355,7 @@ BEGIN
     p_total_pages,
     p_total_encounters_found,
     p_ocr_average_confidence,
-    p_batching_required,
+    p_pass_0_5_version,
     p_manifest_data,
     p_ai_model_used,
     p_processing_time_ms
@@ -1363,6 +1364,7 @@ BEGIN
 
   -- 2. UPSERT metrics (idempotent on processing_session_id)
   -- Note: pages_per_encounter removed (Migration 39), batch_count removed (Migration 39), ai_cost_usd added (Migration 39)
+  -- Note: batching_required hardcoded FALSE (Migration 41 - batching deferred to Pass 1 load testing)
   INSERT INTO pass05_encounter_metrics (
     patient_id,
     shell_file_id,
@@ -1400,7 +1402,7 @@ BEGIN
     p_encounter_confidence_average,
     p_encounter_types_found,
     p_total_pages,
-    p_batching_required
+    FALSE  -- Migration 41: Hardcoded (batching deferred until Pass 1 load testing)
   )
   ON CONFLICT (processing_session_id) DO UPDATE SET
     encounters_detected = EXCLUDED.encounters_detected,
