@@ -40,7 +40,7 @@ const config = {
         // FIXED: Use deployment guide configuration
         id: process.env.WORKER_ID || `render-${process.env.RENDER_SERVICE_ID || 'local'}-${Date.now()}`,
         pollIntervalMs: parseInt(process.env.POLL_INTERVAL_MS || '5000'),
-        maxConcurrentJobs: parseInt(process.env.WORKER_CONCURRENCY || '50'), // FIXED: 50 not 3
+        maxConcurrentJobs: parseInt(process.env.WORKER_CONCURRENCY || '3'), // Safety net - matches Render config
         heartbeatIntervalMs: 30000, // 30 seconds
     },
     server: {
@@ -755,6 +755,30 @@ class V3Worker {
                 shell_file_id: payload.shell_file_id,
                 totalPages: ocrPages.length,
             });
+            // FIX: Update shell_files.page_count with actual OCR page count
+            // Date: 2025-11-05
+            // Context: Edge Function estimates page_count using formulas (PDFs: ~10 pages/MB, Images: 1 page)
+            // Issue: Worker gets actual page count from OCR but never updated shell_files.page_count
+            // Result: All uploads had wrong page_count (e.g., 8 vs 20, 1 vs 2)
+            // Solution: Update with actual OCR page count after OCR completes
+            const actualPageCount = ocrPages.length;
+            const { error: pageCountError } = await this.supabase
+                .from('shell_files')
+                .update({ page_count: actualPageCount })
+                .eq('id', payload.shell_file_id);
+            if (pageCountError) {
+                this.logger.error('Failed to update page_count', pageCountError, {
+                    shell_file_id: payload.shell_file_id,
+                    actual_page_count: actualPageCount,
+                });
+                // Log error but don't fail - this is for data integrity only
+            }
+            else {
+                this.logger.info('Updated page_count with actual OCR count', {
+                    shell_file_id: payload.shell_file_id,
+                    page_count: actualPageCount,
+                });
+            }
             // Persist OCR artifacts for future reuse (with processed image references)
             await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum, imageMetadata, // NEW: Include processed image metadata
             this.logger['correlation_id']);
@@ -795,6 +819,7 @@ class V3Worker {
                     processed_image_path: imageMetadata.folderPath,
                     processed_image_checksum: imageMetadata.combinedChecksum,
                     processed_image_mime: 'image/jpeg',
+                    processed_image_size_bytes: imageMetadata.totalBytes, // Migration 40: Combined total size of all processed JPEG pages
                 })
                     .eq('id', payload.shell_file_id);
                 if (updateError) {
@@ -846,7 +871,9 @@ class V3Worker {
             patientId: payload.patient_id,
             ocrOutput: {
                 fullTextAnnotation: {
-                    text: ocrResult.pages.map((p) => p.lines.map((l) => l.text).join(' ')).join('\n'),
+                    text: ocrResult.pages.map((p, idx) => `--- PAGE ${idx + 1} START ---\n` +
+                        p.lines.map((l) => l.text).join(' ') +
+                        `\n--- PAGE ${idx + 1} END ---`).join('\n\n'),
                     pages: ocrResult.pages.map((page) => ({
                         width: page.size.width_px || 1000,
                         height: page.size.height_px || 1400,

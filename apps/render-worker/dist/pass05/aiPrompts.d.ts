@@ -25,6 +25,14 @@
  *    - Exposes contradictions at boundary pages through required reasoning
  *    - Addresses Test 06 failure: model ignored boundary signals in v2.2
  *    - Chain-of-thought approach to improve instruction compliance
+ * v2.4 (Nov 4, 2025) - Lab Report Date Extraction Fix (Migration 38 follow-up)
+ *    - CRITICAL FIX: Lab reports with specific dates now apply Timeline Test
+ *    - Lab report with date + facility → real-world encounter (timeline-worthy)
+ *    - Lab report without date → pseudo_lab_report (not timeline-worthy)
+ *    - Resolves PASS05-001: Lab test dates now populate encounter_date field
+ *    - Updated pseudo_lab_report classification to exclude dated reports
+ *    - Same fix applied to imaging reports
+ *    - Updated Example 3 to show dated lab report as timeline-worthy encounter
  */
 import { OCRPage } from './types';
 export interface PromptInput {

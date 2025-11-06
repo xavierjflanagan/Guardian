@@ -32,8 +32,7 @@ async function writeManifestToDatabase(input) {
         p_total_pages: input.manifest.totalPages,
         p_total_encounters_found: input.manifest.encounters.length,
         p_ocr_average_confidence: input.manifest.ocrAverageConfidence,
-        p_batching_required: false, // Phase 1: always false
-        p_batch_count: 1,
+        p_pass_0_5_version: process.env.PASS_05_VERSION || 'v2.8', // Migration 41: Track version from environment
         p_manifest_data: input.manifest,
         p_ai_model_used: input.aiModel,
         p_ai_cost_usd: input.aiCostUsd,

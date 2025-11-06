@@ -4,15 +4,54 @@
  * Created: 2025-10-06, Enhanced: 2025-10-10
  * Purpose: Optimize images before OCR while preserving format and quality
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.downscaleImageBase64 = downscaleImageBase64;
 exports.downscaleImage = downscaleImage;
 exports.estimateTokenReduction = estimateTokenReduction;
-const sharp_1 = __importDefault(require("sharp"));
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
 const logger_1 = require("./logger");
+// Lazy loader for Sharp - only loads when first image is processed
+let sharpInstance = null;
+async function getSharp() {
+    if (!sharpInstance) {
+        sharpInstance = (await Promise.resolve().then(() => __importStar(require('sharp')))).default;
+    }
+    return sharpInstance;
+}
 /**
  * Phase 2: Format-preserving downscaling with comprehensive format support
  *
@@ -57,7 +96,8 @@ async function downscaleImageBase64(b64, mime, maxWidth = 1600, quality = 78, co
         throw new Error('Archive processing planned for Phase 5. Timeline: 8-10 weeks after Phase 2 completion.');
     }
     const buf = Buffer.from(b64, 'base64');
-    const img = (0, sharp_1.default)(buf, { failOn: 'none' }).rotate(); // Respect EXIF
+    const sharp = await getSharp(); // Lazy load Sharp
+    const img = sharp(buf, { failOn: 'none' }).rotate(); // Respect EXIF
     const meta = await img.metadata();
     // Guard against missing dimensions
     if (!meta.width || !meta.height) {
@@ -97,7 +137,7 @@ async function downscaleImageBase64(b64, mime, maxWidth = 1600, quality = 78, co
             const out = await img.resize({ width: maxWidth, withoutEnlargement: true, kernel: 'lanczos3' })
                 .jpeg({ quality, chromaSubsampling: '4:4:4', mozjpeg: true })
                 .toBuffer();
-            const outMeta = await (0, sharp_1.default)(out).metadata();
+            const outMeta = await sharp(out).metadata();
             const duration_ms = Date.now() - startTime;
             const originalSize = Buffer.byteLength(b64, 'base64');
             const optimizedSize = out.length;
@@ -120,7 +160,7 @@ async function downscaleImageBase64(b64, mime, maxWidth = 1600, quality = 78, co
             const out = await img.resize({ width: maxWidth, withoutEnlargement: true, kernel: 'lanczos3' })
                 .png({ compressionLevel: 9, palette: true })
                 .toBuffer();
-            const outMeta = await (0, sharp_1.default)(out).metadata();
+            const outMeta = await sharp(out).metadata();
             const duration_ms = Date.now() - startTime;
             const originalSize = Buffer.byteLength(b64, 'base64');
             const optimizedSize = out.length;
@@ -143,7 +183,7 @@ async function downscaleImageBase64(b64, mime, maxWidth = 1600, quality = 78, co
             const out = await img.resize({ width: maxWidth, withoutEnlargement: true, kernel: 'lanczos3' })
                 .webp({ lossless: true })
                 .toBuffer();
-            const outMeta = await (0, sharp_1.default)(out).metadata();
+            const outMeta = await sharp(out).metadata();
             const duration_ms = Date.now() - startTime;
             const originalSize = Buffer.byteLength(b64, 'base64');
             const optimizedSize = out.length;

@@ -39,7 +39,7 @@ const config = {
     // FIXED: Use deployment guide configuration
     id: process.env.WORKER_ID || `render-${process.env.RENDER_SERVICE_ID || 'local'}-${Date.now()}`,
     pollIntervalMs: parseInt(process.env.POLL_INTERVAL_MS || '5000'),
-    maxConcurrentJobs: parseInt(process.env.WORKER_CONCURRENCY || '50'), // FIXED: 50 not 3
+    maxConcurrentJobs: parseInt(process.env.WORKER_CONCURRENCY || '3'), // Safety net - matches Render config
     heartbeatIntervalMs: 30000, // 30 seconds
   },
   server: {

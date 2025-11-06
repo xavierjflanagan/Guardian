@@ -6,6 +6,10 @@
  * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
  * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
+ *
+ * Version Selection (via PASS_05_VERSION env var):
+ * - 'v2.4' (default): Current production prompt (v2.4)
+ * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
  */
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -14,6 +18,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.discoverEncounters = discoverEncounters;
 const openai_1 = __importDefault(require("openai"));
 const aiPrompts_1 = require("./aiPrompts");
+const aiPrompts_v2_7_1 = require("./aiPrompts.v2.7");
+const aiPrompts_v2_8_1 = require("./aiPrompts.v2.8");
 const aiPromptsOCR_1 = require("./aiPromptsOCR");
 // import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
 const manifestBuilder_1 = require("./manifestBuilder");
@@ -24,19 +30,29 @@ const openai = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
  */
 async function discoverEncounters(input) {
     try {
-        // Read strategy from environment variable (defaults to 'ocr')
+        // Read strategy and version from environment variables
         const strategy = (process.env.PASS_05_STRATEGY || 'ocr');
-        console.log(`[Pass 0.5] Using strategy: ${strategy}`);
+        const version = (process.env.PASS_05_VERSION || 'v2.4');
+        console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
         // Vision strategy requires image loading infrastructure (not yet implemented)
         if (strategy === 'vision') {
             throw new Error('Vision strategy not yet implemented. ' +
                 'Requires image loading from Supabase Storage. ' +
                 'Use PASS_05_STRATEGY=ocr or ocr_optimized instead.');
         }
-        // Select prompt builder based on strategy
-        const promptBuilder = strategy === 'ocr_optimized'
-            ? aiPromptsOCR_1.buildOCROptimizedPrompt
-            : aiPrompts_1.buildEncounterDiscoveryPrompt;
+        // Select prompt builder based on strategy and version
+        let promptBuilder;
+        if (strategy === 'ocr_optimized') {
+            promptBuilder = aiPromptsOCR_1.buildOCROptimizedPrompt;
+        }
+        else {
+            // For 'ocr' strategy, choose version
+            promptBuilder = version === 'v2.8'
+                ? aiPrompts_v2_8_1.buildEncounterDiscoveryPromptV28
+                : version === 'v2.7'
+                    ? aiPrompts_v2_7_1.buildEncounterDiscoveryPromptV27
+                    : aiPrompts_1.buildEncounterDiscoveryPrompt;
+        }
         // Build prompt with OCR text
         const prompt = promptBuilder({
             fullText: input.ocrOutput.fullTextAnnotation.text,

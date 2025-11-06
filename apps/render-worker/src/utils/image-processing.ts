@@ -4,8 +4,18 @@
  * Purpose: Optimize images before OCR while preserving format and quality
  */
 
-import sharp from 'sharp';
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
 import { createLogger } from './logger';
+
+// Lazy loader for Sharp - only loads when first image is processed
+let sharpInstance: typeof import('sharp') | null = null;
+async function getSharp() {
+  if (!sharpInstance) {
+    sharpInstance = (await import('sharp')).default;
+  }
+  return sharpInstance;
+}
 
 /**
  * Phase 2: Format-preserving downscaling with comprehensive format support
@@ -62,6 +72,7 @@ export async function downscaleImageBase64(
   }
 
   const buf = Buffer.from(b64, 'base64');
+  const sharp = await getSharp();  // Lazy load Sharp
   const img = sharp(buf, { failOn: 'none' }).rotate(); // Respect EXIF
   const meta = await img.metadata();
 

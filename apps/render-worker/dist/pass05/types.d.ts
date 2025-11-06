@@ -67,6 +67,12 @@ export interface EncounterMetadata {
      * Source: OpenAI GPT-5-mini analysis (NOT OCR confidence)
      */
     confidence: number;
+    /**
+     * Plain English summary of encounter (Migration 38)
+     * Example: "Annual physical exam with Dr. Smith at City Medical Center"
+     * TODO: AI prompt needs to generate this field
+     */
+    summary?: string;
     extractedText?: string;
 }
 export type EncounterType = 'inpatient' | 'outpatient' | 'emergency_department' | 'specialist_consultation' | 'gp_appointment' | 'telehealth' | 'planned_specialist_consultation' | 'planned_procedure' | 'planned_gp_appointment' | 'pseudo_medication_list' | 'pseudo_insurance' | 'pseudo_admin_summary' | 'pseudo_lab_report' | 'pseudo_imaging_report' | 'pseudo_referral_letter' | 'pseudo_unverified_visit';

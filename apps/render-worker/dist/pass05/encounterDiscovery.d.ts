@@ -5,6 +5,10 @@
  * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
  * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
+ *
+ * Version Selection (via PASS_05_VERSION env var):
+ * - 'v2.4' (default): Current production prompt (v2.4)
+ * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
  */
 import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 export interface EncounterDiscoveryInput {

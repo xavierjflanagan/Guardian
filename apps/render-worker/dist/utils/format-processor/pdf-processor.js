@@ -5,17 +5,56 @@
  * Extracts all pages from multi-page PDF files and converts them to JPEG.
  * Uses Poppler (via node-poppler) for PDF rendering.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractPdfPages = extractPdfPages;
 const node_poppler_1 = require("node-poppler");
-const sharp_1 = __importDefault(require("sharp"));
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
 const fs_1 = require("fs");
 const os_1 = require("os");
 const path_1 = require("path");
 const crypto_1 = require("crypto");
+// Lazy loader for Sharp - only loads when first PDF is processed
+let sharpInstance = null;
+async function getSharp() {
+    if (!sharpInstance) {
+        sharpInstance = (await Promise.resolve().then(() => __importStar(require('sharp')))).default;
+    }
+    return sharpInstance;
+}
 /**
  * Extract all pages from a PDF file
  *
@@ -95,8 +134,9 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
             try {
                 // Read the extracted JPEG
                 const pageBuffer = await fs_1.promises.readFile(pagePath);
-                // Load with Sharp for potential downscaling
-                const pageImage = (0, sharp_1.default)(pageBuffer);
+                // Load with Sharp for potential downscaling (lazy loaded)
+                const sharp = await getSharp();
+                const pageImage = sharp(pageBuffer);
                 const pageMeta = await pageImage.metadata();
                 // Build processing pipeline with EXIF auto-rotation
                 let pipeline = pageImage.rotate(); // Auto-rotate using EXIF orientation
@@ -124,7 +164,7 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
                 })
                     .toBuffer();
                 // Get final dimensions
-                const jpegMeta = await (0, sharp_1.default)(jpegBuffer).metadata();
+                const jpegMeta = await sharp(jpegBuffer).metadata();
                 const pageProcessingTime = Date.now() - pageStartTime;
                 console.log(`[PDF Processor] Page ${pageNumber} processed`, {
                     correlationId,

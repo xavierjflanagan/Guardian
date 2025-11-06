@@ -138,6 +138,8 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             }
             return [start, end];
         }).sort((a, b) => a[0] - b[0]);
+        // Extract spatial bounds from OCR for this encounter's pages (use normalized ranges)
+        const spatialBounds = extractSpatialBounds(normalizedPageRanges, ocrOutput);
         // Pre-create encounter in database to get UUID
         // UPSERT for idempotency: safe to retry if manifest write fails
         const { data: dbEncounter, error } = await supabase
@@ -147,13 +149,17 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             encounter_type: aiEnc.encounterType, // Safe now (validated)
             is_real_world_visit: aiEnc.isRealWorldVisit,
             encounter_date: aiEnc.dateRange?.start || null,
-            encounter_date_end: aiEnc.dateRange?.end || null, // For multi-day encounters (added in migration)
+            encounter_date_end: aiEnc.dateRange?.end || null, // For multi-day encounters (Migration 38)
             provider_name: aiEnc.provider || null,
             facility_name: aiEnc.facility || null,
             primary_shell_file_id: shellFileId, // Link to source document
             page_ranges: normalizedPageRanges, // Use normalized (sorted) ranges
+            spatial_bounds: spatialBounds, // Migration 38: Bounding box coordinates
             identified_in_pass: 'pass_0_5',
-            pass_0_5_confidence: aiEnc.confidence
+            pass_0_5_confidence: aiEnc.confidence,
+            source_method: 'ai_pass_0_5', // Migration 38: Replaced ai_extracted boolean
+            date_source: (aiEnc.dateRange?.start) ? 'ai_extracted' : null, // Migration 38: Track date provenance
+            summary: aiEnc.summary || null // Migration 38: AI-generated plain English description
         }, {
             onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_date,page_ranges',
             ignoreDuplicates: false // Update existing record
@@ -163,8 +169,6 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
         if (error || !dbEncounter) {
             throw new Error(`Failed to create encounter in database: ${error?.message}`);
         }
-        // Extract spatial bounds from OCR for this encounter's pages (use normalized ranges)
-        const spatialBounds = extractSpatialBounds(normalizedPageRanges, ocrOutput);
         encounters.push({
             encounterId: dbEncounter.id,
             encounterType: aiEnc.encounterType, // Safe now (validated)
@@ -175,6 +179,7 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             pageRanges: normalizedPageRanges, // Return normalized ranges
             spatialBounds,
             confidence: aiEnc.confidence,
+            summary: aiEnc.summary, // Migration 41: Include encounter summary in manifest for Pass 1/2 context
             extractedText: aiEnc.extractedText
         });
     }

@@ -6,12 +6,22 @@
  */
 
 import { Poppler } from 'node-poppler';
-import sharp from 'sharp';
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import type { ProcessedPage } from './types';
+
+// Lazy loader for Sharp - only loads when first PDF is processed
+let sharpInstance: typeof import('sharp') | null = null;
+async function getSharp() {
+  if (!sharpInstance) {
+    sharpInstance = (await import('sharp')).default;
+  }
+  return sharpInstance;
+}
 
 /**
  * Extract all pages from a PDF file
@@ -114,7 +124,8 @@ export async function extractPdfPages(
         // Read the extracted JPEG
         const pageBuffer = await fs.readFile(pagePath);
 
-        // Load with Sharp for potential downscaling
+        // Load with Sharp for potential downscaling (lazy loaded)
+        const sharp = await getSharp();
         const pageImage = sharp(pageBuffer);
         const pageMeta = await pageImage.metadata();
 

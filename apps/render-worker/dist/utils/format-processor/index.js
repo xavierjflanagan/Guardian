@@ -15,6 +15,39 @@
  * - Return array of pages for OCR processing
  * - Worker sends each page separately to OCR, then combines results
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -23,7 +56,16 @@ exports.preprocessForOCR = preprocessForOCR;
 const tiff_processor_1 = require("./tiff-processor");
 const pdf_processor_1 = require("./pdf-processor");
 const heic_convert_1 = __importDefault(require("heic-convert"));
-const sharp_1 = __importDefault(require("sharp"));
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
+// Lazy loader for Sharp - only loads when first image processing is needed
+let sharpInstance = null;
+async function getSharp() {
+    if (!sharpInstance) {
+        sharpInstance = (await Promise.resolve().then(() => __importStar(require('sharp')))).default;
+    }
+    return sharpInstance;
+}
 /**
  * Preprocess a file for OCR
  *
@@ -89,8 +131,9 @@ async function preprocessForOCR(base64Data, mimeType, config) {
             });
             // Wrap ArrayBuffer in Node.js Buffer for convenience methods
             const jpegBuffer = Buffer.from(jpegArrayBuffer);
-            // Extract dimensions from converted JPEG using Sharp
-            const jpegMeta = await (0, sharp_1.default)(jpegBuffer).metadata();
+            // Extract dimensions from converted JPEG using Sharp (lazy loaded)
+            const sharp = await getSharp();
+            const jpegMeta = await sharp(jpegBuffer).metadata();
             const heicProcessingTime = Date.now() - heicStartTime;
             console.log('[Format Processor] HEIC conversion complete', {
                 correlationId,
@@ -140,8 +183,9 @@ async function preprocessForOCR(base64Data, mimeType, config) {
         try {
             // Decode base64 to buffer
             const buffer = Buffer.from(base64Data, 'base64');
-            // Process through Sharp for EXIF auto-rotation, optimization, and dimension extraction
-            const pipeline = (0, sharp_1.default)(buffer)
+            // Process through Sharp for EXIF auto-rotation, optimization, and dimension extraction (lazy loaded)
+            const sharp = await getSharp();
+            const pipeline = sharp(buffer)
                 .rotate() // Auto-rotate using EXIF orientation (critical for iPhone photos)
                 .resize(config?.maxWidth || 1600, null, {
                 fit: 'inside',
@@ -149,7 +193,7 @@ async function preprocessForOCR(base64Data, mimeType, config) {
             })
                 .jpeg({ quality: config?.jpegQuality || 85 });
             const optimizedBuffer = await pipeline.toBuffer();
-            const metadata = await (0, sharp_1.default)(optimizedBuffer).metadata();
+            const metadata = await sharp(optimizedBuffer).metadata();
             console.log('[Format Processor] Image processing complete', {
                 correlationId,
                 inputSizeBytes: buffer.length,

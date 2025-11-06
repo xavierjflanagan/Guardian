@@ -5,12 +5,49 @@
  * Extracts all pages from multi-page TIFF files and converts them to JPEG.
  * Uses Sharp library for image processing.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractTiffPages = extractTiffPages;
-const sharp_1 = __importDefault(require("sharp"));
+// Lazy loader for Sharp - only loads when first TIFF is processed
+let sharpInstance = null;
+async function getSharp() {
+    if (!sharpInstance) {
+        sharpInstance = (await Promise.resolve().then(() => __importStar(require('sharp')))).default;
+    }
+    return sharpInstance;
+}
 /**
  * Extract all pages from a multi-page TIFF file
  *
@@ -24,8 +61,9 @@ async function extractTiffPages(base64Tiff, maxWidth = 1600, quality = 85, corre
     const startTime = Date.now();
     // Step 1: Decode base64 to buffer
     const buffer = Buffer.from(base64Tiff, 'base64');
-    // Step 2: Load TIFF and get metadata
-    const image = (0, sharp_1.default)(buffer);
+    // Step 2: Load TIFF and get metadata (lazy load Sharp)
+    const sharp = await getSharp();
+    const image = sharp(buffer);
     const metadata = await image.metadata();
     // Step 3: Get page count (defaults to 1 for single-page TIFF)
     const pageCount = metadata.pages || 1;
@@ -48,7 +86,7 @@ async function extractTiffPages(base64Tiff, maxWidth = 1600, quality = 85, corre
         });
         try {
             // Load specific page from TIFF
-            const pageImage = (0, sharp_1.default)(buffer, { page: i });
+            const pageImage = sharp(buffer, { page: i });
             // Get page metadata
             const pageMeta = await pageImage.metadata();
             // Build processing pipeline with EXIF auto-rotation
@@ -70,7 +108,7 @@ async function extractTiffPages(base64Tiff, maxWidth = 1600, quality = 85, corre
             })
                 .toBuffer();
             // Get dimensions of output JPEG
-            const jpegMeta = await (0, sharp_1.default)(jpegBuffer).metadata();
+            const jpegMeta = await sharp(jpegBuffer).metadata();
             const pageProcessingTime = Date.now() - pageStartTime;
             console.log(`[TIFF Processor] Page ${pageNumber} processed`, {
                 correlationId,
