@@ -1002,6 +1002,7 @@ class V3Worker {
             processed_image_path: imageMetadata.folderPath,
             processed_image_checksum: imageMetadata.combinedChecksum,
             processed_image_mime: 'image/jpeg',
+            processed_image_size_bytes: imageMetadata.totalBytes, // Migration 40: Combined total size of all processed JPEG pages
           })
           .eq('id', payload.shell_file_id);
 

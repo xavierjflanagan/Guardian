@@ -600,6 +600,306 @@ Pass 0.5 AI model is NOT producing output to populate many columns that it could
 
 None - all questions resolved through user review process.
 
+---
+
+## 6th November 2025 Addendum - Post-Fix Validation
+
+**Date:** 2025-11-06
+**Context:** Validation of fixes implemented between Nov 4-5
+**Status:** MAJOR IMPROVEMENTS CONFIRMED
+
+### Critical Issues RESOLVED
+
+Based on database query of recent encounters (created >= 2025-11-05):
+
+**1. ✅ `summary` Column - NOW POPULATED**
+
+**Original Issue (Nov 3-4):** NULL for all Pass 0.5 encounters
+
+**Current Status (Nov 6):** FULLY POPULATED with AI-generated plain English descriptions
+
+**Sample Data:**
+```
+Emergency Department visit on 2025-06-22 with Matthew T Tinkham, MD at Piedmont Eastside Medical Emergency Department after motor vehicle collision; treated symptomatically and discharged home.
+
+Specialist pain management consultation on 2025-10-27 with Mara Ehret, PA-C at Interventional Spine & Pain PC for post-procedure follow-up, neck and low back pain.
+
+Pathology test collected on 2025-07-03 for Mycoplasma genitalium resistance (urine) at NSW Health Pathology.
+
+Pharmacy dispensing label for Moxifloxacin 400mg with Date: 9.7.25 from Sydney Hospital and Sydney Eye Hospital Pharmacy Department.
+```
+
+**Quality Assessment:**
+- Content-aware (not templates)
+- Includes key details (date, provider, facility, chief complaint)
+- Appropriate length (1-2 sentences)
+- Works for both real encounters and pseudo-encounters
+
+**Verdict:** ✅ ISSUE RESOLVED
+
+---
+
+**2. ✅ `pass_0_5_confidence` Column - NOW POPULATED**
+
+**Original Issue (Nov 3-4):** NULL for all encounters
+
+**Current Status (Nov 6):** FULLY POPULATED with confidence scores
+
+**Sample Data:**
+```
+encounter_id: 34ee2d9d-8348-42e4-8199-73ede4322c1d
+pass_0_5_confidence: 0.97 (specialist consultation)
+
+encounter_id: 20a9c431-c164-4947-acf2-e8eb2e4b9ca2
+pass_0_5_confidence: 0.98 (emergency department)
+
+encounter_id: 8c89d8f3-4a1b-4ffe-8890-352ae84700d8
+pass_0_5_confidence: 0.96 (outpatient pathology)
+
+encounter_id: 70b167ab-651e-4ae6-a403-2ce057c164ba
+pass_0_5_confidence: 0.90 (pseudo medication list)
+```
+
+**Observations:**
+- High confidence for real encounters (0.96-0.98)
+- Lower confidence for pseudo-encounters (0.90) - appropriate
+- All above 0.80 threshold (no manual review flags)
+
+**Verdict:** ✅ ISSUE RESOLVED
+
+---
+
+**3. ✅ `spatial_bounds` Column - NOW POPULATED**
+
+**Original Issue (Nov 3-4):** Empty array `[]` for all encounters (generated but not written to DB)
+
+**Current Status (Nov 6):** FULLY POPULATED with bounding box data
+
+**Sample Data:**
+```json
+{
+  "spatial_bounds": [
+    {
+      "page": 14,
+      "region": "entire_page",
+      "boundingBox": {
+        "vertices": [
+          {"x": 0, "y": 0},
+          {"x": 1600, "y": 0},
+          {"x": 1600, "y": 2260},
+          {"x": 0, "y": 2260}
+        ]
+      },
+      "pageDimensions": {"width": 1600, "height": 2260},
+      "boundingBoxNorm": {"x": 0, "y": 0, "width": 1, "height": 1}
+    },
+    ...
+  ]
+}
+```
+
+**Observations:**
+- Multiple pages for multi-page encounters (pages 1-13, 14-20)
+- Single page for single-page encounters (page 1, page 2)
+- Normalized coordinates enable click-to-source feature
+
+**Verdict:** ✅ ISSUE RESOLVED
+
+---
+
+**4. ✅ `source_method` Column - NOW POPULATED**
+
+**Original Issue (Nov 3-4):** `ai_extracted` boolean was FALSE, proposed rename to `source_method` TEXT enum
+
+**Current Status (Nov 6):** Column RENAMED to `source_method` and populated with 'ai_pass_0_5'
+
+**Sample Data:**
+```
+source_method: "ai_pass_0_5" (all recent encounters)
+```
+
+**Observations:**
+- Schema migration completed (ai_extracted → source_method)
+- Consistent population across all encounters
+- Ready for future values ('ai_pass_2', 'manual_entry', 'import')
+
+**Verdict:** ✅ ISSUE RESOLVED (schema migration completed)
+
+---
+
+**5. ✅ `facility_name` Column - NOW POPULATED**
+
+**Original Issue (Nov 3-4):** NULL for lab reports and other encounters
+
+**Current Status (Nov 6):** POPULATED for all encounters (including pseudo)
+
+**Sample Data:**
+```
+facility_name: "NSW Health Pathology" (pathology test)
+facility_name: "SYDNEY HOSPITAL AND SYDNEY EYE HOSPITAL PHARMACY DEPARTMENT" (medication label)
+facility_name: "Piedmont Eastside Medical Emergency Department South Campus" (emergency)
+facility_name: "Interventional Spine & Pain PC" (specialist)
+```
+
+**Verdict:** ✅ ISSUE RESOLVED
+
+---
+
+**6. ✅ `provider_name` Column - NOW POPULATED WHERE APPLICABLE**
+
+**Original Issue (Nov 3-4):** NULL for lab reports
+
+**Current Status (Nov 6):** POPULATED for real encounters with providers, NULL for pseudo (expected)
+
+**Sample Data:**
+```
+provider_name: "Matthew T Tinkham, MD" (emergency department)
+provider_name: "Mara B Ehret, PA-C" (specialist consultation)
+provider_name: NULL (pathology test - no provider, expected)
+provider_name: NULL (medication label - no provider, expected)
+```
+
+**Verdict:** ✅ ISSUE RESOLVED (NULL is expected for some encounter types)
+
+---
+
+### Remaining Open Issues
+
+**1. ⚠️ `encounter_date_end` Column - Still NULL for All Encounters**
+
+**Original Recommendation:** Populate for completed single-day encounters (set to encounter_date)
+
+**Current Status (Nov 6):** Still NULL for all encounters
+
+**Sample Data:**
+```
+encounter_id: 34ee2d9d-8348-42e4-8199-73ede4322c1d
+encounter_date: 2025-10-27 00:00:00+00
+encounter_date_end: NULL (SHOULD BE 2025-10-27 for completed encounter)
+
+encounter_id: 20a9c431-c164-4947-acf2-e8eb2e4b9ca2
+encounter_date: 2025-06-22 00:00:00+00
+encounter_date_end: NULL (SHOULD BE 2025-06-22 for completed encounter)
+
+encounter_id: 8c89d8f3-4a1b-4ffe-8890-352ae84700d8
+encounter_date: 2025-07-03 00:00:00+00
+encounter_date_end: NULL (SHOULD BE 2025-07-03 for completed pathology test)
+```
+
+**Impact:**
+- Timeline cannot distinguish completed vs ongoing encounters
+- Ambiguous NULL (could mean single-day OR ongoing OR unknown)
+
+**Recommendation:** UPDATE Pass 0.5 logic to populate encounter_date_end
+
+**Priority:** MEDIUM (semantic clarity issue, not blocking functionality)
+
+---
+
+**2. ⚠️ `date_source` Column - NOT YET ADDED**
+
+**Original Recommendation:** Add new column to track date origin (ai_extracted | file_metadata | upload_date)
+
+**Current Status (Nov 6):** Column does NOT exist yet
+
+**Observed Behavior:**
+- Real encounters have dates (ai_extracted)
+- Pseudo-encounters may have NULL dates (medication label example)
+
+**Sample Data:**
+```
+encounter_id: 70b167ab-651e-4ae6-a403-2ce057c164ba (pseudo medication list)
+encounter_date: NULL
+encounter_date_end: NULL
+```
+
+**Recommendation:**
+1. Add `date_source` column to schema
+2. Implement fallback logic: AI extracted → file metadata → upload date
+3. Populate for all encounters (never NULL)
+
+**Priority:** LOW (pseudo-encounters without dates still functional)
+
+---
+
+**3. ⚠️ `requires_review` Column - Logic Not Updated**
+
+**Original Recommendation:** Set to TRUE when summary NULL OR confidence < 0.80
+
+**Current Status (Nov 6):** All encounters show `requires_review: FALSE`
+
+**Sample Data:**
+```
+encounter_id: 34ee2d9d-8348-42e4-8199-73ede4322c1d
+summary: "Specialist pain management consultation..."
+pass_0_5_confidence: 0.97
+requires_review: FALSE (CORRECT - summary populated, confidence high)
+
+encounter_id: 70b167ab-651e-4ae6-a403-2ce057c164ba
+summary: "Pharmacy dispensing label..."
+pass_0_5_confidence: 0.90
+requires_review: FALSE (CORRECT - summary populated, confidence above 0.80)
+```
+
+**Analysis:**
+- Current behavior appears CORRECT (no manual review needed)
+- All summaries populated (no NULL summaries)
+- All confidences above 0.80 threshold
+- Logic may have been updated correctly
+
+**Recommendation:**
+- Monitor future uploads for low-confidence encounters
+- Verify requires_review logic triggers when confidence < 0.80
+
+**Priority:** LOW (appears to be working correctly)
+
+---
+
+### Schema Migration Status
+
+**Confirmed Completed:**
+1. ✅ `ai_extracted` → `source_method` (RENAMED and populated)
+
+**Still Pending (from original audit):**
+1. ⚠️ DROP COLUMN `visit_duration_minutes` (low value, rarely available)
+2. ⚠️ DROP COLUMN `confidence_score` (redundant with pass_0_5_confidence)
+3. ⚠️ DROP COLUMN `ai_confidence` (redundant with pass_0_5_confidence)
+4. ⚠️ ADD COLUMN `date_source` TEXT (track date origin)
+
+**Note:** Columns may have been removed but not yet confirmed via schema inspection.
+
+---
+
+### Summary of 6th November Findings
+
+**Major Success:** 6 out of 8 critical issues RESOLVED in ~2 days
+
+**Issues Fixed:**
+1. ✅ summary column now populated with AI-generated descriptions
+2. ✅ pass_0_5_confidence now populated with confidence scores
+3. ✅ spatial_bounds now populated with bounding box data
+4. ✅ source_method renamed and populated (was ai_extracted)
+5. ✅ facility_name now populated for all encounters
+6. ✅ provider_name now populated where applicable
+
+**Remaining Work:**
+1. ⚠️ encounter_date_end population logic (not yet implemented)
+2. ⚠️ date_source column addition (not yet implemented)
+3. ⚠️ Schema cleanup (remove redundant columns)
+
+**Overall Assessment:** MAJOR IMPROVEMENT - Pass 0.5 data quality significantly enhanced
+
+**Next Steps:**
+1. Implement encounter_date_end population for completed encounters
+2. Add date_source column with fallback logic
+3. Complete schema cleanup (remove redundant columns)
+4. Monitor requires_review logic on future low-confidence encounters
+
+---
+
+**Audit Status (6th November 2025):** DATA QUALITY SIGNIFICANTLY IMPROVED
+**Recommendation:** PROCEED WITH REMAINING SCHEMA CLEANUP AND MINOR LOGIC UPDATES
+
 
 
 

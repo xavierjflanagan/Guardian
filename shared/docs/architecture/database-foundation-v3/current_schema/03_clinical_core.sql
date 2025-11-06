@@ -112,15 +112,7 @@ CREATE TABLE IF NOT EXISTS shell_files (
     processing_started_at TIMESTAMPTZ,
     processing_completed_at TIMESTAMPTZ,
     processing_error JSONB, -- Enhanced error details with structure
-    
-    -- File classification
-    file_type TEXT CHECK (file_type IN (
-        'medical_record', 'lab_result', 'imaging_report', 'prescription',
-        'discharge_summary', 'referral', 'insurance_card', 'id_document', 'other'
-    )),
-    file_subtype TEXT,
-    confidence_score NUMERIC(3,2),
-    
+
     -- Content analysis
     extracted_text TEXT,
     ocr_confidence NUMERIC(3,2),
@@ -144,16 +136,12 @@ CREATE TABLE IF NOT EXISTS shell_files (
     
     -- Upload and processing metadata
     language_detected TEXT DEFAULT 'en',
-    
-    -- Healthcare-specific metadata
-    provider_name TEXT,
-    facility_name TEXT,
-    upload_context TEXT,
 
     -- Phase 2 Image Processing Optimization (Migration 21 - 2025-10-10)
     processed_image_path TEXT CHECK (processed_image_path IS NULL OR char_length(processed_image_path) BETWEEN 1 AND 2048), -- Storage path for downscaled image
     processed_image_checksum TEXT, -- SHA256 checksum for idempotency
     processed_image_mime TEXT, -- MIME type of processed image
+    processed_image_size_bytes BIGINT, -- Migration 40: Combined total size in bytes of all processed JPEG pages (populated after all pages persisted)
 
     -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 39 - 2025-11-04)
     pass_0_5_completed BOOLEAN DEFAULT FALSE, -- True if Pass 0.5 encounter discovery completed successfully

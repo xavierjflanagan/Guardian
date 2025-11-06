@@ -233,38 +233,7 @@ await supabase
 
 ### Phase 2: Backfill Existing Records (Data Cleanup)
 
-**Target:** Fix all existing records with wrong page_count
-
-**SQL Migration:**
-```sql
--- Backfill page_count from OCR data for all existing records
-UPDATE shell_files
-SET page_count = jsonb_array_length(ocr_raw_jsonb->'pages')
-WHERE ocr_raw_jsonb IS NOT NULL
-  AND jsonb_array_length(ocr_raw_jsonb->'pages') IS NOT NULL
-  AND page_count != jsonb_array_length(ocr_raw_jsonb->'pages');
-```
-
-**Validation Query:**
-```sql
--- Check how many records will be updated
-SELECT
-  COUNT(*) as affected_records,
-  COUNT(DISTINCT patient_id) as affected_patients
-FROM shell_files
-WHERE ocr_raw_jsonb IS NOT NULL
-  AND jsonb_array_length(ocr_raw_jsonb->'pages') IS NOT NULL
-  AND page_count != jsonb_array_length(ocr_raw_jsonb->'pages');
-```
-
-**Steps:**
-1. Run validation query to count affected records
-2. Run backfill UPDATE
-3. Verify counts match expectations
-4. Check sample records manually
-
-**Estimated Effort:** 10 minutes
-**Risk:** LOW (uses OCR data already in database)
+Not needed as all data is test-data. 
 
 ---
 
@@ -334,22 +303,6 @@ console.log(`Page count estimate: ${estimatedPages}, actual: ${actualPages}, err
 
 ---
 
-## Cost/Benefit Analysis
-
-### Cost
-- **Development Time:** ~30 minutes (Phase 1 + Phase 2)
-- **Testing Time:** ~15 minutes
-- **Performance Impact:** +1 UPDATE per file upload (~5ms)
-- **Migration Risk:** LOW (backfill uses existing OCR data)
-
-### Benefit
-- **Data Accuracy:** 100% accurate page counts
-- **User Trust:** Frontend displays correct information
-- **Analytics Accuracy:** Usage metrics and billing are correct
-- **Future Proofing:** Foundation for accurate cost estimates
-
----
-
 ## Recommendation
 
 **Proceed with Phase 1 (Worker Fix) immediately:**
@@ -358,11 +311,7 @@ console.log(`Page count estimate: ${estimatedPages}, actual: ${actualPages}, err
 - Low risk
 - High value
 
-**Follow with Phase 2 (Backfill) after Phase 1 validation:**
-- Simple SQL UPDATE
-- Fixes historical data
-- Low risk
-- Completes the fix
+**Phase 2 (skipped)**
 
 **Defer Phase 3 (Monitoring) to future iteration:**
 - Nice to have, not critical
