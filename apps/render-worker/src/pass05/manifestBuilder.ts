@@ -301,10 +301,10 @@ export async function parseEncounterResponse(
       encounterId: dbEncounter.id,
       encounterType: aiEnc.encounterType as EncounterType,  // Safe now (validated)
       isRealWorldVisit: aiEnc.isRealWorldVisit,
-      dateRange: {
-        start: encounterStartDate || undefined,
+      dateRange: encounterStartDate ? {
+        start: encounterStartDate,
         end: encounterDateEnd || undefined
-      },
+      } : undefined,
       encounterTimeframeStatus: encounterTimeframeStatus,  // v2.9: Migration 42
       dateSource: dateSource,  // v2.9: Migration 42
       provider: aiEnc.provider,

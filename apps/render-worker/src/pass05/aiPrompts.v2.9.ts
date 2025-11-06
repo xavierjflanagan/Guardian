@@ -449,46 +449,46 @@ Your response must be valid JSON with this exact structure:
 
 # Encounter Timeframe Status Determination
 
-For **REAL-WORLD ENCOUNTERS** (\`isRealWorldVisit = true\`), analyze the document to determine the encounter timeframe status:
+For **REAL-WORLD ENCOUNTERS** (isRealWorldVisit = true), analyze the document to determine the encounter timeframe status:
 
 ## Status Categories
 
-### 1. COMPLETED Encounters (\`encounterTimeframeStatus: "completed"\`)
+### 1. COMPLETED Encounters (encounterTimeframeStatus: "completed")
 
 **Multi-Day Encounters (Hospital Admissions):**
 - Look for: "Admission date: [X]", "Discharge date: [Y]"
 - Look for: "3-day hospital stay", "admitted [date], discharged [date]"
 - Look for: "Patient was admitted on [date] and discharged on [date]"
-- Return: \`dateRange.start\` = admission date, \`dateRange.end\` = discharge date
-- Set: \`encounterTimeframeStatus = "completed"\`
+- Return: dateRange.start = admission date, dateRange.end = discharge date
+- Set: encounterTimeframeStatus = "completed"
 
 **Single-Day Encounters (GP visits, specialist consults, same-day ER):**
 - Look for: Single date only, no admission/discharge language
 - Look for: "Clinic visit on [date]", "Office visit [date]"
-- Return: \`dateRange.start\` = visit date, \`dateRange.end\` = same date
-- Set: \`encounterTimeframeStatus = "completed"\`
+- Return: dateRange.start = visit date, dateRange.end = same date
+- Set: encounterTimeframeStatus = "completed"
 
-### 2. ONGOING Encounters (\`encounterTimeframeStatus: "ongoing"\`)
+### 2. ONGOING Encounters (encounterTimeframeStatus: "ongoing")
 
 **Currently Admitted Patients:**
 - Look for: "currently admitted", "ongoing treatment", "patient remains hospitalized"
 - Look for: "Admission date: [X]" with no discharge date mentioned
 - Look for: Progress notes during active hospital stay
-- Return: \`dateRange.start\` = admission date, \`dateRange.end = null\`
-- Set: \`encounterTimeframeStatus = "ongoing"\`
+- Return: dateRange.start = admission date, dateRange.end = null
+- Set: encounterTimeframeStatus = "ongoing"
 
-### 3. UNKNOWN END DATE (\`encounterTimeframeStatus: "unknown_end_date"\`)
+### 3. UNKNOWN END DATE (encounterTimeframeStatus: "unknown_end_date")
 
 **Uncertain Completion Status:**
 - Found start date but cannot determine if encounter is completed or ongoing
 - Document doesn't explicitly indicate completion or ongoing status
-- Return: \`dateRange.start\` = found date, \`dateRange.end = null\`
-- Set: \`encounterTimeframeStatus = "unknown_end_date"\`
+- Return: dateRange.start = found date, dateRange.end = null
+- Set: encounterTimeframeStatus = "unknown_end_date"
 
 ## For PSEUDO ENCOUNTERS
 
-**All pseudo encounters (\`isRealWorldVisit = false\`):**
-- Always set: \`encounterTimeframeStatus = "completed"\`
+**All pseudo encounters (isRealWorldVisit = false):**
+- Always set: encounterTimeframeStatus = "completed"
 - Rationale: Pseudo encounters are observations/documents, not ongoing care relationships
 - The worker will handle date fallback logic for pseudo encounters without dates
 
@@ -505,18 +505,18 @@ For ALL encounters, indicate how the encounter date was determined:
 
 ### null (for pseudo encounters without dates)
 - No date found in document content
-- Set \`dateRange = null\` and \`dateSource = null\`
+- Set dateRange = null and dateSource = null
 - Worker will apply fallback logic (file metadata or upload date)
 
 ## Rules
 
 **Real-World Encounters:**
-- MUST have \`dateSource = "ai_extracted"\` (by definition, timeline-worthy = has specific date)
+- MUST have dateSource = "ai_extracted" (by definition, timeline-worthy = has specific date)
 - If you cannot extract a date from a real-world encounter, reconsider if it should be real-world
 
 **Pseudo Encounters:**
-- Set \`dateSource = "ai_extracted"\` if date found (e.g., lab collection date, medication fill date)
-- Set \`dateSource = null\` if no date found (worker will apply fallback)
+- Set dateSource = "ai_extracted" if date found (e.g., lab collection date, medication fill date)
+- Set dateSource = null if no date found (worker will apply fallback)
 
 # Common Patterns
 
