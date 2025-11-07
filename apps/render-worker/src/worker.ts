@@ -712,7 +712,7 @@ class V3Worker {
       // Batched parallel OCR processing (10 pages at a time)
       const BATCH_SIZE = parseInt(process.env.OCR_BATCH_SIZE || '10', 10);
       const OCR_TIMEOUT_MS = parseInt(process.env.OCR_TIMEOUT_MS || '30000', 10); // 30 sec per page
-      const MEMORY_LIMIT_MB = 480; // Safety threshold (512 MB limit - 32 MB buffer)
+      const MEMORY_LIMIT_MB = parseInt(process.env.MEMORY_LIMIT_MB || '1800', 10); // Safety threshold (2GB plan: 1800 MB)
       const validPages = preprocessResult.pages.filter(p => p.base64); // Skip failed pages
 
       this.logger.info('Starting batched parallel OCR', {
