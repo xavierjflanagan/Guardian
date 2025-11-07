@@ -1,0 +1,10 @@
+{
+  "entity_id": 6,
+  "entity_text": "ECG findings",
+  "variant_type": "layperson",
+  "query": "heart test results ECG",
+  "expected_entity_type": "observation",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:29.274Z",
+  "results": []
+}

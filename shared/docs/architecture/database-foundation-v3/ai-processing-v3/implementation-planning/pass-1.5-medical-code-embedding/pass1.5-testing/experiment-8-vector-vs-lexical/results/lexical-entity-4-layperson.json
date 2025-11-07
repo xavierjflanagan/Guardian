@@ -1,0 +1,10 @@
+{
+  "entity_id": 4,
+  "entity_text": "Total cholesterol test",
+  "variant_type": "layperson",
+  "query": "cholesterol level blood test",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:13.343Z",
+  "results": []
+}

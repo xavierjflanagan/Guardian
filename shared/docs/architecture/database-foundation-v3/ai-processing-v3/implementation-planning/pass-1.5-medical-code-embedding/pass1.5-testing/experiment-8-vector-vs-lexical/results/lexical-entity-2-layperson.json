@@ -1,0 +1,10 @@
+{
+  "entity_id": 2,
+  "entity_text": "Hemoglobin A1c test",
+  "variant_type": "layperson",
+  "query": "a1c diabetes blood test",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:38:57.104Z",
+  "results": []
+}

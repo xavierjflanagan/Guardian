@@ -1,0 +1,20 @@
+{
+  "entity_id": 3,
+  "entity_text": "Blood pressure measurement",
+  "variant_type": "layperson",
+  "query": "BP reading pressure",
+  "expected_entity_type": "vital_sign",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:07.145Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "72076-3",
+      "display_name": "Blood pressure home reading",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

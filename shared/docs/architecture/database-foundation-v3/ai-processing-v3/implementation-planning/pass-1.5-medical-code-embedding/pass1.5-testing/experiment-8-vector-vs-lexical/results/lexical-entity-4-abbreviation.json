@@ -1,0 +1,10 @@
+{
+  "entity_id": 4,
+  "entity_text": "Total cholesterol test",
+  "variant_type": "abbreviation",
+  "query": "TC chol",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:15.257Z",
+  "results": []
+}

@@ -1,0 +1,171 @@
+{
+  "entity_id": 6,
+  "entity_text": "ECG findings",
+  "variant_type": "clinical",
+  "query": "electrocardiogram findings impression",
+  "expected_entity_type": "observation",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:16.567Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "58253-6",
+      "display_name": "Electrocardiograms recorded",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.675108
+    },
+    {
+      "rank": 2,
+      "code_value": "18750-0",
+      "display_name": "Cardiac electrophysiology study",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.610573
+    },
+    {
+      "rank": 3,
+      "code_value": "8617-3",
+      "display_name": "QRS complex [Interpretation] by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.608361
+    },
+    {
+      "rank": 4,
+      "code_value": "58261-9",
+      "display_name": "Electrocardiogram serial reading",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.590634
+    },
+    {
+      "rank": 5,
+      "code_value": "9873-1",
+      "display_name": "QRS complex [Interpretation] Narrative by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.588907
+    },
+    {
+      "rank": 6,
+      "code_value": "18843-3",
+      "display_name": "EKG Comparison study (narrative)",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.56671
+    },
+    {
+      "rank": 7,
+      "code_value": "8897-1",
+      "display_name": "QRS complex Ventricles by EKG",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.53952
+    },
+    {
+      "rank": 8,
+      "code_value": "76282-3",
+      "display_name": "Heart rate.beat-to-beat by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.529213
+    },
+    {
+      "rank": 9,
+      "code_value": "76000-9",
+      "display_name": "Paced heart rate by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.527435
+    },
+    {
+      "rank": 10,
+      "code_value": "8611-6",
+      "display_name": "Myocardial infarction age by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.520246
+    },
+    {
+      "rank": 11,
+      "code_value": "8607-4",
+      "display_name": "Axis [Interpretation] by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.519361
+    },
+    {
+      "rank": 12,
+      "code_value": "44973-6",
+      "display_name": "QRS duration {Electrocardiograph lead}",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.508979
+    },
+    {
+      "rank": 13,
+      "code_value": "76639-4",
+      "display_name": "R-R interval (Minimum value during study) by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.505115
+    },
+    {
+      "rank": 14,
+      "code_value": "76638-6",
+      "display_name": "R-R interval (Maximum value during study) by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.503149
+    },
+    {
+      "rank": 15,
+      "code_value": "76644-4",
+      "display_name": "R-R interval.coefficient of variation by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.492226
+    },
+    {
+      "rank": 16,
+      "code_value": "99478-0",
+      "display_name": "Cardiac loop monitor study Document",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.489596
+    },
+    {
+      "rank": 17,
+      "code_value": "18513-2",
+      "display_name": "QRS onset [Time] Reference beat",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.486897
+    },
+    {
+      "rank": 18,
+      "code_value": "8890-6",
+      "display_name": "Heart rate Cardiac apex by Auscultation",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.482119
+    },
+    {
+      "rank": 19,
+      "code_value": "8891-4",
+      "display_name": "Heart rate Cardiac apex by palpation",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.481187
+    },
+    {
+      "rank": 20,
+      "code_value": "9964-8",
+      "display_name": "QRS initial amplitude in lead I",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.476929
+    }
+  ]
+}

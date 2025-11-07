@@ -1,0 +1,191 @@
+{
+  "entity_id": 6,
+  "entity_text": "ECG findings",
+  "variant_type": "abbreviation",
+  "query": "EKG ECG",
+  "expected_entity_type": "observation",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:32.134Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "76637-8",
+      "display_name": "Total beats during EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 2,
+      "code_value": "76638-6",
+      "display_name": "R-R interval (Maximum value during study) by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 3,
+      "code_value": "76639-4",
+      "display_name": "R-R interval (Minimum value during study) by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 4,
+      "code_value": "76643-6",
+      "display_name": "R-R interval.standard deviation (Heart rate variability) by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 5,
+      "code_value": "76644-4",
+      "display_name": "R-R interval.coefficient of variation by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 6,
+      "code_value": "76645-1",
+      "display_name": "Cardiac stress test EKG study Type",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 7,
+      "code_value": "8618-1",
+      "display_name": "Recording duration by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 8,
+      "code_value": "8622-3",
+      "display_name": "Ventricular morphology [Interpretation] by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 9,
+      "code_value": "44976-9",
+      "display_name": "P-R Interval {Electrocardiograph lead}",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 10,
+      "code_value": "8894-8",
+      "display_name": "P wave Atrium by EKG",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 11,
+      "code_value": "58253-6",
+      "display_name": "Electrocardiograms recorded",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 12,
+      "code_value": "76000-9",
+      "display_name": "Paced heart rate by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 13,
+      "code_value": "76281-5",
+      "display_name": "Type of arrhythmia on EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 14,
+      "code_value": "76282-3",
+      "display_name": "Heart rate.beat-to-beat by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 15,
+      "code_value": "9861-6",
+      "display_name": "Style Pacemaker lead by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 16,
+      "code_value": "9866-5",
+      "display_name": "Axis [Interpretation] Narrative by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 17,
+      "code_value": "9868-1",
+      "display_name": "Conduction [Interpretation] Narrative by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 18,
+      "code_value": "9869-9",
+      "display_name": "Hypertrophy [Interpretation] Narrative by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 19,
+      "code_value": "9870-7",
+      "display_name": "Intraventricular conduction [Interpretation] Narrative by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 20,
+      "code_value": "9872-3",
+      "display_name": "Myocardial ischemia [Interpretation] Narrative by EKG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

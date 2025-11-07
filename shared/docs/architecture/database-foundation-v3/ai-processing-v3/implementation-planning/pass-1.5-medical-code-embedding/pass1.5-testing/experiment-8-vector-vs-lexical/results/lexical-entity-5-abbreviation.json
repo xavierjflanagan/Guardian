@@ -1,0 +1,137 @@
+{
+  "entity_id": 5,
+  "entity_text": "Pregnancy test",
+  "variant_type": "abbreviation",
+  "query": "preg test",
+  "expected_entity_type": "observation",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:24.543Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "57530-8",
+      "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --pre dose dexamethasone",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 2,
+      "code_value": "57531-6",
+      "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --1 day post dose dexamethasone",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 3,
+      "code_value": "51674-0",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --6th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 4,
+      "code_value": "56522-6",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --30 minutes post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 5,
+      "code_value": "57532-4",
+      "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --2 days post dose dexamethasone",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 6,
+      "code_value": "16298-2",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --45 minutes post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 7,
+      "code_value": "16299-0",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --6 hours post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 8,
+      "code_value": "51670-8",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --baseline",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 9,
+      "code_value": "51672-4",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --4th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 10,
+      "code_value": "51673-2",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --5th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 11,
+      "code_value": "51675-7",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --7th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 12,
+      "code_value": "51676-5",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --2nd specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 13,
+      "code_value": "51677-3",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --1st specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 14,
+      "code_value": "51678-1",
+      "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --3rd specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

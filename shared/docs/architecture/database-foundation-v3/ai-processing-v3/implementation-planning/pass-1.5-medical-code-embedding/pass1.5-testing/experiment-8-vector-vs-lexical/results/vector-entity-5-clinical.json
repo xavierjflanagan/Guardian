@@ -1,0 +1,171 @@
+{
+  "entity_id": 5,
+  "entity_text": "Pregnancy test",
+  "variant_type": "clinical",
+  "query": "pregnancy test result",
+  "expected_entity_type": "observation",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:12.828Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "85693-0",
+      "display_name": "Previous rubella virus test result",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.489001
+    },
+    {
+      "rank": 2,
+      "code_value": "96768-7",
+      "display_name": "Pregnancy outcome related to illness or condition",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.463235
+    },
+    {
+      "rank": 3,
+      "code_value": "39226-6",
+      "display_name": "Hemoglobin test status CPHS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.37549
+    },
+    {
+      "rank": 4,
+      "code_value": "39263-9",
+      "display_name": "Tuberculin screen test status CPHS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.359757
+    },
+    {
+      "rank": 5,
+      "code_value": "53691-2",
+      "display_name": "Gestational age Estimated from patient reported estimated date of conception",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.324056
+    },
+    {
+      "rank": 6,
+      "code_value": "96154-0",
+      "display_name": "Pulmonary Evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.300741
+    },
+    {
+      "rank": 7,
+      "code_value": "81270-1",
+      "display_name": "Gestational age in weeks--at onset of illness",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.286651
+    },
+    {
+      "rank": 8,
+      "code_value": "9579-4",
+      "display_name": "Tetrahydrocorticosterone [Mass/time] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.278328
+    },
+    {
+      "rank": 9,
+      "code_value": "110630-1",
+      "display_name": "Allo-tetrahydrocorticosterone [Measurement] in Urine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.277187
+    },
+    {
+      "rank": 10,
+      "code_value": "82907-7",
+      "display_name": "Tetrahydrocorticosterone/Allo-tetrahydrocorticosterone [Molar ratio] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.276506
+    },
+    {
+      "rank": 11,
+      "code_value": "94721-8",
+      "display_name": "COVID-19 Evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.27391
+    },
+    {
+      "rank": 12,
+      "code_value": "11776-2",
+      "display_name": "Gestational age estimation formula Narrative [Bibliographic Citation] Citation",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.271485
+    },
+    {
+      "rank": 13,
+      "code_value": "11383-7",
+      "display_name": "Patient problem outcome Narrative",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.271277
+    },
+    {
+      "rank": 14,
+      "code_value": "78840-6",
+      "display_name": "JWH-081 5-hydroxypentyl (synthetic cannabinoid metabolite) cutoff [Mass/volume] in Urine for Confirmatory method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.270215
+    },
+    {
+      "rank": 15,
+      "code_value": "82906-9",
+      "display_name": "Tetrahydrocorticosterone/Allo-tetrahydrocorticosterone [Molar ratio] in Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.264073
+    },
+    {
+      "rank": 16,
+      "code_value": "53576-5",
+      "display_name": "Personal health monitoring report Document",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.263458
+    },
+    {
+      "rank": 17,
+      "code_value": "100512-3",
+      "display_name": "Pediatric pulmonology Outpatient Progress note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.261562
+    },
+    {
+      "rank": 18,
+      "code_value": "55824-7",
+      "display_name": "Allo-tetrahydrocorticosterone [Mass/time] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.260323
+    },
+    {
+      "rank": 19,
+      "code_value": "91541-3",
+      "display_name": "Disease outcome [Type]",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.259958
+    },
+    {
+      "rank": 20,
+      "code_value": "1727-7",
+      "display_name": "Adenosine monophosphate.cyclic [Mass/time] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.259592
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "entity_id": 5,
+  "entity_text": "Pregnancy test",
+  "variant_type": "layperson",
+  "query": "pregnant test positive negative",
+  "expected_entity_type": "observation",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:13.545Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "80865-9",
+      "display_name": "US transvaginal for pregnancy",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.491179
+    },
+    {
+      "rank": 2,
+      "code_value": "33853-3",
+      "display_name": "Progesterone [Moles/volume] in Serum or Plasma --1st specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.354183
+    },
+    {
+      "rank": 3,
+      "code_value": "71425-3",
+      "display_name": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Blood by Immunoassay",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.252552
+    },
+    {
+      "rank": 4,
+      "code_value": "106735-4",
+      "display_name": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum, Plasma or Blood by Rapid immunoassay",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.25037
+    },
+    {
+      "rank": 5,
+      "code_value": "44459-6",
+      "display_name": "C peptide/Creatinine [Mass Ratio] in Urine --2nd specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.232078
+    },
+    {
+      "rank": 6,
+      "code_value": "94330-8",
+      "display_name": "Specimen Processing comment",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.192362
+    },
+    {
+      "rank": 7,
+      "code_value": "81577-9",
+      "display_name": "PT Brain for amyloidosis",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.188516
+    },
+    {
+      "rank": 8,
+      "code_value": "21899-0",
+      "display_name": "Primary tumor.pathology Cancer",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.176512
+    },
+    {
+      "rank": 9,
+      "code_value": "10742-5",
+      "display_name": "Amyloid.microscopic observation [Identifier] in Tissue by Bennhold stain.Putchler modified",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.173316
+    },
+    {
+      "rank": 10,
+      "code_value": "85343-2",
+      "display_name": "Lymph nodes with macrometastases [#] in Cancer specimen by Light microscopy",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.159382
+    },
+    {
+      "rank": 11,
+      "code_value": "17214-8",
+      "display_name": "CD99 cells/cells in Blood",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.149971
+    },
+    {
+      "rank": 12,
+      "code_value": "74037-3",
+      "display_name": "Transmissible spongiform encephalopathy [Identifier] in Brain by Light microscopy",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.0968759
+    }
+  ]
+}

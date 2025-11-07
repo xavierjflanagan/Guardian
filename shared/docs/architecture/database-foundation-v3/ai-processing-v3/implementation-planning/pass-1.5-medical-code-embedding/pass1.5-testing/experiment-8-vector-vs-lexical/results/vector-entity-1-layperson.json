@@ -1,0 +1,91 @@
+{
+  "entity_id": 1,
+  "entity_text": "Blood glucose measurement",
+  "variant_type": "layperson",
+  "query": "blood sugar level test",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:37:57.902Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "16911-0",
+      "display_name": "Glucose [Presence] in Urine --8th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.494581
+    },
+    {
+      "rank": 2,
+      "code_value": "16908-6",
+      "display_name": "Glucose [Presence] in Urine --5th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.482895
+    },
+    {
+      "rank": 3,
+      "code_value": "21004-7",
+      "display_name": "Glucose tolerance [Interpretation] in Serum or Plasma",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.482018
+    },
+    {
+      "rank": 4,
+      "code_value": "14749-6",
+      "display_name": "Glucose [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.43934
+    },
+    {
+      "rank": 5,
+      "code_value": "46735-7",
+      "display_name": "Endocrine disorders newborn screen interpretation",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.398541
+    },
+    {
+      "rank": 6,
+      "code_value": "80198-5",
+      "display_name": "Nonsteroidal antiinflammatory drugs [Presence] in Blood by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.39481
+    },
+    {
+      "rank": 7,
+      "code_value": "111396-8",
+      "display_name": "Chromium [Measurement] in Urine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.357669
+    },
+    {
+      "rank": 8,
+      "code_value": "15118-3",
+      "display_name": "Chromium [Moles/volume] in Blood",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.344985
+    },
+    {
+      "rank": 9,
+      "code_value": "45227-6",
+      "display_name": "Blackberry IgE Ab/IgE total in Serum",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.341065
+    },
+    {
+      "rank": 10,
+      "code_value": "19304-5",
+      "display_name": "Thiazides tested for in Urine by Screen method Nominal",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.340859
+    }
+  ]
+}

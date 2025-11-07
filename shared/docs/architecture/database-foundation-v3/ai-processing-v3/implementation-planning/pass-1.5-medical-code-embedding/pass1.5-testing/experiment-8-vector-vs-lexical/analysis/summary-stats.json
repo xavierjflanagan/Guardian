@@ -1,0 +1,20 @@
+{
+  "total_queries": 18,
+  "average_overlap_percentage": 0.2777777777777778,
+  "average_vector_entity_type_match": 9.11111111111111,
+  "average_lexical_entity_type_match": 3.2777777777777777,
+  "by_variant_type": {
+    "clinical": {
+      "count": 6,
+      "avg_overlap": 0.8333333333333334
+    },
+    "layperson": {
+      "count": 6,
+      "avg_overlap": 0
+    },
+    "abbreviation": {
+      "count": 6,
+      "avg_overlap": 0
+    }
+  }
+}
