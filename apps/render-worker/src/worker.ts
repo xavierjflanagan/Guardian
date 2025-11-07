@@ -715,11 +715,18 @@ class V3Worker {
       const MEMORY_LIMIT_MB = parseInt(process.env.MEMORY_LIMIT_MB || '1800', 10); // Safety threshold (2GB plan: 1800 MB)
       const validPages = preprocessResult.pages.filter(p => p.base64); // Skip failed pages
 
-      this.logger.info('Starting batched parallel OCR', {
+      // OCR SESSION START LOGGING
+      const ocrSessionStartTime = Date.now();
+      const totalBatchesForSession = Math.ceil(validPages.length / BATCH_SIZE);
+
+      this.logger.info('OCR processing session started', {
         shell_file_id: payload.shell_file_id,
-        totalPages: preprocessResult.pages.length,
-        validPages: validPages.length,
-        batchSize: BATCH_SIZE,
+        correlation_id: this.logger['correlation_id'],
+        total_pages: validPages.length,
+        batch_size: BATCH_SIZE,
+        total_batches: totalBatchesForSession,
+        ocr_provider: 'google_vision',
+        timestamp: new Date().toISOString(),
       });
 
       // Process pages in batches with comprehensive error handling
@@ -730,26 +737,24 @@ class V3Worker {
           const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1;
           const totalBatches = Math.ceil(validPages.length / BATCH_SIZE);
 
-          this.logger.info(`Processing batch ${batchNumber}/${totalBatches}`, {
-            shell_file_id: payload.shell_file_id,
-            batchStart: batchStart + 1,
-            batchEnd,
-            batchSize: batch.length,
-          });
-
           // Check memory before processing batch
           const memBefore = process.memoryUsage();
-          const rssMB = Math.round(memBefore.rss / 1024 / 1024);
+          const batchStartTime = Date.now();
 
-          this.logger.info('Memory before batch', {
+          // OCR BATCH START LOGGING
+          this.logger.info('OCR batch started', {
             shell_file_id: payload.shell_file_id,
-            batchNumber,
-            heapUsedMB: Math.round(memBefore.heapUsed / 1024 / 1024),
-            heapTotalMB: Math.round(memBefore.heapTotal / 1024 / 1024),
-            rssMB,
+            correlation_id: this.logger['correlation_id'],
+            batch_number: batchNumber,
+            total_batches: totalBatches,
+            batch_size: batch.length,
+            pages_in_batch: batch.map(p => p.pageNumber).join(','),
+            memory_before_mb: Math.round(memBefore.rss / 1024 / 1024),
+            timestamp: new Date().toISOString(),
           });
 
           // Safety check: abort if approaching memory limit
+          const rssMB = Math.round(memBefore.rss / 1024 / 1024);
           if (rssMB > MEMORY_LIMIT_MB) {
             throw new Error(
               `Memory limit approaching (${rssMB} MB / ${MEMORY_LIMIT_MB} MB threshold). ` +
@@ -878,14 +883,30 @@ class V3Worker {
 
           // Memory cleanup after batch
           const memAfter = process.memoryUsage();
-          this.logger.info(`Batch ${batchNumber}/${totalBatches} complete`, {
+          const batchProcessingTime = Date.now() - batchStartTime;
+
+          // Calculate batch confidence
+          const batchConfidences = successfulPages.map(p => {
+            const avgLineConfidence = p.lines.reduce((sum: number, line: any) => sum + line.confidence, 0) / (p.lines.length || 1);
+            return avgLineConfidence;
+          });
+          const avgBatchConfidence = batchConfidences.reduce((a, b) => a + b, 0) / (batchConfidences.length || 1);
+
+          // OCR BATCH COMPLETION LOGGING
+          this.logger.info('OCR batch completed', {
             shell_file_id: payload.shell_file_id,
-            batchNumber,
-            pagesProcessed: ocrPages.length,
-            totalPages: validPages.length,
-            heapUsedMB: Math.round(memAfter.heapUsed / 1024 / 1024),
-            heapTotalMB: Math.round(memAfter.heapTotal / 1024 / 1024),
-            rssMB: Math.round(memAfter.rss / 1024 / 1024),
+            correlation_id: this.logger['correlation_id'],
+            batch_number: batchNumber,
+            total_batches: totalBatches,
+            batch_size: batch.length,
+            processing_time_ms: batchProcessingTime,
+            successful_pages: successfulPages.length,
+            failed_pages: failedPages.length,
+            failed_page_numbers: failedPages.map(p => p.pageNumber).join(',') || 'none',
+            average_confidence: avgBatchConfidence.toFixed(4),
+            memory_after_mb: Math.round(memAfter.rss / 1024 / 1024),
+            memory_delta_mb: Math.round((memAfter.rss - memBefore.rss) / 1024 / 1024),
+            timestamp: new Date().toISOString(),
           });
 
           // Force garbage collection if available (requires --expose-gc flag)
@@ -922,9 +943,42 @@ class V3Worker {
         pages: ocrPages,
       };
 
-      this.logger.info('All pages OCR complete', {
+      // OCR SESSION COMPLETION LOGGING
+      const totalOCRTime = Date.now() - ocrSessionStartTime;
+      const avgBatchTime = totalOCRTime / totalBatchesForSession;
+      const avgPageTime = totalOCRTime / validPages.length;
+
+      // Calculate overall confidence
+      const allConfidences = ocrPages.map(p => {
+        const avgLineConfidence = p.lines.reduce((sum: number, line: any) => sum + line.confidence, 0) / (p.lines.length || 1);
+        return avgLineConfidence;
+      });
+      const overallAvgConfidence = allConfidences.reduce((a, b) => a + b, 0) / (allConfidences.length || 1);
+
+      // Calculate total text length
+      const totalTextLength = ocrPages.reduce((sum, p) => {
+        return sum + p.lines.reduce((lineSum: number, line: any) => lineSum + line.text.length, 0);
+      }, 0);
+
+      // Memory stats
+      const finalMemory = process.memoryUsage();
+      const peakMemoryMB = Math.round(finalMemory.rss / 1024 / 1024);
+
+      this.logger.info('OCR processing session completed', {
         shell_file_id: payload.shell_file_id,
-        totalPages: ocrPages.length,
+        correlation_id: this.logger['correlation_id'],
+        total_pages: ocrPages.length,
+        total_batches: totalBatchesForSession,
+        batch_size: BATCH_SIZE,
+        total_processing_time_ms: totalOCRTime,
+        average_batch_time_ms: Math.round(avgBatchTime),
+        average_page_time_ms: Math.round(avgPageTime),
+        successful_pages: ocrPages.length,
+        failed_pages: 0,
+        average_confidence: overallAvgConfidence.toFixed(4),
+        total_text_length: totalTextLength,
+        peak_memory_mb: peakMemoryMB,
+        timestamp: new Date().toISOString(),
       });
 
       // FIX: Update shell_files.page_count with actual OCR page count
