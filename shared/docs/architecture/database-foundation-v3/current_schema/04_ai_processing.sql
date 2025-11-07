@@ -196,6 +196,132 @@ COMMENT ON COLUMN ocr_artifacts.pages IS 'Number of pages processed';
 COMMENT ON COLUMN ocr_artifacts.bytes IS 'Total size of all OCR artifacts in bytes';
 
 -- =============================================================================
+-- SECTION 0B: OCR PROCESSING METRICS
+-- =============================================================================
+-- Added 2025-11-08 (Migration 43): OCR performance metrics for batch optimization
+-- Purpose: Store per-job OCR performance data for batch size optimization and cost analysis
+
+CREATE TABLE IF NOT EXISTS ocr_processing_metrics (
+  -- Primary key
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Foreign key references
+  shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+
+  -- Correlation tracking (links to application logs)
+  correlation_id TEXT NOT NULL,
+
+  -- Batch configuration (optimization target)
+  batch_size INTEGER NOT NULL CHECK (batch_size > 0),
+  total_batches INTEGER NOT NULL CHECK (total_batches > 0),
+  total_pages INTEGER NOT NULL CHECK (total_pages > 0),
+
+  -- Timing metrics (all in milliseconds)
+  started_at TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ NOT NULL,
+  processing_time_ms INTEGER NOT NULL CHECK (processing_time_ms >= 0),
+  average_batch_time_ms NUMERIC(10,2) CHECK (average_batch_time_ms IS NULL OR average_batch_time_ms >= 0),
+  average_page_time_ms NUMERIC(10,2) CHECK (average_page_time_ms IS NULL OR average_page_time_ms >= 0),
+  provider_avg_latency_ms INTEGER CHECK (provider_avg_latency_ms IS NULL OR provider_avg_latency_ms >= 0),
+
+  -- Individual batch timings for distribution analysis
+  batch_times_ms INTEGER[] NOT NULL DEFAULT '{}',
+
+  -- Success/failure tracking
+  successful_pages INTEGER NOT NULL DEFAULT 0 CHECK (successful_pages >= 0),
+  failed_pages INTEGER NOT NULL DEFAULT 0 CHECK (failed_pages >= 0),
+  failed_page_numbers INTEGER[] NOT NULL DEFAULT '{}',
+
+  -- Quality metrics
+  average_confidence NUMERIC(5,4) CHECK (average_confidence >= 0.0 AND average_confidence <= 1.0),
+  total_text_length INTEGER CHECK (total_text_length >= 0),
+
+  -- Resource usage (memory tracking)
+  peak_memory_mb INTEGER CHECK (peak_memory_mb > 0),
+  memory_freed_mb INTEGER CHECK (memory_freed_mb IS NULL OR memory_freed_mb >= 0),
+
+  -- Cost estimation (for budget tracking)
+  estimated_cost_usd NUMERIC(10,6) CHECK (estimated_cost_usd >= 0),
+  estimated_cost_per_page_usd NUMERIC(10,6) CHECK (estimated_cost_per_page_usd >= 0),
+
+  -- Provider info
+  ocr_provider TEXT NOT NULL DEFAULT 'google_vision' CHECK (ocr_provider IN ('google_vision', 'aws_textract', 'azure_cv')),
+
+  -- Deployment context (for environment comparison)
+  environment TEXT CHECK (environment IN ('development', 'staging', 'production')),
+  app_version TEXT,
+  worker_id TEXT,
+
+  -- Retry tracking (detect problematic documents)
+  retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+
+  -- Queue wait time (operational metric - detects worker starvation)
+  queue_wait_ms INTEGER CHECK (queue_wait_ms >= 0),
+
+  -- Audit timestamp
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Constraint: completed_at must be after started_at
+  CONSTRAINT valid_ocr_timing CHECK (completed_at >= started_at)
+);
+
+-- Indexes for ocr_processing_metrics
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_shell_file ON ocr_processing_metrics(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_correlation ON ocr_processing_metrics(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_patient_id ON ocr_processing_metrics(patient_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ocr_metrics_correlation ON ocr_processing_metrics(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_created_at ON ocr_processing_metrics(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_batch_perf ON ocr_processing_metrics(batch_size, average_page_time_ms);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_patient_created_at ON ocr_processing_metrics(patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_shell_file_created_at ON ocr_processing_metrics(shell_file_id, created_at DESC);
+
+-- Enable RLS
+ALTER TABLE ocr_processing_metrics ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Users can view their own OCR metrics
+DO $ocr_metrics_policy_user$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ocr_processing_metrics' AND policyname = 'Users can view own OCR metrics') THEN
+        CREATE POLICY "Users can view own OCR metrics"
+          ON ocr_processing_metrics
+          FOR SELECT
+          USING (
+            patient_id IN (
+              SELECT profile_id FROM get_accessible_profiles(auth.uid())
+            )
+          );
+    END IF;
+END $ocr_metrics_policy_user$;
+
+-- RLS Policy: Service role full access
+DO $ocr_metrics_policy_service$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ocr_processing_metrics' AND policyname = 'Service role full access to OCR metrics') THEN
+        CREATE POLICY "Service role full access to OCR metrics"
+          ON ocr_processing_metrics
+          FOR ALL
+          USING (
+            coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+          )
+          WITH CHECK (
+            coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+          );
+    END IF;
+END $ocr_metrics_policy_service$;
+
+-- Grants
+GRANT SELECT ON ocr_processing_metrics TO authenticated;
+GRANT ALL ON ocr_processing_metrics TO service_role;
+
+-- Table and column comments
+COMMENT ON TABLE ocr_processing_metrics IS 'OCR processing performance metrics for batch optimization and cost analysis. Stores one row per shell_file OCR session.';
+COMMENT ON COLUMN ocr_processing_metrics.batch_size IS 'Number of pages processed per batch (optimization target).';
+COMMENT ON COLUMN ocr_processing_metrics.processing_time_ms IS 'Total OCR session processing time in milliseconds.';
+COMMENT ON COLUMN ocr_processing_metrics.provider_avg_latency_ms IS 'Average Google Cloud Vision API response time per request (milliseconds).';
+COMMENT ON COLUMN ocr_processing_metrics.queue_wait_ms IS 'Time from job creation to job start (milliseconds). High values indicate worker starvation.';
+COMMENT ON COLUMN ocr_processing_metrics.batch_times_ms IS 'Array of individual batch processing times for distribution analysis.';
+COMMENT ON COLUMN ocr_processing_metrics.correlation_id IS 'Links to application logs for detailed debugging. Must be unique per OCR session.';
+
+-- =============================================================================
 -- SECTION 1: AI PROCESSING SESSION MANAGEMENT
 -- =============================================================================
 

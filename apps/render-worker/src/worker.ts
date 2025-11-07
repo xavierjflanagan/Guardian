@@ -726,6 +726,9 @@ class V3Worker {
       const jobStartedAt = new Date(job.started_at).getTime();
       const queueWaitMs = jobStartedAt - jobCreatedAt;
 
+      // Track batch processing times for metrics
+      const batchTimesMs: number[] = [];
+
       this.logger.info('OCR processing session started', {
         shell_file_id: payload.shell_file_id,
         correlation_id: this.logger['correlation_id'],
@@ -894,6 +897,9 @@ class V3Worker {
           const memAfter = process.memoryUsage();
           const batchProcessingTime = Date.now() - batchStartTime;
 
+          // Track batch time for metrics
+          batchTimesMs.push(batchProcessingTime);
+
           // Calculate batch confidence
           const batchConfidences = successfulPages.map(p => {
             const avgLineConfidence = p.lines.reduce((sum: number, line: any) => sum + line.confidence, 0) / (p.lines.length || 1);
@@ -1017,6 +1023,56 @@ class V3Worker {
         this.logger.info('Updated page_count with actual OCR count', {
           shell_file_id: payload.shell_file_id,
           page_count: actualPageCount,
+        });
+      }
+
+      // Write OCR processing metrics to database (Phase 2 of OCR logging)
+      const ocrSessionEndTime = Date.now();
+      const { error: metricsError } = await this.supabase
+        .from('ocr_processing_metrics')
+        .insert({
+          shell_file_id: payload.shell_file_id,
+          patient_id: payload.patient_id,
+          correlation_id: this.logger['correlation_id'],
+          batch_size: BATCH_SIZE,
+          total_batches: totalBatchesForSession,
+          total_pages: ocrPages.length,
+          started_at: new Date(ocrSessionStartTime).toISOString(),
+          completed_at: new Date(ocrSessionEndTime).toISOString(),
+          processing_time_ms: totalOCRTime,
+          average_batch_time_ms: avgBatchTime,
+          average_page_time_ms: avgPageTime,
+          provider_avg_latency_ms: Math.round(providerAvgLatency),
+          batch_times_ms: batchTimesMs,
+          successful_pages: ocrPages.length,
+          failed_pages: 0, // TODO: Track actual failed pages when implemented
+          failed_page_numbers: [],
+          average_confidence: parseFloat(overallAvgConfidence.toFixed(4)),
+          total_text_length: totalTextLength,
+          peak_memory_mb: peakMemoryMB,
+          memory_freed_mb: null, // TODO: Calculate if needed
+          estimated_cost_usd: null, // TODO: Calculate based on Google Vision pricing
+          estimated_cost_per_page_usd: null,
+          ocr_provider: 'google_vision',
+          environment: process.env.APP_ENV || 'development',
+          app_version: process.env.npm_package_version || 'unknown',
+          worker_id: process.env.WORKER_ID || 'unknown',
+          retry_count: job.retry_count,
+          queue_wait_ms: queueWaitMs,
+        });
+
+      if (metricsError) {
+        this.logger.error('Failed to write OCR metrics to database', metricsError as Error, {
+          shell_file_id: payload.shell_file_id,
+          correlation_id: this.logger['correlation_id'],
+        });
+        // Log error but don't fail - metrics are for analysis only
+      } else {
+        this.logger.info('OCR metrics written to database', {
+          shell_file_id: payload.shell_file_id,
+          correlation_id: this.logger['correlation_id'],
+          total_pages: ocrPages.length,
+          processing_time_ms: totalOCRTime,
         });
       }
 
