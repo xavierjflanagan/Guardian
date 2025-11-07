@@ -3,12 +3,13 @@
  *
  * Strategy Selection (via PASS_05_STRATEGY env var):
  * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
- * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
  *
  * Version Selection (via PASS_05_VERSION env var):
  * - 'v2.4' (default): Current production prompt (v2.4)
  * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
+ * - 'v2.8': Further optimizations
+ * - 'v2.9': Latest optimizations
  */
 
 import OpenAI from 'openai';
@@ -17,8 +18,6 @@ import { buildEncounterDiscoveryPrompt } from './aiPrompts';
 import { buildEncounterDiscoveryPromptV27 } from './aiPrompts.v2.7';
 import { buildEncounterDiscoveryPromptV28 } from './aiPrompts.v2.8';
 import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
-import { buildOCROptimizedPrompt } from './aiPromptsOCR';
-// import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
 import { parseEncounterResponse } from './manifestBuilder';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -51,8 +50,8 @@ export async function discoverEncounters(
 
   try {
     // Read strategy and version from environment variables
-    const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'ocr_optimized' | 'vision';
-    const version = (process.env.PASS_05_VERSION || 'v2.4') as 'v2.4' | 'v2.7' | 'v2.8' | 'v2.9';
+    const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'vision';
+    const version = (process.env.PASS_05_VERSION || 'v2.9') as 'v2.4' | 'v2.7' | 'v2.8' | 'v2.9';
 
     console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
 
@@ -61,24 +60,18 @@ export async function discoverEncounters(
       throw new Error(
         'Vision strategy not yet implemented. ' +
         'Requires image loading from Supabase Storage. ' +
-        'Use PASS_05_STRATEGY=ocr or ocr_optimized instead.'
+        'Use PASS_05_STRATEGY=ocr instead.'
       );
     }
 
-    // Select prompt builder based on strategy and version
-    let promptBuilder;
-    if (strategy === 'ocr_optimized') {
-      promptBuilder = buildOCROptimizedPrompt;
-    } else {
-      // For 'ocr' strategy, choose version
-      promptBuilder = version === 'v2.9'
-        ? buildEncounterDiscoveryPromptV29
-        : version === 'v2.8'
-          ? buildEncounterDiscoveryPromptV28
-          : version === 'v2.7'
-            ? buildEncounterDiscoveryPromptV27
-            : buildEncounterDiscoveryPrompt;
-    }
+    // Select prompt builder based on version
+    const promptBuilder = version === 'v2.9'
+      ? buildEncounterDiscoveryPromptV29
+      : version === 'v2.8'
+        ? buildEncounterDiscoveryPromptV28
+        : version === 'v2.7'
+          ? buildEncounterDiscoveryPromptV27
+          : buildEncounterDiscoveryPrompt;
 
     // Build prompt with OCR text
     const prompt = promptBuilder({
