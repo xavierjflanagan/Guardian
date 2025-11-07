@@ -69,6 +69,8 @@ interface Job {
   scheduled_at: string;
   retry_count: number;
   max_retries: number;
+  created_at: string;
+  started_at: string;
 }
 
 // =============================================================================
@@ -719,6 +721,11 @@ class V3Worker {
       const ocrSessionStartTime = Date.now();
       const totalBatchesForSession = Math.ceil(validPages.length / BATCH_SIZE);
 
+      // Calculate queue wait time (time from job creation to job start)
+      const jobCreatedAt = new Date(job.created_at).getTime();
+      const jobStartedAt = new Date(job.started_at).getTime();
+      const queueWaitMs = jobStartedAt - jobCreatedAt;
+
       this.logger.info('OCR processing session started', {
         shell_file_id: payload.shell_file_id,
         correlation_id: this.logger['correlation_id'],
@@ -726,6 +733,8 @@ class V3Worker {
         batch_size: BATCH_SIZE,
         total_batches: totalBatchesForSession,
         ocr_provider: 'google_vision',
+        retry_count: job.retry_count,
+        queue_wait_ms: queueWaitMs,
         timestamp: new Date().toISOString(),
       });
 
@@ -960,6 +969,10 @@ class V3Worker {
         return sum + p.lines.reduce((lineSum: number, line: any) => lineSum + line.text.length, 0);
       }, 0);
 
+      // Calculate provider average latency (Google Vision API response time)
+      const providerLatencies = ocrPages.map(p => p.processing_time_ms);
+      const providerAvgLatency = providerLatencies.reduce((a, b) => a + b, 0) / (providerLatencies.length || 1);
+
       // Memory stats
       const finalMemory = process.memoryUsage();
       const peakMemoryMB = Math.round(finalMemory.rss / 1024 / 1024);
@@ -973,6 +986,7 @@ class V3Worker {
         total_processing_time_ms: totalOCRTime,
         average_batch_time_ms: Math.round(avgBatchTime),
         average_page_time_ms: Math.round(avgPageTime),
+        provider_avg_latency_ms: Math.round(providerAvgLatency),
         successful_pages: ocrPages.length,
         failed_pages: 0,
         average_confidence: overallAvgConfidence.toFixed(4),
