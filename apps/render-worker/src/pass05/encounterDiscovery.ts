@@ -12,15 +12,14 @@
  * - 'v2.9': Latest optimizations
  */
 
-import OpenAI from 'openai';
 import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 import { buildEncounterDiscoveryPrompt } from './aiPrompts';
 import { buildEncounterDiscoveryPromptV27 } from './aiPrompts.v2.7';
 import { buildEncounterDiscoveryPromptV28 } from './aiPrompts.v2.8';
 import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
 import { parseEncounterResponse } from './manifestBuilder';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { getSelectedModel } from './models/model-selector';
+import { AIProviderFactory } from './providers/provider-factory';
 
 export interface EncounterDiscoveryInput {
   shellFileId: string;
@@ -80,67 +79,37 @@ export async function discoverEncounters(
       ocrPages: input.ocrOutput.fullTextAnnotation.pages
     });
 
-    // Detect GPT-5 vs GPT-4o (same pattern as Pass 1)
-    const model = 'gpt-5';
-    const isGPT5 = model.startsWith('gpt-5');
+    // Get selected model and create provider (multi-vendor architecture)
+    const model = getSelectedModel();
+    const provider = AIProviderFactory.createProvider(model);
 
-    // Build request parameters with model-specific handling
-    const requestParams: any = {
-      model: model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a medical document analyzer specializing in healthcare encounter extraction.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      response_format: { type: 'json_object' }
-    };
+    console.log(`[Pass 0.5] Processing with ${model.displayName}`);
 
-    // Model-specific parameters (same pattern as Pass 1)
-    if (isGPT5) {
-      // GPT-5: Uses max_completion_tokens, temperature fixed at 1.0
-      requestParams.max_completion_tokens = 32000; // Safe limit for GPT-5-mini (supports up to 128k)
-    } else {
-      // GPT-4o and earlier: Uses max_tokens and custom temperature
-      requestParams.max_tokens = 32000;
-      requestParams.temperature = 0.1; // Low temperature for consistent extraction
-    }
-
-    // Call OpenAI API
-    const response = await openai.chat.completions.create(requestParams);
+    // Generate JSON response using provider abstraction
+    const aiResponse = await provider.generateJSON(prompt);
 
     // Parse AI response
-    const aiOutput = response.choices[0].message.content;
-    if (!aiOutput) {
+    if (!aiResponse.content) {
       throw new Error('Empty response from AI');
     }
 
     // v2.3: Pass totalPages for page assignment validation
     const parsed = await parseEncounterResponse(
-      aiOutput,
+      aiResponse.content,
       input.ocrOutput,
       input.patientId,
       input.shellFileId,
       input.pageCount  // v2.3: Enable page assignment validation
     );
 
-    // Calculate cost
-    const inputTokens = response.usage?.prompt_tokens || 0;
-    const outputTokens = response.usage?.completion_tokens || 0;
-    const cost = calculateCost(inputTokens, outputTokens);
-
     return {
       success: true,
       encounters: parsed.encounters,
       page_assignments: parsed.page_assignments,  // v2.3: Include if present
-      aiModel: response.model,  // Dynamic from OpenAI response
-      aiCostUsd: cost,
-      inputTokens,
-      outputTokens
+      aiModel: aiResponse.model,  // Model name from provider
+      aiCostUsd: aiResponse.cost,  // Cost calculated by provider
+      inputTokens: aiResponse.inputTokens,
+      outputTokens: aiResponse.outputTokens
     };
 
   } catch (error) {
@@ -154,15 +123,4 @@ export async function discoverEncounters(
       outputTokens: 0
     };
   }
-}
-
-function calculateCost(inputTokens: number, outputTokens: number): number {
-  // GPT-5-mini pricing (as of Oct 2025)
-  const INPUT_PRICE_PER_1M = 0.25;  // $0.25 per 1M tokens (verified)
-  const OUTPUT_PRICE_PER_1M = 2.00;  // $2.00 per 1M tokens (verified)
-
-  const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M;
-  const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M;
-
-  return inputCost + outputCost;
 }
