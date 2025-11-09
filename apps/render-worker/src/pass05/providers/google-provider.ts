@@ -39,16 +39,46 @@ export class GoogleProvider extends BaseAIProvider {
       const result = await genModel.generateContent(prompt);
       const response = result.response;
 
+      // Check if response has candidates (can be blocked by safety filters or other issues)
+      if (!response.candidates || response.candidates.length === 0) {
+        const blockReason = (response as any).promptFeedback?.blockReason || 'UNKNOWN';
+        throw new Error(
+          `Gemini returned no candidates. Block reason: ${blockReason}. ` +
+          `This usually indicates safety filter blocking or content policy violation.`
+        );
+      }
+
+      // Check finish reason for the first candidate
+      const candidate = response.candidates[0];
+      const finishReason = candidate.finishReason;
+
+      if (finishReason && finishReason !== 'STOP') {
+        throw new Error(
+          `Gemini stopped generation with reason: ${finishReason}. ` +
+          `This may indicate: MAX_TOKENS (output too long), SAFETY (blocked content), ` +
+          `RECITATION (copyright), or OTHER issues.`
+        );
+      }
+
+      // Extract text content
+      const textContent = response.text();
+      if (!textContent || textContent.trim() === '') {
+        throw new Error(
+          `Gemini returned empty text content despite having candidates. ` +
+          `Finish reason: ${finishReason || 'UNKNOWN'}`
+        );
+      }
+
       // Extract token counts from metadata (with estimation fallback)
       const metadata = response.usageMetadata;
       const inputTokens = metadata?.promptTokenCount || promptTokens;
-      const outputTokens = metadata?.candidatesTokenCount || this.estimateTokens(response.text());
+      const outputTokens = metadata?.candidatesTokenCount || this.estimateTokens(textContent);
 
       // Calculate cost
       const cost = this.calculateCost(inputTokens, outputTokens);
 
       return {
-        content: response.text(),
+        content: textContent,
         model: this.model.modelId,
         inputTokens,
         outputTokens,
