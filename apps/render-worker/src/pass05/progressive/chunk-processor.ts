@@ -55,7 +55,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   // Separate completed vs continuing encounters
   const completedEncounters: EncounterMetadata[] = [];
-  const completedPageAssignments: PageAssignment[] = [];
+  const completedPageAssignments: PageAssignment[] = parsed.pageAssignments;  // FIXED: Use parsed page assignments
   let pendingEncounter: ChunkResult['pendingEncounter'] = null;
 
   for (const enc of parsed.encounters) {
@@ -76,7 +76,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
           page_ranges: enc.pageRanges || [],
           confidence: enc.confidence,
           summary: enc.summary,
-          identified_in_pass: '0.5',
+          identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
           source_method: 'progressive_chunk'
         })
         .select()
@@ -214,6 +214,7 @@ function parseProgressiveResponse(content: any): {
     summary?: string;
     expectedContinuation?: string;
   }>;
+  pageAssignments: PageAssignment[];  // ADDED: Parse page assignments
   activeContext?: any;
 } {
   const raw = content as ProgressiveAIResponse;
@@ -235,8 +236,16 @@ function parseProgressiveResponse(content: any): {
     expectedContinuation: enc.expected_continuation
   }));
 
+  // ADDED: Parse page assignments (already in camelCase format from AI)
+  const pageAssignments: PageAssignment[] = (raw.page_assignments || []).map(pa => ({
+    page: pa.page,
+    encounter_id: pa.encounter_id,
+    justification: pa.justification
+  }));
+
   return {
     encounters,
+    pageAssignments,  // ADDED: Return parsed page assignments
     activeContext: raw.active_context
   };
 }

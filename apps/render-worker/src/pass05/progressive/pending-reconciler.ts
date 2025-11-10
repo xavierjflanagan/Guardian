@@ -107,7 +107,7 @@ async function completePendingEncounter(
       page_ranges: partial.pageRanges || [],
       confidence: pending.confidence || 0.5,
       summary: partial.summary,
-      identified_in_pass: '0.5',  // Progressive refinement is part of Pass 0.5
+      identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
       source_method: 'progressive_reconciliation'
     })
     .select()
