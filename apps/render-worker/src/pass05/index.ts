@@ -110,10 +110,38 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
       batching: null  // Phase 1: always null
     };
 
+    // HOTFIX 2A: Create processing session (required for metrics table)
+    // Standard mode creates a simple session with 1 chunk
+    const { data: session, error: sessionError } = await supabase
+      .from('pass05_progressive_sessions')
+      .insert({
+        shell_file_id: input.shellFileId,
+        patient_id: input.patientId,
+        total_pages: input.pageCount,
+        chunk_size: input.pageCount, // Standard mode = entire document in 1 chunk
+        total_chunks: 1,
+        current_chunk: 1,
+        processing_status: 'completed',
+        started_at: new Date(startTime).toISOString(),
+        completed_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+
+    if (sessionError || !session) {
+      console.error('[Pass 0.5] Failed to create processing session:', sessionError);
+      throw new Error(`Failed to create processing session: ${sessionError?.message}`);
+    }
+
+    console.log(`[Pass 0.5] Created processing session: ${session.id}`);
+
     // HOTFIX 2A: Write encounter metrics for cost tracking and performance monitoring
     const encounters = encounterResult.encounters!;
     const realWorldCount = encounters.filter(e => e.isRealWorldVisit).length;
     const pseudoCount = encounters.filter(e => !e.isRealWorldVisit).length;
+    const plannedCount = encounters.filter(e =>
+      e.encounterType.startsWith('planned_')
+    ).length;
     const avgConfidence = encounters.length > 0
       ? encounters.reduce((sum, e) => sum + (e.confidence || 0), 0) / encounters.length
       : 0;
@@ -124,13 +152,16 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
       .insert({
         shell_file_id: input.shellFileId,
         patient_id: input.patientId,
+        processing_session_id: session.id, // FIX: Include required session_id
         encounters_detected: encounters.length,
         real_world_encounters: realWorldCount,
         pseudo_encounters: pseudoCount,
+        planned_encounters: plannedCount,
         processing_time_ms: Date.now() - startTime,
         ai_model_used: encounterResult.aiModel,
         input_tokens: encounterResult.inputTokens,
         output_tokens: encounterResult.outputTokens,
+        total_tokens: encounterResult.inputTokens + encounterResult.outputTokens,
         ai_cost_usd: encounterResult.aiCostUsd,
         encounter_confidence_average: avgConfidence,
         encounter_types_found: encounterTypes,
