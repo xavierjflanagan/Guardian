@@ -3,13 +3,14 @@
  * Processes individual chunks with context handoff
  */
 
-import { ChunkParams, ChunkResult, ProgressiveAIResponse } from './types';
-import { EncounterMetadata, PageAssignment } from '../types';
+import { ChunkParams, ChunkResult } from './types';
+import { EncounterMetadata, PageAssignment, OCRPage } from '../types';
 import { buildHandoffPackage } from './handoff-builder';
 import { saveChunkResults, savePendingEncounter } from './database';
 import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
-import { buildProgressivePrompt } from './prompts';
+import { buildProgressiveAddons } from './addons';
+import { buildEncounterDiscoveryPromptV29 } from '../aiPrompts.v2.9';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -25,15 +26,25 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0] + 1}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
 
-  // Build prompt with handoff context
-  const prompt = buildProgressivePrompt({
-    pages: params.pages,
-    pageRange: params.pageRange,
-    totalPages: params.totalPages,
+  // Build base v2.9 prompt (same as standard mode)
+  const fullText = extractTextFromPages(params.pages);
+  const basePrompt = buildEncounterDiscoveryPromptV29({
+    fullText,
+    pageCount: params.totalPages,  // Total pages in document (for context)
+    ocrPages: params.pages
+  });
+
+  // Append progressive-specific instructions
+  const progressiveAddons = buildProgressiveAddons({
     chunkNumber: params.chunkNumber,
     totalChunks: params.totalChunks,
+    pageRange: params.pageRange,
+    totalPages: params.totalPages,
     handoffReceived: params.handoffReceived
   });
+
+  // Compositional prompt: base + addons
+  const prompt = basePrompt + '\n\n' + progressiveAddons;
 
   // Get AI model and provider
   const model = getSelectedModel();
@@ -195,8 +206,10 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 }
 
 /**
- * Parse and normalize AI response from snake_case to camelCase
- * CRITICAL: AI returns snake_case, TypeScript expects camelCase
+ * Parse AI response using v2.9 schema (camelCase)
+ *
+ * ARCHITECTURE CHANGE: Now uses v2.9 base prompt which outputs camelCase natively.
+ * Progressive addons don't change the schema, so no normalization needed.
  */
 function parseProgressiveResponse(content: any): {
   encounters: Array<{
@@ -214,30 +227,39 @@ function parseProgressiveResponse(content: any): {
     summary?: string;
     expectedContinuation?: string;
   }>;
-  pageAssignments: PageAssignment[];  // ADDED: Parse page assignments
+  pageAssignments: PageAssignment[];
   activeContext?: any;
 } {
-  const raw = content as ProgressiveAIResponse;
+  // v2.9 outputs camelCase, so we can use it directly
+  const parsed = typeof content === 'string' ? JSON.parse(content) : content;
 
-  // Normalize encounters from snake_case to camelCase
-  const encounters = (raw.encounters || []).map(enc => ({
-    status: enc.status,
-    tempId: enc.temp_id,
-    encounterType: enc.encounter_type,
-    encounterStartDate: enc.encounter_start_date,
-    encounterEndDate: enc.encounter_end_date,
-    encounterTimeframeStatus: enc.encounter_timeframe_status,
-    dateSource: enc.date_source,
-    providerName: enc.provider_name,
-    facility: enc.facility,
-    pageRanges: enc.page_ranges || [],
-    confidence: enc.confidence,
-    summary: enc.summary,
-    expectedContinuation: enc.expected_continuation
-  }));
+  // Map v2.9 camelCase format to our internal format
+  const encounters = (parsed.encounters || []).map((enc: any) => {
+    // Determine status: check if summary indicates continuation
+    const isContinuing = enc.summary && (
+      enc.summary.includes('continues beyond') ||
+      enc.summary.includes('continuing to next chunk')
+    );
 
-  // ADDED: Parse page assignments (already in camelCase format from AI)
-  const pageAssignments: PageAssignment[] = (raw.page_assignments || []).map(pa => ({
+    return {
+      status: isContinuing ? 'continuing' : 'complete',
+      tempId: enc.encounter_id,  // Use encounter_id as tempId for continuations
+      encounterType: enc.encounterType,
+      encounterStartDate: enc.dateRange?.start,
+      encounterEndDate: enc.dateRange?.end,
+      encounterTimeframeStatus: enc.encounterTimeframeStatus || 'unknown_end_date',
+      dateSource: enc.dateSource || 'ai_extracted',
+      providerName: enc.provider,
+      facility: enc.facility,
+      pageRanges: enc.pageRanges || [],
+      confidence: enc.confidence,
+      summary: enc.summary,
+      expectedContinuation: undefined  // v2.9 doesn't have this field
+    };
+  });
+
+  // Parse page assignments (v2.9 format)
+  const pageAssignments: PageAssignment[] = (parsed.page_assignments || []).map((pa: any) => ({
     page: pa.page,
     encounter_id: pa.encounter_id,
     justification: pa.justification
@@ -245,9 +267,27 @@ function parseProgressiveResponse(content: any): {
 
   return {
     encounters,
-    pageAssignments,  // ADDED: Return parsed page assignments
-    activeContext: raw.active_context
+    pageAssignments,
+    activeContext: undefined  // v2.9 doesn't output this, but that's OK
   };
+}
+
+/**
+ * Extract full text from OCR pages for base prompt
+ */
+function extractTextFromPages(pages: OCRPage[]): string {
+  return pages.map((page, idx) => {
+    const words: string[] = [];
+    for (const block of page.blocks || []) {
+      for (const paragraph of block.paragraphs || []) {
+        for (const word of paragraph.words || []) {
+          words.push(word.text);
+        }
+      }
+    }
+    const text = words.join(' ');
+    return `--- PAGE ${idx + 1} START ---\n${text}\n--- PAGE ${idx + 1} END ---`;
+  }).join('\n\n');
 }
 
 /**
