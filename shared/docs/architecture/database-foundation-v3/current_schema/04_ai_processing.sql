@@ -814,17 +814,25 @@ ALTER TABLE manual_review_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_confidence_scoring ENABLE ROW LEVEL SECURITY;
 -- MOVED TO 05_healthcare_journey.sql: clinical_alert_rules and provider_action_items RLS
 
--- AI processing sessions - profile-based access (idempotent)
+-- AI processing sessions - profile-based access with service role bypass (Migration 46: 2025-11-10)
+ALTER TABLE ai_processing_sessions ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS ai_sessions_access ON ai_processing_sessions;
 CREATE POLICY ai_sessions_access ON ai_processing_sessions
-    FOR ALL TO authenticated
+    FOR ALL
     USING (
-        has_profile_access(auth.uid(), patient_id)
-        OR is_admin()
+        -- Service role: full access (backend worker needs to create sessions)
+        coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+        OR
+        -- Authenticated users: access via profile ownership or admin
+        (auth.role() = 'authenticated' AND (has_profile_access(auth.uid(), patient_id) OR is_admin()))
     )
     WITH CHECK (
-        has_profile_access(auth.uid(), patient_id)
-        OR is_admin()
+        -- Service role: full access for inserts
+        coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+        OR
+        -- Authenticated users: can insert for their own profiles or if admin
+        (auth.role() = 'authenticated' AND (has_profile_access(auth.uid(), patient_id) OR is_admin()))
     );
 
 -- Entity processing audit - profile-based access via session (idempotent)
