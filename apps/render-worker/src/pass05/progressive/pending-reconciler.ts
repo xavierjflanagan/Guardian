@@ -64,6 +64,17 @@ async function completePendingEncounter(
     return null;
   }
 
+  // CRITICAL FIX: Lookup patient_id and shell_file_id from session
+  const { data: session, error: sessionError } = await supabase
+    .from('pass05_progressive_sessions')
+    .select('patient_id, shell_file_id')
+    .eq('id', pending.sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw new Error(`Failed to lookup session ${pending.sessionId}: ${sessionError?.message || 'Not found'}`);
+  }
+
   // Build complete encounter from partial data
   const encounter: any = {
     encounterId: '',
@@ -80,22 +91,24 @@ async function completePendingEncounter(
     isRealWorldVisit: true
   };
 
-  // Write to healthcare_encounters table
+  // Write to healthcare_encounters table with correct patient_id and shell_file_id
   const { data: inserted, error } = await supabase
     .from('healthcare_encounters')
     .insert({
-      patient_id: pending.sessionId, // Will be replaced with actual patient_id via session lookup
+      patient_id: session.patient_id,  // FIXED: Use actual patient_id from session
+      primary_shell_file_id: session.shell_file_id,  // FIXED: Required for finalize aggregation
       encounter_type: partial.encounterType,
       encounter_start_date: partial.dateRange?.start,
       encounter_end_date: partial.dateRange?.end,
       encounter_timeframe_status: partial.encounterTimeframeStatus || 'unknown_end_date',
       date_source: partial.dateSource || 'ai_extracted',
-      provider_name: partial.provider,
-      facility: partial.facility,
+      provider_name: partial.provider,  // FIXED: Schema uses provider_name not provider
+      facility_name: partial.facility,  // FIXED: Schema uses facility_name not facility
       page_ranges: partial.pageRanges || [],
       confidence: pending.confidence || 0.5,
       summary: partial.summary,
-      source: 'pass05_progressive'
+      identified_in_pass: '0.5',  // Progressive refinement is part of Pass 0.5
+      source_method: 'progressive_reconciliation'
     })
     .select()
     .single();

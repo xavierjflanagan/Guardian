@@ -10,6 +10,12 @@ import { saveChunkResults, savePendingEncounter } from './database';
 import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
 import { buildProgressivePrompt } from './prompts';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /**
  * Process a single chunk of pages
@@ -54,9 +60,35 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   for (const enc of parsed.encounters) {
     if (enc.status === 'complete') {
-      // Convert to EncounterMetadata (note: actual type uses different field names)
-      // This is a placeholder - will be normalized in manifestBuilder.ts
+      // CRITICAL FIX: Persist completed encounters immediately to database
+      const { data: inserted, error: insertError } = await supabase
+        .from('healthcare_encounters')
+        .insert({
+          patient_id: params.patientId,
+          primary_shell_file_id: params.shellFileId,
+          encounter_type: enc.encounterType,
+          encounter_start_date: enc.encounterStartDate,
+          encounter_end_date: enc.encounterEndDate,
+          encounter_timeframe_status: enc.encounterTimeframeStatus || 'unknown_end_date',
+          date_source: enc.dateSource || 'ai_extracted',
+          provider_name: enc.providerName,
+          facility_name: enc.facility,
+          page_ranges: enc.pageRanges || [],
+          confidence: enc.confidence,
+          summary: enc.summary,
+          identified_in_pass: '0.5',
+          source_method: 'progressive_chunk'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(`Failed to persist completed encounter: ${insertError.message}`);
+      }
+
+      // Convert to EncounterMetadata for return value
       const encounter: any = {
+        encounterId: inserted.id,
         encounterType: enc.encounterType as any,
         dateRange: enc.encounterStartDate ? {
           start: enc.encounterStartDate,
@@ -69,9 +101,8 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
         pageRanges: enc.pageRanges || [],
         confidence: enc.confidence,
         summary: enc.summary,
-        spatialBounds: [], // Will be filled by manifestBuilder
-        isRealWorldVisit: true,
-        encounterId: '' // Will be assigned by manifestBuilder
+        spatialBounds: [],
+        isRealWorldVisit: true
       };
       completedEncounters.push(encounter);
 
@@ -107,7 +138,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
       // Save to pending encounters table
       if (pendingEncounter) {
-        await savePendingEncounter(params.sessionId, pendingEncounter);
+        await savePendingEncounter(params.sessionId, pendingEncounter, params.chunkNumber);
       }
     }
   }

@@ -74,6 +74,8 @@ export interface ChunkParams {
   pageRange: [number, number];  // 0-based: [startPage, endPage] exclusive
   totalPages: number;
   handoffReceived: HandoffPackage | null;
+  patientId: string;  // Required for persisting completed encounters
+  shellFileId: string;  // Required for persisting completed encounters
 }
 
 /**

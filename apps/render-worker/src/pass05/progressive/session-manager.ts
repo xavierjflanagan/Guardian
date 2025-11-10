@@ -35,7 +35,8 @@ export interface ProgressiveResult {
   sessionId: string;
   totalChunks: number;
   totalCost: number;
-  totalTokens: number;
+  totalInputTokens: number;  // FIXED: Track separately for accurate reporting
+  totalOutputTokens: number;  // FIXED: Track separately for accurate reporting
   requiresManualReview: boolean;
   reviewReasons: string[];
 }
@@ -64,7 +65,8 @@ export async function processDocumentProgressively(
   const allPageAssignments: PageAssignment[] = [];
   let handoffPackage: HandoffPackage | null = null;
   let totalCost = 0;
-  let totalTokens = 0;
+  let totalInputTokens = 0;  // FIXED: Track separately
+  let totalOutputTokens = 0;  // FIXED: Track separately
   const reviewReasons: string[] = [];
 
   try {
@@ -83,7 +85,9 @@ export async function processDocumentProgressively(
         pages: chunkPages,
         pageRange: [startIdx, endIdx],
         totalPages,
-        handoffReceived: handoffPackage
+        handoffReceived: handoffPackage,
+        patientId,
+        shellFileId
       };
 
       const result = await processChunk(chunkParams);
@@ -94,7 +98,8 @@ export async function processDocumentProgressively(
 
       // Track metrics
       totalCost += result.metrics.cost;
-      totalTokens += result.metrics.inputTokens + result.metrics.outputTokens;
+      totalInputTokens += result.metrics.inputTokens;  // FIXED: Track separately
+      totalOutputTokens += result.metrics.outputTokens;  // FIXED: Track separately
 
       // Low confidence warning
       if (result.metrics.confidence < 0.7) {
@@ -134,7 +139,8 @@ export async function processDocumentProgressively(
       sessionId: session.id,
       totalChunks: session.totalChunks,
       totalCost,
-      totalTokens,
+      totalInputTokens,  // FIXED: Return actual values
+      totalOutputTokens,  // FIXED: Return actual values
       requiresManualReview: reviewReasons.length > 0,
       reviewReasons
     };

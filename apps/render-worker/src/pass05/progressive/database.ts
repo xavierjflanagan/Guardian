@@ -142,22 +142,28 @@ export async function saveChunkResults(params: {
  */
 export async function savePendingEncounter(
   sessionId: string,
-  pending: NonNullable<HandoffPackage['pendingEncounter']>
+  pending: NonNullable<HandoffPackage['pendingEncounter']>,
+  chunkNumber: number  // FIXED: Pass actual chunk number instead of calculating
 ): Promise<void> {
   // Try to update existing first, then insert if not found
   const { data: existing } = await supabase
     .from('pass05_pending_encounters')
-    .select('id')
+    .select('id, page_ranges')
     .eq('session_id', sessionId)
     .eq('temp_encounter_id', pending.tempId)
     .single();
 
   if (existing) {
     // Update existing pending encounter
+    // TIER 2 FIX: Track chunk_last_seen and accumulate page_ranges
+    const updatedPageRanges = [...(existing.page_ranges || []), pending.startPage];
+
     const { error } = await supabase
       .from('pass05_pending_encounters')
       .update({
+        chunk_last_seen: chunkNumber,  // TIER 2 FIX: Track which chunk last saw this
         partial_data: pending.partialData,
+        page_ranges: updatedPageRanges,  // TIER 2 FIX: Accumulate page numbers
         last_seen_context: pending.lastSeenContext,
         expected_continuation: pending.expectedContinuation,
         confidence: pending.confidence,
@@ -175,8 +181,10 @@ export async function savePendingEncounter(
       .insert({
         session_id: sessionId,
         temp_encounter_id: pending.tempId,
-        chunk_started: Math.floor(pending.startPage / 50) + 1,  // Approximate chunk number
+        chunk_started: chunkNumber,  // FIXED: Use actual chunk number, not calculated
+        chunk_last_seen: chunkNumber,  // TIER 2 FIX: Track last seen chunk
         partial_data: pending.partialData,
+        page_ranges: [pending.startPage],  // TIER 2 FIX: Initialize page ranges array
         last_seen_context: pending.lastSeenContext,
         expected_continuation: pending.expectedContinuation,
         confidence: pending.confidence,

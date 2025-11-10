@@ -86,8 +86,8 @@ export async function discoverEncounters(
         page_assignments: progressiveResult.pageAssignments,
         aiModel: 'progressive-session',
         aiCostUsd: progressiveResult.totalCost,
-        inputTokens: Math.floor(progressiveResult.totalTokens * 0.6), // Estimate 60/40 split
-        outputTokens: Math.floor(progressiveResult.totalTokens * 0.4)
+        inputTokens: progressiveResult.totalInputTokens,  // FIXED: Use actual values
+        outputTokens: progressiveResult.totalOutputTokens  // FIXED: Use actual values
       };
     }
 
