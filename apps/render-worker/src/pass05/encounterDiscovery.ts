@@ -26,6 +26,13 @@ import { parseEncounterResponse } from './manifestBuilder';
 import { getSelectedModel } from './models/model-selector';
 import { AIProviderFactory } from './providers/provider-factory';
 import { shouldUseProgressiveMode, processDocumentProgressively } from './progressive/session-manager';
+import { createClient } from '@supabase/supabase-js';
+
+// Migration 45: Supabase client for shell_files finalization
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export interface EncounterDiscoveryInput {
   shellFileId: string;
@@ -43,6 +50,39 @@ export interface EncounterDiscoveryOutput {
   aiCostUsd: number;
   inputTokens: number;
   outputTokens: number;
+}
+
+/**
+ * Migration 45: Calculate average OCR confidence across all pages
+ */
+function calculateOCRConfidence(ocrOutput: GoogleCloudVisionOCR): number {
+  const confidences = ocrOutput.fullTextAnnotation.pages.map(p => p.confidence || 0);
+  if (confidences.length === 0) return 0;
+  return confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+}
+
+/**
+ * Migration 45: Finalize shell_file with Pass 0.5 metadata (manifest-free architecture)
+ */
+async function finalizeShellFile(shellFileId: string, data: {
+  version: string;
+  progressive: boolean;
+  ocrConfidence: number;
+  completed: boolean;
+}): Promise<void> {
+  const { error } = await supabase
+    .from('shell_files')
+    .update({
+      pass_0_5_completed: data.completed,
+      pass_0_5_version: data.version,
+      pass_0_5_progressive: data.progressive,
+      ocr_average_confidence: data.ocrConfidence
+    })
+    .eq('id', shellFileId);
+
+  if (error) {
+    throw new Error(`Failed to update shell_files: ${error.message}`);
+  }
 }
 
 /**
@@ -80,11 +120,19 @@ export async function discoverEncounters(
         input.ocrOutput.fullTextAnnotation.pages
       );
 
+      // Migration 45: Finalize shell_file with Pass 0.5 metadata
+      await finalizeShellFile(input.shellFileId, {
+        version: 'v2.10', // Progressive always uses v2.10
+        progressive: true,
+        ocrConfidence: calculateOCRConfidence(input.ocrOutput),
+        completed: true
+      });
+
       return {
         success: true,
         encounters: progressiveResult.encounters,
         page_assignments: progressiveResult.pageAssignments,
-        aiModel: 'progressive-session',
+        aiModel: progressiveResult.aiModel, // Migration 45: Use actual model from progressive result
         aiCostUsd: progressiveResult.totalCost,
         inputTokens: progressiveResult.totalInputTokens,  // FIXED: Use actual values
         outputTokens: progressiveResult.totalOutputTokens  // FIXED: Use actual values
@@ -132,6 +180,14 @@ export async function discoverEncounters(
       input.shellFileId,
       input.pageCount  // v2.3: Enable page assignment validation
     );
+
+    // Migration 45: Finalize shell_file with Pass 0.5 metadata
+    await finalizeShellFile(input.shellFileId, {
+      version, // Use actual version (v2.9, v2.8, etc.)
+      progressive: false,
+      ocrConfidence: calculateOCRConfidence(input.ocrOutput),
+      completed: true
+    });
 
     return {
       success: true,

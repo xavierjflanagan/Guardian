@@ -20,10 +20,10 @@ const PAGE_THRESHOLD = 100; // Switch to progressive mode above this
 
 /**
  * Determine if document requires progressive processing
+ * Migration 45: Automatic based on page count (no environment variable)
  */
 export function shouldUseProgressiveMode(totalPages: number): boolean {
-  const enabled = process.env.PASS_05_PROGRESSIVE_ENABLED === 'true';
-  return enabled && totalPages > PAGE_THRESHOLD;
+  return totalPages > PAGE_THRESHOLD;
 }
 
 /**
@@ -39,6 +39,7 @@ export interface ProgressiveResult {
   totalOutputTokens: number;  // FIXED: Track separately for accurate reporting
   requiresManualReview: boolean;
   reviewReasons: string[];
+  aiModel: string; // Migration 45: AI model used for processing
 }
 
 /**
@@ -68,6 +69,7 @@ export async function processDocumentProgressively(
   let totalInputTokens = 0;  // FIXED: Track separately
   let totalOutputTokens = 0;  // FIXED: Track separately
   const reviewReasons: string[] = [];
+  let aiModel = ''; // Migration 45: Track model used
 
   try {
     // Process chunks sequentially
@@ -100,6 +102,7 @@ export async function processDocumentProgressively(
       totalCost += result.metrics.cost;
       totalInputTokens += result.metrics.inputTokens;  // FIXED: Track separately
       totalOutputTokens += result.metrics.outputTokens;  // FIXED: Track separately
+      aiModel = result.metrics.aiModel; // Migration 45: Capture model used
 
       // Low confidence warning
       if (result.metrics.confidence < 0.7) {
@@ -142,7 +145,8 @@ export async function processDocumentProgressively(
       totalInputTokens,  // FIXED: Return actual values
       totalOutputTokens,  // FIXED: Return actual values
       requiresManualReview: reviewReasons.length > 0,
-      reviewReasons
+      reviewReasons,
+      aiModel // Migration 45: Return model used
     };
 
   } catch (error) {
