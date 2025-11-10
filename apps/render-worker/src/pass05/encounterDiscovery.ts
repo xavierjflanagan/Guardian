@@ -25,7 +25,7 @@ import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
 import { parseEncounterResponse } from './manifestBuilder';
 import { getSelectedModel } from './models/model-selector';
 import { AIProviderFactory } from './providers/provider-factory';
-import { shouldUseProgressiveMode, processDocumentProgressively } from './progressive/session-manager';
+import { shouldUseProgressiveMode } from './progressive/session-manager';
 import { createClient } from '@supabase/supabase-js';
 
 // Migration 45: Supabase client for shell_files finalization
@@ -110,33 +110,14 @@ export async function discoverEncounters(
       );
     }
 
-    // PROGRESSIVE MODE: Check if document requires chunked processing
+    // PROGRESSIVE MODE: EMERGENCY DISABLED - v2.10 prompt returns zero encounters
     if (shouldUseProgressiveMode(input.pageCount)) {
-      console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode`);
-
-      const progressiveResult = await processDocumentProgressively(
-        input.shellFileId,
-        input.patientId,
-        input.ocrOutput.fullTextAnnotation.pages
+      throw new Error(
+        `[Pass 0.5] PROGRESSIVE MODE DISABLED - v2.10 prompt returns zero encounters. ` +
+        `Document has ${input.pageCount} pages which exceeds 100-page threshold. ` +
+        `v2.10 investigation required before re-enabling. ` +
+        `Temporary workaround: Manually split document into <100 page sections or wait for v2.10 fix.`
       );
-
-      // Migration 45: Finalize shell_file with Pass 0.5 metadata
-      await finalizeShellFile(input.shellFileId, {
-        version: 'v2.10', // Progressive always uses v2.10
-        progressive: true,
-        ocrConfidence: calculateOCRConfidence(input.ocrOutput),
-        completed: true
-      });
-
-      return {
-        success: true,
-        encounters: progressiveResult.encounters,
-        page_assignments: progressiveResult.pageAssignments,
-        aiModel: progressiveResult.aiModel, // Migration 45: Use actual model from progressive result
-        aiCostUsd: progressiveResult.totalCost,
-        inputTokens: progressiveResult.totalInputTokens,  // FIXED: Use actual values
-        outputTokens: progressiveResult.totalOutputTokens  // FIXED: Use actual values
-      };
     }
 
     // STANDARD MODE: Process entire document in single pass

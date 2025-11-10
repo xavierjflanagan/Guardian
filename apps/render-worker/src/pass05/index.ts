@@ -110,21 +110,113 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
       batching: null  // Phase 1: always null
     };
 
-    // Migration 45: No manifest write - data already in normalized tables
-    // - Encounters: written by manifestBuilder in parseEncounterResponse()
-    // - Metrics: written by manifestBuilder
-    // - Shell file metadata: updated by finalizeShellFile() in encounterDiscovery.ts
+    // HOTFIX 2A: Write encounter metrics for cost tracking and performance monitoring
+    const encounters = encounterResult.encounters!;
+    const realWorldCount = encounters.filter(e => e.isRealWorldVisit).length;
+    const pseudoCount = encounters.filter(e => !e.isRealWorldVisit).length;
+    const avgConfidence = encounters.length > 0
+      ? encounters.reduce((sum, e) => sum + (e.confidence || 0), 0) / encounters.length
+      : 0;
+    const encounterTypes = [...new Set(encounters.map(e => e.encounterType))];
+
+    const { error: metricsError } = await supabase
+      .from('pass05_encounter_metrics')
+      .insert({
+        shell_file_id: input.shellFileId,
+        patient_id: input.patientId,
+        encounters_detected: encounters.length,
+        real_world_encounters: realWorldCount,
+        pseudo_encounters: pseudoCount,
+        processing_time_ms: Date.now() - startTime,
+        ai_model_used: encounterResult.aiModel,
+        input_tokens: encounterResult.inputTokens,
+        output_tokens: encounterResult.outputTokens,
+        ai_cost_usd: encounterResult.aiCostUsd,
+        encounter_confidence_average: avgConfidence,
+        encounter_types_found: encounterTypes,
+        total_pages: input.pageCount,
+        ocr_average_confidence: calculateAverageConfidence(input.ocrOutput)
+      });
+
+    if (metricsError) {
+      console.error('[Pass 0.5] Failed to write encounter metrics:', metricsError);
+      throw new Error(`Failed to write encounter metrics: ${metricsError.message}`);
+    }
+
+    console.log(`[Pass 0.5] Wrote metrics: ${encounters.length} encounters, $${encounterResult.aiCostUsd.toFixed(4)} cost`);
+
+    // HOTFIX 2B: Write page assignments (v2.3 feature)
+    if (encounterResult.page_assignments && encounterResult.page_assignments.length > 0) {
+      console.log(`[Pass 0.5] Writing ${encounterResult.page_assignments.length} page assignments`);
+
+      const assignmentsData = encounterResult.page_assignments.map(pa => ({
+        shell_file_id: input.shellFileId,
+        page_num: pa.page,
+        encounter_id: pa.encounter_id,
+        justification: pa.justification
+      }));
+
+      const { error: assignmentsError } = await supabase
+        .from('pass05_page_assignments')
+        .insert(assignmentsData);
+
+      if (assignmentsError) {
+        console.error('[Pass 0.5] Failed to write page assignments:', assignmentsError);
+        // Don't throw - page assignments are supplementary data
+        console.warn('[Pass 0.5] Continuing despite page assignment write failure');
+      } else {
+        console.log(`[Pass 0.5] Successfully wrote ${encounterResult.page_assignments.length} page assignments`);
+      }
+    } else {
+      console.log('[Pass 0.5] No page assignments in AI response (v2.3 feature not used)');
+    }
+
+    // HOTFIX 2C: Finalize shell_file with complete status and timestamps
+    const processingTimeMs = Date.now() - startTime;
+    const processingDuration = Math.floor(processingTimeMs / 1000);
+
+    const { error: finalizeError } = await supabase
+      .from('shell_files')
+      .update({
+        status: 'completed',
+        processing_completed_at: new Date().toISOString(),
+        pass_0_5_completed_at: new Date().toISOString(),
+        processing_duration_seconds: processingDuration
+      })
+      .eq('id', input.shellFileId);
+
+    if (finalizeError) {
+      console.error('[Pass 0.5] Failed to finalize shell file:', finalizeError);
+      // Don't throw - encounters are already written, this is just status update
+      console.warn('[Pass 0.5] Shell file finalization failed but encounters written successfully');
+    }
 
     return {
       success: true,
       manifest,
-      processingTimeMs: Date.now() - startTime,
+      processingTimeMs,
       aiCostUsd: encounterResult.aiCostUsd,
       aiModel: encounterResult.aiModel
     };
 
   } catch (error) {
     console.error('[Pass 0.5] Unexpected error:', error);
+
+    // HOTFIX 3: Update shell_file with error on failure
+    try {
+      await supabase
+        .from('shell_files')
+        .update({
+          status: 'failed',
+          pass_0_5_error: error instanceof Error ? error.message : 'Unknown error',
+          pass_0_5_completed: false,
+          processing_completed_at: new Date().toISOString()
+        })
+        .eq('id', input.shellFileId);
+    } catch (updateError) {
+      console.error('[Pass 0.5] Failed to update shell file with error:', updateError);
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

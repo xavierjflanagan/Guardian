@@ -27,6 +27,35 @@ const manifestBuilder_1 = require("./manifestBuilder");
 const model_selector_1 = require("./models/model-selector");
 const provider_factory_1 = require("./providers/provider-factory");
 const session_manager_1 = require("./progressive/session-manager");
+const supabase_js_1 = require("@supabase/supabase-js");
+// Migration 45: Supabase client for shell_files finalization
+const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+/**
+ * Migration 45: Calculate average OCR confidence across all pages
+ */
+function calculateOCRConfidence(ocrOutput) {
+    const confidences = ocrOutput.fullTextAnnotation.pages.map(p => p.confidence || 0);
+    if (confidences.length === 0)
+        return 0;
+    return confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+}
+/**
+ * Migration 45: Finalize shell_file with Pass 0.5 metadata (manifest-free architecture)
+ */
+async function finalizeShellFile(shellFileId, data) {
+    const { error } = await supabase
+        .from('shell_files')
+        .update({
+        pass_0_5_completed: data.completed,
+        pass_0_5_version: data.version,
+        pass_0_5_progressive: data.progressive,
+        ocr_average_confidence: data.ocrConfidence
+    })
+        .eq('id', shellFileId);
+    if (error) {
+        throw new Error(`Failed to update shell_files: ${error.message}`);
+    }
+}
 /**
  * Task 1: Extract healthcare encounters from OCR text
  * Strategy selected via PASS_05_STRATEGY environment variable
@@ -44,19 +73,12 @@ async function discoverEncounters(input) {
                 'Requires image loading from Supabase Storage. ' +
                 'Use PASS_05_STRATEGY=ocr instead.');
         }
-        // PROGRESSIVE MODE: Check if document requires chunked processing
+        // PROGRESSIVE MODE: EMERGENCY DISABLED - v2.10 prompt returns zero encounters
         if ((0, session_manager_1.shouldUseProgressiveMode)(input.pageCount)) {
-            console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode`);
-            const progressiveResult = await (0, session_manager_1.processDocumentProgressively)(input.shellFileId, input.patientId, input.ocrOutput.fullTextAnnotation.pages);
-            return {
-                success: true,
-                encounters: progressiveResult.encounters,
-                page_assignments: progressiveResult.pageAssignments,
-                aiModel: 'progressive-session',
-                aiCostUsd: progressiveResult.totalCost,
-                inputTokens: progressiveResult.totalInputTokens, // FIXED: Use actual values
-                outputTokens: progressiveResult.totalOutputTokens // FIXED: Use actual values
-            };
+            throw new Error(`[Pass 0.5] PROGRESSIVE MODE DISABLED - v2.10 prompt returns zero encounters. ` +
+                `Document has ${input.pageCount} pages which exceeds 100-page threshold. ` +
+                `v2.10 investigation required before re-enabling. ` +
+                `Temporary workaround: Manually split document into <100 page sections or wait for v2.10 fix.`);
         }
         // STANDARD MODE: Process entire document in single pass
         console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using standard mode`);
@@ -87,6 +109,13 @@ async function discoverEncounters(input) {
         // v2.3: Pass totalPages for page assignment validation
         const parsed = await (0, manifestBuilder_1.parseEncounterResponse)(aiResponse.content, input.ocrOutput, input.patientId, input.shellFileId, input.pageCount // v2.3: Enable page assignment validation
         );
+        // Migration 45: Finalize shell_file with Pass 0.5 metadata
+        await finalizeShellFile(input.shellFileId, {
+            version, // Use actual version (v2.9, v2.8, etc.)
+            progressive: false,
+            ocrConfidence: calculateOCRConfidence(input.ocrOutput),
+            completed: true
+        });
         return {
             success: true,
             encounters: parsed.encounters,
