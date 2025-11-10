@@ -110,30 +110,31 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
       batching: null  // Phase 1: always null
     };
 
-    // HOTFIX 2A: Create processing session (required for metrics table)
-    // Standard mode creates a simple session with 1 chunk
+    // HOTFIX 2A: Create AI processing session (required for metrics table foreign key)
     const { data: session, error: sessionError } = await supabase
-      .from('pass05_progressive_sessions')
+      .from('ai_processing_sessions')
       .insert({
         shell_file_id: input.shellFileId,
         patient_id: input.patientId,
-        total_pages: input.pageCount,
-        chunk_size: input.pageCount, // Standard mode = entire document in 1 chunk
-        total_chunks: 1,
-        current_chunk: 1,
-        processing_status: 'completed',
-        started_at: new Date(startTime).toISOString(),
-        completed_at: new Date().toISOString()
+        session_type: 'pass_0_5_encounter_discovery',
+        session_status: 'completed',
+        ai_model_name: encounterResult.aiModel,
+        processing_mode: 'standard', // vs 'progressive'
+        workflow_step: 'encounter_discovery',
+        total_steps: 1,
+        completed_steps: 1,
+        processing_started_at: new Date(startTime).toISOString(),
+        processing_completed_at: new Date().toISOString()
       })
       .select('id')
       .single();
 
     if (sessionError || !session) {
-      console.error('[Pass 0.5] Failed to create processing session:', sessionError);
-      throw new Error(`Failed to create processing session: ${sessionError?.message}`);
+      console.error('[Pass 0.5] Failed to create AI processing session:', sessionError);
+      throw new Error(`Failed to create AI processing session: ${sessionError?.message}`);
     }
 
-    console.log(`[Pass 0.5] Created processing session: ${session.id}`);
+    console.log(`[Pass 0.5] Created AI processing session: ${session.id}`);
 
     // HOTFIX 2A: Write encounter metrics for cost tracking and performance monitoring
     const encounters = encounterResult.encounters!;
