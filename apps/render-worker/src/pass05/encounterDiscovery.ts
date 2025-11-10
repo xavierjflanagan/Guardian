@@ -25,7 +25,7 @@ import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
 import { parseEncounterResponse } from './manifestBuilder';
 import { getSelectedModel } from './models/model-selector';
 import { AIProviderFactory } from './providers/provider-factory';
-import { shouldUseProgressiveMode } from './progressive/session-manager';
+import { shouldUseProgressiveMode, processDocumentProgressively } from './progressive/session-manager';
 import { createClient } from '@supabase/supabase-js';
 
 // Migration 45: Supabase client for shell_files finalization
@@ -110,17 +110,29 @@ export async function discoverEncounters(
       );
     }
 
-    // PROGRESSIVE MODE: EMERGENCY DISABLED - v2.10 prompt returns zero encounters
+    // PROGRESSIVE MODE: For documents >100 pages (uses compositional prompt architecture)
     if (shouldUseProgressiveMode(input.pageCount)) {
-      throw new Error(
-        `[Pass 0.5] PROGRESSIVE MODE DISABLED - v2.10 prompt returns zero encounters. ` +
-        `Document has ${input.pageCount} pages which exceeds 100-page threshold. ` +
-        `v2.10 investigation required before re-enabling. ` +
-        `Temporary workaround: Manually split document into <100 page sections or wait for v2.10 fix.`
+      console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode (compositional v2.9 + addons)`);
+
+      const progressiveResult = await processDocumentProgressively(
+        input.shellFileId,
+        input.patientId,
+        input.ocrOutput.fullTextAnnotation.pages
       );
+
+      // Progressive mode handles database writes internally, just return the result
+      return {
+        success: true,
+        encounters: progressiveResult.encounters,
+        page_assignments: progressiveResult.pageAssignments,
+        aiModel: progressiveResult.aiModel,
+        aiCostUsd: progressiveResult.totalCost,
+        inputTokens: progressiveResult.totalInputTokens,
+        outputTokens: progressiveResult.totalOutputTokens
+      };
     }
 
-    // STANDARD MODE: Process entire document in single pass
+    // STANDARD MODE: Process entire document in single pass (≤100 pages)
     console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using standard mode`);
 
     // Select prompt builder based on version
