@@ -99,13 +99,13 @@ async function completePendingEncounter(
       primary_shell_file_id: session.shell_file_id,  // FIXED: Required for finalize aggregation
       encounter_type: partial.encounterType,
       encounter_start_date: partial.dateRange?.start,
-      encounter_end_date: partial.dateRange?.end,
+      encounter_date_end: partial.dateRange?.end,  // FIXED: Schema uses encounter_date_end not encounter_end_date
       encounter_timeframe_status: partial.encounterTimeframeStatus || 'unknown_end_date',
       date_source: partial.dateSource || 'ai_extracted',
       provider_name: partial.provider,  // FIXED: Schema uses provider_name not provider
       facility_name: partial.facility,  // FIXED: Schema uses facility_name not facility
       page_ranges: partial.pageRanges || [],
-      confidence: pending.confidence || 0.5,
+      pass_0_5_confidence: pending.confidence || 0.5,  // FIXED: Schema uses pass_0_5_confidence not confidence
       summary: partial.summary,
       identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
       source_method: 'progressive_reconciliation'

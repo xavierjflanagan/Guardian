@@ -79,13 +79,13 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
           primary_shell_file_id: params.shellFileId,
           encounter_type: enc.encounterType,
           encounter_start_date: enc.encounterStartDate,
-          encounter_end_date: enc.encounterEndDate,
+          encounter_date_end: enc.encounterEndDate,  // FIXED: Schema uses encounter_date_end not encounter_end_date
           encounter_timeframe_status: enc.encounterTimeframeStatus || 'unknown_end_date',
           date_source: enc.dateSource || 'ai_extracted',
           provider_name: enc.providerName,
           facility_name: enc.facility,
           page_ranges: enc.pageRanges || [],
-          confidence: enc.confidence,
+          pass_0_5_confidence: enc.confidence,  // FIXED: Schema uses pass_0_5_confidence not confidence
           summary: enc.summary,
           identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
           source_method: 'progressive_chunk'
