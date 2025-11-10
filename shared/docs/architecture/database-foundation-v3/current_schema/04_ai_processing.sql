@@ -1515,6 +1515,128 @@ CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
     USING (has_profile_access(auth.uid(), profile_id) OR is_admin())
     WITH CHECK (has_profile_access(auth.uid(), profile_id) OR is_admin());
 
+-- =============================================================================
+-- SECTION 12: PASS 0.5 ENCOUNTER DISCOVERY INFRASTRUCTURE (Migration 45 - 2025-11-11)
+-- =============================================================================
+-- Manifest-free architecture: Page assignments and backward-compatible view
+
+-- Page-level encounter assignments with AI justifications
+CREATE TABLE IF NOT EXISTS pass05_page_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+    page_num INTEGER NOT NULL CHECK (page_num > 0),
+    encounter_id TEXT NOT NULL, -- AI-assigned temp ID like "enc-1", "enc-2"
+    justification TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(shell_file_id, page_num) -- Idempotent upserts safe
+);
+
+CREATE INDEX idx_page_assignments_shell_file ON pass05_page_assignments(shell_file_id);
+
+COMMENT ON TABLE pass05_page_assignments IS
+  'Page-level encounter assignments with AI justifications (v2.3 feature).
+   Maps each page to its encounter with reasoning. Temp IDs (enc-1, enc-2) are mapped
+   to actual UUIDs during encounter creation by manifestBuilder.
+   UNIQUE constraint on (shell_file_id, page_num) enables idempotent upserts.';
+
+-- Enable RLS for PHI protection (inherits access control from shell_files)
+ALTER TABLE pass05_page_assignments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS pass05_page_assignments_select ON pass05_page_assignments;
+CREATE POLICY pass05_page_assignments_select
+  ON pass05_page_assignments FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM shell_files sf
+      WHERE sf.id = pass05_page_assignments.shell_file_id
+      -- RLS on shell_files already enforces patient_id access via has_semantic_data_access()
+    )
+  );
+
+COMMENT ON POLICY pass05_page_assignments_select ON pass05_page_assignments IS
+  'Users can only see page assignments for their own shell files.
+   Security inherited from shell_files RLS - no complex logic duplication needed.';
+
+-- Backward-compatible view replacing deprecated shell_file_manifests table
+CREATE OR REPLACE VIEW shell_file_manifests_v2 AS
+SELECT
+  sf.id as manifest_id, -- Stable manifest_id = shell_file_id
+  sf.id as shell_file_id,
+  sf.patient_id,
+  sf.created_at,
+  sf.pass_0_5_version,
+  m.processing_time_ms,
+  sf.page_count as total_pages,
+  COUNT(he.id) as total_encounters_found,
+  sf.ocr_average_confidence,
+  jsonb_build_object(
+    'shellFileId', sf.id,
+    'patientId', sf.patient_id,
+    'totalPages', sf.page_count,
+    'ocrAverageConfidence', sf.ocr_average_confidence,
+    'encounters', COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'encounterId', he.id,
+          'encounterType', he.encounter_type,
+          'isRealWorldVisit', he.is_real_world_visit,
+          'dateRange', jsonb_build_object(
+            'start', he.encounter_start_date,
+            'end', he.encounter_date_end
+          ),
+          'encounterTimeframeStatus', he.encounter_timeframe_status,
+          'dateSource', he.date_source,
+          'provider', he.provider_name,
+          'facility', he.facility_name,
+          'pageRanges', he.page_ranges,
+          'confidence', he.pass_0_5_confidence,
+          'summary', he.summary,
+          'spatialBounds', he.spatial_bounds
+        ) ORDER BY he.encounter_start_date, he.id
+      ) FILTER (WHERE he.id IS NOT NULL),
+      '[]'::jsonb
+    ),
+    'page_assignments', COALESCE(pa.assignments, '[]'::jsonb),
+    'batching', null
+  ) as manifest_data,
+  m.ai_model_used
+FROM shell_files sf
+LEFT JOIN healthcare_encounters he ON he.primary_shell_file_id = sf.id
+LEFT JOIN pass05_encounter_metrics m ON m.shell_file_id = sf.id
+LEFT JOIN LATERAL (
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'page', page_num,
+      'encounter_id', encounter_id,
+      'justification', justification
+    ) ORDER BY page_num
+  ) as assignments
+  FROM pass05_page_assignments
+  WHERE shell_file_id = sf.id
+) pa ON true
+WHERE sf.pass_0_5_completed = true
+GROUP BY sf.id, sf.patient_id, sf.created_at, sf.pass_0_5_version,
+         sf.page_count, sf.ocr_average_confidence,
+         m.processing_time_ms, m.ai_model_used, pa.assignments;
+
+COMMENT ON VIEW shell_file_manifests_v2 IS
+  'Backward-compatible view replacing the deprecated shell_file_manifests table.
+   Aggregates data from distributed sources (shell_files, healthcare_encounters, metrics).
+   manifest_id uses sf.id (shell_file_id) for stability - same UUID on every query,
+   enables caching, WHERE clauses, and perfect backward compatibility.
+   Security: Only service_role should query this directly. Authenticated users should
+   access via base tables with RLS protection.';
+
+-- View security: Restrict to service_role only (base table RLS protects actual data access)
+REVOKE ALL ON shell_file_manifests_v2 FROM PUBLIC;
+REVOKE ALL ON shell_file_manifests_v2 FROM authenticated;
+GRANT SELECT ON shell_file_manifests_v2 TO service_role;
+
+-- Page assignments security grants
+REVOKE ALL ON pass05_page_assignments FROM PUBLIC;
+GRANT SELECT ON pass05_page_assignments TO authenticated;
+GRANT ALL ON pass05_page_assignments TO service_role;
+
 COMMIT;
 
 -- =============================================================================

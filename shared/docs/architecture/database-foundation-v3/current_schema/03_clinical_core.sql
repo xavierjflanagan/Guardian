@@ -143,10 +143,13 @@ CREATE TABLE IF NOT EXISTS shell_files (
     processed_image_mime TEXT, -- MIME type of processed image
     processed_image_size_bytes BIGINT, -- Migration 40: Combined total size in bytes of all processed JPEG pages (populated after all pages persisted)
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 39 - 2025-11-04)
+    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 39 - 2025-11-04, Migration 45 - 2025-11-11)
     pass_0_5_completed BOOLEAN DEFAULT FALSE, -- True if Pass 0.5 encounter discovery completed successfully
     pass_0_5_completed_at TIMESTAMPTZ, -- When Pass 0.5 completed
     pass_0_5_error TEXT, -- Pass 0.5 error message if failed
+    pass_0_5_version TEXT DEFAULT NULL, -- Migration 45: Prompt version used (e.g., v2.9, v2.10)
+    pass_0_5_progressive BOOLEAN DEFAULT FALSE, -- Migration 45: TRUE if progressive refinement used (>100 pages)
+    ocr_average_confidence NUMERIC(3,2) DEFAULT NULL, -- Migration 45: Average OCR confidence across all pages (0.00-1.00)
     page_separation_analysis JSONB, -- Migration 39: Inter-page dependency analysis for batching (safe_split_points, inseparable_groups)
 
     -- Audit and lifecycle
