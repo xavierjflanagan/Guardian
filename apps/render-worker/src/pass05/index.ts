@@ -116,11 +116,11 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
       .insert({
         shell_file_id: input.shellFileId,
         patient_id: input.patientId,
-        session_type: 'pass_0_5_encounter_discovery',
+        session_type: 'shell_file_processing',
         session_status: 'completed',
         ai_model_name: encounterResult.aiModel,
-        processing_mode: 'standard', // vs 'progressive'
-        workflow_step: 'encounter_discovery',
+        processing_mode: 'automated', // Valid: 'automated', 'human_guided', 'validation_only'
+        workflow_step: 'clinical_extraction', // Pass 0.5 extracts encounter metadata
         total_steps: 1,
         completed_steps: 1,
         processing_started_at: new Date(startTime).toISOString(),
