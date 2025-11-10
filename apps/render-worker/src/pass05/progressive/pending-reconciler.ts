@@ -108,7 +108,7 @@ async function completePendingEncounter(
       pass_0_5_confidence: pending.confidence || 0.5,  // FIXED: Schema uses pass_0_5_confidence not confidence
       summary: partial.summary,
       identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
-      source_method: 'progressive_reconciliation'
+      source_method: 'ai_pass_0_5'  // FIXED: Must match CHECK constraint (ai_pass_0_5, ai_pass_2, manual_entry, import)
     })
     .select()
     .single();

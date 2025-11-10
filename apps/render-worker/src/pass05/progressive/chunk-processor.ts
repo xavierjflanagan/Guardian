@@ -88,7 +88,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
           pass_0_5_confidence: enc.confidence,  // FIXED: Schema uses pass_0_5_confidence not confidence
           summary: enc.summary,
           identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
-          source_method: 'progressive_chunk'
+          source_method: 'ai_pass_0_5'  // FIXED: Must match CHECK constraint (ai_pass_0_5, ai_pass_2, manual_entry, import)
         })
         .select()
         .single();
