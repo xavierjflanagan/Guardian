@@ -269,6 +269,249 @@ CREATE INDEX idx_pass05_metrics_created ON pass05_encounter_metrics(created_at);
 
 COMMENT ON TABLE pass05_encounter_metrics IS 'Pass 0.5 session-level performance and cost tracking';
 
+-- Pass 0.5 Progressive Refinement Infrastructure (Migration 44 - 2025-11-10)
+-- For handling large documents (200+ pages) that exceed AI output token limits
+
+CREATE TABLE IF NOT EXISTS pass05_progressive_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  patient_id UUID NOT NULL,
+
+  total_pages INTEGER NOT NULL CHECK (total_pages > 0),
+  chunk_size INTEGER NOT NULL CHECK (chunk_size > 0),
+  total_chunks INTEGER NOT NULL CHECK (total_chunks > 0),
+  current_chunk INTEGER NOT NULL DEFAULT 0 CHECK (current_chunk >= 0),
+
+  processing_status TEXT NOT NULL DEFAULT 'initialized'
+    CHECK (processing_status IN ('initialized', 'processing', 'completed', 'failed')),
+
+  current_handoff_package JSONB, -- Context passed between chunks
+
+  total_encounters_found INTEGER DEFAULT 0,
+  total_encounters_completed INTEGER DEFAULT 0,
+  total_encounters_pending INTEGER DEFAULT 0,
+
+  requires_manual_review BOOLEAN DEFAULT false,
+  review_reasons TEXT[],
+  average_confidence NUMERIC(3,2),
+
+  started_at TIMESTAMPTZ DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  total_processing_time INTERVAL,
+
+  total_ai_calls INTEGER DEFAULT 0,
+  total_input_tokens INTEGER DEFAULT 0,
+  total_output_tokens INTEGER DEFAULT 0,
+  total_cost_usd NUMERIC(10,4) DEFAULT 0,
+
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_progressive_sessions_shell_file ON pass05_progressive_sessions(shell_file_id);
+CREATE INDEX idx_progressive_sessions_patient ON pass05_progressive_sessions(patient_id);
+CREATE INDEX idx_progressive_sessions_status ON pass05_progressive_sessions(processing_status);
+CREATE INDEX idx_progressive_sessions_created ON pass05_progressive_sessions(created_at DESC);
+
+COMMENT ON TABLE pass05_progressive_sessions IS 'Tracks progressive processing sessions for large documents split into chunks';
+
+CREATE TABLE IF NOT EXISTS pass05_chunk_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+
+  chunk_number INTEGER NOT NULL CHECK (chunk_number > 0),
+  page_start INTEGER NOT NULL CHECK (page_start >= 0), -- 0-based inclusive
+  page_end INTEGER NOT NULL CHECK (page_end > page_start), -- 0-based exclusive
+
+  processing_status TEXT NOT NULL
+    CHECK (processing_status IN ('pending', 'processing', 'completed', 'failed')),
+
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  processing_time_ms INTEGER,
+
+  ai_model_used TEXT,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  ai_cost_usd NUMERIC(10,4),
+
+  handoff_received JSONB,
+  handoff_generated JSONB,
+
+  encounters_started INTEGER DEFAULT 0,
+  encounters_completed INTEGER DEFAULT 0,
+  encounters_continued INTEGER DEFAULT 0,
+
+  confidence_score NUMERIC(3,2),
+  ocr_average_confidence NUMERIC(3,2),
+
+  error_message TEXT,
+  error_context JSONB,
+  retry_count INTEGER DEFAULT 0,
+
+  ai_response_raw JSONB,
+
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_chunk_results_session ON pass05_chunk_results(session_id, chunk_number);
+CREATE INDEX idx_chunk_results_status ON pass05_chunk_results(processing_status);
+CREATE UNIQUE INDEX idx_chunk_results_session_chunk ON pass05_chunk_results(session_id, chunk_number);
+
+COMMENT ON TABLE pass05_chunk_results IS 'Detailed results from processing each chunk in a progressive session';
+
+CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+
+  temp_encounter_id TEXT NOT NULL,
+  chunk_started INTEGER NOT NULL,
+  chunk_last_seen INTEGER,
+
+  partial_data JSONB NOT NULL,
+  page_ranges INTEGER[],
+
+  last_seen_context TEXT,
+  expected_continuation TEXT,
+
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'completed', 'abandoned')),
+
+  completed_encounter_id UUID REFERENCES healthcare_encounters(id),
+  completed_at TIMESTAMPTZ,
+
+  confidence NUMERIC(3,2),
+  requires_review BOOLEAN DEFAULT false,
+
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_pending_encounters_session ON pass05_pending_encounters(session_id, status);
+CREATE INDEX idx_pending_encounters_temp_id ON pass05_pending_encounters(temp_encounter_id);
+CREATE INDEX idx_pending_encounters_completed ON pass05_pending_encounters(completed_encounter_id) WHERE completed_encounter_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_pending_encounters_unique_temp_id ON pass05_pending_encounters(session_id, temp_encounter_id);
+
+COMMENT ON TABLE pass05_pending_encounters IS 'Staging table for encounters that span multiple chunks during progressive processing';
+
+CREATE OR REPLACE VIEW pass05_progressive_performance AS
+SELECT
+  ps.id as session_id,
+  ps.shell_file_id,
+  ps.patient_id,
+  ps.total_pages,
+  ps.total_chunks,
+  ps.processing_status,
+  ps.total_encounters_found,
+  ps.total_encounters_completed,
+  ps.total_encounters_pending,
+  EXTRACT(EPOCH FROM (ps.completed_at - ps.started_at)) as total_seconds,
+  EXTRACT(EPOCH FROM ps.total_processing_time) as processing_seconds,
+  ps.total_input_tokens,
+  ps.total_output_tokens,
+  ps.total_input_tokens + ps.total_output_tokens as total_tokens,
+  ps.total_cost_usd,
+  ps.average_confidence,
+  ps.requires_manual_review,
+  ps.review_reasons,
+  COUNT(DISTINCT cr.id) as chunks_processed,
+  SUM(cr.encounters_completed) as total_completed_in_chunks,
+  AVG(cr.confidence_score) as avg_chunk_confidence,
+  AVG(cr.processing_time_ms) as avg_chunk_time_ms,
+  COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'completed') as pending_completed,
+  COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'pending') as pending_still_open,
+  COUNT(DISTINCT pe.id) FILTER (WHERE pe.status = 'abandoned') as pending_abandoned,
+  ps.started_at,
+  ps.completed_at,
+  ps.created_at
+FROM pass05_progressive_sessions ps
+LEFT JOIN pass05_chunk_results cr ON ps.id = cr.session_id
+LEFT JOIN pass05_pending_encounters pe ON ps.id = pe.session_id
+GROUP BY ps.id;
+
+COMMENT ON VIEW pass05_progressive_performance IS 'Aggregated performance metrics for progressive processing sessions';
+
+CREATE OR REPLACE FUNCTION update_progressive_session_progress(
+  p_session_id UUID,
+  p_chunk_number INTEGER,
+  p_handoff_package JSONB
+) RETURNS VOID AS $$
+BEGIN
+  UPDATE pass05_progressive_sessions
+  SET
+    current_chunk = p_chunk_number,
+    current_handoff_package = p_handoff_package,
+    updated_at = now()
+  WHERE id = p_session_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION finalize_progressive_session(
+  p_session_id UUID
+) RETURNS VOID AS $$
+DECLARE
+  v_total_encounters INTEGER;
+  v_pending_count INTEGER;
+  v_total_input_tokens INTEGER;
+  v_total_output_tokens INTEGER;
+  v_total_cost NUMERIC(10,4);
+  v_avg_confidence NUMERIC(3,2);
+  v_total_completed INTEGER;
+  v_ai_calls INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_total_encounters
+  FROM healthcare_encounters
+  WHERE primary_shell_file_id IN (
+    SELECT shell_file_id FROM pass05_progressive_sessions WHERE id = p_session_id
+  );
+
+  SELECT COUNT(*) INTO v_pending_count
+  FROM pass05_pending_encounters
+  WHERE session_id = p_session_id AND status = 'pending';
+
+  SELECT
+    COALESCE(SUM(input_tokens), 0),
+    COALESCE(SUM(output_tokens), 0),
+    COALESCE(SUM(ai_cost_usd), 0),
+    COALESCE(AVG(confidence_score), 0),
+    COALESCE(SUM(encounters_completed), 0),
+    COUNT(*)
+  INTO
+    v_total_input_tokens,
+    v_total_output_tokens,
+    v_total_cost,
+    v_avg_confidence,
+    v_total_completed,
+    v_ai_calls
+  FROM pass05_chunk_results
+  WHERE session_id = p_session_id;
+
+  UPDATE pass05_progressive_sessions
+  SET
+    processing_status = 'completed',
+    completed_at = now(),
+    total_processing_time = now() - started_at,
+    total_encounters_found = v_total_encounters,
+    total_encounters_completed = v_total_completed,
+    total_encounters_pending = v_pending_count,
+    total_input_tokens = v_total_input_tokens,
+    total_output_tokens = v_total_output_tokens,
+    total_cost_usd = v_total_cost,
+    average_confidence = v_avg_confidence,
+    total_ai_calls = v_ai_calls,
+    requires_manual_review = (v_pending_count > 0),
+    updated_at = now()
+  WHERE id = p_session_id;
+
+  IF v_pending_count > 0 THEN
+    UPDATE pass05_progressive_sessions
+    SET review_reasons = array_append(review_reasons,
+          format('%s pending encounters not completed', v_pending_count))
+    WHERE id = p_session_id;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Pass 1 Entity Detection Metrics
 CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

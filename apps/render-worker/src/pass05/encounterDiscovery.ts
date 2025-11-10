@@ -10,6 +10,11 @@
  * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
  * - 'v2.8': Further optimizations
  * - 'v2.9': Latest optimizations
+ *
+ * Progressive Mode (via PASS_05_PROGRESSIVE_ENABLED env var):
+ * - Documents >100 pages are automatically split into 50-page chunks
+ * - Context handoff between chunks for incomplete encounters
+ * - Prevents MAX_TOKENS errors on large documents
  */
 
 import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
@@ -20,6 +25,7 @@ import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
 import { parseEncounterResponse } from './manifestBuilder';
 import { getSelectedModel } from './models/model-selector';
 import { AIProviderFactory } from './providers/provider-factory';
+import { shouldUseProgressiveMode, processDocumentProgressively } from './progressive/session-manager';
 
 export interface EncounterDiscoveryInput {
   shellFileId: string;
@@ -42,6 +48,7 @@ export interface EncounterDiscoveryOutput {
 /**
  * Task 1: Extract healthcare encounters from OCR text
  * Strategy selected via PASS_05_STRATEGY environment variable
+ * Progressive mode automatically enabled for documents >100 pages
  */
 export async function discoverEncounters(
   input: EncounterDiscoveryInput
@@ -62,6 +69,30 @@ export async function discoverEncounters(
         'Use PASS_05_STRATEGY=ocr instead.'
       );
     }
+
+    // PROGRESSIVE MODE: Check if document requires chunked processing
+    if (shouldUseProgressiveMode(input.pageCount)) {
+      console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode`);
+
+      const progressiveResult = await processDocumentProgressively(
+        input.shellFileId,
+        input.patientId,
+        input.ocrOutput.fullTextAnnotation.pages
+      );
+
+      return {
+        success: true,
+        encounters: progressiveResult.encounters,
+        page_assignments: progressiveResult.pageAssignments,
+        aiModel: 'progressive-session',
+        aiCostUsd: progressiveResult.totalCost,
+        inputTokens: Math.floor(progressiveResult.totalTokens * 0.6), // Estimate 60/40 split
+        outputTokens: Math.floor(progressiveResult.totalTokens * 0.4)
+      };
+    }
+
+    // STANDARD MODE: Process entire document in single pass
+    console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using standard mode`);
 
     // Select prompt builder based on version
     const promptBuilder = version === 'v2.9'

@@ -3,12 +3,18 @@
  *
  * Strategy Selection (via PASS_05_STRATEGY env var):
  * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
- * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
  *
  * Version Selection (via PASS_05_VERSION env var):
  * - 'v2.4' (default): Current production prompt (v2.4)
  * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
+ * - 'v2.8': Further optimizations
+ * - 'v2.9': Latest optimizations
+ *
+ * Progressive Mode (via PASS_05_PROGRESSIVE_ENABLED env var):
+ * - Documents >100 pages are automatically split into 50-page chunks
+ * - Context handoff between chunks for incomplete encounters
+ * - Prevents MAX_TOKENS errors on large documents
  */
 import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 export interface EncounterDiscoveryInput {
@@ -30,6 +36,7 @@ export interface EncounterDiscoveryOutput {
 /**
  * Task 1: Extract healthcare encounters from OCR text
  * Strategy selected via PASS_05_STRATEGY environment variable
+ * Progressive mode automatically enabled for documents >100 pages
  */
 export declare function discoverEncounters(input: EncounterDiscoveryInput): Promise<EncounterDiscoveryOutput>;
 //# sourceMappingURL=encounterDiscovery.d.ts.map

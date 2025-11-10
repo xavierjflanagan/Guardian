@@ -55,16 +55,29 @@ async function getSharp() {
     }
     return sharpInstance;
 }
+// JPEG optimization configuration from environment variables
+const JPEG_QUALITY = parseInt(process.env.JPEG_QUALITY || '75', 10);
+const JPEG_CHROMA_SUBSAMPLING = (process.env.JPEG_CHROMA_SUBSAMPLING || '4:2:0');
+// Validate JPEG quality range
+if (JPEG_QUALITY < 1 || JPEG_QUALITY > 100) {
+    console.warn(`[PDF Processor] Invalid JPEG_QUALITY=${JPEG_QUALITY}, using default 75`);
+}
+// Log configuration on module load
+console.log(`[PDF Processor] JPEG Configuration:`, {
+    quality: JPEG_QUALITY,
+    chromaSubsampling: JPEG_CHROMA_SUBSAMPLING,
+    source: process.env.JPEG_QUALITY ? 'environment' : 'default',
+});
 /**
  * Extract all pages from a PDF file
  *
  * @param base64Pdf - Base64-encoded PDF data
  * @param maxWidth - Optional maximum width for downscaling (default: 1600)
- * @param quality - JPEG quality 1-100 (default: 85)
+ * @param quality - JPEG quality 1-100 (default: from JPEG_QUALITY env var or 75)
  * @param correlationId - Optional correlation ID for logging
  * @returns Array of processed pages
  */
-async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correlationId) {
+async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = JPEG_QUALITY, correlationId) {
     const startTime = Date.now();
     const sessionId = (0, crypto_1.randomUUID)();
     // Create temp directory for this extraction session
@@ -116,15 +129,22 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
             sessionId,
             pageCount: pageFiles.length,
         });
-        // Step 4: Process each extracted page (with per-page error handling)
-        const pages = [];
-        const pageErrors = [];
-        for (let i = 0; i < pageFiles.length; i++) {
-            const pageFile = pageFiles[i];
+        // Step 4: Process all extracted pages in parallel (with per-page error handling)
+        console.log(`[PDF Processor] Starting parallel page processing`, {
+            correlationId,
+            sessionId,
+            pageCount: pageFiles.length,
+        });
+        // Build list of page paths for cleanup
+        pageFiles.forEach((pageFile) => {
+            tempImagePaths.push((0, path_1.join)(tempDir, pageFile));
+        });
+        // Process all pages in parallel using Promise.allSettled
+        const pageProcessingStartTime = Date.now();
+        const pagePromises = pageFiles.map(async (pageFile, index) => {
             const pagePath = (0, path_1.join)(tempDir, pageFile);
-            tempImagePaths.push(pagePath);
             const pageStartTime = Date.now();
-            const pageNumber = i + 1;
+            const pageNumber = index + 1;
             console.log(`[PDF Processor] Processing page ${pageNumber}/${pageFiles.length}`, {
                 correlationId,
                 sessionId,
@@ -159,7 +179,7 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
                 const jpegBuffer = await pipeline
                     .jpeg({
                     quality,
-                    chromaSubsampling: '4:4:4', // Best quality
+                    chromaSubsampling: JPEG_CHROMA_SUBSAMPLING,
                     mozjpeg: true, // Better compression
                 })
                     .toBuffer();
@@ -173,27 +193,29 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
                     outputWidth: jpegMeta.width,
                     outputHeight: jpegMeta.height,
                     outputSizeBytes: jpegBuffer.length,
+                    jpegQuality: quality,
+                    chromaSubsampling: JPEG_CHROMA_SUBSAMPLING,
                     processingTimeMs: pageProcessingTime,
                 });
-                // Store successfully processed page
-                pages.push({
+                // Return successfully processed page
+                return {
                     pageNumber,
                     base64: jpegBuffer.toString('base64'),
                     mime: 'image/jpeg',
                     width: jpegMeta.width || 0,
                     height: jpegMeta.height || 0,
                     originalFormat: 'application/pdf',
-                });
+                };
             }
             catch (pageError) {
-                // Page processing failed - add error page
+                // Page processing failed - return error page
                 console.error(`[PDF Processor] Page ${pageNumber} failed`, {
                     correlationId,
                     sessionId,
                     pageNumber,
                     error: pageError instanceof Error ? pageError.message : String(pageError),
                 });
-                pages.push({
+                return {
                     pageNumber,
                     base64: null,
                     mime: 'image/jpeg',
@@ -205,13 +227,61 @@ async function extractPdfPages(base64Pdf, maxWidth = 1600, quality = 85, correla
                         code: 'PAGE_PROCESSING_FAILED',
                         details: pageError,
                     },
+                };
+            }
+        });
+        // Wait for all page processing to complete
+        const pageResults = await Promise.allSettled(pagePromises);
+        const pageProcessingTotalTime = Date.now() - pageProcessingStartTime;
+        console.log(`[PDF Processor] Parallel page processing complete`, {
+            correlationId,
+            sessionId,
+            totalPages: pageResults.length,
+            totalProcessingTimeMs: pageProcessingTotalTime,
+            averageTimePerPageMs: Math.round(pageProcessingTotalTime / pageResults.length),
+        });
+        // Extract pages and errors from results
+        const pages = [];
+        const pageErrors = [];
+        pageResults.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                pages.push(result.value);
+                // Check if page has error (processing failed but Promise fulfilled)
+                if (result.value.error) {
+                    pageErrors.push({
+                        pageNumber: index + 1,
+                        error: result.value.error.message,
+                    });
+                }
+            }
+            else {
+                // Promise rejected (should not happen with try/catch, but handle anyway)
+                const pageNumber = index + 1;
+                console.error(`[PDF Processor] Page ${pageNumber} Promise rejected`, {
+                    correlationId,
+                    sessionId,
+                    pageNumber,
+                    error: result.reason,
+                });
+                pages.push({
+                    pageNumber,
+                    base64: null,
+                    mime: 'image/jpeg',
+                    width: 0,
+                    height: 0,
+                    originalFormat: 'application/pdf',
+                    error: {
+                        message: String(result.reason),
+                        code: 'PAGE_PROCESSING_FAILED',
+                        details: result.reason,
+                    },
                 });
                 pageErrors.push({
                     pageNumber,
-                    error: pageError instanceof Error ? pageError.message : String(pageError),
+                    error: String(result.reason),
                 });
             }
-        }
+        });
         // Check if ALL pages failed
         const successfulPages = pages.filter(p => p.base64).length;
         if (successfulPages === 0) {

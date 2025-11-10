@@ -11,6 +11,7 @@ import { EncounterMetadata, GoogleCloudVisionOCR, PageAssignment } from './types
  * Note: Idempotency handled at runPass05() level
  *
  * v2.3: Returns page_assignments if present in AI response
+ * v2.9: Implements two-branch logic for date waterfall (Migration 42)
  */
 export declare function parseEncounterResponse(aiResponse: string, ocrOutput: GoogleCloudVisionOCR, patientId: string, shellFileId: string, totalPages?: number): Promise<{
     encounters: EncounterMetadata[];

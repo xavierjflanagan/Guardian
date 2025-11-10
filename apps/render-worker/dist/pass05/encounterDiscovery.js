@@ -4,111 +4,97 @@
  *
  * Strategy Selection (via PASS_05_STRATEGY env var):
  * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
- * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
  * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
  *
  * Version Selection (via PASS_05_VERSION env var):
  * - 'v2.4' (default): Current production prompt (v2.4)
  * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
+ * - 'v2.8': Further optimizations
+ * - 'v2.9': Latest optimizations
+ *
+ * Progressive Mode (via PASS_05_PROGRESSIVE_ENABLED env var):
+ * - Documents >100 pages are automatically split into 50-page chunks
+ * - Context handoff between chunks for incomplete encounters
+ * - Prevents MAX_TOKENS errors on large documents
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.discoverEncounters = discoverEncounters;
-const openai_1 = __importDefault(require("openai"));
 const aiPrompts_1 = require("./aiPrompts");
 const aiPrompts_v2_7_1 = require("./aiPrompts.v2.7");
 const aiPrompts_v2_8_1 = require("./aiPrompts.v2.8");
-const aiPromptsOCR_1 = require("./aiPromptsOCR");
-// import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
+const aiPrompts_v2_9_1 = require("./aiPrompts.v2.9");
 const manifestBuilder_1 = require("./manifestBuilder");
-const openai = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
+const model_selector_1 = require("./models/model-selector");
+const provider_factory_1 = require("./providers/provider-factory");
+const session_manager_1 = require("./progressive/session-manager");
 /**
  * Task 1: Extract healthcare encounters from OCR text
  * Strategy selected via PASS_05_STRATEGY environment variable
+ * Progressive mode automatically enabled for documents >100 pages
  */
 async function discoverEncounters(input) {
     try {
         // Read strategy and version from environment variables
         const strategy = (process.env.PASS_05_STRATEGY || 'ocr');
-        const version = (process.env.PASS_05_VERSION || 'v2.4');
+        const version = (process.env.PASS_05_VERSION || 'v2.9');
         console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
         // Vision strategy requires image loading infrastructure (not yet implemented)
         if (strategy === 'vision') {
             throw new Error('Vision strategy not yet implemented. ' +
                 'Requires image loading from Supabase Storage. ' +
-                'Use PASS_05_STRATEGY=ocr or ocr_optimized instead.');
+                'Use PASS_05_STRATEGY=ocr instead.');
         }
-        // Select prompt builder based on strategy and version
-        let promptBuilder;
-        if (strategy === 'ocr_optimized') {
-            promptBuilder = aiPromptsOCR_1.buildOCROptimizedPrompt;
+        // PROGRESSIVE MODE: Check if document requires chunked processing
+        if ((0, session_manager_1.shouldUseProgressiveMode)(input.pageCount)) {
+            console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode`);
+            const progressiveResult = await (0, session_manager_1.processDocumentProgressively)(input.shellFileId, input.patientId, input.ocrOutput.fullTextAnnotation.pages);
+            return {
+                success: true,
+                encounters: progressiveResult.encounters,
+                page_assignments: progressiveResult.pageAssignments,
+                aiModel: 'progressive-session',
+                aiCostUsd: progressiveResult.totalCost,
+                inputTokens: Math.floor(progressiveResult.totalTokens * 0.6), // Estimate 60/40 split
+                outputTokens: Math.floor(progressiveResult.totalTokens * 0.4)
+            };
         }
-        else {
-            // For 'ocr' strategy, choose version
-            promptBuilder = version === 'v2.8'
+        // STANDARD MODE: Process entire document in single pass
+        console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using standard mode`);
+        // Select prompt builder based on version
+        const promptBuilder = version === 'v2.9'
+            ? aiPrompts_v2_9_1.buildEncounterDiscoveryPromptV29
+            : version === 'v2.8'
                 ? aiPrompts_v2_8_1.buildEncounterDiscoveryPromptV28
                 : version === 'v2.7'
                     ? aiPrompts_v2_7_1.buildEncounterDiscoveryPromptV27
                     : aiPrompts_1.buildEncounterDiscoveryPrompt;
-        }
         // Build prompt with OCR text
         const prompt = promptBuilder({
             fullText: input.ocrOutput.fullTextAnnotation.text,
             pageCount: input.pageCount,
             ocrPages: input.ocrOutput.fullTextAnnotation.pages
         });
-        // Detect GPT-5 vs GPT-4o (same pattern as Pass 1)
-        const model = 'gpt-5';
-        const isGPT5 = model.startsWith('gpt-5');
-        // Build request parameters with model-specific handling
-        const requestParams = {
-            model: model,
-            messages: [
-                {
-                    role: 'system',
-                    content: 'You are a medical document analyzer specializing in healthcare encounter extraction.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            response_format: { type: 'json_object' }
-        };
-        // Model-specific parameters (same pattern as Pass 1)
-        if (isGPT5) {
-            // GPT-5: Uses max_completion_tokens, temperature fixed at 1.0
-            requestParams.max_completion_tokens = 32000; // Safe limit for GPT-5-mini (supports up to 128k)
-        }
-        else {
-            // GPT-4o and earlier: Uses max_tokens and custom temperature
-            requestParams.max_tokens = 32000;
-            requestParams.temperature = 0.1; // Low temperature for consistent extraction
-        }
-        // Call OpenAI API
-        const response = await openai.chat.completions.create(requestParams);
+        // Get selected model and create provider (multi-vendor architecture)
+        const model = (0, model_selector_1.getSelectedModel)();
+        const provider = provider_factory_1.AIProviderFactory.createProvider(model);
+        console.log(`[Pass 0.5] Processing with ${model.displayName}`);
+        // Generate JSON response using provider abstraction
+        const aiResponse = await provider.generateJSON(prompt);
         // Parse AI response
-        const aiOutput = response.choices[0].message.content;
-        if (!aiOutput) {
+        if (!aiResponse.content) {
             throw new Error('Empty response from AI');
         }
         // v2.3: Pass totalPages for page assignment validation
-        const parsed = await (0, manifestBuilder_1.parseEncounterResponse)(aiOutput, input.ocrOutput, input.patientId, input.shellFileId, input.pageCount // v2.3: Enable page assignment validation
+        const parsed = await (0, manifestBuilder_1.parseEncounterResponse)(aiResponse.content, input.ocrOutput, input.patientId, input.shellFileId, input.pageCount // v2.3: Enable page assignment validation
         );
-        // Calculate cost
-        const inputTokens = response.usage?.prompt_tokens || 0;
-        const outputTokens = response.usage?.completion_tokens || 0;
-        const cost = calculateCost(inputTokens, outputTokens);
         return {
             success: true,
             encounters: parsed.encounters,
             page_assignments: parsed.page_assignments, // v2.3: Include if present
-            aiModel: response.model, // Dynamic from OpenAI response
-            aiCostUsd: cost,
-            inputTokens,
-            outputTokens
+            aiModel: aiResponse.model, // Model name from provider
+            aiCostUsd: aiResponse.cost, // Cost calculated by provider
+            inputTokens: aiResponse.inputTokens,
+            outputTokens: aiResponse.outputTokens
         };
     }
     catch (error) {
@@ -122,13 +108,5 @@ async function discoverEncounters(input) {
             outputTokens: 0
         };
     }
-}
-function calculateCost(inputTokens, outputTokens) {
-    // GPT-5-mini pricing (as of Oct 2025)
-    const INPUT_PRICE_PER_1M = 0.25; // $0.25 per 1M tokens (verified)
-    const OUTPUT_PRICE_PER_1M = 2.00; // $2.00 per 1M tokens (verified)
-    const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M;
-    const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M;
-    return inputCost + outputCost;
 }
 //# sourceMappingURL=encounterDiscovery.js.map

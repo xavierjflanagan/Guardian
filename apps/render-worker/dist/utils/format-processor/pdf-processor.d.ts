@@ -10,7 +10,7 @@ import type { ProcessedPage } from './types';
  *
  * @param base64Pdf - Base64-encoded PDF data
  * @param maxWidth - Optional maximum width for downscaling (default: 1600)
- * @param quality - JPEG quality 1-100 (default: 85)
+ * @param quality - JPEG quality 1-100 (default: from JPEG_QUALITY env var or 75)
  * @param correlationId - Optional correlation ID for logging
  * @returns Array of processed pages
  */

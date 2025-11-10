@@ -570,13 +570,27 @@ class V3Worker {
             // Batched parallel OCR processing (10 pages at a time)
             const BATCH_SIZE = parseInt(process.env.OCR_BATCH_SIZE || '10', 10);
             const OCR_TIMEOUT_MS = parseInt(process.env.OCR_TIMEOUT_MS || '30000', 10); // 30 sec per page
-            const MEMORY_LIMIT_MB = 480; // Safety threshold (512 MB limit - 32 MB buffer)
+            const MEMORY_LIMIT_MB = parseInt(process.env.MEMORY_LIMIT_MB || '1800', 10); // Safety threshold (2GB plan: 1800 MB)
             const validPages = preprocessResult.pages.filter(p => p.base64); // Skip failed pages
-            this.logger.info('Starting batched parallel OCR', {
+            // OCR SESSION START LOGGING
+            const ocrSessionStartTime = Date.now();
+            const totalBatchesForSession = Math.ceil(validPages.length / BATCH_SIZE);
+            // Calculate queue wait time (time from job creation to job start)
+            const jobCreatedAt = new Date(job.created_at).getTime();
+            const jobStartedAt = new Date(job.started_at).getTime();
+            const queueWaitMs = jobStartedAt - jobCreatedAt;
+            // Track batch processing times for metrics
+            const batchTimesMs = [];
+            this.logger.info('OCR processing session started', {
                 shell_file_id: payload.shell_file_id,
-                totalPages: preprocessResult.pages.length,
-                validPages: validPages.length,
-                batchSize: BATCH_SIZE,
+                correlation_id: this.logger['correlation_id'],
+                total_pages: validPages.length,
+                batch_size: BATCH_SIZE,
+                total_batches: totalBatchesForSession,
+                ocr_provider: 'google_vision',
+                retry_count: job.retry_count,
+                queue_wait_ms: queueWaitMs,
+                timestamp: new Date().toISOString(),
             });
             // Process pages in batches with comprehensive error handling
             try {
@@ -585,23 +599,22 @@ class V3Worker {
                     const batch = validPages.slice(batchStart, batchEnd);
                     const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1;
                     const totalBatches = Math.ceil(validPages.length / BATCH_SIZE);
-                    this.logger.info(`Processing batch ${batchNumber}/${totalBatches}`, {
-                        shell_file_id: payload.shell_file_id,
-                        batchStart: batchStart + 1,
-                        batchEnd,
-                        batchSize: batch.length,
-                    });
                     // Check memory before processing batch
                     const memBefore = process.memoryUsage();
-                    const rssMB = Math.round(memBefore.rss / 1024 / 1024);
-                    this.logger.info('Memory before batch', {
+                    const batchStartTime = Date.now();
+                    // OCR BATCH START LOGGING
+                    this.logger.info('OCR batch started', {
                         shell_file_id: payload.shell_file_id,
-                        batchNumber,
-                        heapUsedMB: Math.round(memBefore.heapUsed / 1024 / 1024),
-                        heapTotalMB: Math.round(memBefore.heapTotal / 1024 / 1024),
-                        rssMB,
+                        correlation_id: this.logger['correlation_id'],
+                        batch_number: batchNumber,
+                        total_batches: totalBatches,
+                        batch_size: batch.length,
+                        pages_in_batch: batch.map(p => p.pageNumber).join(','),
+                        memory_before_mb: Math.round(memBefore.rss / 1024 / 1024),
+                        timestamp: new Date().toISOString(),
                     });
                     // Safety check: abort if approaching memory limit
+                    const rssMB = Math.round(memBefore.rss / 1024 / 1024);
                     if (rssMB > MEMORY_LIMIT_MB) {
                         throw new Error(`Memory limit approaching (${rssMB} MB / ${MEMORY_LIMIT_MB} MB threshold). ` +
                             `Processed ${ocrPages.length}/${validPages.length} pages before aborting.`);
@@ -710,14 +723,30 @@ class V3Worker {
                     ocrPages.push(...successfulPages);
                     // Memory cleanup after batch
                     const memAfter = process.memoryUsage();
-                    this.logger.info(`Batch ${batchNumber}/${totalBatches} complete`, {
+                    const batchProcessingTime = Date.now() - batchStartTime;
+                    // Track batch time for metrics
+                    batchTimesMs.push(batchProcessingTime);
+                    // Calculate batch confidence
+                    const batchConfidences = successfulPages.map(p => {
+                        const avgLineConfidence = p.lines.reduce((sum, line) => sum + line.confidence, 0) / (p.lines.length || 1);
+                        return avgLineConfidence;
+                    });
+                    const avgBatchConfidence = batchConfidences.reduce((a, b) => a + b, 0) / (batchConfidences.length || 1);
+                    // OCR BATCH COMPLETION LOGGING
+                    this.logger.info('OCR batch completed', {
                         shell_file_id: payload.shell_file_id,
-                        batchNumber,
-                        pagesProcessed: ocrPages.length,
-                        totalPages: validPages.length,
-                        heapUsedMB: Math.round(memAfter.heapUsed / 1024 / 1024),
-                        heapTotalMB: Math.round(memAfter.heapTotal / 1024 / 1024),
-                        rssMB: Math.round(memAfter.rss / 1024 / 1024),
+                        correlation_id: this.logger['correlation_id'],
+                        batch_number: batchNumber,
+                        total_batches: totalBatches,
+                        batch_size: batch.length,
+                        processing_time_ms: batchProcessingTime,
+                        successful_pages: successfulPages.length,
+                        failed_pages: failedPages.length,
+                        failed_page_numbers: failedPages.map(p => p.pageNumber).join(',') || 'none',
+                        average_confidence: avgBatchConfidence.toFixed(4),
+                        memory_after_mb: Math.round(memAfter.rss / 1024 / 1024),
+                        memory_delta_mb: Math.round((memAfter.rss - memBefore.rss) / 1024 / 1024),
+                        timestamp: new Date().toISOString(),
                     });
                     // Force garbage collection if available (requires --expose-gc flag)
                     if (global.gc) {
@@ -751,9 +780,42 @@ class V3Worker {
             ocrResult = {
                 pages: ocrPages,
             };
-            this.logger.info('All pages OCR complete', {
+            // OCR SESSION COMPLETION LOGGING
+            const totalOCRTime = Date.now() - ocrSessionStartTime;
+            const avgBatchTime = totalOCRTime / totalBatchesForSession;
+            const avgPageTime = totalOCRTime / validPages.length;
+            // Calculate overall confidence
+            const allConfidences = ocrPages.map(p => {
+                const avgLineConfidence = p.lines.reduce((sum, line) => sum + line.confidence, 0) / (p.lines.length || 1);
+                return avgLineConfidence;
+            });
+            const overallAvgConfidence = allConfidences.reduce((a, b) => a + b, 0) / (allConfidences.length || 1);
+            // Calculate total text length
+            const totalTextLength = ocrPages.reduce((sum, p) => {
+                return sum + p.lines.reduce((lineSum, line) => lineSum + line.text.length, 0);
+            }, 0);
+            // Calculate provider average latency (Google Vision API response time)
+            const providerLatencies = ocrPages.map(p => p.processing_time_ms);
+            const providerAvgLatency = providerLatencies.reduce((a, b) => a + b, 0) / (providerLatencies.length || 1);
+            // Memory stats
+            const finalMemory = process.memoryUsage();
+            const peakMemoryMB = Math.round(finalMemory.rss / 1024 / 1024);
+            this.logger.info('OCR processing session completed', {
                 shell_file_id: payload.shell_file_id,
-                totalPages: ocrPages.length,
+                correlation_id: this.logger['correlation_id'],
+                total_pages: ocrPages.length,
+                total_batches: totalBatchesForSession,
+                batch_size: BATCH_SIZE,
+                total_processing_time_ms: totalOCRTime,
+                average_batch_time_ms: Math.round(avgBatchTime),
+                average_page_time_ms: Math.round(avgPageTime),
+                provider_avg_latency_ms: Math.round(providerAvgLatency),
+                successful_pages: ocrPages.length,
+                failed_pages: 0,
+                average_confidence: overallAvgConfidence.toFixed(4),
+                total_text_length: totalTextLength,
+                peak_memory_mb: peakMemoryMB,
+                timestamp: new Date().toISOString(),
             });
             // FIX: Update shell_files.page_count with actual OCR page count
             // Date: 2025-11-05
@@ -777,6 +839,55 @@ class V3Worker {
                 this.logger.info('Updated page_count with actual OCR count', {
                     shell_file_id: payload.shell_file_id,
                     page_count: actualPageCount,
+                });
+            }
+            // Write OCR processing metrics to database (Phase 2 of OCR logging)
+            const ocrSessionEndTime = Date.now();
+            const { error: metricsError } = await this.supabase
+                .from('ocr_processing_metrics')
+                .insert({
+                shell_file_id: payload.shell_file_id,
+                patient_id: payload.patient_id,
+                correlation_id: this.logger['correlation_id'],
+                batch_size: BATCH_SIZE,
+                total_batches: totalBatchesForSession,
+                total_pages: ocrPages.length,
+                started_at: new Date(ocrSessionStartTime).toISOString(),
+                completed_at: new Date(ocrSessionEndTime).toISOString(),
+                processing_time_ms: totalOCRTime,
+                average_batch_time_ms: avgBatchTime,
+                average_page_time_ms: avgPageTime,
+                provider_avg_latency_ms: Math.round(providerAvgLatency),
+                batch_times_ms: batchTimesMs,
+                successful_pages: ocrPages.length,
+                failed_pages: 0, // TODO: Track actual failed pages when implemented
+                failed_page_numbers: [],
+                average_confidence: parseFloat(overallAvgConfidence.toFixed(4)),
+                total_text_length: totalTextLength,
+                peak_memory_mb: peakMemoryMB,
+                memory_freed_mb: null, // TODO: Calculate if needed
+                estimated_cost_usd: null, // TODO: Calculate based on Google Vision pricing
+                estimated_cost_per_page_usd: null,
+                ocr_provider: 'google_vision',
+                environment: process.env.APP_ENV || 'development',
+                app_version: process.env.npm_package_version || 'unknown',
+                worker_id: process.env.WORKER_ID || 'unknown',
+                retry_count: job.retry_count,
+                queue_wait_ms: queueWaitMs,
+            });
+            if (metricsError) {
+                this.logger.error('Failed to write OCR metrics to database', metricsError, {
+                    shell_file_id: payload.shell_file_id,
+                    correlation_id: this.logger['correlation_id'],
+                });
+                // Log error but don't fail - metrics are for analysis only
+            }
+            else {
+                this.logger.info('OCR metrics written to database', {
+                    shell_file_id: payload.shell_file_id,
+                    correlation_id: this.logger['correlation_id'],
+                    total_pages: ocrPages.length,
+                    processing_time_ms: totalOCRTime,
                 });
             }
             // Persist OCR artifacts for future reuse (with processed image references)
@@ -907,34 +1018,6 @@ class V3Worker {
             ai_cost_usd: pass05Result.aiCostUsd,
             ai_model: pass05Result.aiModel,
         });
-        // =============================================================================
-        // MEMORY FIX: Force garbage collection to free job data immediately
-        // =============================================================================
-        // Date: 2025-11-06
-        // Problem: Memory stays elevated (399MB) after jobs complete instead of returning to baseline (135MB)
-        // Root Cause: Large objects (fileBuffer, preprocessResult, ocrPages, ocrResult) get promoted
-        //             to V8's "old generation" heap and aren't collected until full GC cycle
-        // Solution: Force immediate GC before function returns to free ~250MB of job data
-        // Impact: Should return memory to ~135MB baseline after each job
-        // Note: Variables will go out of scope when function returns, but forcing GC ensures
-        //       immediate cleanup rather than waiting for next automatic GC cycle
-        // =============================================================================
-        const memBeforeCleanup = process.memoryUsage();
-        const heapBeforeMB = Math.round(memBeforeCleanup.heapUsed / 1024 / 1024);
-        // Force immediate garbage collection to free large job data
-        // Large objects being freed: fileBuffer, preprocessResult, ocrPages, ocrResult (~250MB total)
-        if (global.gc) {
-            global.gc();
-            const memAfterCleanup = process.memoryUsage();
-            const heapAfterMB = Math.round(memAfterCleanup.heapUsed / 1024 / 1024);
-            const freedMB = heapBeforeMB - heapAfterMB;
-            this.logger.info('Post-job memory cleanup completed', {
-                shell_file_id: payload.shell_file_id,
-                heap_before_mb: heapBeforeMB,
-                heap_after_mb: heapAfterMB,
-                freed_mb: freedMB,
-            });
-        }
         // =============================================================================
         // TEMPORARY: PASS 1 DISABLED FOR PASS 0.5 BASELINE VALIDATION TESTING
         // =============================================================================
