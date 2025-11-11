@@ -299,6 +299,13 @@ function parseProgressiveResponse(content: any): {
  * }
  */
 function extractTextFromPages(pages: OCRPage[]): string {
+  // EMERGENCY DEBUG: Log actual page structure
+  if (pages.length > 0) {
+    const firstPage = pages[0] as any;
+    console.error('[DEBUG] First page keys:', Object.keys(firstPage));
+    console.error('[DEBUG] First page structure sample:', JSON.stringify(firstPage).substring(0, 500));
+  }
+
   return pages.map((page, idx) => {
     let text = '';
 
