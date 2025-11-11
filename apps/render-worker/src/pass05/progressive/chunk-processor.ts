@@ -84,9 +84,10 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   for (const enc of parsed.encounters) {
     if (enc.status === 'complete') {
       // CRITICAL FIX: Persist completed encounters immediately to database
+      // Use UPSERT to handle duplicate encounters across chunks
       const { data: inserted, error: insertError } = await supabase
         .from('healthcare_encounters')
-        .insert({
+        .upsert({
           patient_id: params.patientId,
           primary_shell_file_id: params.shellFileId,
           encounter_type: enc.encounterType,
@@ -101,6 +102,8 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
           summary: enc.summary,
           identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
           source_method: 'ai_pass_0_5'  // FIXED: Must match CHECK constraint (ai_pass_0_5, ai_pass_2, manual_entry, import)
+        }, {
+          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_date,page_ranges'
         })
         .select()
         .single();
