@@ -59,6 +59,20 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   // Compositional prompt: base + addons
   const prompt = basePrompt + '\n\n' + progressiveAddons;
 
+  // Log to verify progressive addons are included
+  if (progressiveAddons.includes('PROGRESSIVE MODE INSTRUCTIONS')) {
+    console.log(`[Chunk ${params.chunkNumber}] Progressive addons included (${progressiveAddons.length} chars)`);
+    // Log a snippet to verify the status field requirement is there
+    const statusIndex = progressiveAddons.indexOf('"status"');
+    if (statusIndex > -1) {
+      console.log(`[Chunk ${params.chunkNumber}] Status field requirement found at position ${statusIndex}`);
+    } else {
+      console.error(`[Chunk ${params.chunkNumber}] WARNING: Status field requirement NOT FOUND in addons!`);
+    }
+  } else {
+    console.error(`[Chunk ${params.chunkNumber}] ERROR: Progressive addons NOT included!`);
+  }
+
   // Get AI model and provider
   const model = getSelectedModel();
   const provider = AIProviderFactory.createProvider(model);
