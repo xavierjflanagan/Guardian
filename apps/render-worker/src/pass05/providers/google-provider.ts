@@ -28,7 +28,9 @@ export class GoogleProvider extends BaseAIProvider {
     // For progressive mode, limit output to 32K tokens to avoid MAX_TOKENS errors
     // while still allowing for complex medical documents with multiple encounters
     // (50 pages could have 5-10 encounters × 3-4K tokens each = 15-40K tokens)
-    const isProgressiveMode = prompt.includes('[Progressive Mode]') || prompt.includes('chunk');
+    const isProgressiveMode = prompt.includes('PROGRESSIVE MODE INSTRUCTIONS') ||
+                            prompt.includes('Chunk Information') ||
+                            prompt.includes('Progressive Processing Guidelines');
     const maxTokens = isProgressiveMode ?
       Math.min(32768, this.model.maxOutput) : // Limit to 32K for progressive (sufficient for ~10 encounters)
       this.model.maxOutput; // Full capability for standard mode (65K)
@@ -43,7 +45,9 @@ export class GoogleProvider extends BaseAIProvider {
     });
 
     if (isProgressiveMode) {
-      console.log(`[GoogleProvider] Progressive mode detected - limiting output to ${maxTokens} tokens`);
+      console.log(`[GoogleProvider] Progressive mode detected - limiting output to ${maxTokens} tokens (from ${this.model.maxOutput})`);
+    } else {
+      console.log(`[GoogleProvider] Standard mode - using full ${maxTokens} token capacity`);
     }
 
     try {
