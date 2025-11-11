@@ -22,6 +22,7 @@ import { buildEncounterDiscoveryPrompt } from './aiPrompts';
 import { buildEncounterDiscoveryPromptV27 } from './aiPrompts.v2.7';
 import { buildEncounterDiscoveryPromptV28 } from './aiPrompts.v2.8';
 import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
+import { buildEncounterDiscoveryPromptV10 } from './aiPrompts.v10';
 import { parseEncounterResponse } from './manifestBuilder';
 import { getSelectedModel } from './models/model-selector';
 import { AIProviderFactory } from './providers/provider-factory';
@@ -97,7 +98,7 @@ export async function discoverEncounters(
   try {
     // Read strategy and version from environment variables
     const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'vision';
-    const version = (process.env.PASS_05_VERSION || 'v2.9') as 'v2.4' | 'v2.7' | 'v2.8' | 'v2.9';
+    const version = (process.env.PASS_05_VERSION || 'v10') as 'v2.4' | 'v2.7' | 'v2.8' | 'v2.9' | 'v10';
 
     console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
 
@@ -110,39 +111,84 @@ export async function discoverEncounters(
       );
     }
 
-    // PROGRESSIVE MODE: For documents >100 pages (uses compositional prompt architecture)
-    if (shouldUseProgressiveMode(input.pageCount)) {
-      console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode (compositional v2.9 + addons)`);
+    // V10 UNIVERSAL ARCHITECTURE: Works for all document sizes
+    // Progressive mode handled internally by the prompt and post-processing
 
-      const progressiveResult = await processDocumentProgressively(
-        input.shellFileId,
-        input.patientId,
-        input.ocrOutput.fullTextAnnotation.pages
-      );
+    if (version === 'v10') {
+      console.log(`[Pass 0.5] Using v10 universal prompt for ${input.pageCount} pages`);
 
-      // Progressive mode handles database writes internally, just return the result
-      return {
-        success: true,
-        encounters: progressiveResult.encounters,
-        page_assignments: progressiveResult.pageAssignments,
-        aiModel: progressiveResult.aiModel,
-        aiCostUsd: progressiveResult.totalCost,
-        inputTokens: progressiveResult.totalInputTokens,
-        outputTokens: progressiveResult.totalOutputTokens
-      };
+      // Documents >100 pages still use progressive chunking
+      if (shouldUseProgressiveMode(input.pageCount)) {
+        console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode with v10`);
+
+        const progressiveResult = await processDocumentProgressively(
+          input.shellFileId,
+          input.patientId,
+          input.ocrOutput.fullTextAnnotation.pages
+        );
+
+        return {
+          success: true,
+          encounters: progressiveResult.encounters,
+          page_assignments: progressiveResult.pageAssignments,
+          aiModel: progressiveResult.aiModel,
+          aiCostUsd: progressiveResult.totalCost,
+          inputTokens: progressiveResult.totalInputTokens,
+          outputTokens: progressiveResult.totalOutputTokens
+        };
+      }
+
+      // Standard mode with v10 prompt
+      console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using v10 in single-pass mode`);
+
+      // Build v10 prompt without progressive parameters (single chunk)
+      const prompt = buildEncounterDiscoveryPromptV10({
+        fullText: input.ocrOutput.fullTextAnnotation.text,
+        pageCount: input.pageCount,
+        ocrPages: input.ocrOutput.fullTextAnnotation.pages
+        // No progressive parameter = single chunk mode
+      });
+
+      // Continue with standard processing below...
+
+    } else {
+      // LEGACY: Old versions still supported for backward compatibility
+      console.log(`[Pass 0.5] Using legacy version ${version}`);
+
+      if (shouldUseProgressiveMode(input.pageCount)) {
+        console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode (compositional v2.9 + addons)`);
+
+        const progressiveResult = await processDocumentProgressively(
+          input.shellFileId,
+          input.patientId,
+          input.ocrOutput.fullTextAnnotation.pages
+        );
+
+        return {
+          success: true,
+          encounters: progressiveResult.encounters,
+          page_assignments: progressiveResult.pageAssignments,
+          aiModel: progressiveResult.aiModel,
+          aiCostUsd: progressiveResult.totalCost,
+          inputTokens: progressiveResult.totalInputTokens,
+          outputTokens: progressiveResult.totalOutputTokens
+        };
+      }
     }
 
     // STANDARD MODE: Process entire document in single pass (≤100 pages)
-    console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using standard mode`);
+    console.log(`[Pass 0.5] Standard mode processing...`);
 
     // Select prompt builder based on version
-    const promptBuilder = version === 'v2.9'
-      ? buildEncounterDiscoveryPromptV29
-      : version === 'v2.8'
-        ? buildEncounterDiscoveryPromptV28
-        : version === 'v2.7'
-          ? buildEncounterDiscoveryPromptV27
-          : buildEncounterDiscoveryPrompt;
+    const promptBuilder = version === 'v10'
+      ? buildEncounterDiscoveryPromptV10
+      : version === 'v2.9'
+        ? buildEncounterDiscoveryPromptV29
+        : version === 'v2.8'
+          ? buildEncounterDiscoveryPromptV28
+          : version === 'v2.7'
+            ? buildEncounterDiscoveryPromptV27
+            : buildEncounterDiscoveryPrompt;
 
     // Build prompt with OCR text
     const prompt = promptBuilder({

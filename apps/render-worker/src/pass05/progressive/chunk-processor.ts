@@ -9,8 +9,7 @@ import { buildHandoffPackage } from './handoff-builder';
 import { saveChunkResults, savePendingEncounter } from './database';
 import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
-import { buildProgressiveAddons } from './addons';
-import { buildEncounterDiscoveryPromptV29 } from '../aiPrompts.v2.9';
+import { buildEncounterDiscoveryPromptV10, mapV10ResponseToDatabase } from '../aiPrompts.v10';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -26,11 +25,10 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0] + 1}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
 
-  // Build base v2.9 prompt (same as standard mode)
-  // Pass the starting page number for proper page labeling
+  // Extract OCR text for this chunk
   const fullText = extractTextFromPages(params.pages, params.pageRange[0]);
 
-  // Add guardrails and logging (P3 fix from TEST_06)
+  // Add guardrails and logging
   if (fullText.trim().length === 0) {
     console.error(`[Chunk ${params.chunkNumber}] CRITICAL: Extracted 0 characters of OCR text - likely data structure mismatch`);
     console.error(`[Chunk ${params.chunkNumber}] Sample page structure: ${JSON.stringify(Object.keys(params.pages[0] || {}))}`);
@@ -41,36 +39,27 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   console.log(`[Chunk ${params.chunkNumber}] Extracted ${fullText.length} chars of OCR text`);
   console.log(`[Chunk ${params.chunkNumber}] First 200 chars: ${fullText.substring(0, 200)}`);
 
-  const basePrompt = buildEncounterDiscoveryPromptV29({
+  // Build v10 universal prompt (includes progressive logic natively)
+  const prompt = buildEncounterDiscoveryPromptV10({
     fullText,
-    pageCount: params.totalPages,  // Total pages in document (for context)
-    ocrPages: params.pages
-  });
-
-  // Append progressive-specific instructions
-  const progressiveAddons = buildProgressiveAddons({
-    chunkNumber: params.chunkNumber,
-    totalChunks: params.totalChunks,
-    pageRange: params.pageRange,
-    totalPages: params.totalPages,
-    handoffReceived: params.handoffReceived
-  });
-
-  // Compositional prompt: base + addons
-  const prompt = basePrompt + '\n\n' + progressiveAddons;
-
-  // Log to verify progressive addons are included
-  if (progressiveAddons.includes('PROGRESSIVE MODE INSTRUCTIONS')) {
-    console.log(`[Chunk ${params.chunkNumber}] Progressive addons included (${progressiveAddons.length} chars)`);
-    // Log a snippet to verify the status field requirement is there
-    const statusIndex = progressiveAddons.indexOf('"status"');
-    if (statusIndex > -1) {
-      console.log(`[Chunk ${params.chunkNumber}] Status field requirement found at position ${statusIndex}`);
-    } else {
-      console.error(`[Chunk ${params.chunkNumber}] WARNING: Status field requirement NOT FOUND in addons!`);
+    pageCount: params.totalPages,
+    ocrPages: params.pages,
+    progressive: {
+      chunkNumber: params.chunkNumber,
+      totalChunks: params.totalChunks,
+      pageRange: params.pageRange,
+      totalPages: params.totalPages,
+      handoffReceived: params.handoffReceived
     }
-  } else {
-    console.error(`[Chunk ${params.chunkNumber}] ERROR: Progressive addons NOT included!`);
+  });
+
+  // Log to verify we're using v10 prompt
+  console.log(`[Chunk ${params.chunkNumber}] Using v10 universal prompt with native progressive support`);
+  if (prompt.includes('PROGRESSIVE MODE ACTIVE')) {
+    console.log(`[Chunk ${params.chunkNumber}] Progressive mode confirmed active in prompt`);
+  }
+  if (prompt.includes('"status": "continuing"')) {
+    console.log(`[Chunk ${params.chunkNumber}] Status field examples found in prompt`);
   }
 
   // Get AI model and provider
@@ -98,26 +87,17 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   for (const enc of parsed.encounters) {
     if (enc.status === 'complete') {
-      // CRITICAL FIX: Persist completed encounters immediately to database
-      // Use UPSERT to handle duplicate encounters across chunks
+      // Map v10 camelCase response to database snake_case format
+      const dbEncounter = mapV10ResponseToDatabase({
+        ...enc,
+        patientId: params.patientId,
+        shellFileId: params.shellFileId
+      });
+
+      // Persist completed encounters to database
       const { data: inserted, error: insertError } = await supabase
         .from('healthcare_encounters')
-        .upsert({
-          patient_id: params.patientId,
-          primary_shell_file_id: params.shellFileId,
-          encounter_type: enc.encounterType,
-          encounter_start_date: enc.encounterStartDate,
-          encounter_date_end: enc.encounterEndDate,  // FIXED: Schema uses encounter_date_end not encounter_end_date
-          encounter_timeframe_status: enc.encounterTimeframeStatus || 'unknown_end_date',
-          date_source: enc.dateSource || 'ai_extracted',
-          provider_name: enc.providerName,
-          facility_name: enc.facility,
-          page_ranges: enc.pageRanges || [],
-          pass_0_5_confidence: enc.confidence,  // FIXED: Schema uses pass_0_5_confidence not confidence
-          summary: enc.summary,
-          identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
-          source_method: 'ai_pass_0_5'  // FIXED: Must match CHECK constraint (ai_pass_0_5, ai_pass_2, manual_entry, import)
-        }, {
+        .upsert(dbEncounter, {
           onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_start_date,page_ranges'
         })
         .select()
@@ -237,10 +217,10 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 }
 
 /**
- * Parse AI response using v2.9 schema (camelCase)
+ * Parse AI response using v10 universal schema (camelCase)
  *
- * ARCHITECTURE CHANGE: Now uses v2.9 base prompt which outputs camelCase natively.
- * Progressive addons don't change the schema, so no normalization needed.
+ * V10 prompt outputs camelCase natively with progressive fields built-in.
+ * No normalization needed as the prompt directly includes status/tempId/expectedContinuation.
  */
 function parseProgressiveResponse(content: any, chunkNumber: number): {
   encounters: Array<{
@@ -260,44 +240,57 @@ function parseProgressiveResponse(content: any, chunkNumber: number): {
   }>;
   pageAssignments: PageAssignment[];
   activeContext?: any;
+  extractionMetadata?: any;
 } {
-  // v2.9 outputs camelCase, so we can use it directly
+  // v10 outputs camelCase with native progressive fields
   const parsed = typeof content === 'string' ? JSON.parse(content) : content;
 
-  // Map progressive camelCase format to our internal format
+  // V10 format already includes all required fields
   const encounters = (parsed.encounters || []).map((enc: any, idx: number) => {
-    // Progressive mode uses status field directly
+    // V10 prompt explicitly requires status field
     if (!enc.status) {
-      console.warn(`[Chunk ${chunkNumber}] Encounter ${idx} missing status field, defaulting to 'complete'. This breaks handoff!`);
+      console.error(`[Chunk ${chunkNumber}] CRITICAL: Encounter ${idx} missing required status field!`);
+      console.error(`[Chunk ${chunkNumber}] This indicates the AI didn't follow v10 schema. Defaulting to 'complete'.`);
     }
     return {
-      status: enc.status || 'complete',  // Progressive provides explicit status
-      tempId: enc.tempId,  // Now camelCase from progressive prompt
+      status: enc.status || 'complete',  // V10 requires this field
+      tempId: enc.tempId,  // Required when status='continuing'
       encounterType: enc.encounterType,
-      encounterStartDate: enc.encounterStartDate,  // Direct camelCase field
-      encounterEndDate: enc.encounterEndDate,  // Direct camelCase field
+      encounterStartDate: enc.encounterStartDate,
+      encounterEndDate: enc.encounterEndDate,
       encounterTimeframeStatus: enc.encounterTimeframeStatus || 'unknown_end_date',
       dateSource: enc.dateSource || 'ai_extracted',
-      providerName: enc.providerName,  // Now camelCase from progressive prompt
+      providerName: enc.providerName,
+      providerRole: enc.providerRole,  // V10 includes provider role
       facility: enc.facility,
+      department: enc.department,  // V10 includes department
+      chiefComplaint: enc.chiefComplaint,  // V10 includes chief complaint
+      diagnoses: enc.diagnoses || [],  // V10 includes diagnoses array
+      procedures: enc.procedures || [],  // V10 includes procedures array
+      medications: enc.medications || [],  // V10 includes medications array
+      disposition: enc.disposition,  // V10 includes disposition
       pageRanges: enc.pageRanges || [],
       confidence: enc.confidence,
       summary: enc.summary,
-      expectedContinuation: enc.expectedContinuation  // Progressive provides this
+      expectedContinuation: enc.expectedContinuation  // Required when status='continuing'
     };
   });
 
-  // Parse page assignments (progressive camelCase format)
+  // Parse page assignments (v10 camelCase format)
   const pageAssignments: PageAssignment[] = (parsed.pageAssignments || []).map((pa: any) => ({
     page: pa.page,
-    encounter_id: pa.encounterId,  // Now camelCase
+    encounter_id: pa.encounterId,  // v10 uses camelCase
     justification: pa.justification
   }));
+
+  // Extract metadata if present
+  const extractionMetadata = parsed.extractionMetadata || {};
 
   return {
     encounters,
     pageAssignments,
-    activeContext: parsed.activeContext  // Progressive mode provides this in camelCase
+    activeContext: parsed.activeContext,  // V10 provides rich context
+    extractionMetadata
   };
 }
 
