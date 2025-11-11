@@ -33,7 +33,6 @@ export function postProcessEncounters(config: PostProcessConfig): any[] {
     encounters,
     chunkNumber,
     totalChunks,
-    chunkStartPage,
     chunkEndPage,
     isLastChunk
   } = config;

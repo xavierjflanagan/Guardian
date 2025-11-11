@@ -35,7 +35,7 @@ export interface V10PromptConfig {
  * Works for both single-chunk (standard) and multi-chunk (progressive) processing
  */
 export function buildEncounterDiscoveryPromptV10(config: V10PromptConfig): string {
-  const { fullText, pageCount, progressive } = config;
+  const { fullText, progressive } = config;
 
   // Build chunk context section if in progressive mode
   const chunkContext = progressive ? buildChunkContext(progressive) : '';

@@ -142,14 +142,15 @@ export async function discoverEncounters(
       console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using v10 in single-pass mode`);
 
       // Build v10 prompt without progressive parameters (single chunk)
-      const prompt = buildEncounterDiscoveryPromptV10({
+      const v10Prompt = buildEncounterDiscoveryPromptV10({
         fullText: input.ocrOutput.fullTextAnnotation.text,
         pageCount: input.pageCount,
         ocrPages: input.ocrOutput.fullTextAnnotation.pages
         // No progressive parameter = single chunk mode
       });
 
-      // Continue with standard processing below...
+      // Continue with standard processing below by setting prompt
+      const prompt = v10Prompt;
 
     } else {
       // LEGACY: Old versions still supported for backward compatibility
