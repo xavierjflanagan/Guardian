@@ -286,21 +286,31 @@ function parseProgressiveResponse(content: any): {
 
 /**
  * Extract full text from OCR pages for base prompt
- * FIXED: Use correct OCR field priority based on actual data structure
+ * FIXED: Extract text from lines array (actual OCR structure from ocr-persistence.ts)
+ *
+ * OCR pages have this structure (from ocr-persistence.ts:12-31 and worker.ts:1192-1208):
+ * {
+ *   page_number: number;
+ *   size: { width_px, height_px };
+ *   lines: Array<{ text, bbox, confidence, reading_order }>;
+ *   tables: Array<{ bbox, rows, columns, confidence }>;
+ *   provider: string;
+ *   processing_time_ms: number;
+ * }
  */
 function extractTextFromPages(pages: OCRPage[]): string {
   return pages.map((page, idx) => {
     let text = '';
 
-    // Try fields in priority order (based on TEST_06 root cause analysis)
-    if (page.spatially_sorted_text) {
-      // BEST: Spatially sorted text - improves AI comprehension with better formatting
-      text = page.spatially_sorted_text;
-    } else if (page.original_gcv_text) {
-      // GOOD: Raw Google Cloud Vision text
-      text = page.original_gcv_text;
-    } else if (page.blocks && page.blocks.length > 0) {
-      // LEGACY: Blocks/paragraphs/words structure (if exists)
+    // CORRECT: Extract text from lines array (actual OCR structure)
+    if ((page as any).lines && Array.isArray((page as any).lines)) {
+      text = (page as any).lines
+        .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
+        .map((line: any) => line.text)
+        .join(' ');
+    }
+    // FALLBACK: Try blocks structure (transformed format used by standard mode)
+    else if (page.blocks && page.blocks.length > 0) {
       const words: string[] = [];
       for (const block of page.blocks) {
         for (const paragraph of block.paragraphs || []) {
@@ -310,8 +320,13 @@ function extractTextFromPages(pages: OCRPage[]): string {
         }
       }
       text = words.join(' ');
+    }
+    // LAST RESORT: Try direct text fields
+    else if ((page as any).spatially_sorted_text) {
+      text = (page as any).spatially_sorted_text;
+    } else if ((page as any).original_gcv_text) {
+      text = (page as any).original_gcv_text;
     } else if (page.text) {
-      // LAST RESORT: Simple text field
       text = page.text;
     }
 
@@ -329,10 +344,19 @@ function getLastContext(pages: any[]): string {
   const lastPage = pages[pages.length - 1];
 
   // Use same field priority as extractTextFromPages
-  const text = lastPage.spatially_sorted_text
-    || lastPage.original_gcv_text
-    || lastPage.text
-    || '';
+  let text = '';
+
+  if (lastPage.lines && Array.isArray(lastPage.lines)) {
+    text = lastPage.lines
+      .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
+      .map((line: any) => line.text)
+      .join(' ');
+  } else {
+    text = lastPage.spatially_sorted_text
+      || lastPage.original_gcv_text
+      || lastPage.text
+      || '';
+  }
 
   return text.length > 500 ? text.slice(-500) : text;
 }
