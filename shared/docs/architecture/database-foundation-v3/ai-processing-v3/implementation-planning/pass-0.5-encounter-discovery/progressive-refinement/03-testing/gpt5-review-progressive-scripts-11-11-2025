@@ -1,0 +1,231 @@
+I read each progressive file end-to-end and mapped them against the documented schema and behaviors. Below is a concise per-file audit with specific risks and targeted suggestions. No edits have been made.
+
+### apps/render-worker/src/pass05/progressive/addons.ts
+- Findings:
+  - Clean, schema-agnostic guidance; consistent 1-indexed page display; handoff context assembly is clear.
+  - Assumes `handoff.activeContext.activeProviders` exists; but `handoff-builder` always provides it, so safe.
+- Risks:
+  - The guidance states “addons do not change JSON schema,” but your separate `prompts.ts` defines snake_case fields including status/temp_id that conflict with the v2.9 camelCase assumption downstream.
+- Suggestions:
+  - Add a single-line reminder inside the addon text to “use the base v2.9 JSON schema” to reduce drift.
+  - Optionally guard for missing arrays: if you ever pass uninitialized `activeContext`, ensure defaults are set before use.
+
+### apps/render-worker/src/pass05/progressive/chunk-processor.ts
+- Findings:
+  - OCR text extraction only reads `blocks → paragraphs → words`, producing empty prompts when OCR pages contain `original_gcv_text` or `spatially_sorted_text`.
+  
+```278:291:apps/render-worker/src/pass05/progressive/chunk-processor.ts
+function extractTextFromPages(pages: OCRPage[]): string {
+  return pages.map((page, idx) => {
+    const words: string[] = [];
+    for (const block of page.blocks || []) {
+      for (const paragraph of block.paragraphs || []) {
+        for (const word of paragraph.words || []) {
+          words.push(word.text);
+        }
+      }
+    }
+    const text = words.join(' ');
+    return `--- PAGE ${idx + 1} START ---\n${text}\n--- PAGE ${idx + 1} END ---`;
+  }).join('\n\n');
+}
+```
+
+  - Parser declares v2.9 outputs camelCase but then reads snake_case fields like `encounter_id` and `page_assignments`.
+
+```224:236:apps/render-worker/src/pass05/progressive/chunk-processor.ts
+ * ARCHITECTURE CHANGE: Now uses v2.9 base prompt which outputs camelCase natively.
+ * Progressive addons don't change the schema, so no normalization needed.
+ */
+function parseProgressiveResponse(content: any): {
+  encounters: Array<{
+    status: 'complete' | 'continuing';
+    tempId?: string;
+    encounterType: string;
+    encounterStartDate?: string;
+    encounterEndDate?: string;
+```
+
+```260:271:apps/render-worker/src/pass05/progressive/chunk-processor.ts
+    return {
+      status: isContinuing ? 'continuing' : 'complete',
+      tempId: enc.encounter_id,  // Use encounter_id as tempId for continuations
+      encounterType: enc.encounterType,
+      encounterStartDate: enc.dateRange?.start,
+      encounterEndDate: enc.dateRange?.end,
+      encounterTimeframeStatus: enc.encounterTimeframeStatus || 'unknown_end_date',
+      dateSource: enc.dateSource || 'ai_extracted',
+      providerName: enc.provider,
+      facility: enc.facility,
+      pageRanges: enc.pageRanges || [],
+      confidence: enc.confidence,
+```
+
+- Risks:
+  - Empty `fullText` is the main cause of “empty pages.”
+  - Schema inconsistency (camelCase vs snake_case) can cause partial parse and silent field drops.
+- Suggestions:
+  - Add extraction fallbacks: prefer `spatially_sorted_text` → `original_gcv_text` → `lines[*].text` → blocks/words → `page.text`.
+  - Align `parseProgressiveResponse` and the prompt schema. Either:
+    - Normalize from snake_case to camelCase consistently; or
+    - Switch prompt to camelCase and read only camelCase.
+  - `getLastContext` should use same field precedence as `extractTextFromPages`.
+  - Consider logging extracted char count per chunk and short-circuiting to manual review when zero.
+
+### apps/render-worker/src/pass05/progressive/database.ts
+- Findings:
+  - Uses two RPCs: `update_progressive_session_progress` and `finalize_progressive_session`.
+  - Saves chunk results, but does not set `confidence_score` even though the table supports it, and equates `encounters_started` to `encounters_completed`.
+
+```114:133:apps/render-worker/src/pass05/progressive/database.ts
+  const { error } = await supabase
+    .from('pass05_chunk_results')
+    .insert({
+      session_id: params.sessionId,
+      chunk_number: params.chunkNumber,
+      page_start: params.pageStart,
+      page_end: params.pageEnd,
+      processing_status: 'completed',
+      ai_model_used: params.aiModel,
+      input_tokens: params.inputTokens,
+      output_tokens: params.outputTokens,
+      ai_cost_usd: params.cost,
+      handoff_received: params.handoffReceived,
+      handoff_generated: params.handoffGenerated,
+      encounters_started: params.encountersCompleted,
+      encounters_completed: params.encountersCompleted,
+      encounters_continued: params.encountersPending > 0 ? 1 : 0,
+      processing_time_ms: params.processingTimeMs,
+      ai_response_raw: params.aiResponseRaw
+    });
+```
+
+- Risks:
+  - If RPCs are not deployed, session updates/finalization will fail at runtime.
+  - Loss of `confidence_score` prevents roll-ups and quality triggers.
+  - `handoffPackage` shape is camelCase; RPC may expect JSONB with different casing if written in SQL expecting snake_case keys.
+- Suggestions:
+  - Add `confidence_score` column write from the chunk result.
+  - Split metrics: pass separate counts for `encounters_started`, `encounters_completed`, `encounters_continued`.
+  - Provide graceful fallback if RPCs are missing: direct `UPDATE pass05_progressive_sessions`.
+  - Confirm the RPCs exist and accept camelCase JSON; otherwise transform keys before sending.
+
+### apps/render-worker/src/pass05/progressive/handoff-builder.ts
+- Findings:
+  - Converts any inbound snake_case active context to camelCase; returns `HandoffPackage` with stable camelCase fields.
+  - Extracts recent providers, recent encounters, and a flow heuristic.
+- Risks:
+  - If `activeContext` is absent from model output (currently likely), most context is built only from completed encounters; safe but thinner.
+- Suggestions:
+  - Keep as-is. Ensure downstream consumers assume camelCase only for `HandoffPackage`.
+
+### apps/render-worker/src/pass05/progressive/pending-reconciler.ts
+- Findings:
+  - Requires provider and dateRange.start to complete pending encounters.
+
+```129:135:apps/render-worker/src/pass05/progressive/pending-reconciler.ts
+function isEncounterComplete(data: any): boolean {
+  return !!(
+    data.encounterType &&
+    data.dateRange?.start &&
+    data.provider &&
+    data.pageRanges?.length > 0
+  );
+}
+```
+
+  - Correctly looks up `patient_id` and `shell_file_id` from session; inserts into `healthcare_encounters` with correct column names.
+- Risks:
+  - If partials lack providers (common for labs/ancillary), they’ll be abandoned. That may be desired, but be aware.
+- Suggestions:
+  - Consider a relaxed completion rule for certain `encounterType`s where facility+date can suffice (configurable).
+
+### apps/render-worker/src/pass05/progressive/prompts.ts
+- Findings:
+  - Defines snake_case response schema with `status`, `temp_id`, `encounter_type`, etc.
+
+```97:137:apps/render-worker/src/pass05/progressive/prompts.ts
+{
+  "continuation_data": {
+    // ...
+  },
+  "encounters": [
+    {
+      "status": "complete",  // or "continuing"
+      "temp_id": "encounter_temp_001",  // ONLY for continuing encounters
+      "encounter_type": "Emergency Department Visit",
+      "encounter_start_date": "2024-03-15",
+      "encounter_end_date": "2024-03-15",  // Can be null if ongoing
+      "encounter_timeframe_status": "completed",  // completed | ongoing | unknown_end_date
+      "date_source": "ai_extracted",
+      "provider_name": "Dr. Sarah Chen",
+      "facility": "St Vincent's Hospital",
+      "page_ranges": [[${pageRange[0] + 1}, ${pageRange[0] + 5}]],  // 1-indexed
+      "confidence": 0.95,
+      "summary": "Brief summary of encounter",
+      "expected_continuation": "lab_results"  // ONLY for continuing encounters
+    }
+  ],
+  "active_context": {
+    "current_admission": {
+```
+
+  - OCR text builder uses the same blocks/paragraphs assumption as `chunk-processor`, risking empty chunk text again.
+- Risks:
+  - Schema mismatch with v2.9 camelCase assumption in `chunk-processor`.
+  - Empty OCR extraction if pages lack blocks/words.
+- Suggestions:
+  - Unify on either camelCase everywhere (recommended with v2.9) or keep snake_case and adjust parser. Do not mix.
+  - Add OCR extraction fallbacks in `prompts.ts` mirroring `chunk-processor`.
+
+### apps/render-worker/src/pass05/progressive/session-manager.ts
+- Findings:
+  - Orchestrates chunks, aggregates tokens/cost, reconciles pending, calls `finalizeProgressiveSession`.
+
+```134:151:apps/render-worker/src/pass05/progressive/session-manager.ts
+    await finalizeProgressiveSession(session.id);
+
+    console.log(`[Progressive] Session ${session.id} complete: ${allEncounters.length} total encounters, ${totalCost.toFixed(4)} USD`);
+
+    return {
+      encounters: allEncounters,
+      pageAssignments: allPageAssignments,
+      sessionId: session.id,
+      totalChunks: session.totalChunks,
+      totalCost,
+      totalInputTokens,  // FIXED: Return actual values
+      totalOutputTokens,  // FIXED: Return actual values
+      requiresManualReview: reviewReasons.length > 0,
+      reviewReasons,
+      aiModel // Migration 45: Return model used
+    };
+```
+
+- Risks:
+  - Does not update `shell_files` pass_0_5 flags/metadata on progressive completion.
+  - `reviewReasons` thresholding is minimal; catastrophic failures may not auto-flag.
+  - Page assignments are returned but not persisted here. If persistence is intended elsewhere, fine; otherwise add.
+- Suggestions:
+  - After finalization, update `shell_files` with `pass_0_5_completed=true`, `pass_0_5_progressive=true`, `pass_0_5_version`, and `ocr_average_confidence`.
+  - Add basic quality gating (e.g., low encounter count or high pseudo ratio) to set `requires_manual_review`.
+
+### apps/render-worker/src/pass05/progressive/types.ts
+- Findings:
+  - Types are consistent and helpful. `HandoffPackage` is camelCase; `ProgressiveAIResponse` documents snake_case format.
+- Risks:
+  - The coexistence of camelCase internal types and snake_case model formats is fine only if the parser consistently normalizes. Currently it’s inconsistent across files.
+- Suggestions:
+  - Pick one model response schema (recommend camelCase with v2.9) and enforce that across prompts and parser; or keep snake_case and always normalize at the boundary.
+
+### Cross-cutting issues to address before next test
+- OCR ingestion:
+  - Fix `extractTextFromPages` fallbacks (and the equivalent in `prompts.ts`). This is the P0 fix that prevents “all pages empty.”
+- Schema consistency:
+  - Make prompt and parser agree on v2.9 output casing. Today they conflict.
+- Persistence and metrics:
+  - Save `confidence_score` in `pass05_chunk_results`.
+  - Ensure `shell_files` is finalized on progressive completion with correct flags and averages.
+  - Confirm and/or add fallbacks for RPCs (`update_progressive_session_progress`, `finalize_progressive_session`).
+  - Validate shapes for `pass05_pending_encounters.page_ranges`. Your tests show ranges like `[[51,142]]`, but code stores `[startPage]` which is a scalar; align on array-of-ranges or array-of-pages consistently with the table schema.
+
+If you want, I can draft precise, minimal edits for each file in separate diffs, but I’ll hold off until you give the go-ahead.

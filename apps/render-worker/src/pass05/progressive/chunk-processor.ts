@@ -27,7 +27,8 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0] + 1}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
 
   // Build base v2.9 prompt (same as standard mode)
-  const fullText = extractTextFromPages(params.pages);
+  // Pass the starting page number for proper page labeling
+  const fullText = extractTextFromPages(params.pages, params.pageRange[0]);
 
   // Add guardrails and logging (P3 fix from TEST_06)
   if (fullText.trim().length === 0) {
@@ -296,8 +297,11 @@ function parseProgressiveResponse(content: any): {
  *   provider: string;
  *   processing_time_ms: number;
  * }
+ *
+ * @param pages - Array of OCR pages for this chunk
+ * @param startPageNum - The actual starting page number in the document (0-indexed)
  */
-function extractTextFromPages(pages: OCRPage[]): string {
+function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): string {
   // EMERGENCY DEBUG: Log actual page structure
   if (pages.length > 0) {
     const firstPage = pages[0] as any;
@@ -332,7 +336,9 @@ function extractTextFromPages(pages: OCRPage[]): string {
       text = page.text;
     }
 
-    return `--- PAGE ${idx + 1} START ---\n${text}\n--- PAGE ${idx + 1} END ---`;
+    // Use actual page number in document, not chunk index
+    const actualPageNum = startPageNum + idx + 1;
+    return `--- PAGE ${actualPageNum} START ---\n${text}\n--- PAGE ${actualPageNum} END ---`;
   }).join('\n\n');
 }
 

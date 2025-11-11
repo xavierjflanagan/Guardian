@@ -25,14 +25,26 @@ export class GoogleProvider extends BaseAIProvider {
     this.validateContextWindow(promptTokens);
 
     // Configure generation settings
+    // For progressive mode, limit output to 32K tokens to avoid MAX_TOKENS errors
+    // while still allowing for complex medical documents with multiple encounters
+    // (50 pages could have 5-10 encounters × 3-4K tokens each = 15-40K tokens)
+    const isProgressiveMode = prompt.includes('[Progressive Mode]') || prompt.includes('chunk');
+    const maxTokens = isProgressiveMode ?
+      Math.min(32768, this.model.maxOutput) : // Limit to 32K for progressive (sufficient for ~10 encounters)
+      this.model.maxOutput; // Full capability for standard mode (65K)
+
     const genModel = this.client.getGenerativeModel({
       model: this.model.modelId,
       generationConfig: {
         temperature: this.model.temperatureSupported ? 0.1 : 1.0,
-        maxOutputTokens: this.model.maxOutput,  // Use full model capability (65K for Gemini)
+        maxOutputTokens: maxTokens,
         responseMimeType: 'application/json'  // Force JSON response
       }
     });
+
+    if (isProgressiveMode) {
+      console.log(`[GoogleProvider] Progressive mode detected - limiting output to ${maxTokens} tokens`);
+    }
 
     try {
       // Generate content
