@@ -3,4 +3,265 @@
 3. Should we be treating every file no matter what it is as if it is potentially a 100+ page file, by giving the uploaded file the same prompt prompt that includes the progressive instructions, then if the page ends up being < 1 chunk's worth, the encounter gets 'closed off' after the call, but if there is a second chunk it simply gets handed over. So for the majority of files which are <50 pages long, they wil get instructions that start with a something such as; 'you are continuing this [encounter information]' where if its a 1 page file then that [encounter information] section just get filled with nothing or a placeholder or removed entirely. Then it just continues doing its job as normal for the pages it has and when it reaches the end of the pages it has (the chunk) it submits it. The database then determins if the information that has been submitted is final because thats the end fo teh document, or whether there is another chunk to run through another api ai call and hence to leave as pending for now and prepare package to insert into the prompt for the next ai call  ? 
 4. I don't understand why this is so hard, Isn't all we have to do is get the AI to handover the last encounter it was working on - ie., we just need a handoff a packge of context info to the next ai doing the next chunk Which will simply contain the encounter summary and spatial information i.e. which page started on but nothing too complex cause all the complex stuff should already be stored in the pending section of the table database. 
 5. We will eventually need to update the process/system for pass05 so that healthcare encounters are able to end and start at any point within a page (half way down the page etc) as this is common in medicla files such as a path test history where test results from different dates are just stacked on top of each other in one long document (but clearly defined and dinstinguised with date headers etc - its just that these headers could be at any vertical y value down the page). i.e., be more granular with encounter start and end spatial locations via utilising the OCR bbox data 
-6. 
+
+
+
+
+
+Comprehensive Plan for v10 Universal Approach
+
+  Based on my analysis of the current structure and files, here's my organized plan:
+
+  Current State Summary
+
+  Prompt Files:
+  - Production: aiPrompts.v2.9.ts (current)
+  - Previous: aiPrompts.v2.8.ts, aiPrompts.v2.7.ts
+  - Progressive addon: progressive/addons.ts (broken approach)
+
+  Documentation:
+  - Well-organized in prompt-versions-and-improvements/
+  - Three planning docs in shared/docs/ documenting the failure
+
+  Key Issues Documented:
+  - Addon approach failed - AI won't add required fields
+  - Schema conflict between base and progressive
+  - Handoff mechanism broken
+
+  Proposed v10 Organization Plan
+
+  1. File Structure
+
+  apps/render-worker/src/pass05/
+  ├── aiPrompts.v10.ts                    # NEW: Universal v10 prompt
+  ├── aiPrompts.v2.9.ts                   # Keep for rollback
+  ├── models/                              # No changes
+  ├── providers/                           # No changes
+  ├── progressive-v10/                     # RENAME from progressive/
+  │   ├── session-manager.ts              # Update for v10
+  │   ├── chunk-processor.ts              # Update for v10
+  │   ├── post-processor.ts               # NEW: Handle status inference
+  │   ├── database.ts                     # Keep as-is
+  │   ├── types.ts                        # Keep as-is
+  │   └── [DELETE addons.ts]              # Remove addon approach
+  │   └── [DELETE prompts.ts]             # Not needed with v10
+  ├── prompt-versions-and-improvements/
+  │   ├── production/
+  │   │   ├── v10.0-current/              # NEW directory
+  │   │   │   ├── DESIGN_SPECIFICATION.md # Universal approach design
+  │   │   │   ├── CHANGELOG_v2.9_to_v10.md
+  │   │   │   ├── MIGRATION_GUIDE.md      # How to switch from v2.9
+  │   │   │   └── VALIDATION_PLAN.md
+  │   │   └── v2.9-previous/              # Move current here
+  │   └── historical/
+  │       └── failed-progressive-addon/    # Archive the addon attempt
+  └── encounterDiscovery.ts                # Update to use v10
+
+  2. Documentation Cleanup
+
+  shared/docs/.../progressive-refinement/
+  ├── 05-v10-universal/                    # NEW directory
+  │   ├── DESIGN_DECISION.md              # Why universal approach
+  │   ├── IMPLEMENTATION_PLAN.md          # Step-by-step plan
+  │   └── TEST_STRATEGY.md                # How to validate v10
+  ├── 04-archive/                          # Move old docs here
+  │   ├── PROGRESSIVE_MODE_FIX_PLAN.md    # Archive (addon approach failed)
+  │   ├── SCHEMA_UNIFICATION_PLAN.md      # Archive (superseded by v10)
+  │   └── TEST_STRATEGY.md                # Archive (for addon approach)
+  └── xaviers-thoughts-12-11-2025         # Keep as decision record
+
+  3. Implementation Steps
+
+  Phase 1: Create v10 Prompt (Day 1)
+  1. Create aiPrompts.v10.ts with:
+    - Unified schema including status/tempId fields
+    - Clear chunk context section
+    - Examples showing both single and multi-chunk scenarios
+    - Remove conflicting instructions
+
+  Phase 2: Update Progressive System (Day 1-2)
+  2. Rename progressive/ to progressive-v10/
+  3. Create post-processor.ts to:
+  - Infer status from encounter data
+  - Mark encounters as continuing if they span chunk boundary
+  - Clean up fields for single-chunk files
+  4. Update chunk-processor.ts:
+    - Remove addon composition
+    - Use v10 prompt directly
+    - Add post-processing step
+
+  Phase 3: Testing (Day 2)
+  5. Test with:
+  - 3-page file (single chunk)
+  - 142-page file (multi-chunk)
+  - Verify handoff works
+
+  Phase 4: Documentation (Day 2-3)
+  6. Create v10 documentation
+  7. Archive failed addon approach
+  8. Update CURRENT_VERSION file
+
+  4. Key Design Decisions for v10
+
+  Universal Fields (always present):
+  {
+    "encounter_id": "enc-1",
+    "encounterType": "inpatient",
+    "processingStatus": "complete" | "continuing",  // NEW: renamed from status
+    "chunkContext": {                              // NEW: always present
+      "tempId": "temp-001" | null,
+      "expectedContinuation": "..." | null,
+      "startedInChunk": 1,
+      "completedInChunk": 1 | null
+    },
+    // ... standard fields
+  }
+
+  Post-Processing Logic:
+  // For single-chunk files
+  if (totalChunks === 1) {
+    encounters.forEach(enc => {
+      enc.processingStatus = 'complete';
+      enc.chunkContext = null;  // Clean up
+    });
+  }
+
+  // For multi-chunk files
+  if (encounter.pageRanges[0][1] === chunkEndPage && !isLastChunk) {
+    encounter.processingStatus = 'continuing';
+  }
+
+  5. Migration Strategy
+
+  1. Parallel Testing: Run v10 alongside v2.9 for validation
+  2. Feature Flag: PASS_05_VERSION=v10 to enable
+  3. Rollback Plan: Keep v2.9 intact for quick revert
+  4. Validation Metrics:
+    - Compare encounter counts v2.9 vs v10
+    - Verify handoff success rate
+    - Check processing time
+
+  Questions for Your Approval
+
+  1. Naming: Happy with processingStatus instead of status to avoid confusion?
+  2. Archive Strategy: OK to move failed addon docs to 04-archive/?
+  3. Testing Priority: Focus on 142-page document or create synthetic tests?
+  4. Rollback Period: Keep v2.9 for how long after v10 deploys?
+
+  This plan creates a clean v10 that:
+  - Works for all file sizes (universal)
+  - Has no conflicting schemas
+  - Uses post-processing instead of fighting with AI
+  - Maintains clear documentation trail
+  - Allows easy rollback if needed
+
+  What do you think? Should I proceed with this organization?
+
+================================================================================
+SECOND AI BOT REVIEW ASSESSMENT (2025-11-12)
+================================================================================
+
+## Point-by-Point Assessment of Second AI Bot's Review
+
+### 1. "Missing boundary detection rules"
+**AGREE - High Priority**
+- v2.9 has explicit boundary priority hierarchy that v10 lacks
+- Should add: Header > metadata distinction, boundary verification step
+- Evidence: v2.9 lines 412-436 have detailed boundary rules
+**ACTION:** Add to aiPrompts.v10.ts after line 99 (Timeline Test section):
+- Copy boundary priority rules from v2.9 lines 412-436
+- Add "Boundary Verification Protocol" section
+- Include header vs metadata distinction
+- Add lookahead requirement for boundary confirmation
+
+### 2. "Missing citation requirement for pageAssignments"
+**AGREE - Critical**
+- v2.9 requires exact phrase quotes from pages (line 527)
+- v10 only has generic justifications like "ED triage and initial assessment"
+- This degrades boundary accuracy
+**ACTION:** Modify aiPrompts.v10.ts at line 241 (pageAssignments example):
+- Change justification examples to include exact quotes
+- Add requirement: "justification MUST include exact phrase from that page"
+- Example: "justification": "Contains 'EMERGENCY DEPARTMENT TRIAGE FORM' header"
+
+### 3. "Single-day encounters must set end = start"
+**PARTIALLY AGREE**
+- Good practice but database allows null for end date
+- Should clarify: single-day = same start/end, ongoing = null end
+**ACTION:** Add to aiPrompts.v10.ts at line 135 (Date Information section):
+- Add rule: "For single-day encounters, set encounterEndDate = encounterStartDate"
+- Add rule: "For ongoing encounters, set encounterEndDate = null"
+- Clarify encounterTimeframeStatus values accordingly
+
+### 4. "dateSource must be 'ai_extracted' for real encounters"
+**DISAGREE**
+- Database CHECK constraint allows: ai_extracted, file_metadata, upload_date
+- All are valid, shouldn't force ai_extracted only
+**NO ACTION:** Keep current flexibility in dateSource values
+
+### 5. "processingStatus vs status field naming"
+**DISAGREE - Keep status**
+- Plan suggested processingStatus but I kept status for simplicity
+- Post-processor already handles this, no need to complicate
+**NO ACTION:** Keep "status" field name as-is
+
+### 6. "chunkContext wrapper object"
+**DISAGREE - Unnecessary complexity**
+- Flat fields (status, tempId) are cleaner
+- Post-processor can handle cleanup for single-chunk files
+**NO ACTION:** Keep flat field structure
+
+### 7. "encounterType standardization"
+**AGREE - Important**
+- v2.9 uses lowercase_underscore (emergency_department)
+- v10 uses human labels ("Emergency Department Visit")
+- Should standardize to match downstream expectations
+**ACTION:** Update aiPrompts.v10.ts at lines 105-126 (Encounter Types):
+- Change all encounterType values to lowercase_underscore format
+- "Emergency Department Visit" → "emergency_department"
+- "Hospital Admission" → "hospital_admission"
+- "Surgical Procedure" → "surgical_procedure"
+- "Outpatient Consultation" → "outpatient_consultation"
+- Update all examples to use standardized values
+
+### 8. "Missing confidence banding guidelines"
+**AGREE - Helpful**
+- v2.9 has calibration bands (0.9-1.0, 0.7-0.9, etc.)
+- Helps AI calibrate confidence scores consistently
+**ACTION:** Add to aiPrompts.v10.ts after line 276 (Confidence Score section):
+- Add confidence calibration bands from v2.9:
+  - 0.9-1.0: All dates explicit, provider named, clear boundaries
+  - 0.7-0.9: Most info present, minor uncertainty
+  - 0.5-0.7: Some key info missing or unclear
+  - Below 0.5: Major uncertainty, requires review
+
+### 9. "Post-processor not integrated"
+**PARTIALLY CORRECT**
+- I DID create post-processor.ts and integrated it
+- Bot may have reviewed before my latest changes
+**ALREADY DONE:** post-processor.ts created and integrated in chunk-processor.ts
+
+### 10. "Directory reorganization not done"
+**CORRECT - Low Priority**
+- Haven't renamed progressive/ to progressive-v10/
+- Not critical for functionality
+**NO ACTION:** Defer directory reorganization (not critical)
+
+## Recommended Actions:
+
+**HIGH PRIORITY (Add to v10 prompt):**
+1. Boundary detection rules from v2.9
+2. Citation requirement for page assignments
+3. encounterType standardization list
+4. Confidence banding guidelines
+
+**MEDIUM PRIORITY:**
+5. Clarify single-day vs ongoing date rules
+
+**LOW PRIORITY/SKIP:**
+6. processingStatus rename (keep status)
+7. chunkContext wrapper (keep flat)
+8. Directory reorganization (defer)
+
+**ALREADY DONE:**
+9. Post-processor integration (completed)

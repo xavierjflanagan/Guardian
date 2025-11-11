@@ -10,6 +10,7 @@ import { saveChunkResults, savePendingEncounter } from './database';
 import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
 import { buildEncounterDiscoveryPromptV10, mapV10ResponseToDatabase } from '../aiPrompts.v10';
+import { postProcessEncounters, validateHandoffPackage } from './post-processor';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -80,12 +81,22 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   // Parse and normalize response (snake_case → camelCase)
   const parsed = parseProgressiveResponse(aiResponse.content, params.chunkNumber);
 
+  // Post-process encounters to ensure proper status fields
+  const processedEncounters = postProcessEncounters({
+    encounters: parsed.encounters,
+    chunkNumber: params.chunkNumber,
+    totalChunks: params.totalChunks,
+    chunkStartPage: params.pageRange[0],
+    chunkEndPage: params.pageRange[1],
+    isLastChunk: params.chunkNumber === params.totalChunks
+  });
+
   // Separate completed vs continuing encounters
   const completedEncounters: EncounterMetadata[] = [];
   const completedPageAssignments: PageAssignment[] = parsed.pageAssignments;  // FIXED: Use parsed page assignments
   let pendingEncounter: ChunkResult['pendingEncounter'] = null;
 
-  for (const enc of parsed.encounters) {
+  for (const enc of processedEncounters) {
     if (enc.status === 'complete') {
       // Map v10 camelCase response to database snake_case format
       const dbEncounter = mapV10ResponseToDatabase({
@@ -165,12 +176,14 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   }
 
   // Build handoff package for next chunk
-  const handoffGenerated = buildHandoffPackage({
-    pendingEncounter,
-    completedEncounters,
-    activeContext: parsed.activeContext,
-    chunkNumber: params.chunkNumber
-  });
+  const handoffGenerated = validateHandoffPackage(
+    buildHandoffPackage({
+      pendingEncounter,
+      completedEncounters,
+      activeContext: parsed.activeContext,
+      chunkNumber: params.chunkNumber
+    })
+  );
 
   // Calculate cost
   const cost = calculateCost(model.modelId, aiResponse.inputTokens, aiResponse.outputTokens);

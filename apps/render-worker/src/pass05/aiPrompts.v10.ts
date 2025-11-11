@@ -80,61 +80,75 @@ For each potential encounter, ask: "Could this have happened at a different time
 - Emergency visit with X-rays, CT scan, and blood tests = 1 encounter
 - Clinic visit with multiple providers in same session = 1 encounter
 
+## Boundary Detection Priority
+
+When determining encounter boundaries, use this priority system (strongest → weakest):
+
+1. **New clinical document header with date** (e.g., "DISCHARGE SUMMARY 2024-03-15") = STRONG boundary
+2. **Provider name change** (Dr. Smith → Dr. Jones) = STRONG boundary
+3. **Facility/department change** = MODERATE boundary
+4. **Date discontinuity** (>24 hours gap) = MODERATE boundary
+5. **Document formatting change** = WEAK signal (verify with content)
+
+**Boundary Verification:** When you detect a potential boundary, check the next page to confirm the encounter actually changed.
+
 ${handoffContext}
 
 ## Encounter Types to Extract
 
-### Primary Encounter Types
+### Primary Encounter Types (Use Standardized Values)
 
-1. **Emergency Department Visit**
+**IMPORTANT:** Use these exact lowercase_underscore values for encounterType:
+
+1. **"emergency_department"**
    - Standalone ED visits (patient discharged home)
    - Initial ED assessment before admission (separate from admission)
    - Urgent care or after-hours clinic visits
 
-2. **Hospital Admission**
+2. **"hospital_admission"**
    - Inpatient stays (overnight or longer)
    - Includes all care during the admission period
    - Day surgery admissions (even if same-day discharge)
 
-3. **Surgical Procedure**
+3. **"surgical_procedure"**
    - Standalone surgeries (outpatient)
    - Include pre-operative assessment if documented
    - Capture procedure type and surgical team
 
-4. **Outpatient Consultation**
+4. **"outpatient_consultation"**
    - Specialist appointments
    - Follow-up visits
    - Initial consultations
    - Clinic visits
 
-5. **Diagnostic Imaging**
+5. **"diagnostic_imaging"**
    - Standalone imaging appointments
    - Include modality (X-ray, CT, MRI, ultrasound, etc.)
    - Capture imaging findings if available
 
-6. **Laboratory Test Collection**
+6. **"laboratory_test"**
    - Standalone pathology/lab visits
    - Blood draws, urine samples, biopsies
    - Include test types ordered
 
-7. **Treatment Session**
+7. **"treatment_session"**
    - Chemotherapy infusions
    - Radiation therapy
    - Dialysis sessions
    - Physiotherapy sessions
    - Wound care visits
 
-8. **Vaccination/Immunization**
+8. **"vaccination"**
    - Vaccine administrations
    - Include vaccine type and dose number
    - Travel vaccinations
 
-9. **Telehealth Consultation**
+9. **"telehealth"**
    - Video consultations
    - Phone consultations
    - Remote monitoring reviews
 
-10. **Medication Review**
+10. **"medication_review"**
     - Pharmacy consultations
     - Medication therapy management
     - Prescription renewals with assessment
@@ -145,7 +159,10 @@ For EACH encounter, extract:
 
 1. **Date Information**
    - Start date (REQUIRED - use document date if necessary)
-   - End date (for multi-day encounters)
+   - End date rules:
+     * Single-day encounters: Set encounterEndDate = encounterStartDate
+     * Multi-day completed encounters: Set actual end date
+     * Ongoing encounters: Set encounterEndDate = null
    - Time if specified
    - Date source (extracted from text vs inferred)
 
@@ -184,6 +201,11 @@ EVERY page must be assigned to an encounter. Use this decision tree:
 5. **Cover pages** → Assign to first encounter in document
 6. **Pure administrative** → Assign to most relevant encounter
 
+**CRITICAL:** The justification MUST include a key phrase from that actual page. Examples:
+- GOOD: "Contains 'DISCHARGE SUMMARY' header and date '2024-03-15'"
+- GOOD: "Shows 'Dr. Smith' and 'cardiac consultation'"
+- BAD: "Emergency department notes" (too generic, no specific text)
+
 ## Output JSON Schema
 
 You must output valid JSON with this EXACT structure:
@@ -193,7 +215,7 @@ You must output valid JSON with this EXACT structure:
   "encounters": [
     {
       "encounterId": "enc-001",
-      "encounterType": "Emergency Department Visit",
+      "encounterType": "emergency_department",
       "status": "complete",
       "tempId": null,
       "expectedContinuation": null,
@@ -216,7 +238,7 @@ You must output valid JSON with this EXACT structure:
     },
     {
       "encounterId": "enc-002",
-      "encounterType": "Hospital Admission",
+      "encounterType": "hospital_admission",
       "status": "continuing",
       "tempId": "encounter_temp_002",
       "expectedContinuation": "discharge_summary",
@@ -242,12 +264,12 @@ You must output valid JSON with this EXACT structure:
     {
       "page": 1,
       "encounterId": "enc-001",
-      "justification": "ED triage and initial assessment"
+      "justification": "Contains 'EMERGENCY DEPARTMENT TRIAGE' header and '15/03/2024 14:32'"
     },
     {
       "page": 2,
       "encounterId": "enc-001",
-      "justification": "ED physician notes and examination"
+      "justification": "Shows 'Dr. Sarah Chen' and 'chest pain radiating to left arm'"
     }
   ],
   "activeContext": {
@@ -277,6 +299,11 @@ You must output valid JSON with this EXACT structure:
 - **"complete"**: Encounter is fully contained within this chunk/document
 - **"continuing"**: Encounter extends beyond this chunk (progressive mode only)
 
+**IMPORTANT - Don't Confuse These Two Concepts:**
+- **encounterEndDate**: When the real-world medical encounter ended (or null if ongoing)
+- **status="continuing"**: Whether this encounter's DOCUMENTATION continues in next chunk
+- Example: A completed 2022 hospital admission (has real end date) might still have status="continuing" if its discharge summary spans from chunk 1 to chunk 2
+
 ### TempId Field (REQUIRED when status="continuing")
 - Format: "encounter_temp_XXX" where XXX is a unique identifier
 - Used to track encounters across chunk boundaries
@@ -294,6 +321,11 @@ You must output valid JSON with this EXACT structure:
 ### Confidence Score
 - 0.0 to 1.0 scale
 - Stored in database as "pass_0_5_confidence" not "confidence"
+- Calibration bands:
+  * 0.90-1.00: All dates explicit, provider named, clear boundaries, document headers present
+  * 0.70-0.89: Most information present, minor uncertainty in dates or providers
+  * 0.50-0.69: Some key information missing or unclear, requires verification
+  * Below 0.50: Major uncertainty, multiple missing elements, flag for review
 - Factors: date clarity, provider identification, encounter boundaries
 
 ### Page Ranges
@@ -455,30 +487,62 @@ function buildHandoffContext(handoff: any): string {
 /**
  * Migration helper: Convert v10 response to database format
  * Maps camelCase fields to snake_case for database insertion
+ *
+ * IMPORTANT: Only maps to columns that actually exist in healthcare_encounters table
+ * Additional extracted data (diagnoses, procedures, medications, etc.) should be
+ * stored in separate tables or in the summary/clinical_impression fields
  */
 export function mapV10ResponseToDatabase(encounter: any): any {
+  // Build extended summary that includes extra extracted data
+  let extendedSummary = encounter.summary || '';
+
+  // Append additional clinical data to summary if present
+  if (encounter.diagnoses?.length > 0) {
+    extendedSummary += `\nDiagnoses: ${encounter.diagnoses.join(', ')}`;
+  }
+  if (encounter.procedures?.length > 0) {
+    extendedSummary += `\nProcedures: ${encounter.procedures.join(', ')}`;
+  }
+  if (encounter.medications?.length > 0) {
+    extendedSummary += `\nMedications: ${encounter.medications.join(', ')}`;
+  }
+  if (encounter.disposition) {
+    extendedSummary += `\nDisposition: ${encounter.disposition}`;
+  }
+
   return {
-    // Database uses snake_case column names
+    // Core identification
     patient_id: encounter.patientId,
     primary_shell_file_id: encounter.shellFileId,
+
+    // Encounter details (columns that exist)
     encounter_type: encounter.encounterType,
     encounter_start_date: encounter.encounterStartDate,
-    encounter_date_end: encounter.encounterEndDate, // CRITICAL: Not encounter_end_date!
+    encounter_date_end: encounter.encounterEndDate,
     encounter_timeframe_status: encounter.encounterTimeframeStatus || 'unknown_end_date',
     date_source: encounter.dateSource || 'ai_extracted',
+
+    // Provider/facility info (columns that exist)
     provider_name: encounter.providerName,
-    provider_role: encounter.providerRole,
+    provider_type: encounter.providerRole, // Maps providerRole -> provider_type
     facility_name: encounter.facility,
-    department: encounter.department,
+    specialty: encounter.department || encounter.specialty, // Maps department -> specialty
+
+    // Clinical content (columns that exist)
     chief_complaint: encounter.chiefComplaint,
-    diagnoses: encounter.diagnoses || [],
-    procedures: encounter.procedures || [],
-    medications: encounter.medications || [],
-    disposition: encounter.disposition,
+    summary: extendedSummary.trim(),
+    clinical_impression: encounter.diagnoses?.join('; ') || null,
+    plan: encounter.expectedContinuation || null, // Use continuation hint as plan
+
+    // Spatial/page info
     page_ranges: encounter.pageRanges || [],
-    pass_0_5_confidence: encounter.confidence, // CRITICAL: Not just confidence!
-    summary: encounter.summary,
+
+    // Tracking metadata
+    pass_0_5_confidence: encounter.confidence,
     identified_in_pass: 'pass_0_5',
-    source_method: 'ai_pass_0_5'
+    source_method: 'ai_pass_0_5',
+
+    // Review flag if low confidence
+    requires_review: encounter.confidence < 0.7
   };
 }
