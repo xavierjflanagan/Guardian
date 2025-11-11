@@ -1678,4 +1678,93 @@ function getLastContext(pages: any[]): string {
 - Content comparison showed spatial sorting adds spaces around punctuation
 - Independent code review validated all hypotheses
 
+---
+
+## CRITICAL UPDATE: Root Cause Correction (2025-11-11)
+
+**PREVIOUS ROOT CAUSE (INCORRECT):**
+> chunk-processor.ts expects `page.blocks` structure but OCR data uses `page.spatially_sorted_text` and `page.original_gcv_text` fields.
+
+**ACTUAL ROOT CAUSE (VERIFIED):**
+
+The OCR page structure stored in Supabase Storage has **NEITHER** `blocks` NOR `spatially_sorted_text`/`original_gcv_text`.
+
+### Data Flow Investigation
+
+**Source of Truth:** `ocr-persistence.ts:12-31` defines actual OCR page structure:
+```typescript
+export interface OCRPage {
+  page_number: number;
+  size: { width_px: number; height_px: number };
+  lines: Array<{
+    text: string;
+    bbox: { x, y, w, h };
+    bbox_norm: { x, y, w, h };
+    confidence: number;
+    reading_order: number;
+  }>;
+  tables: Array<...>;
+  provider: string;
+  processing_time_ms: number;
+}
+```
+
+**Standard Mode (<100 pages):** `worker.ts:1187-1191` pre-builds text from `lines` array:
+```typescript
+text: ocrResult.pages.map((p: any, idx: number) =>
+  `--- PAGE ${idx + 1} START ---\n` +
+  p.lines.map((l: any) => l.text).join(' ') +  // <-- Text from lines array
+  `\n--- PAGE ${idx + 1} END ---`
+).join('\n\n')
+```
+
+**Progressive Mode (>100 pages):** Receives raw `ocrResult.pages` array with `lines` structure, NOT pre-concatenated text.
+
+### Why First Fix Failed
+
+**Commit e29088e** tried to extract from `spatially_sorted_text`/`original_gcv_text` fields.
+
+**Re-test evidence:**
+- Logs showed "Extracted 2,180 chars" but first 200 chars were "--- PAGE 1 START ---" (empty!)
+- This proved fields don't exist in runtime structure
+
+**Database confusion:** The `ocr_raw_jsonb` column in `shell_files` table has different structure than individual page JSON files stored in Supabase Storage. The database column may have `spatially_sorted_text`, but the storage files only have `lines` array.
+
+### Correct Fix (Commit 8738f96)
+
+**Updated extractTextFromPages:**
+```typescript
+// CORRECT: Extract text from lines array (actual OCR structure)
+if ((page as any).lines && Array.isArray((page as any).lines)) {
+  text = (page as any).lines
+    .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
+    .map((line: any) => line.text)
+    .join(' ');
+}
+```
+
+This matches how worker.ts builds text for standard mode.
+
+### Evidence Trail
+
+1. `ocr-persistence.ts:82-96` - Stores pages with `lines` array structure
+2. `ocr-persistence.ts:250-271` - Loads pages from storage (reconstructs from individual JSON files)
+3. `worker.ts:1187-1191` - Standard mode builds text from `p.lines.map((l: any) => l.text).join(' ')`
+4. `session-manager.ts:51` - Progressive mode receives same `pages` structure
+5. `chunk-processor.ts:291-335` - MUST extract text from `lines` array
+
+### Action Items Update
+
+**P0 COMPLETED:**
+- [x] Fix extractTextFromPages to extract from `lines` array (commit 8738f96)
+- [x] Fix getLastContext to use same logic (commit 8738f96)
+- [x] Deploy to Render.com (auto-deployed from main branch)
+- [ ] **RE-TEST with 142-page file to validate fix**
+
+**NEXT:**
+- Re-upload 142-page test document
+- Verify Gemini now receives actual OCR text (not empty markers)
+- Confirm encounters extracted successfully
+- Update TEST_06 with post-fix results
+
 **Conclusion:** All corrections applied. Root cause analysis strengthened by identifying optimal OCR field selection.
