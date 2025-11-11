@@ -3,6 +3,7 @@
  * Orchestrates multi-chunk processing for large documents
  */
 
+import { createClient } from '@supabase/supabase-js';
 import { HandoffPackage, ChunkParams } from './types';
 import { OCRPage, EncounterMetadata, PageAssignment } from '../types';
 import {
@@ -14,6 +15,11 @@ import {
 } from './database';
 import { processChunk } from './chunk-processor';
 import { reconcilePendingEncounters } from './pending-reconciler';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const CHUNK_SIZE = 50; // Pages per chunk
 const PAGE_THRESHOLD = 100; // Switch to progressive mode above this
@@ -133,6 +139,49 @@ export async function processDocumentProgressively(
 
     // Finalize session
     await finalizeProgressiveSession(session.id);
+
+    // Update shell_files with completion status
+    const avgConfidence = allEncounters.length > 0
+      ? allEncounters.reduce((sum, e) => sum + (e.confidence || 0), 0) / allEncounters.length
+      : 0;
+
+    const { error: shellUpdateError } = await supabase
+      .from('shell_files')
+      .update({
+        pass_0_5_completed: true,
+        pass_0_5_progressive: true,
+        pass_0_5_version: 'v2.9-progressive',
+        pass_0_5_confidence: avgConfidence,
+        status: 'completed',
+        processing_completed_at: new Date().toISOString()
+      })
+      .eq('id', shellFileId);
+
+    if (shellUpdateError) {
+      console.error(`[Progressive] Failed to update shell_files: ${shellUpdateError.message}`);
+      // Don't throw - this is not critical enough to fail the entire session
+    }
+
+    // Persist page assignments
+    if (allPageAssignments.length > 0) {
+      const assignmentRecords = allPageAssignments.map(pa => ({
+        shell_file_id: shellFileId,
+        page_num: pa.page,
+        encounter_id: pa.encounter_id,
+        justification: pa.justification
+      }));
+
+      const { error: pageAssignError } = await supabase
+        .from('pass05_page_assignments')
+        .insert(assignmentRecords);
+
+      if (pageAssignError) {
+        console.error(`[Progressive] Failed to save page assignments: ${pageAssignError.message}`);
+        // Don't throw - non-critical for completion
+      } else {
+        console.log(`[Progressive] Saved ${assignmentRecords.length} page assignments`);
+      }
+    }
 
     console.log(`[Progressive] Session ${session.id} complete: ${allEncounters.length} total encounters, ${totalCost.toFixed(4)} USD`);
 

@@ -104,6 +104,7 @@ export async function saveChunkResults(params: {
   inputTokens: number;
   outputTokens: number;
   cost: number;
+  confidence: number;  // Add confidence parameter
   handoffReceived: HandoffPackage | null;
   handoffGenerated: HandoffPackage;
   encountersCompleted: number;
@@ -123,6 +124,7 @@ export async function saveChunkResults(params: {
       input_tokens: params.inputTokens,
       output_tokens: params.outputTokens,
       ai_cost_usd: params.cost,
+      confidence_score: params.confidence,  // Save confidence score
       handoff_received: params.handoffReceived,
       handoff_generated: params.handoffGenerated,
       encounters_started: params.encountersCompleted,

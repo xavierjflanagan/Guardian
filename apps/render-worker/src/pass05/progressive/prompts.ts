@@ -89,50 +89,50 @@ Track ongoing medical situations that might affect future chunks:
 
 **CRITICAL:** All page numbers in your response must be **1-indexed** (matching how humans read documents).
 - This chunk contains pages ${pageRange[0] + 1} to ${pageRange[1]}
-- Use these exact numbers in page_ranges
-- Example: \`"page_ranges": [[${pageRange[0] + 1}, ${pageRange[0] + 3}]]\` for first 3 pages of chunk
+- Use these exact numbers in pageRanges
+- Example: \`"pageRanges": [[${pageRange[0] + 1}, ${pageRange[0] + 3}]]\` for first 3 pages of chunk
 
 # Required JSON Response Format
 
 \`\`\`json
 {
-  "continuation_data": {
+  "continuationData": {
     // If there was a pending encounter, include data to complete it here
     // Structure matches what's needed to fill in missing fields
   },
   "encounters": [
     {
       "status": "complete",  // or "continuing"
-      "temp_id": "encounter_temp_001",  // ONLY for continuing encounters
-      "encounter_type": "Emergency Department Visit",
-      "encounter_start_date": "2024-03-15",
-      "encounter_end_date": "2024-03-15",  // Can be null if ongoing
-      "encounter_timeframe_status": "completed",  // completed | ongoing | unknown_end_date
-      "date_source": "ai_extracted",
-      "provider_name": "Dr. Sarah Chen",
+      "tempId": "encounter_temp_001",  // ONLY for continuing encounters
+      "encounterType": "Emergency Department Visit",
+      "encounterStartDate": "2024-03-15",
+      "encounterEndDate": "2024-03-15",  // Can be null if ongoing
+      "encounterTimeframeStatus": "completed",  // completed | ongoing | unknown_end_date
+      "dateSource": "ai_extracted",
+      "providerName": "Dr. Sarah Chen",
       "facility": "St Vincent's Hospital",
-      "page_ranges": [[${pageRange[0] + 1}, ${pageRange[0] + 5}]],  // 1-indexed
+      "pageRanges": [[${pageRange[0] + 1}, ${pageRange[0] + 5}]],  // 1-indexed
       "confidence": 0.95,
       "summary": "Brief summary of encounter",
-      "expected_continuation": "lab_results"  // ONLY for continuing encounters
+      "expectedContinuation": "lab_results"  // ONLY for continuing encounters
     }
   ],
-  "active_context": {
-    "current_admission": {
+  "activeContext": {
+    "currentAdmission": {
       "facility": "St Vincent's Hospital",
-      "admit_date": "2024-03-15",
-      "expected_discharge_info": "awaiting cardiology clearance"
+      "admitDate": "2024-03-15",
+      "expectedDischargeInfo": "awaiting cardiology clearance"
     },
-    "recent_lab_orders": [
+    "recentLabOrders": [
       {
-        "ordered_date": "2024-03-15",
+        "orderedDate": "2024-03-15",
         "tests": ["CBC", "CMP"],
         "provider": "Dr. Chen"
       }
     ],
-    "active_providers": ["Dr. Sarah Chen", "Dr. John Smith"],
-    "document_flow": "chronological",  // chronological | mixed | by_provider
-    "last_confident_date": "2024-03-15"
+    "activeProviders": ["Dr. Sarah Chen", "Dr. John Smith"],
+    "documentFlow": "chronological",  // chronological | mixed | by_provider
+    "lastConfidentDate": "2024-03-15"
   }
 }
 \`\`\`

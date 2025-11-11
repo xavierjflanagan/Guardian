@@ -103,7 +103,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
           identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
           source_method: 'ai_pass_0_5'  // FIXED: Must match CHECK constraint (ai_pass_0_5, ai_pass_2, manual_entry, import)
         }, {
-          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_date,page_ranges'
+          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_start_date,page_ranges'
         })
         .select()
         .single();
@@ -180,6 +180,11 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   // Calculate cost
   const cost = calculateCost(model.modelId, aiResponse.inputTokens, aiResponse.outputTokens);
 
+  // Calculate average confidence
+  const avgConfidence = completedEncounters.length > 0
+    ? completedEncounters.reduce((sum, e) => sum + e.confidence, 0) / completedEncounters.length
+    : pendingEncounter?.confidence || 0;
+
   // Save chunk results to database
   await saveChunkResults({
     sessionId: params.sessionId,
@@ -190,6 +195,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     inputTokens: aiResponse.inputTokens,
     outputTokens: aiResponse.outputTokens,
     cost,
+    confidence: avgConfidence,  // Add confidence score
     handoffReceived: params.handoffReceived,
     handoffGenerated,
     encountersCompleted: completedEncounters.length,
@@ -197,11 +203,6 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     aiResponseRaw: aiResponse.content,
     processingTimeMs
   });
-
-  // Calculate average confidence
-  const avgConfidence = completedEncounters.length > 0
-    ? completedEncounters.reduce((sum, e) => sum + e.confidence, 0) / completedEncounters.length
-    : pendingEncounter?.confidence || 0;
 
   console.log(`[Chunk ${params.chunkNumber}] Complete: ${completedEncounters.length} encounters, confidence ${avgConfidence.toFixed(2)}, ${processingTimeMs}ms, $${cost.toFixed(4)}`);
 
@@ -248,42 +249,37 @@ function parseProgressiveResponse(content: any): {
   // v2.9 outputs camelCase, so we can use it directly
   const parsed = typeof content === 'string' ? JSON.parse(content) : content;
 
-  // Map v2.9 camelCase format to our internal format
+  // Map progressive camelCase format to our internal format
   const encounters = (parsed.encounters || []).map((enc: any) => {
-    // Determine status: check if summary indicates continuation
-    const isContinuing = enc.summary && (
-      enc.summary.includes('continues beyond') ||
-      enc.summary.includes('continuing to next chunk')
-    );
-
+    // Progressive mode uses status field directly
     return {
-      status: isContinuing ? 'continuing' : 'complete',
-      tempId: enc.encounter_id,  // Use encounter_id as tempId for continuations
+      status: enc.status || 'complete',  // Progressive provides explicit status
+      tempId: enc.tempId,  // Now camelCase from progressive prompt
       encounterType: enc.encounterType,
-      encounterStartDate: enc.dateRange?.start,
-      encounterEndDate: enc.dateRange?.end,
+      encounterStartDate: enc.encounterStartDate,  // Direct camelCase field
+      encounterEndDate: enc.encounterEndDate,  // Direct camelCase field
       encounterTimeframeStatus: enc.encounterTimeframeStatus || 'unknown_end_date',
       dateSource: enc.dateSource || 'ai_extracted',
-      providerName: enc.provider,
+      providerName: enc.providerName,  // Now camelCase from progressive prompt
       facility: enc.facility,
       pageRanges: enc.pageRanges || [],
       confidence: enc.confidence,
       summary: enc.summary,
-      expectedContinuation: undefined  // v2.9 doesn't have this field
+      expectedContinuation: enc.expectedContinuation  // Progressive provides this
     };
   });
 
-  // Parse page assignments (v2.9 format)
-  const pageAssignments: PageAssignment[] = (parsed.page_assignments || []).map((pa: any) => ({
+  // Parse page assignments (progressive camelCase format)
+  const pageAssignments: PageAssignment[] = (parsed.pageAssignments || []).map((pa: any) => ({
     page: pa.page,
-    encounter_id: pa.encounter_id,
+    encounter_id: pa.encounterId,  // Now camelCase
     justification: pa.justification
   }));
 
   return {
     encounters,
     pageAssignments,
-    activeContext: undefined  // v2.9 doesn't output this, but that's OK
+    activeContext: parsed.activeContext  // Progressive mode provides this in camelCase
   };
 }
 
