@@ -204,10 +204,22 @@ export interface GoogleCloudVisionOCR {
 }
 
 export interface OCRPage {
-  width: number;
-  height: number;
-  confidence: number;
-  blocks: OCRBlock[];
+  page_number?: number;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+
+  // OCR text fields (in priority order for extraction)
+  spatially_sorted_text?: string;  // BEST: Spatially sorted for better AI comprehension
+  original_gcv_text?: string;      // GOOD: Raw Google Cloud Vision output
+  text?: string;                   // FALLBACK: Simple text field
+
+  // Legacy structured format (may not be present)
+  width?: number;
+  height?: number;
+  confidence?: number;
+  blocks?: OCRBlock[];
 }
 
 export interface OCRBlock {

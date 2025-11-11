@@ -28,6 +28,18 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   // Build base v2.9 prompt (same as standard mode)
   const fullText = extractTextFromPages(params.pages);
+
+  // Add guardrails and logging (P3 fix from TEST_06)
+  if (fullText.trim().length === 0) {
+    console.error(`[Chunk ${params.chunkNumber}] CRITICAL: Extracted 0 characters of OCR text - likely data structure mismatch`);
+    console.error(`[Chunk ${params.chunkNumber}] Sample page structure: ${JSON.stringify(Object.keys(params.pages[0] || {}))}`);
+    // Continue processing (allow pseudo encounters to be created as diagnostic signal)
+    // Session-level quality validation will flag this for review
+  }
+
+  console.log(`[Chunk ${params.chunkNumber}] Extracted ${fullText.length} chars of OCR text`);
+  console.log(`[Chunk ${params.chunkNumber}] First 200 chars: ${fullText.substring(0, 200)}`);
+
   const basePrompt = buildEncounterDiscoveryPromptV29({
     fullText,
     pageCount: params.totalPages,  // Total pages in document (for context)
@@ -274,30 +286,53 @@ function parseProgressiveResponse(content: any): {
 
 /**
  * Extract full text from OCR pages for base prompt
+ * FIXED: Use correct OCR field priority based on actual data structure
  */
 function extractTextFromPages(pages: OCRPage[]): string {
   return pages.map((page, idx) => {
-    const words: string[] = [];
-    for (const block of page.blocks || []) {
-      for (const paragraph of block.paragraphs || []) {
-        for (const word of paragraph.words || []) {
-          words.push(word.text);
+    let text = '';
+
+    // Try fields in priority order (based on TEST_06 root cause analysis)
+    if (page.spatially_sorted_text) {
+      // BEST: Spatially sorted text - improves AI comprehension with better formatting
+      text = page.spatially_sorted_text;
+    } else if (page.original_gcv_text) {
+      // GOOD: Raw Google Cloud Vision text
+      text = page.original_gcv_text;
+    } else if (page.blocks && page.blocks.length > 0) {
+      // LEGACY: Blocks/paragraphs/words structure (if exists)
+      const words: string[] = [];
+      for (const block of page.blocks) {
+        for (const paragraph of block.paragraphs || []) {
+          for (const word of paragraph.words || []) {
+            words.push(word.text);
+          }
         }
       }
+      text = words.join(' ');
+    } else if (page.text) {
+      // LAST RESORT: Simple text field
+      text = page.text;
     }
-    const text = words.join(' ');
+
     return `--- PAGE ${idx + 1} START ---\n${text}\n--- PAGE ${idx + 1} END ---`;
   }).join('\n\n');
 }
 
 /**
  * Get last 500 characters of OCR text for context continuity
+ * FIXED: Use same field precedence as extractTextFromPages
  */
 function getLastContext(pages: any[]): string {
   if (pages.length === 0) return '';
 
   const lastPage = pages[pages.length - 1];
-  const text = lastPage.text || '';
+
+  // Use same field priority as extractTextFromPages
+  const text = lastPage.spatially_sorted_text
+    || lastPage.original_gcv_text
+    || lastPage.text
+    || '';
 
   return text.length > 500 ? text.slice(-500) : text;
 }

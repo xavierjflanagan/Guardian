@@ -50,7 +50,7 @@ export interface PromptInput {
 export function buildEncounterDiscoveryPrompt(input: PromptInput): string {
   // Include OCR confidence per page for context
   const pageConfidences = input.ocrPages
-    .map((p, idx) => `Page ${idx + 1}: ${(p.confidence * 100).toFixed(0)}%`)
+    .map((p, idx) => `Page ${idx + 1}: ${((p.confidence || 0) * 100).toFixed(0)}%`)
     .join(', ');
 
   return `

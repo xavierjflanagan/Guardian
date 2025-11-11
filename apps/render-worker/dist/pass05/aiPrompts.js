@@ -44,7 +44,7 @@ exports.buildEncounterDiscoveryPrompt = buildEncounterDiscoveryPrompt;
 function buildEncounterDiscoveryPrompt(input) {
     // Include OCR confidence per page for context
     const pageConfidences = input.ocrPages
-        .map((p, idx) => `Page ${idx + 1}: ${(p.confidence * 100).toFixed(0)}%`)
+        .map((p, idx) => `Page ${idx + 1}: ${((p.confidence || 0) * 100).toFixed(0)}%`)
         .join(', ');
     return `
 # Task: Healthcare Encounter Discovery

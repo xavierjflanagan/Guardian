@@ -92,10 +92,34 @@ async function runPass05(input) {
             page_assignments: encounterResult.page_assignments, // v2.3: Include if present
             batching: null // Phase 1: always null
         };
+        // HOTFIX 2A: Create AI processing session (required for metrics table foreign key)
+        const { data: session, error: sessionError } = await supabase
+            .from('ai_processing_sessions')
+            .insert({
+            shell_file_id: input.shellFileId,
+            patient_id: input.patientId,
+            session_type: 'shell_file_processing',
+            session_status: 'completed',
+            ai_model_name: encounterResult.aiModel,
+            processing_mode: 'automated', // Valid: 'automated', 'human_guided', 'validation_only'
+            workflow_step: 'clinical_extraction', // Pass 0.5 extracts encounter metadata
+            total_steps: 1,
+            completed_steps: 1,
+            processing_started_at: new Date(startTime).toISOString(),
+            processing_completed_at: new Date().toISOString()
+        })
+            .select('id')
+            .single();
+        if (sessionError || !session) {
+            console.error('[Pass 0.5] Failed to create AI processing session:', sessionError);
+            throw new Error(`Failed to create AI processing session: ${sessionError?.message}`);
+        }
+        console.log(`[Pass 0.5] Created AI processing session: ${session.id}`);
         // HOTFIX 2A: Write encounter metrics for cost tracking and performance monitoring
         const encounters = encounterResult.encounters;
         const realWorldCount = encounters.filter(e => e.isRealWorldVisit).length;
         const pseudoCount = encounters.filter(e => !e.isRealWorldVisit).length;
+        const plannedCount = encounters.filter(e => e.encounterType.startsWith('planned_')).length;
         const avgConfidence = encounters.length > 0
             ? encounters.reduce((sum, e) => sum + (e.confidence || 0), 0) / encounters.length
             : 0;
@@ -105,13 +129,16 @@ async function runPass05(input) {
             .insert({
             shell_file_id: input.shellFileId,
             patient_id: input.patientId,
+            processing_session_id: session.id, // FIX: Include required session_id
             encounters_detected: encounters.length,
             real_world_encounters: realWorldCount,
             pseudo_encounters: pseudoCount,
+            planned_encounters: plannedCount,
             processing_time_ms: Date.now() - startTime,
             ai_model_used: encounterResult.aiModel,
             input_tokens: encounterResult.inputTokens,
             output_tokens: encounterResult.outputTokens,
+            total_tokens: encounterResult.inputTokens + encounterResult.outputTokens,
             ai_cost_usd: encounterResult.aiCostUsd,
             encounter_confidence_average: avgConfidence,
             encounter_types_found: encounterTypes,
@@ -199,9 +226,9 @@ async function runPass05(input) {
     }
 }
 function calculateAverageConfidence(ocrOutput) {
-    const confidences = ocrOutput.fullTextAnnotation.pages.map(p => p.confidence);
+    const confidences = ocrOutput.fullTextAnnotation.pages.map(p => p.confidence || 0);
     if (confidences.length === 0)
         return 0;
-    return confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+    return confidences.reduce((sum, c) => (sum || 0) + (c || 0), 0) / confidences.length;
 }
 //# sourceMappingURL=index.js.map

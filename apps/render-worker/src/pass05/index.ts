@@ -260,7 +260,7 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
 }
 
 function calculateAverageConfidence(ocrOutput: GoogleCloudVisionOCR): number {
-  const confidences = ocrOutput.fullTextAnnotation.pages.map(p => p.confidence);
+  const confidences = ocrOutput.fullTextAnnotation.pages.map(p => p.confidence || 0);
   if (confidences.length === 0) return 0;
-  return confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+  return confidences.reduce((sum, c) => (sum || 0) + (c || 0), 0) / confidences.length;
 }

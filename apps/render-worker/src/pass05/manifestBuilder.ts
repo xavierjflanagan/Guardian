@@ -352,7 +352,10 @@ function extractSpatialBounds(
 
       // Create comprehensive page region (entire page for now)
       // Phase 2: Could create sub-page regions based on content density
-      const pageDims = { width: ocrPage.width, height: ocrPage.height };
+      // Support both legacy (width/height) and new (dimensions) OCR structure
+      const pageDims = ocrPage.dimensions
+        ? { width: ocrPage.dimensions.width, height: ocrPage.dimensions.height }
+        : { width: ocrPage.width || 0, height: ocrPage.height || 0 };
 
       const entirePageBbox: BoundingBox = {
         vertices: [

@@ -138,10 +138,18 @@ export interface GoogleCloudVisionOCR {
     };
 }
 export interface OCRPage {
-    width: number;
-    height: number;
-    confidence: number;
-    blocks: OCRBlock[];
+    page_number?: number;
+    dimensions?: {
+        width: number;
+        height: number;
+    };
+    spatially_sorted_text?: string;
+    original_gcv_text?: string;
+    text?: string;
+    width?: number;
+    height?: number;
+    confidence?: number;
+    blocks?: OCRBlock[];
 }
 export interface OCRBlock {
     boundingBox: BoundingBox;
