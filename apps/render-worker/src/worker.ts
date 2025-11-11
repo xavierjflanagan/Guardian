@@ -1203,6 +1203,7 @@ class V3Worker {
                 ]
               },
               confidence: line.confidence,
+              text: line.text,  // FIX: Include text for progressive mode
               paragraphs: []
             }))
           }))

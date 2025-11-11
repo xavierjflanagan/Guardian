@@ -309,24 +309,20 @@ function extractTextFromPages(pages: OCRPage[]): string {
   return pages.map((page, idx) => {
     let text = '';
 
-    // CORRECT: Extract text from lines array (actual OCR structure)
-    if ((page as any).lines && Array.isArray((page as any).lines)) {
+    // CORRECT: Extract text from blocks (worker.ts maps lines to blocks with text field)
+    if (page.blocks && page.blocks.length > 0) {
+      // Each block represents a line of text (worker.ts:1196-1208)
+      text = page.blocks
+        .map((block: any) => block.text || '')
+        .filter((t: string) => t.length > 0)
+        .join(' ');
+    }
+    // FALLBACK: Try lines array (if not transformed by worker)
+    else if ((page as any).lines && Array.isArray((page as any).lines)) {
       text = (page as any).lines
         .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
         .map((line: any) => line.text)
         .join(' ');
-    }
-    // FALLBACK: Try blocks structure (transformed format used by standard mode)
-    else if (page.blocks && page.blocks.length > 0) {
-      const words: string[] = [];
-      for (const block of page.blocks) {
-        for (const paragraph of block.paragraphs || []) {
-          for (const word of paragraph.words || []) {
-            words.push(word.text);
-          }
-        }
-      }
-      text = words.join(' ');
     }
     // LAST RESORT: Try direct text fields
     else if ((page as any).spatially_sorted_text) {
