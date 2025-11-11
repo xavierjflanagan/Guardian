@@ -1,6 +1,26 @@
 # Progressive Mode Schema Unification Plan
 **Date:** 2025-11-11
+**Status:** CRITICAL DESIGN FLAW DISCOVERED
 **Decision:** Unify on camelCase to match v2.9 base prompt
+
+## CRITICAL ISSUE DISCOVERED (2025-11-11 Evening)
+
+### Fatal Flaw in "Schema-Agnostic" Design
+The original design attempted to be "schema-agnostic" to work with any base prompt version. This has **completely failed**.
+
+**The Problem:**
+1. **addons.ts** explicitly instructs: "Do not add new fields like 'status', 'temp_id', or 'continuation_data'"
+2. **chunk-processor.ts** REQUIRES these exact fields for handoff to work
+3. **Result**: AI follows instructions, doesn't add fields, handoff mechanism fails
+
+**Evidence from Test 06 (142-page document):**
+- Document is ONE continuous hospital admission
+- Progressive mode created THREE separate encounters
+- No pending encounters tracked (0 records in database)
+- Handoff packages are empty (no `pendingEncounter` field)
+
+### The Schema-Agnostic Approach Must Be Abandoned
+We cannot have a working progressive mode without explicit coordination fields. The addons MUST request specific fields for handoff to function.
 
 ## Current State Analysis
 
@@ -31,6 +51,24 @@
 - `pageRanges`
 - `spatialBounds`
 - `isRealWorldVisit`
+
+## Required Changes for Working Progressive Mode
+
+### NEW Step 0: Fix the Core Design Flaw
+The addons.ts file MUST be updated to explicitly request handoff fields:
+
+```typescript
+// OLD (BROKEN):
+"Do not add new fields like 'status', 'temp_id'"
+
+// NEW (REQUIRED):
+"You MUST include these fields for progressive mode:
+- status: 'complete' or 'continuing'
+- tempId: Required if status is 'continuing'
+- expectedContinuation: What content continues in next chunk"
+```
+
+Without this change, progressive mode CANNOT work.
 
 ## Implementation Steps
 

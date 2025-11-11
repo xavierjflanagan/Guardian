@@ -1,6 +1,51 @@
 # Progressive Mode Test Strategy
 **Date:** 2025-11-11
 **Purpose:** Systematic validation of progressive mode fixes
+**Status:** TEST 06 REVEALED CRITICAL FAILURE
+
+## Test 06 Failure Analysis (142-page Document)
+
+### Test Details
+- **File:** 006_Emma_Thompson_Hospital_Encounter_Summary.pdf
+- **Pages:** 142
+- **True Content:** ONE hospital admission (Nov 29 - Dec 7, 2022)
+- **Expected Result:** 1 encounter spanning all chunks
+
+### Actual Results (FAILURE)
+- **Encounters Created:** 3 separate encounters (one per chunk)
+- **Pending Encounters:** 0 (none tracked)
+- **Handoff Packages:** Empty (no `pendingEncounter` field)
+- **Each Chunk:** Treated encounter as complete within its boundaries
+
+### Root Cause
+1. **addons.ts** tells AI: "Do not add fields like status, tempId"
+2. **chunk-processor.ts** expects these exact fields
+3. AI follows instructions, doesn't add fields
+4. Every encounter defaults to `status: 'complete'`
+5. No continuations tracked between chunks
+
+### What to Look For in Future Tests
+```sql
+-- CRITICAL: Check for pending encounters
+SELECT COUNT(*) FROM pass05_pending_encounters WHERE session_id = ?;
+-- If this returns 0, handoff is broken
+
+-- CRITICAL: Check handoff packages have pendingEncounter
+SELECT
+  chunk_number,
+  handoff_generated->>'pendingEncounter' IS NOT NULL as has_pending
+FROM pass05_chunk_results
+WHERE session_id = ?;
+-- Should have at least one true value for multi-chunk encounters
+
+-- CRITICAL: Check for status field in AI response
+SELECT
+  chunk_number,
+  ai_response_raw::text LIKE '%"status"%' as has_status_field
+FROM pass05_chunk_results
+WHERE session_id = ?;
+-- Must be true for progressive mode to work
+```
 
 ## Test File Requirements
 

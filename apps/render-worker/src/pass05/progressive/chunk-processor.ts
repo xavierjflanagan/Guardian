@@ -75,7 +75,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   const processingTimeMs = Date.now() - startTime;
 
   // Parse and normalize response (snake_case → camelCase)
-  const parsed = parseProgressiveResponse(aiResponse.content);
+  const parsed = parseProgressiveResponse(aiResponse.content, params.chunkNumber);
 
   // Separate completed vs continuing encounters
   const completedEncounters: EncounterMetadata[] = [];
@@ -228,7 +228,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
  * ARCHITECTURE CHANGE: Now uses v2.9 base prompt which outputs camelCase natively.
  * Progressive addons don't change the schema, so no normalization needed.
  */
-function parseProgressiveResponse(content: any): {
+function parseProgressiveResponse(content: any, chunkNumber: number): {
   encounters: Array<{
     status: 'complete' | 'continuing';
     tempId?: string;
@@ -251,8 +251,11 @@ function parseProgressiveResponse(content: any): {
   const parsed = typeof content === 'string' ? JSON.parse(content) : content;
 
   // Map progressive camelCase format to our internal format
-  const encounters = (parsed.encounters || []).map((enc: any) => {
+  const encounters = (parsed.encounters || []).map((enc: any, idx: number) => {
     // Progressive mode uses status field directly
+    if (!enc.status) {
+      console.warn(`[Chunk ${chunkNumber}] Encounter ${idx} missing status field, defaulting to 'complete'. This breaks handoff!`);
+    }
     return {
       status: enc.status || 'complete',  // Progressive provides explicit status
       tempId: enc.tempId,  // Now camelCase from progressive prompt

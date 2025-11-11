@@ -1,7 +1,45 @@
 # Progressive Mode Comprehensive Fix Plan
 **Date:** 2025-11-11
+**Status:** CRITICAL FAILURE DISCOVERED - Handoff mechanism completely broken
 **Approach:** Fix existing implementation (not rewrite)
 **Estimated Effort:** 8-12 hours of focused work
+
+## CRITICAL UPDATE (2025-11-11 Evening)
+
+### Completed Fixes That Work
+✅ **Token Limiting**: Applied 32K limit for progressive mode - WORKING
+✅ **Page Numbering**: Fixed page labels to show correct numbers - WORKING
+✅ **Progressive Detection**: Fixed pattern matching for "PROGRESSIVE MODE INSTRUCTIONS" - WORKING
+
+### Critical Failure Discovered
+❌ **Handoff Mechanism**: COMPLETELY BROKEN - Each chunk creates separate encounters
+❌ **Schema Mismatch**: Fatal design flaw between addons.ts and chunk-processor.ts
+❌ **No Pending Encounters**: Database shows 0 pending encounters tracked
+❌ **Empty Handoffs**: handoffPackage has no pendingEncounter field
+
+### Root Cause Analysis
+The progressive mode has a **fundamental design flaw**:
+
+1. **addons.ts** (line 105) explicitly says:
+   ```
+   "Do not add new fields like 'status', 'temp_id', or 'continuation_data'"
+   ```
+
+2. **chunk-processor.ts** (lines 257-269) REQUIRES these exact fields:
+   ```typescript
+   status: enc.status || 'complete',  // Defaults to complete!
+   tempId: enc.tempId,  // Expected but never provided
+   expectedContinuation: enc.expectedContinuation  // Never provided
+   ```
+
+3. **Result**: AI follows instructions, doesn't add fields, every encounter marked complete
+
+### Test 06 Results (142-page Document)
+- **Expected**: 1 hospital admission (Nov 29 - Dec 7, 2022)
+- **Actual**: 3 separate encounters created
+- **Chunks**: All 3 processed "successfully"
+- **Handoffs**: Empty, no continuations tracked
+- **Pending Encounters**: 0 records in database
 
 ## Phase 0: Preparation (1 hour)
 
@@ -65,7 +103,79 @@ Check and document actual columns for:
 - pass05_pending_encounters
 - pass05_page_assignments
 
-## Phase 2: Schema Unification (3 hours)
+## Phase 2: CRITICAL - Fix Handoff Mechanism (4 hours)
+
+### 2.0 The Core Problem
+The "schema-agnostic" design is fundamentally broken. We must abandon it and explicitly request the fields needed for handoff.
+
+### 2.1 Fix Progressive Addons
+**File:** `apps/render-worker/src/pass05/progressive/addons.ts`
+
+**REMOVE** (line 105):
+```typescript
+// DELETE THIS LINE:
+"Do not add new fields like 'status', 'temp_id', or 'continuation_data'"
+```
+
+**REPLACE WITH**:
+```typescript
+## Required JSON Response Format for Progressive Mode
+
+When processing chunks, you MUST include these additional fields:
+
+\`\`\`json
+{
+  "encounters": [
+    {
+      "status": "complete" | "continuing",  // REQUIRED for progressive
+      "tempId": "encounter_temp_001",  // REQUIRED if status is "continuing"
+      "encounterType": "inpatient",
+      // ... all standard fields ...
+      "expectedContinuation": "discharge_summary"  // REQUIRED if continuing
+    }
+  ],
+  "activeContext": {  // REQUIRED for handoff
+    "currentAdmission": { /* if applicable */ },
+    "recentLabOrders": [],
+    "activeProviders": [],
+    "documentFlow": "chronological",
+    "lastConfidentDate": "2024-03-15"
+  }
+}
+\`\`\`
+
+**CRITICAL RULES:**
+1. If encounter spans beyond this chunk: status = "continuing"
+2. If completing from previous chunk: status = "complete"
+3. Always provide tempId for continuing encounters
+4. Always populate activeContext for next chunk
+```
+
+### 2.2 Update Chunk Processor Logic
+**File:** `apps/render-worker/src/pass05/progressive/chunk-processor.ts`
+
+Fix the encounter processing to properly handle status:
+```typescript
+for (const enc of parsed.encounters) {
+  if (!enc.status) {
+    console.warn(`[Chunk ${params.chunkNumber}] Encounter missing status field, defaulting to complete`);
+    enc.status = 'complete';
+  }
+
+  if (enc.status === 'continuing') {
+    if (!enc.tempId) {
+      console.error(`[Chunk ${params.chunkNumber}] Continuing encounter missing tempId!`);
+      enc.tempId = `temp_${params.chunkNumber}_${Date.now()}`;
+    }
+    // Create pending encounter...
+  }
+}
+```
+
+### 2.3 Fix Handoff Building
+Ensure handoff packages actually contain pending encounters when status is "continuing"
+
+## Phase 2.5: Original Schema Unification (3 hours)
 
 ### 2.1 Decision: Unify on camelCase
 

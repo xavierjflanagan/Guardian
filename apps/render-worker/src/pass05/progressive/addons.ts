@@ -59,21 +59,27 @@ ${handoffContext}
 If you find an encounter that **starts** in this chunk but **continues beyond the last page**:
 
 **What to do:**
+- Set \`"status": "continuing"\` (REQUIRED)
+- Assign a \`"tempId": "encounter_temp_XXX"\` (REQUIRED)
+- Set \`"expectedContinuation"\` to describe what's expected next
 - Extract all data you can see so far (date, provider, facility, etc.)
-- Mark it in the summary: Add "(continues beyond page ${pageRange[1]})" to the summary field
-- Include all complete page ranges you can see in this chunk
+- Include page ranges for this chunk only
 
 **Example:**
 \`\`\`json
 {
   "encounter_id": "enc-1",
   "encounterType": "inpatient",
-  "summary": "Hospital admission started 2024-03-15 at St Vincent's Hospital (continues beyond page ${pageRange[1]})",
+  "status": "continuing",  // REQUIRED for handoff
+  "tempId": "encounter_temp_001",  // REQUIRED for tracking
+  "expectedContinuation": "discharge_summary",  // REQUIRED hint
+  "dateRange": {"start": "2024-03-15"},  // May not have end date yet
+  "summary": "Hospital admission started 2024-03-15 at St Vincent's Hospital",
   "pageRanges": [[${pageRange[0] + 1}, ${pageRange[1]}]]
 }
 \`\`\`
 
-The next chunk will handle the continuation.
+The next chunk MUST look for this tempId to complete the encounter.
 
 ### 2. Completing Encounters from Previous Chunk
 
@@ -100,14 +106,52 @@ If you received a pending encounter from the previous chunk (see Context section
 
 Process new encounters normally using the Timeline Test and all guidelines from above.
 
-### 4. JSON Output Format
+### 4. REQUIRED JSON Output Format for Progressive Mode
 
-**CRITICAL:** Use the EXACT SAME JSON format defined above. Do not add new fields like "status", "temp_id", or "continuation_data".
+**CRITICAL:** You MUST include these additional fields for progressive mode to work:
 
-The progressive mode infrastructure handles chunk coordination automatically - you just need to:
-- Extract encounters as normal
-- Note in summary if encounter continues beyond chunk
-- Complete pending encounters if you see their continuation
+\`\`\`json
+{
+  "encounters": [
+    {
+      // Standard v2.9 fields (encounterType, dateRange, etc.)
+      "encounter_id": "enc-1",
+      "encounterType": "inpatient",
+      "dateRange": {"start": "2024-03-15", "end": "2024-03-18"},
+
+      // REQUIRED PROGRESSIVE FIELDS:
+      "status": "complete",  // or "continuing" if extends beyond chunk
+      "tempId": "encounter_temp_001",  // REQUIRED if status is "continuing"
+      "expectedContinuation": "discharge_notes",  // REQUIRED if status is "continuing"
+
+      // Standard fields continue...
+      "summary": "Hospital admission...",
+      "pageRanges": [[1, 50]],
+      "confidence": 0.95
+    }
+  ],
+  "pageAssignments": [
+    // Standard format
+  ],
+  "activeContext": {  // REQUIRED for handoff to next chunk
+    "currentAdmission": {
+      "facility": "St Vincent's Hospital",
+      "admitDate": "2024-03-15",
+      "expectedDischargeInfo": "pending"
+    },
+    "recentLabOrders": [],
+    "activeProviders": ["Dr. Chen"],
+    "documentFlow": "chronological",
+    "lastConfidentDate": "2024-03-15"
+  }
+}
+\`\`\`
+
+**Progressive Mode Rules:**
+1. **status**: Set to "continuing" if encounter extends beyond page ${pageRange[1]}
+2. **tempId**: Required for continuing encounters (e.g., "encounter_temp_001")
+3. **expectedContinuation**: What you expect in next chunk (e.g., "lab_results", "discharge_summary")
+4. **activeContext**: Always include for handoff to next chunk
 
 `.trim();
 }
