@@ -91,24 +91,48 @@ async function completePendingEncounter(
     isRealWorldVisit: true
   };
 
-  // Write to healthcare_encounters table with correct patient_id and shell_file_id
+  // CRITICAL FIX: Check if encounter already exists before inserting
+  // This prevents duplicates when chunks have already finalized encounters
+  const { data: existing, error: existingError } = await supabase
+    .from('healthcare_encounters')
+    .select('id')
+    .eq('patient_id', session.patient_id)
+    .eq('primary_shell_file_id', session.shell_file_id)
+    .eq('encounter_type', partial.encounterType)
+    .eq('encounter_start_date', partial.dateRange?.start)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(`Failed to check for existing encounter: ${existingError.message}`);
+  }
+
+  // If encounter already exists, skip insertion and use existing ID
+  if (existing) {
+    console.log(`[Reconcile] Encounter already exists (ID: ${existing.id}), skipping insertion`);
+    await markPendingEncounterCompleted(pending.id, existing.id);
+    encounter.encounterId = existing.id;
+    return encounter;
+  }
+
+  // Insert new encounter only if it doesn't exist
   const { data: inserted, error } = await supabase
     .from('healthcare_encounters')
     .insert({
-      patient_id: session.patient_id,  // FIXED: Use actual patient_id from session
-      primary_shell_file_id: session.shell_file_id,  // FIXED: Required for finalize aggregation
+      patient_id: session.patient_id,
+      primary_shell_file_id: session.shell_file_id,
       encounter_type: partial.encounterType,
       encounter_start_date: partial.dateRange?.start,
-      encounter_date_end: partial.dateRange?.end,  // FIXED: Schema uses encounter_date_end not encounter_end_date
+      encounter_date_end: partial.dateRange?.end,
       encounter_timeframe_status: partial.encounterTimeframeStatus || 'unknown_end_date',
       date_source: partial.dateSource || 'ai_extracted',
-      provider_name: partial.provider,  // FIXED: Schema uses provider_name not provider
-      facility_name: partial.facility,  // FIXED: Schema uses facility_name not facility
+      provider_name: partial.provider,
+      facility_name: partial.facility,
       page_ranges: partial.pageRanges || [],
-      pass_0_5_confidence: pending.confidence || 0.5,  // FIXED: Schema uses pass_0_5_confidence not confidence
+      pass_0_5_confidence: pending.confidence || 0.5,
       summary: partial.summary,
-      identified_in_pass: 'pass_0_5',  // Standardized label (matches manifestBuilder)
-      source_method: 'ai_pass_0_5'  // FIXED: Must match CHECK constraint (ai_pass_0_5, ai_pass_2, manual_entry, import)
+      identified_in_pass: 'pass_0_5',
+      source_method: 'ai_pass_0_5'
     })
     .select()
     .single();

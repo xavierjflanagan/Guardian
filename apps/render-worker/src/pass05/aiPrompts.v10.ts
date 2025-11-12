@@ -121,7 +121,6 @@ ${handoffContext}
    - Follow-up visits
    - Initial consultations
   
-
 5. **"imaging"**
    - Standalone imaging appointments
    - Include modality (X-ray, CT, MRI, ultrasound, etc.)
