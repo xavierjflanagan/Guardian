@@ -76,21 +76,37 @@ export function postProcessEncounters(config: PostProcessConfig): any[] {
     const missingEndDate = !enc.encounterEndDate && enc.encounterTimeframeStatus !== 'completed';
     const explicitlyContinuing = enc.status === 'continuing';
 
-    // Force 'continuing' status if ANY indicator suggests the encounter spans chunks
-    const shouldContinue = touchesChunkBoundary || hasExpectedContinuation || missingEndDate || explicitlyContinuing;
+    // ABSOLUTE RULE ENFORCEMENT: Encounters touching chunk boundaries MUST be continuing
+    // This is a hard safety net - if encounter reaches the chunk boundary, it MUST continue
+    // regardless of what the AI returned (even if it has an end date)
+    if (touchesChunkBoundary) {
+      const tempIdSuffix = enc.encounterId || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const generatedTempId = `encounter_temp_chunk${chunkNumber}_${tempIdSuffix}`;
+
+      console.log(`[Post-processor] ENFORCING continuation for span-boundary encounter (page ${encounterLastPage} = chunk end ${chunkEndPage}, not final chunk)`);
+
+      return {
+        ...enc,
+        status: 'continuing',
+        tempId: enc.tempId || generatedTempId,
+        expectedContinuation: enc.expectedContinuation || inferExpectedContinuation(enc)
+      };
+    }
+
+    // Additional soft indicators for continuation (if not touching boundary)
+    const shouldContinue = hasExpectedContinuation || missingEndDate || explicitlyContinuing;
 
     if (shouldContinue) {
-      // Encounter likely continues to next chunk
+      // Encounter likely continues to next chunk (soft indicators)
       const tempIdSuffix = enc.encounterId || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const generatedTempId = `encounter_temp_chunk${chunkNumber}_${tempIdSuffix}`;
 
       const reasons = [];
-      if (touchesChunkBoundary) reasons.push(`page ${encounterLastPage} = chunk end`);
       if (hasExpectedContinuation) reasons.push(`expected: ${enc.expectedContinuation}`);
       if (missingEndDate) reasons.push('no end date');
       if (explicitlyContinuing) reasons.push('AI marked continuing');
 
-      console.log(`[Post-processor] Encounter marked as continuing (${reasons.join(', ')}) with tempId: ${generatedTempId}`);
+      console.log(`[Post-processor] Encounter marked as continuing (soft indicators: ${reasons.join(', ')}) with tempId: ${generatedTempId}`);
 
       return {
         ...enc,

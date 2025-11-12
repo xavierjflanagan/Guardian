@@ -282,21 +282,36 @@ You must output valid JSON with this EXACT structure:
 - **"complete"**: Encounter documentation is fully contained within this chunk
 - **"continuing"**: Encounter documentation extends into the next chunk (progressive mode only)
 
-**IMPORTANT - Don't Confuse These Two Concepts:**
+**CRITICAL - Don't Confuse These Two Concepts:**
 - **encounterEndDate**: When the real-world medical encounter ended (or null if ongoing)
 - **status="continuing"**: Whether this encounter's DOCUMENTATION continues in next chunk
-- Example: A completed 2022 hospital admission (has real end date) might still have status="continuing" if its discharge summary spans from chunk 1 to chunk 2
+- **These are INDEPENDENT**: A hospital stay from 2022-11-29 to 2022-12-07 has a real end date, but if its discharge summary spans pages 1-142, then status="continuing" until the final chunk
+
+**ABSOLUTE RULE - Chunk Boundary Enforcement:**
+IF you are NOT processing the final chunk:
+  AND any encounter's pageRanges include the LAST PAGE of this chunk
+  THEN that encounter MUST have:
+    - status="continuing"
+    - tempId field populated
+    - expectedContinuation field populated
+
+This rule applies REGARDLESS of whether the encounter has an end date. Having a real-world end date does NOT mean the documentation is complete.
+
+**Example - 142-page document split into 3 chunks (pages 1-50, 51-100, 101-142):**
+- Chunk 1 (pages 1-50): Encounter with pageRanges [[1,50]] → status="continuing" (touches page 50, not final chunk)
+- Chunk 2 (pages 51-100): Encounter with pageRanges [[51,100]] → status="continuing" (touches page 100, not final chunk)
+- Chunk 3 (pages 101-142): Encounter with pageRanges [[101,142]] → status="complete" (final chunk)
 
 **When to Use status="continuing" (Check ALL indicators):**
-1. **Page Range Touches Chunk Boundary**: If ANY pageRange ends at the last page of this chunk
+1. **Page Range Touches Chunk Boundary**: If ANY pageRange ends at the last page of this chunk (HIGHEST PRIORITY)
 2. **Missing End Date**: If encounterEndDate is null/missing AND encounterTimeframeStatus is NOT "completed"
 3. **Explicit Continuation Signal**: If you see phrases like "continued on next page" or incomplete sections
 4. **Expected Continuation**: If you expect more content (discharge summary, lab results, etc.) in next chunk
 
 **When status="complete" is SAFE:**
-- Encounter ends BEFORE the chunk boundary (not on last page)
-- Encounter has clear end date AND all documentation appears complete
-- Multiple distinct encounters can be "complete" within same chunk if each is fully documented
+- You are processing the FINAL chunk (all encounters should be complete)
+- Encounter ends BEFORE the chunk boundary (last pageRange ends before the last page of chunk)
+- Multiple distinct encounters can be "complete" within same chunk if each is fully documented AND none touch the chunk boundary
 
 ### TempId Field (REQUIRED when status="continuing")
 - Format: "encounter_temp_chunkN_XXX" where N is chunk number and XXX is a simple counter (001, 002, etc.)
@@ -420,11 +435,14 @@ function buildChunkContext(progressive: {
 
 You are processing a LARGE document in chunks:
 - **Chunk ${chunkNumber} of ${totalChunks}**
-- **Pages in this chunk**: ${pageRange[0] + 1} to ${pageRange[1]} (1-indexed)
+- **Pages in this chunk**: ${pageRange[0]} to ${pageRange[1]}
 - **Total document pages**: ${totalPages}
 - **Position**: ${position}
 
-CRITICAL: Encounters may span chunk boundaries. Use status, tempId, and expectedContinuation fields for handoff.`;
+CRITICAL INSTRUCTIONS:
+1. When creating pageRanges for encounters, use the ACTUAL page numbers from this chunk (${pageRange[0]} to ${pageRange[1]}), NOT array indices or offset numbers.
+2. Encounters may span chunk boundaries. Use status, tempId, and expectedContinuation fields for handoff.
+3. If any encounter's pageRanges include page ${pageRange[1]} (the last page of this chunk) AND this is not the final chunk, that encounter MUST have status="continuing".`;
 }
 
 /**
