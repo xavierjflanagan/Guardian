@@ -71,7 +71,7 @@ export interface ChunkParams {
   chunkNumber: number;  // 1-indexed
   totalChunks: number;
   pages: OCRPage[];
-  pageRange: [number, number];  // 0-based: [startPage, endPage] exclusive
+  pageRange: [number, number];  // 1-based: [startPage, endPage] inclusive (medical page numbers)
   totalPages: number;
   handoffReceived: HandoffPackage | null;
   patientId: string;  // Required for persisting completed encounters

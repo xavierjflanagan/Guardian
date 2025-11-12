@@ -14,7 +14,12 @@ import {
   getPendingEncounters
 } from './database';
 import { processChunk } from './chunk-processor';
-import { reconcilePendingEncounters } from './pending-reconciler';
+import {
+  reconcilePendingEncounters,
+  mergePageRangesForAllEncounters,
+  updatePageAssignmentsAfterReconciliation,
+  recalculateEncounterMetrics
+} from './pending-reconciler';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -80,18 +85,24 @@ export async function processDocumentProgressively(
   try {
     // Process chunks sequentially
     for (let chunkNum = 1; chunkNum <= session.totalChunks; chunkNum++) {
+      // FIX: Use 1-based page numbering for medical documents
+      // Pages in documents are numbered 1-N, not 0-based array indexing
       const startIdx = (chunkNum - 1) * CHUNK_SIZE;
       const endIdx = Math.min(startIdx + CHUNK_SIZE, totalPages);
       const chunkPages = pages.slice(startIdx, endIdx);
 
-      console.log(`[Progressive] Processing chunk ${chunkNum}/${session.totalChunks} (pages ${startIdx + 1}-${endIdx})`);
+      // Convert to 1-based page numbers for chunk boundaries
+      const pageStart = startIdx + 1;  // Convert 0-based index to 1-based page number
+      const pageEnd = endIdx;          // endIdx is already correct (1-50, 51-100, 101-142)
+
+      console.log(`[Progressive] Processing chunk ${chunkNum}/${session.totalChunks} (pages ${pageStart}-${pageEnd})`);
 
       const chunkParams: ChunkParams = {
         sessionId: session.id,
         chunkNumber: chunkNum,
         totalChunks: session.totalChunks,
         pages: chunkPages,
-        pageRange: [startIdx, endIdx],
+        pageRange: [pageStart, pageEnd],  // FIX: Now 1-based (1-50, 51-100, 101-142)
         totalPages,
         handoffReceived: handoffPackage,
         patientId,
@@ -137,6 +148,44 @@ export async function processDocumentProgressively(
       console.log(`[Progressive] Reconciled ${reconciledEncounters.length} pending encounters`);
     }
 
+    // CRITICAL FIX: Persist page assignments BEFORE running post-reconciliation fixes
+    // Fix 2B and 2C depend on page assignments existing in the database
+    if (allPageAssignments.length > 0) {
+      const assignmentRecords = allPageAssignments.map(pa => ({
+        shell_file_id: shellFileId,
+        page_num: pa.page,
+        encounter_id: pa.encounter_id,
+        justification: pa.justification
+      }));
+
+      const { error: pageAssignError } = await supabase
+        .from('pass05_page_assignments')
+        .insert(assignmentRecords);
+
+      if (pageAssignError) {
+        console.error(`[Progressive] Failed to save page assignments: ${pageAssignError.message}`);
+        // Don't throw - non-critical for completion
+      } else {
+        console.log(`[Progressive] Saved ${assignmentRecords.length} page assignments`);
+      }
+    }
+
+    // FIX 2: Apply post-reconciliation fixes (AFTER page assignments persisted)
+    if (pendingRecords.length > 0) {
+      console.log(`[Progressive] Applying post-reconciliation fixes...`);
+
+      // Fix 2A: Merge page ranges from all chunks for each final encounter
+      await mergePageRangesForAllEncounters(session.id);
+
+      // Fix 2B: Update page assignments to map temp IDs to final encounter IDs
+      await updatePageAssignmentsAfterReconciliation(session.id, shellFileId);
+
+      // Fix 2C: Recalculate encounter metrics after page ranges and assignments updated
+      await recalculateEncounterMetrics(session.id, shellFileId);
+
+      console.log(`[Progressive] Post-reconciliation fixes complete`);
+    }
+
     // Finalize session
     await finalizeProgressiveSession(session.id);
 
@@ -160,27 +209,6 @@ export async function processDocumentProgressively(
     if (shellUpdateError) {
       console.error(`[Progressive] Failed to update shell_files: ${shellUpdateError.message}`);
       // Don't throw - this is not critical enough to fail the entire session
-    }
-
-    // Persist page assignments
-    if (allPageAssignments.length > 0) {
-      const assignmentRecords = allPageAssignments.map(pa => ({
-        shell_file_id: shellFileId,
-        page_num: pa.page,
-        encounter_id: pa.encounter_id,
-        justification: pa.justification
-      }));
-
-      const { error: pageAssignError } = await supabase
-        .from('pass05_page_assignments')
-        .insert(assignmentRecords);
-
-      if (pageAssignError) {
-        console.error(`[Progressive] Failed to save page assignments: ${pageAssignError.message}`);
-        // Don't throw - non-critical for completion
-      } else {
-        console.log(`[Progressive] Saved ${assignmentRecords.length} page assignments`);
-      }
     }
 
     console.log(`[Progressive] Session ${session.id} complete: ${allEncounters.length} total encounters, ${totalCost.toFixed(4)} USD`);

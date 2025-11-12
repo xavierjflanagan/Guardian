@@ -50,6 +50,107 @@ export async function reconcilePendingEncounters(
 }
 
 /**
+ * FIX 2A: Merge page ranges from all chunks for each final encounter
+ * Called AFTER reconciliation completes to consolidate page ranges
+ */
+export async function mergePageRangesForAllEncounters(sessionId: string): Promise<void> {
+  console.log(`[Fix 2A] Merging page ranges for session ${sessionId}`);
+
+  // Get all completed pendings grouped by final encounter
+  const { data: completedPendings, error: fetchError } = await supabase
+    .from('pass05_pending_encounters')
+    .select('completed_encounter_id, partial_data, page_ranges')
+    .eq('session_id', sessionId)
+    .eq('status', 'completed')
+    .not('completed_encounter_id', 'is', null);
+
+  if (fetchError) {
+    console.error(`[Fix 2A] Failed to fetch completed pendings: ${fetchError.message}`);
+    return;
+  }
+
+  if (!completedPendings || completedPendings.length === 0) {
+    console.log(`[Fix 2A] No completed pendings to merge`);
+    return;
+  }
+
+  // Group by final encounter ID
+  const encounterGroups = new Map<string, any[]>();
+  for (const pending of completedPendings) {
+    const finalId = pending.completed_encounter_id;
+    if (!encounterGroups.has(finalId)) {
+      encounterGroups.set(finalId, []);
+    }
+    encounterGroups.get(finalId)!.push(pending);
+  }
+
+  console.log(`[Fix 2A] Found ${encounterGroups.size} unique final encounters to update`);
+
+  // Merge page ranges for EACH final encounter
+  for (const [finalEncounterId, pendings] of encounterGroups) {
+    const allPageRanges: number[][] = [];
+
+    for (const p of pendings) {
+      // Check both locations for page ranges
+      const ranges = p.partial_data?.pageRanges || p.page_ranges || [];
+      if (Array.isArray(ranges) && ranges.length > 0) {
+        allPageRanges.push(...ranges);
+      }
+    }
+
+    if (allPageRanges.length === 0) {
+      console.warn(`[Fix 2A] No page ranges found for encounter ${finalEncounterId}`);
+      continue;
+    }
+
+    // Merge overlapping/adjacent ranges
+    const mergedRanges = mergePageRanges(allPageRanges);
+
+    console.log(`[Fix 2A] Encounter ${finalEncounterId}: ${allPageRanges.length} ranges -> ${mergedRanges.length} merged ranges`);
+
+    // Update the final encounter with merged ranges
+    const { error: updateError } = await supabase
+      .from('healthcare_encounters')
+      .update({ page_ranges: mergedRanges })
+      .eq('id', finalEncounterId);
+
+    if (updateError) {
+      console.error(`[Fix 2A] Failed to update encounter ${finalEncounterId}: ${updateError.message}`);
+    }
+  }
+
+  console.log(`[Fix 2A] Page range merging complete`);
+}
+
+/**
+ * Helper: Merge overlapping or adjacent page ranges
+ */
+function mergePageRanges(ranges: number[][]): number[][] {
+  if (ranges.length === 0) return [];
+
+  // Sort by start page
+  const sorted = ranges.slice().sort((a, b) => a[0] - b[0]);
+
+  const merged: number[][] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const last = merged[merged.length - 1];
+
+    // Check if ranges overlap or are adjacent
+    if (current[0] <= last[1] + 1) {
+      // Merge: extend the last range to cover current
+      last[1] = Math.max(last[1], current[1]);
+    } else {
+      // No overlap: add as new range
+      merged.push(current);
+    }
+  }
+
+  return merged;
+}
+
+/**
  * Try to complete a pending encounter
  */
 async function completePendingEncounter(
@@ -144,6 +245,9 @@ async function completePendingEncounter(
   // Mark pending encounter as completed
   await markPendingEncounterCompleted(pending.id, inserted.id);
 
+  // Set the encounter ID in the return object
+  encounter.encounterId = inserted.id;
+
   return encounter;
 }
 
@@ -175,4 +279,141 @@ async function markPendingForReview(pendingId: string, _reason: string): Promise
   if (error) {
     console.error(`Failed to mark pending encounter for review:`, error);
   }
+}
+
+/**
+ * FIX 2B: Update page assignments to map temp IDs to final encounter IDs
+ * Called AFTER reconciliation completes
+ */
+export async function updatePageAssignmentsAfterReconciliation(
+  sessionId: string,
+  shellFileId: string
+): Promise<void> {
+  console.log(`[Fix 2B] Updating page assignments for session ${sessionId}`);
+
+  // Get all completed pendings with their temp IDs and final encounter IDs
+  const { data: completedPendings, error: fetchError } = await supabase
+    .from('pass05_pending_encounters')
+    .select('temp_encounter_id, completed_encounter_id')
+    .eq('session_id', sessionId)
+    .eq('status', 'completed')
+    .not('completed_encounter_id', 'is', null);
+
+  if (fetchError) {
+    console.error(`[Fix 2B] Failed to fetch completed pendings: ${fetchError.message}`);
+    return;
+  }
+
+  if (!completedPendings || completedPendings.length === 0) {
+    console.log(`[Fix 2B] No completed pendings to update page assignments for`);
+    return;
+  }
+
+  // Group by final encounter ID to handle multi-encounter sessions
+  const encounterGroups = new Map<string, string[]>();
+  for (const pending of completedPendings) {
+    const finalId = pending.completed_encounter_id;
+    const tempId = pending.temp_encounter_id;
+
+    if (!encounterGroups.has(finalId)) {
+      encounterGroups.set(finalId, []);
+    }
+    encounterGroups.get(finalId)!.push(tempId);
+  }
+
+  console.log(`[Fix 2B] Found ${encounterGroups.size} final encounters with temp IDs to update`);
+
+  // Update page assignments for each final encounter group
+  for (const [finalEncounterId, tempIds] of encounterGroups) {
+    console.log(`[Fix 2B] Updating ${tempIds.length} temp IDs -> ${finalEncounterId}`);
+
+    const { error: updateError } = await supabase
+      .from('pass05_page_assignments')
+      .update({ encounter_id: finalEncounterId })
+      .eq('shell_file_id', shellFileId)
+      .in('encounter_id', tempIds);
+
+    if (updateError) {
+      console.error(`[Fix 2B] Failed to update page assignments for encounter ${finalEncounterId}: ${updateError.message}`);
+    } else {
+      console.log(`[Fix 2B] Successfully updated page assignments for ${tempIds.join(', ')} -> ${finalEncounterId}`);
+    }
+  }
+
+  // Handle chunk-level temp IDs (enc-001, enc-002, etc.)
+  // Only safe when exactly one final encounter exists
+  if (encounterGroups.size === 1) {
+    const singleFinalId = Array.from(encounterGroups.keys())[0];
+
+    console.log(`[Fix 2B] Updating chunk-level enc-* temp IDs -> ${singleFinalId}`);
+
+    const { error: encUpdateError } = await supabase
+      .from('pass05_page_assignments')
+      .update({ encounter_id: singleFinalId })
+      .eq('shell_file_id', shellFileId)
+      .like('encounter_id', 'enc-%');
+
+    if (encUpdateError) {
+      console.error(`[Fix 2B] Failed to update enc-* temp IDs: ${encUpdateError.message}`);
+    } else {
+      console.log(`[Fix 2B] Successfully updated enc-* temp IDs -> ${singleFinalId}`);
+    }
+  } else {
+    console.warn(`[Fix 2B] Multiple final encounters (${encounterGroups.size}) - cannot safely update enc-* temp IDs without mapping`);
+  }
+
+  console.log(`[Fix 2B] Page assignment updates complete`);
+}
+
+/**
+ * FIX 2C: Recalculate session-level encounter metrics after reconciliation
+ * Updates the actual encounter count (encounters_detected, real_world_encounters)
+ * Called AFTER reconciliation completes
+ */
+export async function recalculateEncounterMetrics(
+  sessionId: string,
+  shellFileId: string
+): Promise<void> {
+  console.log(`[Fix 2C] Recalculating encounter metrics for session ${sessionId}`);
+
+  // Get all completed pendings with their final encounter IDs
+  const { data: completedPendings, error: fetchError } = await supabase
+    .from('pass05_pending_encounters')
+    .select('completed_encounter_id')
+    .eq('session_id', sessionId)
+    .eq('status', 'completed')
+    .not('completed_encounter_id', 'is', null);
+
+  if (fetchError) {
+    console.error(`[Fix 2C] Failed to fetch completed pendings: ${fetchError.message}`);
+    return;
+  }
+
+  // Count unique final encounter IDs
+  const finalEncounterIds = completedPendings && completedPendings.length > 0
+    ? [...new Set(completedPendings.map(p => p.completed_encounter_id))]
+    : [];
+
+  const actualEncounterCount = finalEncounterIds.length;
+
+  console.log(`[Fix 2C] Session has ${actualEncounterCount} actual encounter(s) after reconciliation`);
+
+  // Update session-level metrics in pass05_encounter_metrics
+  // This corrects the "3 encounters" bug to show the actual count (e.g., 1)
+  const { error: updateError } = await supabase
+    .from('pass05_encounter_metrics')
+    .update({
+      encounters_detected: actualEncounterCount,
+      real_world_encounters: actualEncounterCount,
+      updated_at: new Date().toISOString()
+    })
+    .eq('shell_file_id', shellFileId);
+
+  if (updateError) {
+    console.error(`[Fix 2C] Failed to update encounter metrics: ${updateError.message}`);
+  } else {
+    console.log(`[Fix 2C] Updated metrics: encounters_detected = ${actualEncounterCount}, real_world_encounters = ${actualEncounterCount}`);
+  }
+
+  console.log(`[Fix 2C] Metrics recalculation complete`);
 }

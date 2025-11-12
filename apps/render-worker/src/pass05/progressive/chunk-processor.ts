@@ -24,10 +24,11 @@ const supabase = createClient(
 export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   const startTime = Date.now();
 
-  console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0] + 1}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
+  console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0]}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
 
   // Extract OCR text for this chunk
-  const fullText = extractTextFromPages(params.pages, params.pageRange[0]);
+  // FIX: pageRange is now 1-based, so use pageRange[0] directly as the starting page number
+  const fullText = extractTextFromPages(params.pages, params.pageRange[0] - 1);
 
   // Add guardrails and logging
   if (fullText.trim().length === 0) {
