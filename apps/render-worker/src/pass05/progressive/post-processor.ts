@@ -48,7 +48,7 @@ export function postProcessEncounters(config: PostProcessConfig): any[] {
       };
     }
 
-    // For multi-chunk files, infer status from page boundaries
+    // For multi-chunk files, infer status from multiple indicators
     const lastPageRange = enc.pageRanges?.[enc.pageRanges.length - 1];
     if (!lastPageRange) {
       // No page ranges, assume complete
@@ -60,13 +60,37 @@ export function postProcessEncounters(config: PostProcessConfig): any[] {
 
     const encounterLastPage = lastPageRange[1];
 
-    // Check if encounter ends at chunk boundary and we're not on last chunk
-    if (encounterLastPage === chunkEndPage && !isLastChunk) {
+    // If we're on the last chunk, allow complete status
+    if (isLastChunk) {
+      return {
+        ...enc,
+        status: 'complete',
+        tempId: null,
+        expectedContinuation: null
+      };
+    }
+
+    // NOT last chunk - check multiple indicators for continuation
+    const touchesChunkBoundary = encounterLastPage === chunkEndPage;
+    const hasExpectedContinuation = !!enc.expectedContinuation;
+    const missingEndDate = !enc.encounterEndDate && enc.encounterTimeframeStatus !== 'completed';
+    const explicitlyContinuing = enc.status === 'continuing';
+
+    // Force 'continuing' status if ANY indicator suggests the encounter spans chunks
+    const shouldContinue = touchesChunkBoundary || hasExpectedContinuation || missingEndDate || explicitlyContinuing;
+
+    if (shouldContinue) {
       // Encounter likely continues to next chunk
       const tempIdSuffix = enc.encounterId || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const generatedTempId = `encounter_temp_chunk${chunkNumber}_${tempIdSuffix}`;
 
-      console.log(`[Post-processor] Encounter ends at chunk boundary (page ${encounterLastPage}), marking as continuing with tempId: ${generatedTempId}`);
+      const reasons = [];
+      if (touchesChunkBoundary) reasons.push(`page ${encounterLastPage} = chunk end`);
+      if (hasExpectedContinuation) reasons.push(`expected: ${enc.expectedContinuation}`);
+      if (missingEndDate) reasons.push('no end date');
+      if (explicitlyContinuing) reasons.push('AI marked continuing');
+
+      console.log(`[Post-processor] Encounter marked as continuing (${reasons.join(', ')}) with tempId: ${generatedTempId}`);
 
       return {
         ...enc,
@@ -76,7 +100,8 @@ export function postProcessEncounters(config: PostProcessConfig): any[] {
       };
     }
 
-    // Encounter ends before chunk boundary or we're on last chunk
+    // Encounter is fully contained within this chunk - allow 'complete'
+    console.log(`[Post-processor] Encounter fully contained (ends at page ${encounterLastPage}, chunk ends at ${chunkEndPage}), marking as complete`);
     return {
       ...enc,
       status: 'complete',

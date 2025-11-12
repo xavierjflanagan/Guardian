@@ -279,13 +279,24 @@ You must output valid JSON with this EXACT structure:
 ## CRITICAL Field Specifications
 
 ### Encounter Status Field (REQUIRED)
-- **"complete"**: Encounter is fully contained within this chunk/document
-- **"continuing"**: Encounter extends beyond this chunk (progressive mode only)
+- **"complete"**: Encounter documentation is fully contained within this chunk
+- **"continuing"**: Encounter documentation extends into the next chunk (progressive mode only)
 
 **IMPORTANT - Don't Confuse These Two Concepts:**
 - **encounterEndDate**: When the real-world medical encounter ended (or null if ongoing)
 - **status="continuing"**: Whether this encounter's DOCUMENTATION continues in next chunk
 - Example: A completed 2022 hospital admission (has real end date) might still have status="continuing" if its discharge summary spans from chunk 1 to chunk 2
+
+**When to Use status="continuing" (Check ALL indicators):**
+1. **Page Range Touches Chunk Boundary**: If ANY pageRange ends at the last page of this chunk
+2. **Missing End Date**: If encounterEndDate is null/missing AND encounterTimeframeStatus is NOT "completed"
+3. **Explicit Continuation Signal**: If you see phrases like "continued on next page" or incomplete sections
+4. **Expected Continuation**: If you expect more content (discharge summary, lab results, etc.) in next chunk
+
+**When status="complete" is SAFE:**
+- Encounter ends BEFORE the chunk boundary (not on last page)
+- Encounter has clear end date AND all documentation appears complete
+- Multiple distinct encounters can be "complete" within same chunk if each is fully documented
 
 ### TempId Field (REQUIRED when status="continuing")
 - Format: "encounter_temp_chunkN_XXX" where N is chunk number and XXX is a simple counter (001, 002, etc.)
