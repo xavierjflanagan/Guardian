@@ -69,15 +69,14 @@ For each potential encounter, ask: "Could this have happened at a different time
 ### Examples Applying the Timeline Test:
 
 **SEPARATE Encounters (each gets its own entry):**
-- ED visit on March 1st → Admission on March 1st → Discharge on March 5th = 2 encounters
-  - Emergency Department Visit (March 1st)
-  - Hospital Admission (March 1-5)
+- ED visit on March 1st then another ED visit on March 2nd = 2 encounters
 - Surgery on April 10th with post-op visit on April 20th = 2 encounters
 - Three chemotherapy sessions on different dates = 3 encounters
+- CXR and blood test performed on the same day but at seperate healthcare provider facilities = 2 encounters
 
 **SINGLE Encounter (consolidate together):**
 - Hospital admission with multiple specialist consultations during stay = 1 encounter
-- Emergency visit with X-rays, CT scan, and blood tests = 1 encounter
+- Emergency visit with X-rays, CT scan, and blood tests = 1 encounter (as all perfomed on the same day at the same facility/location)
 - Clinic visit with multiple providers in same session = 1 encounter
 
 ## Boundary Detection Priority
@@ -117,17 +116,18 @@ ${handoffContext}
    - Capture procedure type and surgical team
 
 4. **"outpatient_consultation"**
+   - Clinic visits
    - Specialist appointments
    - Follow-up visits
    - Initial consultations
-   - Clinic visits
+  
 
-5. **"diagnostic_imaging"**
+5. **"imaging"**
    - Standalone imaging appointments
    - Include modality (X-ray, CT, MRI, ultrasound, etc.)
    - Capture imaging findings if available
 
-6. **"laboratory_test"**
+6. **"lab_test"**
    - Standalone pathology/lab visits
    - Blood draws, urine samples, biopsies
    - Include test types ordered
@@ -167,17 +167,17 @@ For EACH encounter, extract:
    - Time if specified
    - Date source (extracted from text vs inferred)
 
-2. **Provider Information**
-   - Primary provider name
-   - Provider role/specialty
-   - Additional providers involved
-   - Referring provider if mentioned
-
-3. **Facility/Location**
+2. **Facility/Location**
    - Hospital/clinic name
    - Department/ward
    - Room number if specified
    - City/region if mentioned
+   
+3. **Provider Information**
+   - Primary provider name
+   - Provider role/specialty
+   - Additional providers involved
+   - Referring provider if mentioned 
 
 4. **Clinical Content**
    - Chief complaint/reason for visit
@@ -211,8 +211,6 @@ EVERY page must be assigned to an encounter. Use this decision tree:
 
 **IMPORTANT**: When an Emergency Department visit leads directly to hospital admission, this is ONE CONTINUOUS ENCOUNTER, not two separate encounters:
 - Use encounterType: "hospital_admission" for the entire stay
-- Include ED pages in the pageRanges
-- The encounter starts at ED arrival and ends at hospital discharge
 - Do NOT create separate ED and admission encounters when one leads to the other
 
 ## Output JSON Schema
