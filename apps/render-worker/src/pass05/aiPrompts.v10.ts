@@ -101,13 +101,14 @@ ${handoffContext}
 **IMPORTANT:** Use these exact lowercase_underscore values for encounterType:
 
 1. **"emergency_department"**
-   - Standalone ED visits (patient discharged home)
-   - Initial ED assessment before admission (separate from admission)
+   - ONLY for standalone ED visits where patient is discharged home
+   - DO NOT use for ED visits that lead to hospital admission
    - Urgent care or after-hours clinic visits
 
 2. **"hospital_admission"**
    - Inpatient stays (overnight or longer)
-   - Includes all care during the admission period
+   - INCLUDES the ED visit if patient was admitted from ED
+   - Treat ED-to-admission as ONE continuous hospital_admission encounter
    - Day surgery admissions (even if same-day discharge)
 
 3. **"surgical_procedure"**
@@ -206,6 +207,14 @@ EVERY page must be assigned to an encounter. Use this decision tree:
 - GOOD: "Shows 'Dr. Smith' and 'cardiac consultation'"
 - BAD: "Emergency department notes" (too generic, no specific text)
 
+## CRITICAL: ED-to-Admission Continuity
+
+**IMPORTANT**: When an Emergency Department visit leads directly to hospital admission, this is ONE CONTINUOUS ENCOUNTER, not two separate encounters:
+- Use encounterType: "hospital_admission" for the entire stay
+- Include ED pages in the pageRanges
+- The encounter starts at ED arrival and ends at hospital discharge
+- Do NOT create separate ED and admission encounters when one leads to the other
+
 ## Output JSON Schema
 
 You must output valid JSON with this EXACT structure:
@@ -215,49 +224,26 @@ You must output valid JSON with this EXACT structure:
   "encounters": [
     {
       "encounterId": "enc-001",
-      "encounterType": "emergency_department",
-      "status": "complete",
-      "tempId": null,
-      "expectedContinuation": null,
-      "encounterStartDate": "2024-03-15",
-      "encounterEndDate": "2024-03-15",
-      "encounterTimeframeStatus": "completed",
-      "dateSource": "ai_extracted",
-      "providerName": "Dr. Sarah Chen",
-      "providerRole": "Emergency Physician",
-      "facility": "St Vincent's Hospital",
-      "department": "Emergency Department",
-      "chiefComplaint": "Chest pain and shortness of breath",
-      "diagnoses": ["Acute myocardial infarction", "Hypertension"],
-      "procedures": ["ECG", "Cardiac catheterization"],
-      "medications": ["Aspirin 300mg", "Nitroglycerin sublingual"],
-      "disposition": "Admitted to Cardiac ICU",
-      "pageRanges": [[1, 5]],
-      "confidence": 0.95,
-      "summary": "Emergency presentation with acute MI, stabilized and admitted for cardiac care"
-    },
-    {
-      "encounterId": "enc-002",
       "encounterType": "hospital_admission",
       "status": "continuing",
-      "tempId": "encounter_temp_002",
+      "tempId": "encounter_temp_chunk1_001",
       "expectedContinuation": "discharge_summary",
       "encounterStartDate": "2024-03-15",
       "encounterEndDate": null,
       "encounterTimeframeStatus": "ongoing",
       "dateSource": "ai_extracted",
       "providerName": "Dr. Michael Roberts",
-      "providerRole": "Cardiologist",
+      "providerRole": "Hospitalist",
       "facility": "St Vincent's Hospital",
       "department": "Cardiac ICU",
-      "chiefComplaint": "Post-MI management",
+      "chiefComplaint": "Chest pain leading to STEMI diagnosis",
       "diagnoses": ["STEMI", "Acute heart failure"],
-      "procedures": ["PCI with stent placement"],
-      "medications": ["Dual antiplatelet therapy", "Beta blocker", "ACE inhibitor"],
+      "procedures": ["ECG", "Cardiac catheterization", "PCI with stent"],
+      "medications": ["Aspirin", "Nitroglycerin", "Dual antiplatelet therapy"],
       "disposition": null,
-      "pageRanges": [[5, 50]],
-      "confidence": 0.90,
-      "summary": "Cardiac ICU admission following STEMI, PCI performed, ongoing care"
+      "pageRanges": [[1, 50]],
+      "confidence": 0.95,
+      "summary": "Patient presented to ED with chest pain, diagnosed with STEMI, admitted to Cardiac ICU for PCI and ongoing management"
     }
   ],
   "pageAssignments": [
@@ -305,9 +291,11 @@ You must output valid JSON with this EXACT structure:
 - Example: A completed 2022 hospital admission (has real end date) might still have status="continuing" if its discharge summary spans from chunk 1 to chunk 2
 
 ### TempId Field (REQUIRED when status="continuing")
-- Format: "encounter_temp_XXX" where XXX is a unique identifier
+- Format: "encounter_temp_chunkN_XXX" where N is chunk number and XXX is a simple counter (001, 002, etc.)
+- Example: "encounter_temp_chunk1_001" for first continuing encounter in chunk 1
 - Used to track encounters across chunk boundaries
 - Must be consistent when completing encounter in next chunk
+- Do NOT use the encounterId in tempId generation
 
 ### ExpectedContinuation Field (REQUIRED when status="continuing")
 - Describes what content is expected in the next chunk
@@ -357,10 +345,12 @@ You must output valid JSON with this EXACT structure:
 
 When you receive a pending encounter in handoff:
 1. Look for continuation in current chunk
-2. Merge data from both chunks
-3. Set status="complete"
-4. Combine page ranges from both chunks
-5. Use the tempId from handoff as encounterId
+2. If found, create ONE encounter entry that includes:
+   - encounterId: Use the tempId from handoff (e.g., "encounter_temp_chunk1_001")
+   - status: "complete" if ending in this chunk, "continuing" if extending further
+   - pageRanges: Combine ranges from all chunks
+   - All merged data from both chunks
+3. Do NOT create a new encounter - complete the existing one
 
 ## Special Handling Instructions
 

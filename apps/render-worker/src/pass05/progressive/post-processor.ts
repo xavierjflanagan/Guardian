@@ -63,12 +63,15 @@ export function postProcessEncounters(config: PostProcessConfig): any[] {
     // Check if encounter ends at chunk boundary and we're not on last chunk
     if (encounterLastPage === chunkEndPage && !isLastChunk) {
       // Encounter likely continues to next chunk
-      console.log(`[Post-processor] Encounter ${enc.encounterId} ends at chunk boundary (page ${encounterLastPage}), marking as continuing`);
+      const tempIdSuffix = enc.encounterId || `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const generatedTempId = `encounter_temp_chunk${chunkNumber}_${tempIdSuffix}`;
+
+      console.log(`[Post-processor] Encounter ends at chunk boundary (page ${encounterLastPage}), marking as continuing with tempId: ${generatedTempId}`);
 
       return {
         ...enc,
         status: 'continuing',
-        tempId: enc.tempId || `encounter_temp_${chunkNumber}_${enc.encounterId}`,
+        tempId: enc.tempId || generatedTempId,
         expectedContinuation: enc.expectedContinuation || inferExpectedContinuation(enc)
       };
     }
@@ -118,10 +121,12 @@ export function validateHandoffPackage(handoff: any): any {
   if (handoff.pendingEncounter) {
     const pending = handoff.pendingEncounter;
 
-    // Ensure tempId exists
-    if (!pending.tempId) {
-      console.warn('[Post-processor] Pending encounter missing tempId, generating one');
-      pending.tempId = `encounter_temp_generated_${Date.now()}`;
+    // Ensure tempId exists and doesn't contain "undefined"
+    if (!pending.tempId || pending.tempId.includes('undefined')) {
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substr(2, 9);
+      pending.tempId = `encounter_temp_generated_${timestamp}_${randomSuffix}`;
+      console.warn(`[Post-processor] Pending encounter had invalid tempId, generated new one: ${pending.tempId}`);
     }
 
     // Ensure expectedContinuation exists
