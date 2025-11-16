@@ -65,13 +65,13 @@
 | Table | DELETE | RENAME | ADD | New Indexes | Migration Complexity |
 |-------|--------|--------|-----|-------------|---------------------|
 | pass05_progressive_sessions | 2 | 1 | 4 | 0 | Low |
-| pass05_pending_encounters | 2 | 5 | 18 | 5 | High |
+| pass05_pending_encounters | 2 | 5 | 19 | 5 | High |
 | pass05_chunk_results | 3 | 2 | 5 | 1 | Medium |
-| pass05_page_assignments | 0 | 0 | 6 | 5 | Medium |
+| pass05_page_assignments | 0 | 0 | 6 | 6 | High |
 | pass05_encounter_metrics | 3 | 0 | 9 | 0 | Medium |
 | healthcare_encounters | 4 | 0 | 14 | 2 | Low |
 | shell_files | 3 | 0 | 2 | 2 | Low |
-| **TOTALS** | **17** | **8** | **58** | **15** | - |
+| **TOTALS** | **17** | **8** | **59** | **16** | - |
 
 ### New Tables to Create
 
@@ -166,7 +166,7 @@ ALTER TABLE pass05_progressive_sessions
 - `completed_encounter_id` → `reconciled_to`
 - `completed_at` → `reconciled_at`
 
-**ADD (18 columns):**
+**ADD (19 columns):**
 ```sql
 -- Core cascade support
 cascade_id varchar(100)                    -- Links cascading encounters
@@ -191,6 +191,9 @@ end_y integer                              -- NULL if inter_page; calculated spl
 
 -- Overall position confidence
 position_confidence numeric                -- Confidence in boundary positions (0.0-1.0)
+
+-- Page ranges (preserves AI's exact output, enables validation)
+page_ranges integer[][]                    -- Array of page range pairs, e.g., [[1,50], [75,100]]
 
 -- Reconciliation support
 reconciliation_key varchar(255)            -- For descriptor matching
@@ -251,6 +254,10 @@ ALTER TABLE pass05_pending_encounters
   ADD COLUMN end_text_height integer,
   ADD COLUMN end_y integer,
   ADD COLUMN position_confidence numeric;
+
+-- Add page ranges (preserves AI output, enables validation)
+ALTER TABLE pass05_pending_encounters
+  ADD COLUMN page_ranges integer[][];
 
 -- Add reconciliation support
 ALTER TABLE pass05_pending_encounters
@@ -373,59 +380,125 @@ CREATE INDEX idx_chunk_results_separation_analysis
 
 **ADD (6 columns):**
 ```sql
-position_on_page varchar(20)           -- 'top','quarter','middle','three-quarters','bottom'
-position_confidence numeric            -- 0.0-1.0 confidence in position
+session_id uuid NOT NULL               -- Links to progressive session (enables FK to pendings)
 is_partial boolean DEFAULT false       -- TRUE if encounter uses only part of page
-pending_id text                        -- Links to pending encounter before reconciliation
-chunk_number integer                   -- Which chunk created this assignment
+pending_id text NOT NULL               -- PERMANENT: Links to pending encounter (never overwritten)
+chunk_number integer NOT NULL          -- Which chunk created this assignment
 cascade_id varchar(100)                -- Links to cascade if applicable
+reconciled_at timestamp                -- When encounter_id was populated after reconciliation
 ```
 
-**New Indexes (5 total):**
+**DEPRECATED (DO NOT ADD):**
+```sql
+-- REMOVED: position_on_page varchar(20)     -- Old 5-position system, replaced by encounter-level boundaries
+-- REMOVED: position_confidence numeric       -- Redundant with is_partial
+```
+
+**MODIFY EXISTING:**
+```sql
+-- encounter_id remains uuid (no type change)
+-- Note: encounter_id is NULL during chunking, populated after reconciliation
+```
+
+**New Indexes (6 total):**
 ```sql
 CREATE INDEX idx_page_assign_doc_page ON pass05_page_assignments(shell_file_id, page_num);
-CREATE INDEX idx_page_assign_encounter ON pass05_page_assignments(encounter_id);
-CREATE INDEX idx_page_assign_pending ON pass05_page_assignments(shell_file_id, pending_id)
-  WHERE pending_id IS NOT NULL;
-CREATE INDEX idx_page_assign_chunk ON pass05_page_assignments(shell_file_id, chunk_number);
-CREATE INDEX idx_page_assign_reconcile ON pass05_page_assignments(shell_file_id, pending_id, encounter_id)
+CREATE INDEX idx_page_assign_encounter ON pass05_page_assignments(encounter_id)
+  WHERE encounter_id IS NOT NULL;
+CREATE INDEX idx_page_assign_pending ON pass05_page_assignments(session_id, pending_id);
+CREATE INDEX idx_page_assign_chunk ON pass05_page_assignments(session_id, chunk_number);
+CREATE INDEX idx_page_assign_cascade ON pass05_page_assignments(cascade_id)
+  WHERE cascade_id IS NOT NULL;
+CREATE INDEX idx_page_assign_unreconciled ON pass05_page_assignments(shell_file_id, pending_id)
   WHERE encounter_id IS NULL;
+```
+
+**New Constraints:**
+```sql
+-- Prevent duplicate page assignments for same pending
+ALTER TABLE pass05_page_assignments
+  ADD CONSTRAINT uq_page_per_pending
+  UNIQUE (shell_file_id, page_num, pending_id);
+
+-- Foreign key to pending encounters
+ALTER TABLE pass05_page_assignments
+  ADD CONSTRAINT fk_pending_encounter
+  FOREIGN KEY (session_id, pending_id)
+  REFERENCES pass05_pending_encounters(session_id, pending_id)
+  ON DELETE CASCADE;
+
+-- Foreign key to final encounters (optional, can be NULL)
+ALTER TABLE pass05_page_assignments
+  ADD CONSTRAINT fk_final_encounter
+  FOREIGN KEY (encounter_id)
+  REFERENCES healthcare_encounters(id)
+  ON DELETE CASCADE;
 ```
 
 #### Migration SQL Preview
 
 ```sql
--- Add position tracking (supports multiple encounters per page)
+-- Add session reference (required for FK to pendings)
 ALTER TABLE pass05_page_assignments
-  ADD COLUMN position_on_page varchar(20),
-  ADD COLUMN position_confidence numeric,
+  ADD COLUMN session_id uuid NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE;
+
+-- Add dual-ID tracking (pending during chunking, encounter after reconciliation)
+ALTER TABLE pass05_page_assignments
+  ADD COLUMN pending_id text NOT NULL,
+  ADD COLUMN reconciled_at timestamp;
+
+-- Add provenance tracking
+ALTER TABLE pass05_page_assignments
+  ADD COLUMN chunk_number integer NOT NULL,
+  ADD COLUMN cascade_id varchar(100);
+
+-- Add page metadata
+ALTER TABLE pass05_page_assignments
   ADD COLUMN is_partial boolean DEFAULT false;
 
--- Add reconciliation tracking
+-- Add unique constraint (prevent duplicate pending assignments)
 ALTER TABLE pass05_page_assignments
-  ADD COLUMN pending_id text,
-  ADD COLUMN chunk_number integer;
+  ADD CONSTRAINT uq_page_per_pending
+  UNIQUE (shell_file_id, page_num, pending_id);
 
--- Add cascade tracking
+-- Add foreign key constraints
 ALTER TABLE pass05_page_assignments
-  ADD COLUMN cascade_id varchar(100);
+  ADD CONSTRAINT fk_pending_encounter
+  FOREIGN KEY (session_id, pending_id)
+  REFERENCES pass05_pending_encounters(session_id, pending_id)
+  ON DELETE CASCADE;
+
+ALTER TABLE pass05_page_assignments
+  ADD CONSTRAINT fk_final_encounter
+  FOREIGN KEY (encounter_id)
+  REFERENCES healthcare_encounters(id)
+  ON DELETE CASCADE;
 
 -- Create indexes
 CREATE INDEX idx_page_assign_doc_page ON pass05_page_assignments(shell_file_id, page_num);
-CREATE INDEX idx_page_assign_encounter ON pass05_page_assignments(encounter_id);
-CREATE INDEX idx_page_assign_pending ON pass05_page_assignments(shell_file_id, pending_id)
-  WHERE pending_id IS NOT NULL;
-CREATE INDEX idx_page_assign_chunk ON pass05_page_assignments(shell_file_id, chunk_number);
-CREATE INDEX idx_page_assign_reconcile ON pass05_page_assignments(shell_file_id, pending_id, encounter_id)
+CREATE INDEX idx_page_assign_encounter ON pass05_page_assignments(encounter_id)
+  WHERE encounter_id IS NOT NULL;
+CREATE INDEX idx_page_assign_pending ON pass05_page_assignments(session_id, pending_id);
+CREATE INDEX idx_page_assign_chunk ON pass05_page_assignments(session_id, chunk_number);
+CREATE INDEX idx_page_assign_cascade ON pass05_page_assignments(cascade_id)
+  WHERE cascade_id IS NOT NULL;
+CREATE INDEX idx_page_assign_unreconciled ON pass05_page_assignments(shell_file_id, pending_id)
   WHERE encounter_id IS NULL;
 ```
 
 #### Impact Summary
 
 - **Breaking Changes:** None
-- **Code Updates:** Update to populate new position fields
-- **Data Migration:** None required
-- **Testing:** Test multi-encounter page scenarios
+- **Code Updates:**
+  - Update chunk-processor to populate session_id, pending_id, chunk_number, cascade_id
+  - Update reconciler to set encounter_id and reconciled_at after grouping
+  - Remove references to deprecated position_on_page field
+- **Data Migration:** None required (all new columns)
+- **Testing:**
+  - Test multi-encounter page scenarios (2+ encounters on same page)
+  - Test page assignment lifecycle (pending_id → encounter_id transition)
+  - Test cascade deletion (verify FK cascades work correctly)
+  - Test duplicate prevention (unique constraint on pending_id)
 
 ---
 
@@ -1348,5 +1421,3 @@ See individual table sections for complete details on new columns.
 - Hybrid storage strategy
 - Downstream integration patterns
 - Real-world examples
-
-

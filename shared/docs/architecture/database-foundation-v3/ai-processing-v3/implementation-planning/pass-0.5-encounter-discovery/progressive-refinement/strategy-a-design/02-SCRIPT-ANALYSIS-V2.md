@@ -12,7 +12,7 @@
 - OCR integration design completed (two-stage: AI markers + code extraction)
 - Batching analysis added to V11 prompt (safe split points WITHIN encounters)
 - Reconciliation strategy extended to handle position data merging
-- Column count increased: 47 → 58 new columns
+- Column count increased: 47 → 59 new columns (includes page_ranges addition)
 
 **Critical Gaps Identified in V1:**
 1. **coordinate-extractor.ts** - Entire script missing from V1 analysis (CRITICAL)
@@ -195,7 +195,7 @@ if (aiResponse.page_separation_analysis) {
 }
 ```
 
-##### 3. Pending Encounter Insertion (13 new position fields)
+##### 3. Pending Encounter Insertion (14 new position fields + page_ranges)
 
 ```typescript
 // Insert pending encounter with position data
@@ -224,16 +224,19 @@ await supabase.from('pass05_pending_encounters').insert({
 
   position_confidence: encounter.position_confidence,
 
+  // Page ranges (NEW - preserves AI output for validation)
+  page_ranges: encounter.page_ranges,  // e.g., [[1,50], [75,100]]
+
   // Clinical data...
   encounter_type: encounter.encounter_type,
   // ...
 });
 ```
 
-##### 4. Page Assignment Persistence
+##### 4. Page Assignment Persistence (Dual-ID Tracking)
 
 ```typescript
-// Store page assignments with encounter_index → pending_id mapping
+// Store page assignments with dual-ID approach: pending_id (permanent) + encounter_id (filled later)
 // IMPORTANT: Pages are document-absolute (1-N), NOT chunk-relative
 
 // Process each encounter to create pending_id → encounter_index mapping
@@ -252,8 +255,18 @@ for (const encounter of aiResponse.healthcare_encounters) {
     if (assignment.encounter_index === encounterIndex) {
       await supabase.from('pass05_page_assignments').insert({
         shell_file_id: shellFileId,
-        page_num: assignment.page,  // Document-absolute page number
-        encounter_id: pendingId,    // <-- Mapping: encounter_index → pending_id
+        session_id: sessionId,          // NEW: Enables FK to pendings
+        page_num: assignment.page,       // Document-absolute page number
+        is_partial: assignment.is_partial || false,
+
+        // Dual-ID tracking (NEW approach):
+        pending_id: pendingId,           // PERMANENT: Never overwritten, preserves audit trail
+        encounter_id: null,              // NULL initially, filled after reconciliation
+
+        cascade_id: cascadeId,           // NEW: Links to cascade if applicable
+        chunk_number: chunkNumber,       // NEW: Which chunk created this assignment
+        reconciled_at: null,             // NEW: Timestamp when encounter_id populated
+
         justification: assignment.justification,
         created_at: new Date().toISOString()
       });
@@ -261,8 +274,8 @@ for (const encounter of aiResponse.healthcare_encounters) {
   }
 }
 
-// Note: encounter_id will be updated to final healthcare_encounters.id
-// during reconciliation via updatePageAssignmentsAfterReconciliation()
+// Note: encounter_id is filled during reconciliation by updatePageAssignmentsAfterReconciliation()
+// pending_id is NEVER overwritten - preserves full audit trail for merged encounters
 ```
 
 **Complexity:** HIGH → VERY HIGH (V1 underestimated)
@@ -508,6 +521,71 @@ async function reconcilePendingEncountersV2(
   // Existing logic...
   await updatePageAssignmentsAfterReconciliation(sessionId, shellFileId);
   await recalculateEncounterMetrics(sessionId, shellFileId);
+}
+```
+
+##### 4. Page Assignment Update (Dual-ID Approach)
+
+```typescript
+/**
+ * Update page assignments with final encounter IDs after reconciliation
+ * CRITICAL: Uses pending_id to find rows, populates encounter_id field
+ * PRESERVES pending_id for audit trail (never overwritten)
+ */
+async function updatePageAssignmentsAfterReconciliation(
+  sessionId: string,
+  shellFileId: string
+): Promise<void> {
+  // Fetch all pending encounters with their final encounter IDs
+  const { data: pendings } = await supabase
+    .from('pass05_pending_encounters')
+    .select('pending_id, cascade_id')
+    .eq('session_id', sessionId);
+
+  // Fetch final encounters to get cascade_id → encounter_id mapping
+  const { data: finalEncounters } = await supabase
+    .from('healthcare_encounters')
+    .select('id, cascade_id')
+    .eq('shell_file_id', shellFileId);
+
+  // Create cascade_id → encounter_id map
+  const cascadeToFinalId = new Map(
+    finalEncounters.map(e => [e.cascade_id, e.id])
+  );
+
+  // Update each pending's page assignments with final encounter_id
+  for (const pending of pendings) {
+    const finalEncounterId = cascadeToFinalId.get(pending.cascade_id);
+
+    if (!finalEncounterId) {
+      logger.error({
+        pending_id: pending.pending_id,
+        cascade_id: pending.cascade_id,
+        message: 'No final encounter found for cascade_id'
+      });
+      continue;
+    }
+
+    // Update page assignments: Find by pending_id, set encounter_id
+    await supabase
+      .from('pass05_page_assignments')
+      .update({
+        encounter_id: finalEncounterId,  // Fill in final encounter ID
+        reconciled_at: new Date().toISOString()
+      })
+      .eq('shell_file_id', shellFileId)
+      .eq('pending_id', pending.pending_id)  // Match by pending_id
+      .is('encounter_id', null);  // Only update rows not yet reconciled
+
+    // Note: pending_id is NEVER updated - preserves audit trail
+  }
+
+  logger.info({
+    session_id: sessionId,
+    shell_file_id: shellFileId,
+    pendings_processed: pendings.length,
+    message: 'Page assignments updated with final encounter IDs'
+  });
 }
 ```
 
