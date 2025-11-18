@@ -1,10 +1,13 @@
 # Pass 0.5 Strategy A - Table Migration Plan V3
 
-**Date:** November 14, 2024 (Updated: November 15, 2024)
-**Version:** 3.1
+**Date:** November 14, 2024 (Updated: November 18, 2024)
+**Version:** 3.3
 **Purpose:** Complete migration plan for Strategy A with two-touchpoint workflow preparation
 
-**MAJOR UPDATE (Nov 15, 2024):** Position tracking system updated to match batching design pattern (inter_page vs intra_page boundaries). Column count increased from 47 to 58.
+**MAJOR UPDATES:**
+- **Nov 15, 2024:** Position tracking system updated to match batching design (inter_page vs intra_page boundaries)
+- **Nov 18, 2024:** Profile classification integration (Files 10-12) added identity markers, quality tiers, encounter sources, and 4 new audit/classification tables
+- **Nov 18, 2024:** Added cross-field integrity constraints for encounter_source validation (File 12)
 
 ---
 
@@ -25,12 +28,24 @@
 ### Migration Scope
 
 **Tables Analyzed:** 8 tables + 1 view
-**Total Columns Analyzed:** 200+ columns
+**Total Columns Analyzed:** 250+ columns
 **Columns to DELETE:** 17 orphaned/redundant columns
 **Columns to RENAME:** 8 columns for clarity
-**Columns to ADD:** 58 new columns (includes 11 additional for inter_page/intra_page position tracking)
-**New Tables:** 2 (cascade_chains, reconciliation_log)
-**Design Pattern:** Position tracking matches BATCHING-TASK-DESIGN-V2.md (inter_page vs intra_page boundaries)
+**Columns to ADD:** 96+ new columns across all tables
+  - pass05_progressive_sessions: +4
+  - pass05_pending_encounters: +39
+  - pass05_chunk_results: +5
+  - pass05_page_assignments: +6
+  - pass05_encounter_metrics: +15
+  - healthcare_encounters: +38
+  - shell_files: +5 (includes critical uploaded_by for auth user tracking)
+**New Tables:** 6 total
+  - 2 reconciliation tables (cascade_chains, reconciliation_log)
+  - 4 classification/audit tables (pending_identifiers, encounter_identifiers, orphan_identities, classification_audit)
+**Design Patterns:**
+  - Position tracking matches BATCHING-TASK-DESIGN-V2.md (inter_page vs intra_page boundaries)
+  - Profile classification integration (Files 10, 11, 12)
+  - Data quality tiers (File 11)
 **Views to DROP:** 1 (pass05_progressive_performance)
 **Breaking Changes:** NONE (all deletions are orphaned columns)
 
@@ -65,13 +80,13 @@
 | Table | DELETE | RENAME | ADD | New Indexes | Migration Complexity |
 |-------|--------|--------|-----|-------------|---------------------|
 | pass05_progressive_sessions | 2 | 1 | 4 | 0 | Low |
-| pass05_pending_encounters | 2 | 5 | 19 | 5 | High |
+| pass05_pending_encounters | 2 | 5 | 39 | 11 | High |
 | pass05_chunk_results | 3 | 2 | 5 | 1 | Medium |
-| pass05_page_assignments | 0 | 0 | 6 | 6 | High |
-| pass05_encounter_metrics | 3 | 0 | 9 | 0 | Medium |
-| healthcare_encounters | 4 | 0 | 14 | 2 | Low |
-| shell_files | 3 | 0 | 2 | 2 | Low |
-| **TOTALS** | **17** | **8** | **59** | **16** | - |
+| pass05_page_assignments | 1 | 0 | 6 | 6 | High |
+| pass05_encounter_metrics | 3 | 0 | 15 | 0 | Medium |
+| healthcare_encounters | 4 | 2 | 38 | 2 | Medium |
+| shell_files | 3 | 0 | 5 | 3 | Low |
+| **TOTALS** | **18** | **10** | **112** | **23** | - |
 
 ### New Tables to Create
 
@@ -79,6 +94,10 @@
 |-------|---------|-------------------|---------------------|
 | pass05_cascade_chains | Track cascade relationships | ~0-5 | Low |
 | pass05_reconciliation_log | Audit reconciliation decisions | ~1-10 | Low |
+| pass05_pending_encounter_identifiers | Identity markers (MRN, insurance) during Pass 0.5 | ~0-5 per encounter | Low |
+| healthcare_encounter_identifiers | Final identity markers after reconciliation | ~0-5 per encounter | Low |
+| orphan_identities | Track unmatched identities for profile suggestions | ~0-10 per account | Low |
+| profile_classification_audit | Audit trail for classification decisions | ~1 per encounter | Low |
 
 ### Views to Drop
 
@@ -97,52 +116,169 @@
 **Purpose:** Tracks progressive processing sessions for documents
 **Strategy A Change:** Used for ALL documents (not just >100 pages)
 
+#### Current State Analysis (from Supabase)
+
+**Actual current columns (24 total):**
+- `id` (uuid PRIMARY KEY) - **NOTE:** Currently named `id`, should be `session_id` for clarity
+- `shell_file_id` (uuid NOT NULL)
+- `patient_id` (uuid NOT NULL) - **NOTE:** Will be populated after Pass 0.5 processing
+- `total_pages` (integer NOT NULL)
+- `chunk_size` (integer NOT NULL)
+- `total_chunks` (integer NOT NULL)
+- `current_chunk` (integer, default 0)
+- `processing_status` (text, default 'initialized')
+- `current_handoff_package` (jsonb)
+- `total_encounters_found` (integer, default 0) - **DELETE**
+- `total_encounters_completed` (integer, default 0) - **DELETE**
+- `total_encounters_pending` (integer, default 0) - **RENAME**
+- `requires_manual_review` (boolean, default false) - **KEEP**
+- `review_reasons` (text[]) - **KEEP**
+- `average_confidence` (numeric) - **KEEP**
+- `started_at` (timestamptz, default now())
+- `completed_at` (timestamptz)
+- `total_processing_time` (interval) - **KEEP**
+- `total_ai_calls` (integer, default 0) - **KEEP**
+- `total_input_tokens` (integer, default 0) - **KEEP**
+- `total_output_tokens` (integer, default 0) - **KEEP**
+- `total_cost_usd` (numeric, default 0) - **KEEP**
+- `created_at` (timestamptz, default now())
+- `updated_at` (timestamptz, default now())
+
 #### Changes Required
 
 **DELETE (2 columns):**
-- `total_encounters_found` - Always 0 until reconciliation
-- `total_encounters_completed` - Always 0 until reconciliation
+- `total_encounters_found` - Always 0 until reconciliation (orphaned)
+- `total_encounters_completed` - Always 0 until reconciliation (orphaned)
 
 **RENAME (1 column):**
 - `total_encounters_pending` → `total_pendings_created`
+  - **Reason:** Clearer name reflecting what's actually counted
 
 **ADD (4 columns):**
 ```sql
 total_cascades integer DEFAULT 0           -- Number of cascade chains created
-strategy_version varchar(10) DEFAULT 'A-v1' -- Track strategy version
-reconciliation_completed_at timestamp       -- When reconciliation finished
-final_encounter_count integer              -- Count after reconciliation
+strategy_version varchar(10) DEFAULT 'A-v1' -- Track strategy version (future-proof)
+reconciliation_completed_at timestamptz    -- When reconciliation finished (separate from chunk completion)
+final_encounter_count integer              -- Count after reconciliation (vs pendings created)
 ```
 
-**MODIFY (1 column behavior):**
-- `current_handoff_package` - Simplify from complex state to cascade context only
+**MODIFY (1 column behavior - no schema change):**
+- `current_handoff_package` (jsonb) - Simplified to cascade context only:
+  ```json
+  {
+    "cascade_id": "uuid",
+    "context": {
+      "encounter_type": "...",
+      "last_page": 50,
+      "continues_previous": true
+    }
+  }
+  ```
 
-#### Migration SQL Preview
+#### Complete Table Schema (After Migration)
 
 ```sql
--- Remove orphaned columns
-ALTER TABLE pass05_progressive_sessions
-  DROP COLUMN total_encounters_found,
-  DROP COLUMN total_encounters_completed;
+CREATE TABLE pass05_progressive_sessions (
+  -- Identity
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),  -- Keep as 'id' (don't rename to session_id)
+  shell_file_id uuid NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES user_profiles(id),  -- Populated after processing
 
--- Rename for clarity
+  -- Document info
+  total_pages integer NOT NULL,
+  chunk_size integer NOT NULL,
+  total_chunks integer NOT NULL,
+
+  -- Progress tracking
+  current_chunk integer DEFAULT 0,
+  processing_status text DEFAULT 'initialized',  -- Keep as text, not enum
+  current_handoff_package jsonb,                 -- Cascade context for next chunk
+
+  -- Encounter counts
+  total_pendings_created integer DEFAULT 0,      -- RENAMED from total_encounters_pending
+  final_encounter_count integer,                 -- NEW - count after reconciliation
+
+  -- Cascade tracking
+  total_cascades integer DEFAULT 0,              -- NEW
+
+  -- Quality/Review
+  requires_manual_review boolean DEFAULT false,
+  review_reasons text[],
+  average_confidence numeric,
+
+  -- Strategy tracking
+  strategy_version varchar(10) DEFAULT 'A-v1',   -- NEW - version tracking
+
+  -- Metrics (keep all existing)
+  total_processing_time interval,
+  total_ai_calls integer DEFAULT 0,
+  total_input_tokens integer DEFAULT 0,
+  total_output_tokens integer DEFAULT 0,
+  total_cost_usd numeric DEFAULT 0,
+
+  -- Timestamps
+  started_at timestamptz DEFAULT now(),
+  completed_at timestamptz,                      -- When all chunks processed
+  reconciliation_completed_at timestamptz,       -- NEW - when reconciliation finished
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX idx_pass05_sessions_shell_file ON pass05_progressive_sessions(shell_file_id);
+CREATE INDEX idx_pass05_sessions_status ON pass05_progressive_sessions(processing_status);
+CREATE INDEX idx_pass05_sessions_patient ON pass05_progressive_sessions(patient_id);
+```
+
+#### Migration SQL
+
+```sql
+-- Step 1: Remove orphaned columns
+ALTER TABLE pass05_progressive_sessions
+  DROP COLUMN IF EXISTS total_encounters_found,
+  DROP COLUMN IF EXISTS total_encounters_completed;
+
+-- Step 2: Rename for clarity
 ALTER TABLE pass05_progressive_sessions
   RENAME COLUMN total_encounters_pending TO total_pendings_created;
 
--- Add Strategy A columns
+-- Step 3: Add new Strategy A columns
 ALTER TABLE pass05_progressive_sessions
   ADD COLUMN total_cascades integer DEFAULT 0,
   ADD COLUMN strategy_version varchar(10) DEFAULT 'A-v1',
-  ADD COLUMN reconciliation_completed_at timestamp,
+  ADD COLUMN reconciliation_completed_at timestamptz,
   ADD COLUMN final_encounter_count integer;
+
+-- Step 4: Update existing sessions to have strategy version
+UPDATE pass05_progressive_sessions
+SET strategy_version = 'A-v1'
+WHERE strategy_version IS NULL;
 ```
 
 #### Impact Summary
 
-- **Breaking Changes:** None (deleted columns never populated)
-- **Code Updates:** Update queries that reference renamed/deleted columns
-- **Data Migration:** None required
-- **Testing:** Verify new columns populate correctly during processing
+- **Breaking Changes:** None (deleted columns were never populated)
+- **Code Updates Required:**
+  - Update queries referencing `total_encounters_pending` → `total_pendings_created`
+  - Remove references to deleted columns (if any exist)
+  - Update session completion logic to set `reconciliation_completed_at`
+- **Data Migration:** Backfill `strategy_version = 'A-v1'` for existing sessions
+- **Testing:**
+  - Verify `total_pendings_created` increments during chunk processing
+  - Verify `final_encounter_count` set during reconciliation
+  - Verify `reconciliation_completed_at` timestamp set correctly
+
+#### Column Count Summary
+
+- **Before:** 24 columns (verified from Supabase)
+- **After:** 26 columns
+- **Net Change:** +2 columns (deleted 2, renamed 1, added 4)
+
+**Breakdown:**
+- DELETE: 2 (total_encounters_found, total_encounters_completed)
+- RENAME: 1 (total_encounters_pending → total_pendings_created)
+- ADD: 4 (total_cascades, strategy_version, reconciliation_completed_at, final_encounter_count)
+- KEEP: 19 (all other existing columns)
 
 ---
 
@@ -152,6 +288,26 @@ ALTER TABLE pass05_progressive_sessions
 
 **Purpose:** Temporary storage for encounters during processing
 **Strategy A Change:** Hub table - ALL encounters pass through here before reconciliation
+
+#### Current State Analysis (from Supabase)
+
+**Actual current columns (16 total):**
+- `id` (uuid PRIMARY KEY)
+- `session_id` (uuid NOT NULL)
+- `temp_encounter_id` (text NOT NULL) - **RENAME to pending_id**
+- `chunk_started` (integer NOT NULL) - **RENAME to chunk_number**
+- `chunk_last_seen` (integer) - **DELETE**
+- `partial_data` (jsonb NOT NULL) - **RENAME to encounter_data**
+- `page_ranges` (integer[][]) - **KEEP**
+- `last_seen_context` (text) - **DELETE**
+- `expected_continuation` (text) - **KEEP** (useful for validation)
+- `status` (text, default 'pending')
+- `completed_encounter_id` (uuid) - **RENAME to reconciled_to**
+- `completed_at` (timestamptz) - **RENAME to reconciled_at**
+- `confidence` (numeric)
+- `requires_review` (boolean, default false)
+- `created_at` (timestamptz, default now())
+- `updated_at` (timestamptz, default now())
 
 #### Changes Required
 
@@ -166,14 +322,14 @@ ALTER TABLE pass05_progressive_sessions
 - `completed_encounter_id` → `reconciled_to`
 - `completed_at` → `reconciled_at`
 
-**ADD (19 columns):**
+**ADD (38 columns):**
 ```sql
--- Core cascade support
+-- Core cascade support (3 columns)
 cascade_id varchar(100)                    -- Links cascading encounters
 is_cascading boolean DEFAULT false         -- Does this cascade to next chunk?
 continues_previous boolean DEFAULT false   -- Continues from previous chunk?
 
--- START boundary position (matches batching design pattern)
+-- START boundary position - matches batching design pattern (6 columns)
 start_page integer NOT NULL                -- First page of encounter
 start_boundary_type varchar(20)            -- 'inter_page' or 'intra_page'
 start_marker text                          -- Descriptive text (e.g., "after header 'ADMISSION'")
@@ -181,7 +337,7 @@ start_text_y_top integer                   -- NULL if inter_page; Y-coord of mar
 start_text_height integer                  -- NULL if inter_page; height of marker text
 start_y integer                            -- NULL if inter_page; calculated split line (y_top - height)
 
--- END boundary position (matches batching design pattern)
+-- END boundary position - matches batching design pattern (6 columns)
 end_page integer NOT NULL                  -- Last page of encounter
 end_boundary_type varchar(20)              -- 'inter_page' or 'intra_page'
 end_marker text                            -- Descriptive text (e.g., "before header 'DISCHARGE'")
@@ -189,25 +345,69 @@ end_text_y_top integer                     -- NULL if inter_page; Y-coord of mar
 end_text_height integer                    -- NULL if inter_page; height of marker text
 end_y integer                              -- NULL if inter_page; calculated split line (y_top - height)
 
--- Overall position confidence
+-- Overall position confidence (1 column)
 position_confidence numeric                -- Confidence in boundary positions (0.0-1.0)
 
--- Page ranges (preserves AI's exact output, enables validation)
-page_ranges integer[][]                    -- Array of page range pairs, e.g., [[1,50], [75,100]]
-
--- Reconciliation support
+-- Reconciliation support (3 columns)
 reconciliation_key varchar(255)            -- For descriptor matching
 reconciliation_method varchar(20)          -- 'cascade', 'descriptor', 'orphan'
 reconciliation_confidence numeric          -- Confidence in reconciliation
+
+-- Identity markers (raw from AI) - for profile classification + Criteria A (4 columns)
+patient_full_name text                     -- Patient name as extracted
+patient_date_of_birth text                 -- Raw format DOB as extracted
+patient_address text                       -- Patient address if present
+patient_phone varchar(50)                  -- Patient phone if present
+
+-- Provider/facility markers - for Criteria B + quality tiers (3 columns)
+provider_name text                         -- Healthcare provider name
+facility_name text                         -- Hospital/clinic name
+encounter_start_date text                  -- Visit date or document preparation date (raw format)
+
+-- Classification results - File 10 integration (4 columns)
+matched_profile_id uuid                    -- REFERENCES user_profiles(id) - populated by profile-classifier
+match_confidence numeric                   -- 0.0 to 1.0
+match_status varchar(20)                   -- 'matched', 'unmatched', 'orphan', 'review'
+is_orphan_identity boolean DEFAULT false   -- Unknown identity pattern detected
+
+-- Data quality tier - File 11 integration (3 columns)
+data_quality_tier varchar(20)              -- 'low', 'medium', 'high', 'verified'
+  CHECK (data_quality_tier IN ('low', 'medium', 'high', 'verified')),
+quality_criteria_met jsonb                 -- {"criteria_a": true, "criteria_b": false, "criteria_c": false}
+quality_calculation_date timestamptz       -- When quality tier was calculated
+
+-- Encounter source metadata - File 12 integration (5 columns)
+encounter_source varchar(20) NOT NULL DEFAULT 'shell_file'
+  CHECK (encounter_source IN ('shell_file', 'manual', 'api')),  -- Always 'shell_file' in Strategy A
+manual_created_by varchar(20)              -- 'provider', 'user', 'other_user' (NULL for uploaded docs)
+  CHECK (manual_created_by IN ('provider', 'user', 'other_user')),
+created_by_user_id uuid REFERENCES auth.users(id),  -- Who created the shell_file
+api_source_name varchar(100),              -- NULL for uploaded docs (File 13 future)
+api_import_date date                       -- NULL for uploaded docs (File 13 future)
 ```
 
-**New Indexes (5 total):**
+**New Indexes (11 total):**
 ```sql
+-- Cascade and reconciliation indexes
 CREATE INDEX idx_pending_cascade ON pass05_pending_encounters(session_id, cascade_id);
 CREATE INDEX idx_pending_spatial ON pass05_pending_encounters(session_id, start_page, end_page);
 CREATE INDEX idx_pending_lookup ON pass05_pending_encounters(session_id, pending_id);
 CREATE INDEX idx_pending_descriptor ON pass05_pending_encounters(session_id, reconciliation_key)
   WHERE reconciliation_key IS NOT NULL;
+
+-- Metadata indexes (from consolidated review)
+CREATE INDEX idx_pending_encounters_source ON pass05_pending_encounters(encounter_source);
+CREATE INDEX idx_pending_encounters_quality ON pass05_pending_encounters(data_quality_tier);
+CREATE INDEX idx_pending_encounters_manual_creator ON pass05_pending_encounters(manual_created_by)
+  WHERE manual_created_by IS NOT NULL;
+CREATE INDEX idx_pending_encounters_creator ON pass05_pending_encounters(created_by_user_id);
+
+-- Classification indexes (File 10)
+CREATE INDEX idx_pending_encounters_profile ON pass05_pending_encounters(matched_profile_id)
+  WHERE matched_profile_id IS NOT NULL;
+CREATE INDEX idx_pending_encounters_match_status ON pass05_pending_encounters(match_status);
+CREATE INDEX idx_pending_encounters_orphan ON pass05_pending_encounters(is_orphan_identity)
+  WHERE is_orphan_identity = true;
 ```
 
 **New Constraint:**
@@ -265,12 +465,69 @@ ALTER TABLE pass05_pending_encounters
   ADD COLUMN reconciliation_method varchar(20),
   ADD COLUMN reconciliation_confidence numeric;
 
--- Create indexes
+-- Add identity markers (for profile classification)
+ALTER TABLE pass05_pending_encounters
+  ADD COLUMN patient_full_name text,
+  ADD COLUMN patient_date_of_birth text,
+  ADD COLUMN patient_address text,
+  ADD COLUMN patient_phone varchar(50);
+
+-- Add provider/facility markers (for profile classification and quality tiers)
+ALTER TABLE pass05_pending_encounters
+  ADD COLUMN provider_name text,
+  ADD COLUMN facility_name text,
+  ADD COLUMN encounter_start_date text,
+  ADD COLUMN encounter_end_date text;  -- For multi-day encounters (nullable - cascades get end date during reconciliation)
+
+-- Add classification results (populated post-processing)
+ALTER TABLE pass05_pending_encounters
+  ADD COLUMN matched_profile_id uuid,
+  ADD COLUMN match_confidence numeric,
+  ADD COLUMN match_status varchar(20),
+  ADD COLUMN is_orphan_identity boolean DEFAULT false;
+
+-- Add data quality tier (calculated post-processing)
+ALTER TABLE pass05_pending_encounters
+  ADD COLUMN data_quality_tier varchar(20) CHECK (data_quality_tier IN ('low', 'medium', 'high', 'verified')),
+  ADD COLUMN quality_criteria_met jsonb,
+  ADD COLUMN quality_calculation_date timestamptz;
+
+-- Add encounter source metadata (File 12 integration)
+ALTER TABLE pass05_pending_encounters
+  ADD COLUMN encounter_source varchar(20) NOT NULL DEFAULT 'shell_file'
+    CHECK (encounter_source IN ('shell_file', 'manual', 'api')),
+  ADD COLUMN manual_created_by varchar(20) CHECK (manual_created_by IN ('provider', 'user', 'other_user')),
+  ADD COLUMN created_by_user_id uuid REFERENCES auth.users(id),
+  ADD COLUMN api_source_name varchar(100),
+  ADD COLUMN api_import_date date;
+
+-- Add cross-field constraint for data integrity (File 12)
+-- Note: pending_encounters link to shell_file through session, verified via session_id FK
+ALTER TABLE pass05_pending_encounters
+  ADD CONSTRAINT check_pending_shell_file_source_valid
+    CHECK (encounter_source != 'shell_file' OR session_id IS NOT NULL);
+
+-- Create indexes (11 total)
+-- Cascade and reconciliation indexes
 CREATE INDEX idx_pending_cascade ON pass05_pending_encounters(session_id, cascade_id);
 CREATE INDEX idx_pending_spatial ON pass05_pending_encounters(session_id, start_page, end_page);
 CREATE INDEX idx_pending_lookup ON pass05_pending_encounters(session_id, pending_id);
 CREATE INDEX idx_pending_descriptor ON pass05_pending_encounters(session_id, reconciliation_key)
   WHERE reconciliation_key IS NOT NULL;
+
+-- Metadata indexes (from consolidated review)
+CREATE INDEX idx_pending_encounters_source ON pass05_pending_encounters(encounter_source);
+CREATE INDEX idx_pending_encounters_quality ON pass05_pending_encounters(data_quality_tier);
+CREATE INDEX idx_pending_encounters_manual_creator ON pass05_pending_encounters(manual_created_by)
+  WHERE manual_created_by IS NOT NULL;
+CREATE INDEX idx_pending_encounters_creator ON pass05_pending_encounters(created_by_user_id);
+
+-- Classification indexes (File 10)
+CREATE INDEX idx_pending_encounters_profile ON pass05_pending_encounters(matched_profile_id)
+  WHERE matched_profile_id IS NOT NULL;
+CREATE INDEX idx_pending_encounters_match_status ON pass05_pending_encounters(match_status);
+CREATE INDEX idx_pending_encounters_orphan ON pass05_pending_encounters(is_orphan_identity)
+  WHERE is_orphan_identity = true;
 
 -- Add unique constraint
 ALTER TABLE pass05_pending_encounters
@@ -282,12 +539,33 @@ ALTER TABLE pass05_pending_encounters
 --   ALTER COLUMN end_page SET NOT NULL;
 ```
 
+#### Column Count Summary
+
+- **Before:** 16 columns (verified from Supabase)
+- **After:** 55 columns
+- **Net Change:** +39 columns (deleted 2, renamed 5, added 39, kept 11)
+
+**Breakdown:**
+- DELETE: 2 (chunk_last_seen, last_seen_context)
+- RENAME: 5 (temp_encounter_id, chunk_started, partial_data, completed_encounter_id, completed_at)
+- ADD: 39 (cascade: 3, positions: 13, reconciliation: 3, identity: 4, provider: 4, classification: 4, quality: 3, metadata: 5)
+- KEEP: 11 (id, session_id, page_ranges, expected_continuation, status, confidence, requires_review, created_at, updated_at, etc.)
+
 #### Impact Summary
 
-- **Breaking Changes:** None (deleted columns unused)
-- **Code Updates:** Major - all pending encounter code needs updates
-- **Data Migration:** Existing pending encounters should be cleaned up first
-- **Testing:** Critical - test cascade ID generation and reconciliation
+- **Breaking Changes:** None (deleted columns were unused in Strategy A)
+- **Code Updates:** MAJOR - Complete rewrite of pending encounter processing
+  - Chunk processor must populate all new fields
+  - Profile classifier integration (File 10)
+  - Quality tier calculation (File 11)
+  - Metadata handling (File 12)
+- **Data Migration:** Clear existing pending encounters before migration (they're temporary anyway)
+- **Testing:** CRITICAL
+  - Cascade ID generation and handoff
+  - Position tracking (inter_page vs intra_page)
+  - Profile classification matching
+  - Quality tier calculation (A/B/C criteria)
+  - Metadata copying to final encounters
 
 ---
 
@@ -297,6 +575,57 @@ ALTER TABLE pass05_pending_encounters
 
 **Purpose:** Per-chunk processing metrics and results
 **Strategy A Change:** Simplify to chunk-level metrics only
+
+#### Current State Analysis (from Supabase)
+
+**Actual columns found: 25**
+
+```sql
+-- Core identification (3 columns)
+id uuid DEFAULT gen_random_uuid()
+session_id uuid NOT NULL
+chunk_number integer NOT NULL
+
+-- Page range (2 columns)
+page_start integer NOT NULL
+page_end integer NOT NULL
+
+-- Processing status and timing (4 columns)
+processing_status text NOT NULL
+started_at timestamptz
+completed_at timestamptz
+processing_time_ms integer
+
+-- AI metrics (4 columns)
+ai_model_used text
+input_tokens integer
+output_tokens integer
+ai_cost_usd numeric
+
+-- Handoff/cascade data (2 columns)
+handoff_received jsonb
+handoff_generated jsonb
+
+-- OLD encounter tracking (3 columns - TO BE REMOVED)
+encounters_started integer DEFAULT 0
+encounters_completed integer DEFAULT 0
+encounters_continued integer DEFAULT 0
+
+-- Confidence metrics (2 columns)
+confidence_score numeric
+ocr_average_confidence numeric
+
+-- Error handling (3 columns)
+error_message text
+error_context jsonb
+retry_count integer DEFAULT 0
+
+-- AI response (1 column)
+ai_response_raw jsonb
+
+-- Timestamp (1 column)
+created_at timestamptz DEFAULT now()
+```
 
 #### Changes Required
 
@@ -351,11 +680,23 @@ CREATE INDEX idx_chunk_results_separation_analysis
   ON pass05_chunk_results USING GIN (page_separation_analysis);
 ```
 
+#### Column Count Summary
+
+- **Before:** 25 columns (verified from Supabase)
+- **After:** 27 columns
+- **Net Change:** +2 columns (deleted 3, renamed 2, added 5, kept 20)
+
+**Breakdown:**
+- DELETE: 3 (encounters_started, encounters_completed, encounters_continued)
+- RENAME: 2 (handoff_received → cascade_context_received, handoff_generated → cascade_package_sent)
+- ADD: 5 (pendings_created, cascading_count, cascade_ids, continues_count, page_separation_analysis)
+- KEEP: 20 (id, session_id, chunk_number, page_start/end, processing_status, timing, AI metrics, confidence, errors, ai_response_raw, created_at)
+
 #### Impact Summary
 
-- **Breaking Changes:** None
-- **Code Updates:** Update chunk processor to populate new metrics
-- **Data Migration:** None required
+- **Breaking Changes:** None (deleted columns were unused)
+- **Code Updates:** Update chunk processor to populate new cascade metrics
+- **Data Migration:** None required (old columns can be dropped safely)
 - **Testing:** Verify cascade metrics populate correctly
 
 ---
@@ -367,6 +708,34 @@ CREATE INDEX idx_chunk_results_separation_analysis
 **Purpose:** Maps pages to encounters with AI's justification
 **Strategy A Change:** Add position support for multi-encounter-per-page scenarios
 
+#### Current State Analysis (from Supabase)
+
+**Actual columns found: 6**
+
+```sql
+-- Core identification (1 column)
+id uuid DEFAULT gen_random_uuid()
+
+-- Page-encounter mapping (3 columns)
+shell_file_id uuid NOT NULL
+page_num integer NOT NULL
+encounter_id text NOT NULL              -- NOTE: Currently text NOT NULL, needs to become uuid and nullable
+
+-- AI justification (1 column)
+justification text NOT NULL
+
+-- Timestamp (1 column)
+created_at timestamptz DEFAULT now()
+```
+
+**CRITICAL FINDING:** The current `encounter_id` column is:
+- Type: `text` (needs to be `uuid`)
+- Constraint: `NOT NULL` (needs to be nullable until reconciliation)
+
+This suggests the table was designed for a different workflow. Strategy A requires:
+- `encounter_id` to be `uuid` type (references healthcare_encounters.id)
+- `encounter_id` to be `NULL` during chunking, populated after reconciliation
+
 #### Current Design Analysis
 
 **Multi-Encounter Pages:** Already supported (no UNIQUE constraint on page_num)
@@ -377,6 +746,14 @@ CREATE INDEX idx_chunk_results_separation_analysis
 
 **DELETE:** None
 **RENAME:** None
+
+**MODIFY EXISTING (1 column):**
+```sql
+-- encounter_id: Change from text NOT NULL to uuid nullable
+-- Step 1: Drop NOT NULL constraint
+-- Step 2: Change type from text to uuid
+-- Step 3: Leave nullable (populated after reconciliation)
+```
 
 **ADD (6 columns):**
 ```sql
@@ -392,12 +769,6 @@ reconciled_at timestamp                -- When encounter_id was populated after 
 ```sql
 -- REMOVED: position_on_page varchar(20)     -- Old 5-position system, replaced by encounter-level boundaries
 -- REMOVED: position_confidence numeric       -- Redundant with is_partial
-```
-
-**MODIFY EXISTING:**
-```sql
--- encounter_id remains uuid (no type change)
--- Note: encounter_id is NULL during chunking, populated after reconciliation
 ```
 
 **New Indexes (6 total):**
@@ -438,6 +809,19 @@ ALTER TABLE pass05_page_assignments
 #### Migration SQL Preview
 
 ```sql
+-- CRITICAL: Fix encounter_id column type and nullability
+-- Step 1: Drop NOT NULL constraint
+ALTER TABLE pass05_page_assignments
+  ALTER COLUMN encounter_id DROP NOT NULL;
+
+-- Step 2: Change type from text to uuid (requires casting or data cleanup)
+-- If table has data, clear it first since this is a breaking change
+TRUNCATE TABLE pass05_page_assignments;
+
+-- Step 3: Change column type
+ALTER TABLE pass05_page_assignments
+  ALTER COLUMN encounter_id TYPE uuid USING encounter_id::uuid;
+
 -- Add session reference (required for FK to pendings)
 ALTER TABLE pass05_page_assignments
   ADD COLUMN session_id uuid NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE;
@@ -486,9 +870,20 @@ CREATE INDEX idx_page_assign_unreconciled ON pass05_page_assignments(shell_file_
   WHERE encounter_id IS NULL;
 ```
 
+#### Column Count Summary
+
+- **Before:** 6 columns (verified from Supabase)
+- **After:** 12 columns
+- **Net Change:** +6 columns (modified 1, added 6, kept 5)
+
+**Breakdown:**
+- MODIFY: 1 (encounter_id: text NOT NULL → uuid nullable)
+- ADD: 6 (session_id, pending_id, chunk_number, cascade_id, is_partial, reconciled_at)
+- KEEP: 5 (id, shell_file_id, page_num, justification, created_at)
+
 #### Impact Summary
 
-- **Breaking Changes:** None
+- **Breaking Changes:** YES - encounter_id type change from text to uuid (requires TRUNCATE)
 - **Code Updates:**
   - Update chunk-processor to populate session_id, pending_id, chunk_number, cascade_id
   - Update reconciler to set encounter_id and reconciled_at after grouping
@@ -509,6 +904,51 @@ CREATE INDEX idx_page_assign_unreconciled ON pass05_page_assignments(shell_file_
 **Purpose:** Final summary statistics for completed Pass 0.5 session
 **Strategy A Change:** Populated AFTER reconciliation completes
 
+#### Current State Analysis (from Supabase)
+
+**Actual columns found: 23**
+
+```sql
+-- Core identification (3 columns)
+id uuid DEFAULT gen_random_uuid()
+patient_id uuid NOT NULL
+shell_file_id uuid NOT NULL
+processing_session_id uuid NOT NULL
+
+-- Encounter counts (4 columns)
+encounters_detected integer NOT NULL
+real_world_encounters integer NOT NULL
+pseudo_encounters integer NOT NULL
+planned_encounters integer NOT NULL DEFAULT 0
+
+-- Processing metrics (3 columns)
+processing_time_ms integer NOT NULL
+processing_time_seconds numeric
+total_pages integer NOT NULL
+
+-- AI metrics (5 columns)
+ai_model_used text NOT NULL
+input_tokens integer NOT NULL
+output_tokens integer NOT NULL
+total_tokens integer NOT NULL
+ai_cost_usd numeric
+
+-- Confidence metrics (3 columns)
+ocr_average_confidence numeric
+encounter_confidence_average numeric
+encounter_types_found text[]           -- Array type
+
+-- Batching (1 column - TO BE REMOVED)
+batching_required boolean NOT NULL DEFAULT false
+
+-- Network metadata (2 columns - TO BE REMOVED)
+user_agent text
+ip_address inet
+
+-- Timestamp (1 column)
+created_at timestamptz DEFAULT now()
+```
+
 #### Changes Required
 
 **DELETE (3 columns):**
@@ -518,23 +958,33 @@ CREATE INDEX idx_page_assign_unreconciled ON pass05_page_assignments(shell_file_
 
 **RENAME:** None
 
-**ADD (9 columns):**
+**ADD (15 columns):**
 ```sql
--- Reconciliation metrics
+-- Reconciliation metrics (5 columns)
 pendings_total integer                 -- Total pendings before reconciliation
 cascades_total integer                 -- Number of cascade chains created
 orphans_total integer                  -- Pendings that couldn't reconcile
 reconciliation_time_ms integer         -- Time spent in reconciliation
 reconciliation_method varchar(20)      -- Primary method: 'cascade','descriptor','mixed'
 
--- Chunk metrics
+-- Chunk metrics (3 columns)
 chunk_count integer                    -- Number of chunks processed
 avg_chunk_time_ms integer              -- Average time per chunk
 max_chunk_time_ms integer              -- Slowest chunk time
 
--- Quality metrics
+-- Quality metrics (2 columns)
 pages_with_multi_encounters integer    -- Pages with >1 encounter
 position_confidence_avg numeric        -- Average position confidence
+
+-- Identity completeness metrics (4 columns - File 10)
+encounters_with_patient_name integer DEFAULT 0   -- Encounters with patient full name
+encounters_with_dob integer DEFAULT 0            -- Encounters with date of birth
+encounters_with_provider integer DEFAULT 0       -- Encounters with provider name
+encounters_with_facility integer DEFAULT 0       -- Encounters with facility name
+
+-- Quality tier summary (2 columns - File 11)
+encounters_high_quality integer DEFAULT 0        -- HIGH or VERIFIED tier
+encounters_low_quality integer DEFAULT 0         -- LOW or MEDIUM tier
 ```
 
 #### Migration SQL Preview
@@ -564,14 +1014,37 @@ ALTER TABLE pass05_encounter_metrics
 ALTER TABLE pass05_encounter_metrics
   ADD COLUMN pages_with_multi_encounters integer,
   ADD COLUMN position_confidence_avg numeric;
+
+-- Add identity completeness metrics (File 10 integration)
+ALTER TABLE pass05_encounter_metrics
+  ADD COLUMN encounters_with_patient_name integer DEFAULT 0,
+  ADD COLUMN encounters_with_dob integer DEFAULT 0,
+  ADD COLUMN encounters_with_provider integer DEFAULT 0,
+  ADD COLUMN encounters_with_facility integer DEFAULT 0;
+
+-- Add quality tier summary (File 11 integration)
+ALTER TABLE pass05_encounter_metrics
+  ADD COLUMN encounters_high_quality integer DEFAULT 0,
+  ADD COLUMN encounters_low_quality integer DEFAULT 0;
 ```
+
+#### Column Count Summary
+
+- **Before:** 23 columns (verified from Supabase)
+- **After:** 35 columns
+- **Net Change:** +12 columns (deleted 3, added 15, kept 20)
+
+**Breakdown:**
+- DELETE: 3 (user_agent, ip_address, batching_required)
+- ADD: 15 (5 reconciliation + 3 chunk + 2 quality position + 4 identity completeness + 2 quality tier summary - see breakdown above)
+- KEEP: 20 (id, patient_id, shell_file_id, processing_session_id, encounters_detected, real_world_encounters, pseudo_encounters, planned_encounters, processing_time_ms, processing_time_seconds, total_pages, ai_model_used, input_tokens, output_tokens, total_tokens, ai_cost_usd, ocr_average_confidence, encounter_confidence_average, encounter_types_found, created_at)
 
 #### Impact Summary
 
 - **Breaking Changes:** None (deleted columns never used)
-- **Code Updates:** Update metrics aggregation logic
+- **Code Updates:** Update metrics aggregation logic after reconciliation completes
 - **Data Migration:** None required
-- **Testing:** Verify all new metrics populate correctly
+- **Testing:** Verify all new reconciliation and chunk metrics populate correctly
 
 ---
 
@@ -580,7 +1053,85 @@ ALTER TABLE pass05_encounter_metrics
 **Current Schema Location:** `current_schema/03_clinical_core.sql` (Lines ~TBD)
 
 **Purpose:** Final encounter storage (ALL passes write here)
-**Strategy A Change:** Add position columns for sub-page granularity, cascade tracking
+**Strategy A Change:** Add position columns for sub-page granularity, cascade tracking, metadata/classification/quality fields
+
+#### Current State Analysis (from Supabase)
+
+**Actual columns found: 46**
+
+```sql
+-- Core identification (3 columns)
+id uuid DEFAULT gen_random_uuid()
+patient_id uuid NOT NULL
+encounter_type text NOT NULL
+
+-- Clinical data (9 columns)
+encounter_start_date timestamptz
+encounter_end_date timestamptz  -- NOTE: Currently "encounter_date_end" in Supabase, will be renamed
+provider_name text
+provider_type text
+facility_name text
+specialty text
+chief_complaint text
+summary text
+clinical_impression text
+
+-- Billing/admin (1 column)
+billing_codes text[]
+
+-- Shell file references (3 columns)
+primary_shell_file_id uuid
+related_shell_file_ids uuid[] DEFAULT '{}'
+all_shell_file_ids uuid[] DEFAULT ARRAY[]
+
+-- Review/status (2 columns)
+requires_review boolean DEFAULT false
+archived boolean NOT NULL DEFAULT false
+
+-- Timestamps (4 columns)
+created_at timestamptz NOT NULL DEFAULT now()
+updated_at timestamptz NOT NULL DEFAULT now()
+valid_from timestamptz NOT NULL DEFAULT now()
+valid_to timestamptz
+
+-- Future features (2 columns)
+clinical_event_id uuid
+primary_narrative_id uuid
+
+-- Versioning (4 columns)
+superseded_by_record_id uuid
+supersession_reason text
+is_current boolean
+clinical_identity_key text
+
+-- Date extraction/resolution (6 columns - SOME TO BE REMOVED)
+clinical_effective_date date              -- REMOVE (never populated)
+date_confidence text                      -- REMOVE (never populated)
+extracted_dates jsonb DEFAULT '[]'
+date_source text NOT NULL DEFAULT 'upload_date'
+date_conflicts jsonb DEFAULT '[]'
+date_resolution_reason text               -- REMOVE (never populated)
+
+-- Position/spatial (2 columns)
+page_ranges integer[] DEFAULT '{}'
+spatial_bounds jsonb
+
+-- Pass tracking (4 columns)
+identified_in_pass text DEFAULT 'pass_2'
+is_real_world_visit boolean DEFAULT true
+pass_0_5_confidence numeric
+ocr_average_confidence numeric
+
+-- Future features (4 columns)
+is_planned_future boolean DEFAULT false
+master_encounter_id uuid
+master_encounter_confidence numeric
+source_method text NOT NULL
+encounter_timeframe_status text NOT NULL DEFAULT 'completed'
+
+-- Plan field (1 column - REMOVE)
+plan text                                 -- REMOVE (never populated)
+```
 
 #### Pseudo-Encounter Support: READY ✓
 
@@ -612,9 +1163,18 @@ is_real_world_visit = FALSE → Pseudo-encounter
 
 **RENAME:** None
 
-**ADD (14 columns):**
+**ADD (38 columns total):**
+
+**Column Parity Principle:** These match `pass05_pending_encounters` to ensure data flows cleanly through reconciliation.
+
 ```sql
--- START boundary position (matches batching design pattern)
+-- CASCADE SUPPORT (3 columns)
+cascade_id varchar(100)                -- Which cascade created this (if any)
+chunk_count integer DEFAULT 1          -- How many chunks this encounter spanned
+reconciliation_key text                -- Unique descriptor for duplicate detection
+
+-- POSITION TRACKING (13 columns - matches batching design pattern)
+-- START boundary position
 start_page integer                     -- First page of encounter
 start_boundary_type varchar(20)        -- 'inter_page' or 'intra_page'
 start_marker text                      -- Descriptive text (e.g., "after header 'ADMISSION'")
@@ -622,7 +1182,7 @@ start_text_y_top integer               -- NULL if inter_page; Y-coord of marker 
 start_text_height integer              -- NULL if inter_page; height of marker text
 start_y integer                        -- NULL if inter_page; calculated split line (y_top - height)
 
--- END boundary position (matches batching design pattern)
+-- END boundary position
 end_page integer                       -- Last page of encounter
 end_boundary_type varchar(20)          -- 'inter_page' or 'intra_page'
 end_marker text                        -- Descriptive text (e.g., "before header 'DISCHARGE'")
@@ -633,19 +1193,79 @@ end_y integer                          -- NULL if inter_page; calculated split l
 -- Overall position confidence
 position_confidence numeric            -- Confidence in boundary positions (0.0-1.0)
 
--- Cascade tracking
-cascade_id varchar(100)                -- Which cascade created this (if any)
-chunk_count integer DEFAULT 1          -- How many chunks this encounter spanned
+-- RECONCILIATION (3 columns)
+source_shell_file_id uuid NOT NULL     -- Links to shell_file (matches pending_encounters column name)
+completed_at timestamptz               -- When reconciliation created this final encounter
+reconciled_from_pendings integer       -- Count of pending encounters merged into this
+
+-- NOTE: Multi-Profile Account Flow
+-- patient_id vs matched_profile_id relationship:
+-- - Before classification: patient_id may be temporary/orphan, matched_profile_id = NULL
+-- - After classification: both converge to the same profile ID
+-- - No constraint enforcing equality because temporary misalignment is valid
+-- See detailed flow documentation below
+
+-- IDENTITY MARKERS (File 10 - 4 columns)
+patient_full_name text                 -- Full name extracted from document
+patient_date_of_birth date             -- DOB extracted from document
+patient_mrn text                       -- Medical record number if present
+patient_address text                   -- Address if present
+
+-- PROVIDER/FACILITY (3 columns - partially exists, complete the set)
+-- provider_name (already exists)
+-- facility_name (already exists)
+facility_address text                  -- Facility address if present
+
+-- CLASSIFICATION RESULTS (File 10 - 4 columns)
+matched_profile_id uuid                -- REFERENCES user_profiles(id)
+match_confidence numeric               -- 0.0 to 1.0
+match_status varchar(20)               -- 'matched', 'unmatched', 'orphan', 'review'
+is_orphan_identity boolean DEFAULT false
+
+-- DATA QUALITY (File 11 - 3 columns)
+data_quality_tier varchar(20)          -- 'low', 'medium', 'high', 'verified'
+  CHECK (data_quality_tier IN ('low', 'medium', 'high', 'verified'))
+quality_criteria_met jsonb             -- {"criteria_a": true, "criteria_b": false}
+quality_calculation_date timestamptz   -- When quality tier was calculated
+
+-- ENCOUNTER SOURCE METADATA (File 12 - 5 columns)
+encounter_source varchar(20) NOT NULL DEFAULT 'shell_file'
+  CHECK (encounter_source IN ('shell_file', 'manual', 'api'))
+manual_created_by varchar(20)          -- 'provider', 'user', 'other_user'
+  CHECK (manual_created_by IN ('provider', 'user', 'other_user'))
+created_by_user_id uuid REFERENCES auth.users(id)
+api_source_name varchar(100)
+api_import_date date
 ```
 
-**New Indexes (2 total):**
+**New Indexes (11 total):**
 ```sql
+-- Cascade and spatial indexes
+CREATE INDEX idx_encounters_cascade ON healthcare_encounters(cascade_id)
+  WHERE cascade_id IS NOT NULL;
+
 CREATE INDEX idx_encounters_spatial ON healthcare_encounters
   USING gin (spatial_bounds)
   WHERE spatial_bounds IS NOT NULL;
 
-CREATE INDEX idx_encounters_cascade ON healthcare_encounters(cascade_id)
-  WHERE cascade_id IS NOT NULL;
+-- Metadata indexes (File 12)
+CREATE INDEX idx_encounters_source ON healthcare_encounters(encounter_source);
+CREATE INDEX idx_encounters_quality ON healthcare_encounters(data_quality_tier);
+CREATE INDEX idx_encounters_manual_creator ON healthcare_encounters(manual_created_by)
+  WHERE manual_created_by IS NOT NULL;
+CREATE INDEX idx_encounters_creator ON healthcare_encounters(created_by_user_id);
+
+-- Classification indexes (File 10)
+CREATE INDEX idx_encounters_profile ON healthcare_encounters(matched_profile_id)
+  WHERE matched_profile_id IS NOT NULL;
+CREATE INDEX idx_encounters_match_status ON healthcare_encounters(match_status);
+CREATE INDEX idx_encounters_orphan ON healthcare_encounters(is_orphan_identity)
+  WHERE is_orphan_identity = true;
+
+-- Reconciliation index
+CREATE INDEX idx_encounters_source_file ON healthcare_encounters(source_shell_file_id);
+CREATE INDEX idx_encounters_reconciliation_key ON healthcare_encounters(reconciliation_key)
+  WHERE reconciliation_key IS NOT NULL;
 ```
 
 #### Low-Usage Clinical Fields (KEEP but needs V11 prompt tuning)
@@ -675,7 +1295,28 @@ ALTER TABLE healthcare_encounters
   DROP COLUMN date_confidence,
   DROP COLUMN plan;
 
--- Add position columns (matches batching design: inter_page vs intra_page)
+-- Rename for consistency
+ALTER TABLE healthcare_encounters
+  RENAME COLUMN primary_shell_file_id TO source_shell_file_id,
+  RENAME COLUMN encounter_date_end TO encounter_end_date;  -- Consistency with encounter_start_date
+
+-- CRITICAL FIX: Change page_ranges to match pending_encounters structure
+-- From: integer[] (flat array) → To: integer[][] (array of [start,end] pairs)
+ALTER TABLE healthcare_encounters
+  ALTER COLUMN page_ranges TYPE integer[][]
+  USING CASE
+    WHEN page_ranges IS NULL THEN NULL
+    WHEN array_length(page_ranges, 1) = 0 THEN ARRAY[]::integer[][]
+    ELSE ARRAY[page_ranges]::integer[][]  -- Wrap existing flat array as single range
+  END;
+
+-- Add cascade support (3 columns)
+ALTER TABLE healthcare_encounters
+  ADD COLUMN cascade_id varchar(100),
+  ADD COLUMN chunk_count integer DEFAULT 1,
+  ADD COLUMN reconciliation_key text;
+
+-- Add position tracking (13 columns)
 ALTER TABLE healthcare_encounters
   ADD COLUMN start_page integer,
   ADD COLUMN start_boundary_type varchar(20),
@@ -691,26 +1332,183 @@ ALTER TABLE healthcare_encounters
   ADD COLUMN end_y integer,
   ADD COLUMN position_confidence numeric;
 
--- Add cascade tracking
+-- Add reconciliation tracking (2 columns - completed_at calculated, reconciled_from_pendings added)
 ALTER TABLE healthcare_encounters
-  ADD COLUMN cascade_id varchar(100),
-  ADD COLUMN chunk_count integer DEFAULT 1;
+  ADD COLUMN completed_at timestamptz,
+  ADD COLUMN reconciled_from_pendings integer;
 
--- Create indexes
+-- Add identity markers (File 10 - 4 columns)
+ALTER TABLE healthcare_encounters
+  ADD COLUMN patient_full_name text,
+  ADD COLUMN patient_date_of_birth date,
+  ADD COLUMN patient_mrn text,
+  ADD COLUMN patient_address text;
+
+-- Add facility address (File 10 - 1 column)
+ALTER TABLE healthcare_encounters
+  ADD COLUMN facility_address text;
+
+-- Add classification results (File 10 - 4 columns)
+ALTER TABLE healthcare_encounters
+  ADD COLUMN matched_profile_id uuid,
+  ADD COLUMN match_confidence numeric,
+  ADD COLUMN match_status varchar(20),
+  ADD COLUMN is_orphan_identity boolean DEFAULT false;
+
+-- Add data quality (File 11 - 3 columns)
+ALTER TABLE healthcare_encounters
+  ADD COLUMN data_quality_tier varchar(20)
+    CHECK (data_quality_tier IN ('low', 'medium', 'high', 'verified')),
+  ADD COLUMN quality_criteria_met jsonb,
+  ADD COLUMN quality_calculation_date timestamptz;
+
+-- Add encounter source metadata (File 12 - 5 columns)
+ALTER TABLE healthcare_encounters
+  ADD COLUMN encounter_source varchar(20) NOT NULL DEFAULT 'shell_file'
+    CHECK (encounter_source IN ('shell_file', 'manual', 'api')),
+  ADD COLUMN manual_created_by varchar(20)
+    CHECK (manual_created_by IN ('provider', 'user', 'other_user')),
+  ADD COLUMN created_by_user_id uuid NOT NULL REFERENCES auth.users(id),  -- NOT NULL: always from shell_files.uploaded_by
+  ADD COLUMN api_source_name varchar(100),
+  ADD COLUMN api_import_date date;
+
+-- Add cross-field constraint for data integrity (File 12)
+ALTER TABLE healthcare_encounters
+  ADD CONSTRAINT check_shell_file_source_valid
+    CHECK (encounter_source != 'shell_file' OR source_shell_file_id IS NOT NULL);
+
+-- Create all 11 indexes (see index list above)
+CREATE INDEX idx_encounters_cascade ON healthcare_encounters(cascade_id)
+  WHERE cascade_id IS NOT NULL;
 CREATE INDEX idx_encounters_spatial ON healthcare_encounters
   USING gin (spatial_bounds)
   WHERE spatial_bounds IS NOT NULL;
-
-CREATE INDEX idx_encounters_cascade ON healthcare_encounters(cascade_id)
-  WHERE cascade_id IS NOT NULL;
+CREATE INDEX idx_encounters_source ON healthcare_encounters(encounter_source);
+CREATE INDEX idx_encounters_quality ON healthcare_encounters(data_quality_tier);
+CREATE INDEX idx_encounters_manual_creator ON healthcare_encounters(manual_created_by)
+  WHERE manual_created_by IS NOT NULL;
+CREATE INDEX idx_encounters_creator ON healthcare_encounters(created_by_user_id);
+CREATE INDEX idx_encounters_profile ON healthcare_encounters(matched_profile_id)
+  WHERE matched_profile_id IS NOT NULL;
+CREATE INDEX idx_encounters_match_status ON healthcare_encounters(match_status);
+CREATE INDEX idx_encounters_orphan ON healthcare_encounters(is_orphan_identity)
+  WHERE is_orphan_identity = true;
+CREATE INDEX idx_encounters_source_file ON healthcare_encounters(source_shell_file_id);
+CREATE INDEX idx_encounters_reconciliation_key ON healthcare_encounters(reconciliation_key)
+  WHERE reconciliation_key IS NOT NULL;
 ```
+
+#### Column Count Summary
+
+- **Before:** 46 columns (verified from Supabase)
+- **After:** 80 columns
+- **Net change:** +34 columns (deleted 4, renamed 1, added 38, kept 42)
+
+**Breakdown:**
+- DELETE: 4 (plan, date_resolution_reason, clinical_effective_date, date_confidence)
+- RENAME: 1 (primary_shell_file_id → source_shell_file_id)
+- ADD: 38 (3 cascade + 13 position + 2 reconciliation + 4 identity + 1 facility + 4 classification + 3 quality + 5 metadata + 3 provider/facility)
+- KEEP: 42 (all other existing columns)
+
+**Column Parity with pass05_pending_encounters:**
+Both tables now share the same 38 core columns for cascade, position, identity, classification, quality, and metadata tracking. This ensures clean data flow through reconciliation.
+
+**Column Parity Principle Clarification:**
+"Column Parity" means fields representing the SAME SEMANTIC DATA should have the SAME NAMES and COMPATIBLE TYPES (e.g., `cascade_id`, `data_quality_tier`). It does NOT mean the tables are structurally identical. Intentional differences exist:
+- Pending has `is_cascading` (chunk-level flag), final has `chunk_count` (aggregate summary)
+- Pending has `text` DOB (raw from AI), final has `date` DOB (parsed/normalized)
+- Both perspectives are valid for their respective stages in the pipeline
+
+#### Multi-Profile Account Flow
+
+**Vision:** An account can have multiple profiles (account holder + children/dependents). When a file is uploaded, the extracted patient identity gets matched against ALL profiles in the account.
+
+**Workflow:**
+
+1. **Upload Stage:**
+   - Account owner (auth.users.id) uploads medical document
+   - File initially assigned to uploader's account (not yet to specific profile)
+
+2. **Processing Stage (Before Classification):**
+   ```sql
+   -- Pending encounters created during chunking
+   pass05_pending_encounters:
+     patient_id = orphan_temp_profile_id  -- Temporary placeholder
+     matched_profile_id = NULL            -- Classification hasn't run yet
+     match_status = 'pending'
+     patient_full_name = 'Sarah Smith'    -- Extracted from document
+     patient_date_of_birth = '1985-03-15' -- Extracted from document
+   ```
+
+3. **Classification Stage (File 10):**
+   - Profile matcher compares extracted identity against all account profiles:
+     - Profile 1: John (account owner)
+     - Profile 2: Jane (spouse)
+     - Profile 3: Emma (daughter)
+     - Profile 4: Liam (son)
+
+   **Scenario A - Match Found:**
+   ```sql
+   healthcare_encounters:
+     patient_id = profile_3_id (Emma)           -- Matched profile
+     matched_profile_id = profile_3_id (Emma)   -- Same as patient_id
+     match_status = 'matched'
+     match_confidence = 0.95
+     is_orphan_identity = false
+   ```
+
+   **Scenario B - No Match Found:**
+   ```sql
+   healthcare_encounters:
+     patient_id = orphan_temp_profile_id        -- Still temporary
+     matched_profile_id = NULL                  -- No match
+     match_status = 'unmatched'
+     match_confidence = NULL
+     is_orphan_identity = true                  -- Flagged for review
+   ```
+
+4. **User Intervention (If No Match):**
+   - Account owner prompted: "No matching profile found for 'Sarah Smith'"
+   - Options presented:
+     - Assign to existing profile (manual selection)
+     - Create new profile for this identity
+
+   **If User Creates New Profile:**
+   ```sql
+   -- New profile created
+   user_profiles:
+     id = new_profile_5_id
+     full_name = 'Sarah Smith'
+     date_of_birth = '1985-03-15'
+
+   -- Encounter updated
+   healthcare_encounters:
+     patient_id = new_profile_5_id              -- New profile
+     matched_profile_id = new_profile_5_id      -- User-confirmed
+     match_status = 'matched'
+     match_confidence = 1.0                     -- 100% (user verified)
+     is_orphan_identity = false                 -- Resolved
+   ```
+
+**Why patient_id and matched_profile_id Can Differ:**
+- **Before classification:** patient_id is temporary/orphan, matched_profile_id is NULL
+- **After classification:** both converge to the same profile ID
+- **No database constraint enforcing equality** because temporary misalignment is a valid intermediate state
+- Application logic validates: `IF match_status = 'matched' THEN patient_id MUST EQUAL matched_profile_id`
 
 #### Impact Summary
 
-- **Breaking Changes:** None (deleted columns never populated)
-- **Code Updates:** Update reconciler to populate position fields from pending encounters
-- **Data Migration:** None required
-- **Testing:** Verify pseudo-encounter logic, position data accuracy
+- **Breaking Changes:** Column rename (primary_shell_file_id → source_shell_file_id) requires worker code updates
+- **Code Updates Required:**
+  1. **Reconciler:** Copy all new fields from pending_encounters to healthcare_encounters
+  2. **Worker Scripts:** Update 3 references to `primary_shell_file_id` → `source_shell_file_id`:
+     - `apps/render-worker/src/pass05/progressive/pending-reconciler.ts` (2 occurrences)
+     - `apps/render-worker/src/pass05/progressive/chunk-processor.ts` (1 occurrence)
+- **Data Migration:** Rename existing column via `ALTER TABLE ... RENAME COLUMN`
+- **Testing:**
+  - Verify all metadata flows from pending to final encounters correctly
+  - Test worker encounters creation after column rename
+  - Verify unique constraint still works with new column name
 
 #### Position Tracking Design Rationale
 
@@ -779,6 +1577,69 @@ Both `pass05_pending_encounters` and `healthcare_encounters` have identical posi
 **Purpose:** Document metadata and processing status (for ALL passes)
 **Strategy A Change:** Universal progressive tracking
 
+#### Current State Analysis (from Supabase)
+
+**Total Columns:** 38
+
+**Core Identification (8 columns):**
+- `id` (uuid, PK)
+- `patient_id` (uuid, FK → user_profiles.id) - Which profile owns this document
+- `uploaded_by` (uuid, FK → auth.users.id) - **MISSING - needs to be added**
+- `filename` (text)
+- `original_filename` (text)
+- `file_size_bytes` (integer)
+- `mime_type` (text)
+- `storage_path` (text)
+
+**Status Tracking (4 columns):**
+- `status` (text)
+- `processing_started_at` (timestamptz)
+- `processing_completed_at` (timestamptz)
+- `processing_error` (text) - **NEVER POPULATED, DELETE**
+
+**OCR Data (4 columns):**
+- `extracted_text` (text)
+- `ocr_confidence` (numeric) - **REDUNDANT with ocr_average_confidence, DELETE**
+- `ocr_raw_jsonb` (jsonb)
+- `ocr_average_confidence` (numeric)
+
+**Processing Metadata (4 columns):**
+- `page_count` (integer)
+- `processing_job_id` (uuid)
+- `processing_worker_id` (text)
+- `processing_priority` (integer)
+
+**Processed Images (4 columns):**
+- `processed_image_path` (text)
+- `processed_image_checksum` (text)
+- `processed_image_mime` (text)
+- `processed_image_size_bytes` (integer)
+
+**Pass 0.5 Tracking (5 columns):**
+- `pass_0_5_completed` (boolean)
+- `pass_0_5_completed_at` (timestamptz)
+- `pass_0_5_error` (text)
+- `pass_0_5_version` (text)
+- `pass_0_5_progressive` (boolean) - **ALWAYS TRUE in Strategy A, REDUNDANT with progressive_session_id, DELETE**
+
+**Synthesis Data (3 columns):**
+- `ai_synthesized_summary` (text)
+- `narrative_count` (integer)
+- `synthesis_completed_at` (timestamptz)
+
+**Metrics & Operations (4 columns):**
+- `idempotency_key` (uuid)
+- `processing_cost_estimate` (numeric)
+- `processing_duration_seconds` (integer)
+- `language_detected` (text)
+
+**Batching Analysis (1 column):**
+- `page_separation_analysis` (jsonb) - **EXISTS but NEVER POPULATED (0/197 rows), NEEDS IMPLEMENTATION**
+
+**Timestamps (2 columns):**
+- `created_at` (timestamptz)
+- `updated_at` (timestamptz)
+
 #### Downstream Batching: NEEDS IMPLEMENTATION
 
 **Existing Column:** `page_separation_analysis` (jsonb, nullable, NEVER populated - 0/197 rows)
@@ -843,6 +1704,48 @@ const allSplits = [...encounterBoundaries, ...batchingSplits].sort();
 
 **Complete Specification:** See `06-BATCHING-TASK-DESIGN-V2.md`
 
+#### File 12 Integration: Document Source Classification
+
+**NEW COLUMNS from `12-ENCOUNTER-SOURCES-V2.md`:**
+
+Pass 0.5 needs to support multiple document sources beyond scanned uploads. File 12 defines the **encounter_source** strategy for Strategy A.
+
+**`shell_file_subtype` (varchar(50)):**
+- Classifies the TYPE of shell_file being processed
+- Values: `'scanned_document'`, `'progress_note'`, `'voice_transcript'`, `'api_import'`
+- Used by reconciler to determine quality tier logic
+- Default: `'scanned_document'` for existing uploaded files
+
+**`api_source_name` (text, nullable):**
+- Identifies the API source for imported documents
+- Examples: `'medicare_australia'`, `'my_health_record'`, `'fitbit_api'`
+- NULL for non-API sources (scanned docs, manual entries, voice)
+- Used for quality tier calculation (trusted APIs → higher quality)
+
+**Quality Tier Relationship:**
+```typescript
+// Reconciler uses these fields to determine quality
+if (shellFile.shell_file_subtype === 'api_import') {
+  const apiReputation = {
+    'medicare_australia': 'HIGH',
+    'my_health_record': 'HIGH',
+    'fitbit_api': 'MEDIUM'
+  };
+  qualityTier = apiReputation[shellFile.api_source_name] || 'MEDIUM';
+} else if (shellFile.shell_file_subtype === 'progress_note') {
+  // Manual entry - check creator role
+  qualityTier = determineFromCreatorRole(shellFile.uploaded_by);
+} else {
+  // Scanned document - use A/B/C criteria from AI extraction
+  qualityTier = calculateFromABCCriteria(encounter);
+}
+```
+
+**File 13 vs File 12:**
+- **File 13** (Manual Encounters Future) proposes `shell_file_metadata` table - OUT OF SCOPE for Strategy A
+- **File 12** (Encounter Sources V2) defines minimal source classification - IN SCOPE for Strategy A
+- We implement File 12's design (2 columns on shell_files), not File 13's separate metadata table
+
 #### Changes Required
 
 **DELETE (3 columns):**
@@ -852,10 +1755,18 @@ const allSplits = [...encounterBoundaries, ...batchingSplits].sort();
 
 **RENAME:** None
 
-**ADD (2 columns):**
+**ADD (5 columns):**
 ```sql
+-- CRITICAL: Auth user tracking (for created_by_user_id on encounters)
+uploaded_by uuid NOT NULL REFERENCES auth.users(id)                    -- Which auth user uploaded this file
+
+-- Strategy A tracking
 progressive_session_id uuid REFERENCES pass05_progressive_sessions(id)  -- Direct link to session
 reconciliation_method varchar(20)                                       -- 'cascade','descriptor','mixed'
+
+-- File 12: Encounter source classification (Strategy A)
+shell_file_subtype varchar(50)                                          -- 'scanned_document','progress_note','voice_transcript','api_import'
+api_source_name text                                                    -- For API imports: 'medicare_australia', 'my_health_record', etc.
 ```
 
 **IMPLEMENT (1 existing column):**
@@ -871,24 +1782,46 @@ CREATE INDEX idx_shell_files_session ON shell_files(progressive_session_id)
 
 #### Migration SQL Preview
 
+**Column Count:** 38 → 40 (Delete 3, Add 5)
+**Index Count:** +3 new indexes
+
 ```sql
+-- CRITICAL: Add uploaded_by FIRST (needed for created_by_user_id on encounters)
+ALTER TABLE shell_files
+  ADD COLUMN uploaded_by uuid NOT NULL REFERENCES auth.users(id);
+
+-- Backfill uploaded_by from patient_id for existing files (temporary - assumes single-user accounts)
+-- TODO: Update this logic for multi-user accounts when that feature launches
+UPDATE shell_files sf
+SET uploaded_by = (
+  SELECT up.id FROM user_profiles up WHERE up.id = sf.patient_id LIMIT 1
+);
+
 -- Remove orphaned/redundant columns
 ALTER TABLE shell_files
-  DROP COLUMN processing_error,
-  DROP COLUMN ocr_confidence,
-  DROP COLUMN pass_0_5_progressive;
+  DROP COLUMN processing_error,        -- Never populated
+  DROP COLUMN ocr_confidence,          -- Redundant with ocr_average_confidence
+  DROP COLUMN pass_0_5_progressive;    -- Always TRUE in Strategy A, use progressive_session_id
 
 -- Add Strategy A columns
 ALTER TABLE shell_files
   ADD COLUMN progressive_session_id uuid REFERENCES pass05_progressive_sessions(id),
-  ADD COLUMN reconciliation_method varchar(20);
+  ADD COLUMN reconciliation_method varchar(20),  -- 'cascade', 'descriptor', 'mixed'
+  ADD COLUMN shell_file_subtype varchar(50),     -- 'scanned_document', 'progress_note', 'voice_transcript', 'api_import'
+  ADD COLUMN api_source_name text;               -- For API imports: 'medicare_australia', 'my_health_record', NULL for non-API
 
 -- Create indexes
 CREATE INDEX idx_shell_files_job ON shell_files(processing_job_id)
   WHERE processing_job_id IS NOT NULL;
 CREATE INDEX idx_shell_files_session ON shell_files(progressive_session_id)
   WHERE progressive_session_id IS NOT NULL;
+CREATE INDEX idx_shell_files_subtype ON shell_files(shell_file_subtype)
+  WHERE shell_file_subtype IS NOT NULL;
 ```
+
+**IMPLEMENT Existing Column:**
+- `page_separation_analysis` (jsonb) - Already exists, needs V11 prompt to populate during reconciliation
+- See `06-BATCHING-TASK-DESIGN-V2.md` for complete specification
 
 #### Code Changes Required
 
@@ -942,6 +1875,10 @@ if (shellFile.progressive_session_id) {
 **Type:** DATABASE VIEW (not a table)
 **Purpose:** Aggregated view joining session, chunk, and pending data for reporting
 
+#### Current State Analysis (from Supabase)
+
+**View exists:** ✅ YES (verified in Supabase)
+
 #### Drop This View
 
 **Reason:** Redundant with pass05_encounter_metrics
@@ -963,6 +1900,8 @@ DROP VIEW IF EXISTS pass05_progressive_performance;
 ## Part 3: New Tables
 
 ### 1. pass05_cascade_chains
+
+**Current State:** ❌ Does NOT exist in Supabase (verified)
 
 **Purpose:** Track cascade relationships between chunks
 
@@ -994,6 +1933,8 @@ CREATE INDEX idx_cascade_incomplete ON pass05_cascade_chains(session_id)
 
 ### 2. pass05_reconciliation_log
 
+**Current State:** ❌ Does NOT exist in Supabase (verified)
+
 **Purpose:** Audit trail for reconciliation decisions
 
 **Schema:**
@@ -1002,7 +1943,7 @@ CREATE TABLE pass05_reconciliation_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id uuid REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
   cascade_id varchar(100),
-  pending_ids uuid[],                         -- Array of pending IDs reconciled
+  pending_ids text[],                         -- Array of pending IDs reconciled (text to match pending_id type)
   final_encounter_id uuid REFERENCES healthcare_encounters(id) ON DELETE SET NULL,
   match_type varchar(20),                     -- 'cascade','descriptor','orphan'
   confidence decimal(3,2),
@@ -1017,6 +1958,143 @@ CREATE INDEX idx_recon_cascade ON pass05_reconciliation_log(cascade_id);
 **Source of Truth Location:** `current_schema/04_ai_processing.sql`
 
 **Expected Usage:** 1-10 rows per document (one per reconciliation decision)
+
+---
+
+### 3. pass05_pending_encounter_identifiers
+
+**Current State:** ❌ Does NOT exist in Supabase (needs creation)
+
+**Purpose:** Store identity markers (MRN, insurance numbers, etc.) extracted during Pass 0.5
+
+**Schema:**
+```sql
+CREATE TABLE pass05_pending_encounter_identifiers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL,
+  pending_id text NOT NULL,
+
+  identifier_type varchar(50),        -- 'MRN', 'INSURANCE', 'MEDICARE', etc.
+  identifier_value varchar(100),
+  issuing_organization text,
+  detected_context text,               -- Raw text where found
+
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (session_id, pending_id)
+    REFERENCES pass05_pending_encounters(session_id, pending_id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX idx_pending_identifiers_value ON pass05_pending_encounter_identifiers(identifier_value);
+CREATE INDEX idx_pending_identifiers_type ON pass05_pending_encounter_identifiers(identifier_type);
+CREATE INDEX idx_pending_identifiers_pending ON pass05_pending_encounter_identifiers(session_id, pending_id);
+```
+
+**Source of Truth Location:** `10-PROFILE-CLASSIFICATION-INTEGRATION.md` (Section 4.2)
+
+**Expected Usage:** 0-5 rows per encounter (most encounters have 0-2 identifiers)
+
+---
+
+### 4. healthcare_encounter_identifiers
+
+**Current State:** ❌ Does NOT exist in Supabase (needs creation)
+
+**Purpose:** Final identity markers table after reconciliation (migrated from pending identifiers)
+
+**Schema:**
+```sql
+CREATE TABLE healthcare_encounter_identifiers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  encounter_id uuid NOT NULL REFERENCES healthcare_encounters(id) ON DELETE CASCADE,
+
+  identifier_type varchar(50),
+  identifier_value varchar(100),
+  issuing_organization text,
+
+  -- Audit trail
+  source_pending_id text,              -- Which pending created this
+  migrated_at timestamp DEFAULT CURRENT_TIMESTAMP,
+
+  -- Simplified unique constraint
+  CONSTRAINT uq_encounter_identifier UNIQUE (encounter_id, identifier_type, identifier_value)
+);
+
+CREATE INDEX idx_encounter_identifiers_value ON healthcare_encounter_identifiers(identifier_value);
+CREATE INDEX idx_encounter_identifiers_encounter ON healthcare_encounter_identifiers(encounter_id);
+```
+
+**Source of Truth Location:** `10-PROFILE-CLASSIFICATION-INTEGRATION.md` (Section 4.4)
+
+**Expected Usage:** 0-5 rows per encounter (migrated from pending identifiers)
+
+---
+
+### 5. orphan_identities
+
+**Current State:** ❌ Does NOT exist in Supabase (needs creation)
+
+**Purpose:** Track unmatched identities that might become new profiles (enables smart profile creation suggestions)
+
+**CRITICAL:** Required for orphan detection in classification algorithm (File 10, line 371: `countOrphanOccurrences()`)
+
+**Schema:**
+```sql
+CREATE TABLE orphan_identities (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_owner_id uuid REFERENCES auth.users(id),
+
+  detected_name text,
+  detected_dob text,
+  encounter_count integer DEFAULT 1,
+  first_seen timestamp DEFAULT CURRENT_TIMESTAMP,
+  last_seen timestamp DEFAULT CURRENT_TIMESTAMP,
+
+  suggested_for_profile boolean DEFAULT false,
+  user_decision varchar(20),          -- 'accepted', 'rejected', 'pending'
+  created_profile_id uuid REFERENCES user_profiles(id)
+);
+
+CREATE INDEX idx_orphan_identities_account ON orphan_identities(account_owner_id);
+CREATE INDEX idx_orphan_identities_name ON orphan_identities(detected_name);
+CREATE INDEX idx_orphan_identities_suggested ON orphan_identities(suggested_for_profile)
+  WHERE suggested_for_profile = true;
+```
+
+**Source of Truth Location:** `10-PROFILE-CLASSIFICATION-INTEGRATION.md` (Section 4.5)
+
+**Expected Usage:** 0-10 rows per account (only for unmatched identities appearing 3+ times)
+
+**Note:** Marked "(Future)" in File 10 but REQUIRED by classification logic
+
+---
+
+### 6. profile_classification_audit
+
+**Current State:** ❌ Does NOT exist in Supabase (needs creation)
+
+**Purpose:** Audit trail for profile classification decisions (privacy/security requirement)
+
+**Schema:**
+```sql
+CREATE TABLE profile_classification_audit (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pending_encounter_id text,
+  attempted_match jsonb,        -- Sanitized matching attempt
+  result varchar(50),           -- 'matched', 'unmatched', 'orphan', 'review'
+  confidence numeric,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_classification_audit_pending ON profile_classification_audit(pending_encounter_id);
+CREATE INDEX idx_classification_audit_result ON profile_classification_audit(result);
+CREATE INDEX idx_classification_audit_created ON profile_classification_audit(created_at);
+```
+
+**Source of Truth Location:** `10-PROFILE-CLASSIFICATION-INTEGRATION.md` (Section 11.2)
+
+**Expected Usage:** 1 row per pending encounter (classification audit trail)
 
 ---
 
@@ -1045,16 +2123,20 @@ Migrations should be executed in this order:
 4. `pass05_pending_encounters` - Pending storage (high complexity)
 
 #### Stage 3: Add Supporting Tables (Low Risk)
-5. `pass05_cascade_chains` - New table
-6. `pass05_reconciliation_log` - New table
+5. `pass05_cascade_chains` - New table (cascade tracking)
+6. `pass05_reconciliation_log` - New table (reconciliation audit)
+7. `pass05_pending_encounter_identifiers` - New table (identity markers)
+8. `healthcare_encounter_identifiers` - New table (final identity markers)
+9. `orphan_identities` - New table (orphan detection)
+10. `profile_classification_audit` - New table (classification audit)
 
 #### Stage 4: Modify Display Tables (Low Risk)
-7. `pass05_page_assignments` - Page mapping
-8. `pass05_encounter_metrics` - Final metrics
+11. `pass05_page_assignments` - Page mapping
+12. `pass05_encounter_metrics` - Final metrics
 
 #### Stage 5: Modify Core Tables (Low Risk)
-9. `healthcare_encounters` - Final encounter storage
-10. `shell_files` - Document metadata
+13. `healthcare_encounters` - Final encounter storage
+14. `shell_files` - Document metadata
 
 ### Phase 3: Post-Migration Tasks
 

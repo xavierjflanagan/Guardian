@@ -542,7 +542,7 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     is_real_world_visit BOOLEAN DEFAULT TRUE, -- Timeline Test: date + (provider OR facility)
     pass_0_5_confidence NUMERIC(3,2), -- AI confidence in encounter detection
     ocr_average_confidence NUMERIC(3,2), -- Average OCR quality for this encounter
-    encounter_date_end TIMESTAMPTZ, -- End date for multi-day encounters (NULL = ongoing, same as start = single-day)
+    encounter_end_date TIMESTAMPTZ, -- End date for multi-day encounters (NULL = ongoing, same as start = single-day)
     encounter_timeframe_status TEXT NOT NULL DEFAULT 'completed' CHECK (encounter_timeframe_status IN ('completed', 'ongoing', 'unknown_end_date')), -- Migration 42: Explicit encounter completion status
     date_source TEXT NOT NULL DEFAULT 'upload_date' CHECK (date_source IN ('ai_extracted', 'file_metadata', 'upload_date')), -- Migration 38/42: Track date provenance (made NOT NULL in Migration 42)
     is_planned_future BOOLEAN DEFAULT FALSE, -- True for scheduled appointments/procedures

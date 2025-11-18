@@ -1590,7 +1590,7 @@ SELECT
           'isRealWorldVisit', he.is_real_world_visit,
           'dateRange', jsonb_build_object(
             'start', he.encounter_start_date,
-            'end', he.encounter_date_end
+            'end', he.encounter_end_date
           ),
           'encounterTimeframeStatus', he.encounter_timeframe_status,
           'dateSource', he.date_source,

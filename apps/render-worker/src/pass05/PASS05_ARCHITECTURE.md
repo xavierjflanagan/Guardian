@@ -444,7 +444,7 @@ apps/render-worker/src/pass05/
 **healthcare_encounters:**
 - Created via UPSERT in `parseEncounterResponse()`
 - `patient_id`, `encounter_type`, `is_real_world_visit`
-- `encounter_start_date`, `encounter_date_end` (v2.9 - Migration 42)
+- `encounter_start_date`, `encounter_end_date` (v2.9 - Migration 42)
 - `encounter_timeframe_status` (v2.9)
 - `date_source` (v2.9)
 - `provider_name`, `facility_name`

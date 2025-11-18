@@ -224,7 +224,7 @@ async function completePendingEncounter(
       primary_shell_file_id: session.shell_file_id,
       encounter_type: partial.encounterType,
       encounter_start_date: partial.dateRange?.start,
-      encounter_date_end: partial.dateRange?.end,
+      encounter_end_date: partial.dateRange?.end,
       encounter_timeframe_status: partial.encounterTimeframeStatus || 'unknown_end_date',
       date_source: partial.dateSource || 'ai_extracted',
       provider_name: partial.provider,

@@ -111,6 +111,7 @@ apps/render-worker/src/pass05/
 2. Batching analysis coordinate extraction
 3. Page assignment persistence
 4. Position data validation
+5. **COLUMN NAME UPDATE:** Change `primary_shell_file_id` → `source_shell_file_id` (1 occurrence in unique constraint)
 
 **NEW Requirements:**
 
@@ -292,6 +293,8 @@ for (const encounter of aiResponse.healthcare_encounters) {
 1. Position data merging (start, end, confidence)
 2. Batching analysis aggregation to shell_files
 3. Position validation before final insert
+4. **COLUMN NAME UPDATE:** Change `primary_shell_file_id` → `source_shell_file_id` (2 occurrences: query + insert)
+5. **DATE PARSING:** Handle patient_date_of_birth conversion from text (pending) to date (final)
 
 **NEW Requirements:**
 
@@ -442,7 +445,88 @@ async function aggregateBatchingAnalysis(
 }
 ```
 
-##### 3. Main Reconciliation Function (Updated)
+##### 3. Date Parsing (Identity Field Type Conversion)
+
+**Critical Requirement:** Pending encounters store `patient_date_of_birth` as `text` (raw from AI), but final encounters require `date` type.
+
+```typescript
+/**
+ * Parse date of birth from raw text to Date object
+ * Handles multiple formats and locales gracefully
+ */
+function parseDateOfBirth(rawDOB: string | null): Date | null {
+  if (!rawDOB) return null;
+
+  try {
+    // Try common formats (add more as needed)
+    const formats = [
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,     // DD/MM/YYYY or MM/DD/YYYY
+      /^(\d{4})-(\d{2})-(\d{2})$/,           // YYYY-MM-DD (ISO)
+      /^(\d{1,2})-(\d{1,2})-(\d{4})$/,       // DD-MM-YYYY or MM-DD-YYYY
+      /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/      // DD.MM.YYYY
+    ];
+
+    for (const format of formats) {
+      const match = rawDOB.match(format);
+      if (match) {
+        // Parse based on likely locale (AU format: DD/MM/YYYY)
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        const year = parseInt(match[3]);
+
+        // Basic validation
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return new Date(year, month - 1, day);
+        }
+      }
+    }
+
+    // Fallback: Try native Date parser
+    const parsed = new Date(rawDOB);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+
+    return null;
+  } catch (error) {
+    logger.warn({
+      function: 'parseDateOfBirth',
+      raw_dob: rawDOB,
+      error: error.message,
+      action: 'returning_null'
+    });
+    return null;
+  }
+}
+
+/**
+ * Use in reconciler when creating final encounters
+ */
+const parsedDOB = parseDateOfBirth(groupPendings[0].patient_date_of_birth);
+
+if (groupPendings[0].patient_date_of_birth && !parsedDOB) {
+  logger.warn({
+    session_id: sessionId,
+    cascade_id: cascadeId,
+    raw_dob: groupPendings[0].patient_date_of_birth,
+    warning: 'Failed to parse DOB - storing NULL in final encounter'
+  });
+}
+```
+
+**Error Handling Philosophy:**
+- **Never throw errors** for unparseable dates - this would halt the entire reconciliation
+- **Log warnings** for debugging and quality monitoring
+- **Set NULL** in final encounter when parsing fails
+- **Preserve raw text** in `patient_date_of_birth` field on pending (for manual review)
+
+**Testing Requirements:**
+- Test common Australian date formats (DD/MM/YYYY)
+- Test edge cases (29/02/2024, invalid dates)
+- Verify NULL handling doesn't break downstream processes
+- Monitor warning logs for systematic parsing issues
+
+##### 4. Main Reconciliation Function (Updated)
 
 ```typescript
 async function reconcilePendingEncountersV2(
@@ -865,10 +949,16 @@ function calculateBatchingSummary(
 
 ### MODIFY SIGNIFICANTLY ⚠️ (5 scripts)
 - `session-manager.ts` → MEDIUM complexity (no change from V1)
-- `chunk-processor.ts` → **VERY HIGH** complexity (V1: HIGH)
-- `pending-reconciler.ts` → **VERY HIGH** complexity (V1: MEDIUM)
+- `chunk-processor.ts` → **VERY HIGH** complexity (V1: HIGH) + **COLUMN RENAME** (1 occurrence)
+- `pending-reconciler.ts` → **VERY HIGH** complexity (V1: MEDIUM) + **COLUMN RENAME** (2 occurrences)
 - `handoff-builder.ts` → LOW complexity (simplification)
 - `post-processor.ts` → MEDIUM complexity (V1: LOW)
+
+**CRITICAL: Column Rename Requirement**
+- All scripts that reference `primary_shell_file_id` must be updated to `source_shell_file_id`
+- This ensures Column Parity Principle: pending_encounters and healthcare_encounters use same column names
+- Total occurrences: 3 (chunk-processor: 1, pending-reconciler: 2)
+- See Table 6 analysis in 03-TABLE-DESIGN-V3.md for rationale
 
 ### DELETE 🗑️ (6 scripts)
 - `aiPrompts.v2.7.ts`

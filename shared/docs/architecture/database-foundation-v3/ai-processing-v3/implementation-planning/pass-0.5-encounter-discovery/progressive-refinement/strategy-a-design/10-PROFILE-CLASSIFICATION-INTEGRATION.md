@@ -61,7 +61,7 @@ Additionally, for each encounter extract the following identity and quality mark
 **Provider/Facility Markers:**
 - provider_name: Name of the healthcare provider
 - facility_name: Name of the hospital/clinic
-- encounter_date: Date of the encounter/visit
+- encounter_start_date: Date of the encounter/visit (or document preparation date for pseudo-encounters)
 
 **Document Identifiers:**
 Extract ALL identification numbers with their context:
@@ -99,7 +99,7 @@ The AI response for each encounter should include:
   "provider_markers": {
     "provider_name": "Dr. Sarah Johnson",
     "facility_name": "Royal Melbourne Hospital",
-    "encounter_date": "2024-11-15"
+    "encounter_start_date": "2024-11-15"
   },
 
   "identifiers": [
@@ -132,6 +132,7 @@ ALTER TABLE pass05_pending_encounters ADD COLUMN
   -- Provider/facility markers
   provider_name text,
   facility_name text,
+  encounter_start_date text,         -- Raw encounter date as extracted (visit date or document date)
 
   -- Classification results (populated post-processing)
   matched_profile_id uuid REFERENCES user_profiles(id),
@@ -171,14 +172,14 @@ CREATE INDEX idx_pending_identifiers_type ON pass05_pending_encounter_identifier
 
 ```sql
 ALTER TABLE healthcare_encounters ADD COLUMN
-  -- Replicate identity fields from pending
+  -- Identity fields (new - not duplicates)
   patient_full_name text,
   patient_date_of_birth date,         -- Normalized to ISO format
   patient_address text,
   patient_phone varchar(50),
 
-  provider_name text,
-  facility_name text,
+  -- Note: provider_name and facility_name already exist in healthcare_encounters
+  -- No need to add them again
 
   -- Final classification
   matched_profile_id uuid REFERENCES user_profiles(id),
@@ -231,6 +232,100 @@ CREATE TABLE orphan_identities (
 ## 5. Classification Logic
 
 ### 5.1 Profile Matching Algorithm (Post-Pass 0.5)
+
+#### 5.1.1 Normalization Module (profile-classifier.ts)
+
+All identity normalization happens in the classification service, NOT in Pass 0.5:
+
+```typescript
+/**
+ * Normalization module for identity matching
+ * Location: apps/render-worker/src/pass05/classification/profile-classifier.ts
+ */
+
+interface NormalizedIdentity {
+  normalized_name: string;
+  normalized_dob: Date | null;
+  parse_method: string;
+  parse_confidence: number;
+}
+
+function normalizeIdentity(encounter: PendingEncounter): NormalizedIdentity {
+  return {
+    normalized_name: normalizeName(encounter.patient_full_name),
+    normalized_dob: parseDate(
+      encounter.patient_date_of_birth,
+      encounter.facility_name  // For locale inference
+    ),
+    parse_method: 'fuzzy_au_format',
+    parse_confidence: 0.95
+  };
+}
+
+function normalizeName(name: string): string {
+  if (!name) return '';
+
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')           // Collapse whitespace
+    .normalize('NFD')                // Decompose diacritics
+    .replace(/[\u0300-\u036f]/g, ''); // Remove diacritics
+}
+```
+
+#### 5.1.2 Page Assignment Ordering
+
+**IMPORTANT:** Page assignments must be inserted during chunking, BEFORE any classification-dependent updates:
+
+```typescript
+// Correct ordering in chunk-processor.ts:
+async function processChunk(chunk: Chunk) {
+  // 1. Insert pending encounters
+  await insertPendingEncounters(encounters);
+
+  // 2. Insert page assignments (uses pending_id)
+  await insertPageAssignments(encounters, pendingIds);
+
+  // 3. Insert identifiers
+  await insertPendingIdentifiers(encounters, pendingIds);
+
+  // 4. Classification happens LATER, after all chunks complete
+}
+```
+
+#### 5.1.3 Matching Decision Tree
+
+```
+START: Identity extracted from encounter
+    ↓
+[Normalize name + DOB]
+    ↓
+[Compare against account profiles]
+    ↓
+    ├─ Exactly 1 exact match?
+    │   └─→ YES → AUTO-ATTACH (confidence: 0.95)
+    │            Status: 'matched'
+    │
+    ├─ Multiple exact matches?
+    │   └─→ YES → REVIEW REQUIRED (confidence: 0.7)
+    │            Status: 'review'
+    │            Reason: Ambiguous (twins/siblings?)
+    │
+    ├─ 0 exact matches, 1 fuzzy match?
+    │   └─→ YES → REVIEW REQUIRED (confidence: fuzzy_score)
+    │            Status: 'review'
+    │            Reason: Fuzzy name match
+    │
+    └─ 0 matches at all?
+        └─→ Check orphan count
+            ├─ Count > 2? → SUGGEST NEW PROFILE
+            │              Status: 'orphan'
+            └─ Count ≤ 2 → UNMATCHED
+                          Status: 'unmatched'
+```
+
+#### 5.1.4 Matching Algorithm Implementation
 
 ```typescript
 interface ClassificationResult {
@@ -311,61 +406,89 @@ function exactMatch(encounter: PendingEncounter, profile: UserProfile): boolean 
 }
 ```
 
-### 5.2 Date Format Handling
+### 5.2 Date Format Handling with Validation Guards
 
 ```typescript
-function parseAustralianDate(dateStr: string, providerLocation?: string): Date | null {
+function parseAustralianDate(
+  dateStr: string,
+  providerLocation?: string,
+  encounterStartDate?: string
+): Date | null {
   // Handle AU/US format ambiguity
   const parts = dateStr.split(/[\/\-\.]/);
   if (parts.length !== 3) return null;
 
   const [part1, part2, part3] = parts.map(p => parseInt(p));
 
+  let parsedDate: Date;
+
   // If provider is Australian, assume DD/MM/YYYY
   if (providerLocation?.includes('Australia') || providerLocation?.includes('VIC')) {
-    return new Date(part3, part2 - 1, part1);  // DD/MM/YYYY
+    parsedDate = new Date(part3, part2 - 1, part1);  // DD/MM/YYYY
   }
-
   // If day > 12, must be DD/MM/YYYY (unambiguous)
-  if (part1 > 12) {
-    return new Date(part3, part2 - 1, part1);
+  else if (part1 > 12) {
+    parsedDate = new Date(part3, part2 - 1, part1);
   }
-
   // If month > 12, must be MM/DD/YYYY (unambiguous)
-  if (part2 > 12) {
-    return new Date(part3, part1 - 1, part2);
+  else if (part2 > 12) {
+    parsedDate = new Date(part3, part1 - 1, part2);
+  }
+  // Ambiguous - use provider context or default to AU format
+  else {
+    parsedDate = new Date(part3, part2 - 1, part1);  // Default AU: DD/MM/YYYY
   }
 
-  // Ambiguous - use provider context or default to AU format
-  return new Date(part3, part2 - 1, part1);  // Default AU: DD/MM/YYYY
+  // Validation guards to catch parsing errors
+  const now = new Date();
+
+  // Guard 1: DOB cannot be in the future
+  if (parsedDate > now) {
+    console.warn(`Invalid DOB: ${dateStr} parses to future date ${parsedDate.toISOString()}`);
+    return null;
+  }
+
+  // Guard 2: DOB should be before encounter start date (if provided)
+  if (encounterStartDate) {
+    const encDate = new Date(encounterStartDate);
+    if (parsedDate > encDate) {
+      console.warn(`Invalid DOB: ${dateStr} is after encounter start date ${encounterStartDate}`);
+      return null;
+    }
+  }
+
+  // Guard 3: Reasonable age range (0-150 years old)
+  const age = (now.getTime() - parsedDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+  if (age < 0 || age > 150) {
+    console.warn(`Invalid DOB: ${dateStr} results in age ${age} years`);
+    return null;
+  }
+
+  return parsedDate;
 }
 ```
 
-## 6. Data Quality Tier System
+## 6. Data Quality Tier Integration
 
-### 6.1 Deterministic Criteria
+### 6.1 Pass 0.5 Quality Tier Assignment
 
-**Criteria A**: Patient identity confirmed
-- Full name present AND
-- Date of birth present
+During Pass 0.5 processing, encounters receive a preliminary data quality tier based on extracted identity markers. This tier is calculated during reconciliation and stored in both pending and final encounter tables.
 
-**Criteria B**: Provider/facility details confirmed
-- (Provider name OR Facility name) present AND
-- Encounter date present
+**For comprehensive data quality framework documentation, see:** `11-DATA-QUALITY-SYSTEM.md`
 
-**Criteria C**: Healthcare professional verification
-- Manual attestation by registered provider
-- Direct API transfer from trusted source
+That document covers:
+- Four-tier framework (LOW/MEDIUM/HIGH/VERIFIED)
+- Deterministic criteria (A/B/C) and tier assignment logic
+- Dual audience design (patient vs provider views)
+- Temporal factors and data freshness
+- Upgrade paths and manual verification workflows
+- System-wide UI/UX patterns
 
-### 6.2 Tier Calculation
+### 6.2 Pass 0.5 Specific Implementation
 
 ```typescript
-enum DataQualityTier {
-  LOW = 'low',           // Neither A nor B
-  MEDIUM = 'medium',     // A confirmed, not B
-  HIGH = 'high',         // Both A and B
-  VERIFIED = 'verified'  // C confirmed (manual only)
-}
+// Quality tier calculator (called during reconciliation)
+// Implementation: apps/render-worker/src/pass05/progressive/reconciler.ts
 
 function calculateQualityTier(encounter: PendingEncounter): DataQualityTier {
   const hasPatientIdentity = !!(
@@ -375,29 +498,18 @@ function calculateQualityTier(encounter: PendingEncounter): DataQualityTier {
 
   const hasProviderDetails = !!(
     (encounter.provider_name || encounter.facility_name) &&
-    encounter.encounter_date
+    encounter.encounter_start_date
   );
 
   // Note: VERIFIED can only be set manually, never by AI
-  if (!hasPatientIdentity && !hasProviderDetails) return DataQualityTier.LOW;
-  if (hasPatientIdentity && !hasProviderDetails) return DataQualityTier.MEDIUM;
-  if (hasPatientIdentity && hasProviderDetails) return DataQualityTier.HIGH;
+  // See 11-DATA-QUALITY-SYSTEM.md for complete tier definitions
+  if (!hasPatientIdentity && !hasProviderDetails) return 'low';
+  if (hasPatientIdentity && !hasProviderDetails) return 'medium';
+  if (hasPatientIdentity && hasProviderDetails) return 'high';
 
-  return DataQualityTier.HIGH;  // Both confirmed
+  return 'high';
 }
 ```
-
-### 6.3 Examples
-
-| Scenario | Criteria A | Criteria B | Quality Tier |
-|----------|------------|------------|--------------|
-| Orphaned medication photo | ❌ | ❌ | LOW |
-| Medication box with patient name | ✅ | ❌ | MEDIUM |
-| Complete discharge summary | ✅ | ✅ | HIGH |
-| GP-verified medical history | Any | Any | VERIFIED |
-| Provider letter, no patient name | ❌ | ✅ | LOW* |
-
-*Requires user confirmation of identity
 
 ## 7. Reconciliation Integration
 
@@ -409,7 +521,7 @@ async function reconcilePendingEncountersWithIdentity(
   shellFileId: string
 ): Promise<void> {
   // Standard reconciliation by cascade_id
-  const encounters = await reconcileByC ascade(sessionId);
+  const encounters = await reconcileByCascade(sessionId);
 
   // Post-reconciliation: Migrate identifiers
   for (const encounter of encounters) {
@@ -425,6 +537,7 @@ async function migrateIdentifiers(
   finalEncounterId: string
 ): Promise<void> {
   // Copy identifiers from pending to final table
+  // Note: Normalizes identifier_value during migration
   const query = `
     INSERT INTO healthcare_encounter_identifiers (
       encounter_id,
@@ -436,11 +549,13 @@ async function migrateIdentifiers(
     SELECT
       $1 as encounter_id,
       identifier_type,
-      identifier_value,
+      -- Normalize: trim and collapse whitespace (preserve case for case-sensitive IDs)
+      TRIM(REGEXP_REPLACE(identifier_value, '\s+', ' ', 'g')) as identifier_value,
       issuing_organization,
       pending_id as source_pending_id
     FROM pass05_pending_encounter_identifiers
     WHERE pending_id = ANY($2::text[])
+    ON CONFLICT (encounter_id, identifier_type, identifier_value) DO NOTHING;  -- Prevent duplicates
   `;
 
   await supabase.rpc('execute_sql', {
@@ -496,15 +611,27 @@ async function processDocumentWithPrescreen(ocrText: string, shellFileId: string
   const isHealthContent = await prescreenPromise;
 
   if (!isHealthContent) {
-    // Try to cancel Pass 0.5
-    pass05Promise.cancel?.();  // If API supports cancellation
+    // Try to cancel Pass 0.5 (best-effort, may not save input tokens)
+    try {
+      pass05Promise.cancel?.();  // If API supports cancellation
+    } catch (error) {
+      // Cancellation failure is non-fatal
+      console.warn('Failed to cancel Pass 0.5 call:', error);
+      // Let Pass 0.5 complete but mark result as non-medical
+    }
 
     await markDocumentAsNonMedical(shellFileId);
     return { status: 'filtered_non_medical' };
   }
 
   // Continue with Pass 0.5
-  return await pass05Promise;
+  try {
+    return await pass05Promise;
+  } catch (error) {
+    // If pre-screen passed but Pass 0.5 fails, don't assume non-medical
+    console.error('Pass 0.5 failed after pre-screen:', error);
+    throw error;  // Propagate for retry logic
+  }
 }
 
 async function detectHealthContent(text: string): Promise<boolean> {
@@ -551,24 +678,47 @@ async function detectHealthContent(text: string): Promise<boolean> {
 
 ### 10.1 Test Scenarios
 
-1. **Single Profile Upload**: Verify correct assignment
+1. **Single Profile Upload**: Verify correct profile assignment
 2. **Multi-Profile Document**: Test mixed patient records
-3. **Ambiguous Dates**: Test AU/US format handling
-4. **Missing DOB**: Test name-only matching
+3. **Ambiguous Dates**: Test AU/US format handling with validation guards
+4. **Missing DOB**: Test name-only matching scenarios
 5. **Orphan Detection**: Test unknown identity clustering
-6. **Quality Tiers**: Verify all tier combinations
-7. **Identifier Migration**: Test pending → final transfer
-8. **Cascade Conflicts**: Test identity mismatch flagging
+6. **Quality Tiers**: Verify tier calculation during reconciliation (see 11-DATA-QUALITY-SYSTEM.md for comprehensive test matrix)
+7. **Identifier Migration**: Test pending → final transfer with normalization
+8. **Cascade Conflicts**: Test identity mismatch flagging without cascade splitting
 
 ### 10.2 Edge Cases
 
+**Identity Ambiguity:**
 - Empty identity markers (no name/DOB)
-- Nickname variations ("Bob" vs "Robert")
-- Hyphenated names
-- Date format: 01/02/2024 (ambiguous)
-- Multiple DOBs in one encounter
+- Nickname variations ("Bob" vs "Robert", "Liz" vs "Elizabeth")
+- Hyphenated names (Smith-Jones vs Smith vs Jones)
+- Multiple middle names or initials
+- Twins/siblings (same last name + DOB, requires MRN or confirmation)
+
+**Date Parsing:**
+- Date format: 01/02/2024 (AU: 1 Feb, US: 2 Jan)
+- Historical dates (pre-2000, especially pre-1950 century ambiguity)
+- Multiple DOB formats in one document
+- Future dates (parsing error)
+- DOB after encounter start date (parsing error)
+
+**Multi-Patient Scenarios:**
+- Mixed-patient letters (referral mentioning multiple people)
+- Family history sections (parent/sibling DOBs)
+- Comparison reports (patient A vs patient B)
+
+**Provider Context:**
 - Provider name but no facility
-- Historical dates (pre-2000)
+- Facility name but no provider
+- Multiple providers on one document
+- International providers (non-AU format clues)
+
+**Classification Edge Cases:**
+- Orphan identity appearing once (don't suggest profile yet)
+- Orphan identity appearing 3+ times (suggest profile creation)
+- Multiple fuzzy matches (require user selection)
+- Case sensitivity in identifiers (preserve for MRN/insurance IDs)
 
 ## 11. Security Considerations
 
@@ -601,13 +751,217 @@ If classification causes issues:
 3. **Manual cleanup**: Bulk reassign using admin tools
 4. **Preserve data**: Keep extracted identity markers for future use
 
-## 13. Success Metrics
+## 13. User Intervention Workflow (Unmatched/Orphan Cases)
 
-- **Match Rate**: >90% of encounters correctly classified
+### 13.1 When User Intervention is Triggered
+
+User intervention is required when classification results in:
+- `match_status = 'unmatched'` - No profile match found
+- `match_status = 'orphan'` - Repeated identity pattern suggests new person
+- `match_status = 'review'` - Fuzzy match or ambiguous (requires confirmation)
+
+### 13.2 User Prompting Flow
+
+**Scenario A: Unmatched Identity (1-2 Occurrences)**
+
+```typescript
+// UI displays notification
+{
+  title: "Document uploaded - Profile assignment needed",
+  message: "We found medical records for 'Sarah Smith' but couldn't match them to an existing profile.",
+  extracted_identity: {
+    name: "Sarah Smith",
+    dob: "1985-03-15"
+  },
+  options: [
+    "Assign to existing profile",  // Shows dropdown of account profiles
+    "Create new profile"           // Opens profile creation form
+  ]
+}
+```
+
+**User selects "Assign to existing profile":**
+```typescript
+// User manually selects from dropdown
+selected_profile = "Emma Smith (Daughter)"
+
+// Backend updates encounters
+UPDATE healthcare_encounters
+SET
+  patient_id = selected_profile_id,
+  matched_profile_id = selected_profile_id,
+  match_status = 'matched',
+  match_confidence = 1.0,  // User-confirmed = 100%
+  is_orphan_identity = false
+WHERE matched_profile_id IS NULL
+  AND patient_full_name = 'Sarah Smith';
+```
+
+**User selects "Create new profile":**
+```typescript
+// Profile creation form pre-populated with extracted data
+new_profile_form = {
+  full_name: "Sarah Smith",          // Pre-filled from extraction
+  date_of_birth: "1985-03-15",      // Pre-filled from extraction
+  relationship: "Daughter",          // User selects
+  // ... other profile fields
+}
+
+// After profile creation
+new_profile_id = createProfile(new_profile_form);
+
+// Update all encounters with this identity
+UPDATE healthcare_encounters
+SET
+  patient_id = new_profile_id,
+  matched_profile_id = new_profile_id,
+  match_status = 'matched',
+  match_confidence = 1.0,
+  is_orphan_identity = false
+WHERE matched_profile_id IS NULL
+  AND patient_full_name = 'Sarah Smith';
+```
+
+---
+
+**Scenario B: Orphan Identity (3+ Occurrences)**
+
+```typescript
+// UI displays stronger suggestion
+{
+  title: "New family member detected",
+  message: "We've found 5 medical documents for 'Sarah Smith (DOB: 1985-03-15)' who isn't in your profile list.",
+  suggestion: "This appears to be a family member or dependent. Would you like to create a profile for them?",
+  extracted_identity: {
+    name: "Sarah Smith",
+    dob: "1985-03-15",
+    encounter_count: 5,  // Shows pattern strength
+    date_range: "2022-01-15 to 2024-11-18"
+  },
+  recommended_action: "Create new profile",  // Suggested default
+  options: [
+    "Create new profile for Sarah",  // Highlighted/recommended
+    "Assign to existing profile",    // Alternative option
+    "Review documents first"          // Shows document list
+  ]
+}
+```
+
+**Why orphan detection matters:**
+- After 3+ uploads with same identity, probability of new person is high
+- Proactive suggestion reduces user friction
+- Batch processing: update all encounters at once when profile created
+
+---
+
+**Scenario C: Fuzzy Match Requiring Review**
+
+```typescript
+// UI requests confirmation
+{
+  title: "Confirm profile match",
+  message: "We found a possible match but want your confirmation:",
+  extracted_identity: {
+    name: "Jon Smith",     // Note slight spelling difference
+    dob: "1985-03-15"
+  },
+  suggested_match: {
+    profile_name: "John Smith",
+    profile_dob: "1985-03-15",
+    confidence: 0.85,
+    reason: "Similar name (possible typo), exact DOB match"
+  },
+  options: [
+    "Yes, this is John Smith",         // Confirms match
+    "No, this is a different person",  // Rejects, creates new
+    "Show me the documents"            // Review before deciding
+  ]
+}
+```
+
+### 13.3 Batch Re-Assignment
+
+When user creates a new profile or manually assigns, **all unmatched encounters with the same identity should update:**
+
+```typescript
+async function reassignEncountersAfterProfileCreation(
+  identitySignature: { name: string; dob: string },
+  newProfileId: string
+) {
+  // Find all unmatched encounters with this identity
+  const { data: encounters } = await supabase
+    .from('healthcare_encounters')
+    .select('id')
+    .is('matched_profile_id', null)
+    .eq('patient_full_name', identitySignature.name)
+    .eq('patient_date_of_birth', identitySignature.dob);
+
+  // Batch update to new profile
+  await supabase
+    .from('healthcare_encounters')
+    .update({
+      patient_id: newProfileId,
+      matched_profile_id: newProfileId,
+      match_status: 'matched',
+      match_confidence: 1.0,  // User confirmed
+      is_orphan_identity: false
+    })
+    .in('id', encounters.map(e => e.id));
+
+  // Log the batch reassignment
+  await logAuditEvent({
+    event_type: 'BULK_PROFILE_REASSIGNMENT',
+    profile_id: newProfileId,
+    encounter_count: encounters.length,
+    reason: 'new_profile_created'
+  });
+}
+```
+
+### 13.4 Temporary Orphan Profile Strategy
+
+**Before user intervention, where does `patient_id` point?**
+
+**Option 1: Account Owner's Profile (Simpler)**
+```sql
+-- When no match found, default to account owner
+patient_id = account_owner_profile_id
+matched_profile_id = NULL
+match_status = 'unmatched'
+```
+
+**Option 2: Dedicated Orphan Profile (Cleaner)**
+```sql
+-- Create special "Unassigned" profile per account
+patient_id = account_orphan_profile_id  -- Special profile: "Unassigned Records"
+matched_profile_id = NULL
+match_status = 'unmatched'
+```
+
+**Recommendation:** Option 2 (Dedicated Orphan Profile)
+- Cleaner separation of concerns
+- Easy to query "all unassigned records"
+- Doesn't pollute account owner's data
+
+### 13.5 UI States Summary
+
+| Classification State | UI Action | Backend State |
+|---------------------|-----------|---------------|
+| `matched` (auto) | None - silent assignment | `patient_id = profile_id`, `match_confidence = 0.95` |
+| `unmatched` (1-2 docs) | Prompt: "Assign or Create?" | `patient_id = orphan_id`, `matched_profile_id = NULL` |
+| `orphan` (3+ docs) | Strong suggestion: "Create profile for Sarah?" | `patient_id = orphan_id`, `is_orphan_identity = true` |
+| `review` (fuzzy) | Confirm: "Is this John Smith?" | `patient_id = orphan_id`, suggested match shown |
+
+## 14. Success Metrics
+
+### Profile Classification Metrics
+- **Match Rate**: >90% of encounters correctly assigned to profiles
 - **Orphan Detection**: Identify family members within 3 uploads
-- **Quality Tiers**: 70% HIGH, 20% MEDIUM, 10% LOW
-- **User Confirmations**: <5% require manual intervention
+- **User Confirmations**: <5% require manual intervention for ambiguous matches
 - **False Positives**: <1% wrong profile assignment
+
+### Data Quality Metrics
+See `11-DATA-QUALITY-SYSTEM.md` Section 12 for comprehensive quality tier metrics and success criteria.
 
 ## 14. Future Enhancements
 
@@ -641,20 +995,20 @@ Process:
   1. Pass 0.5 extracts:
      - patient_full_name: "Jane Smith"
      - patient_date_of_birth: "15/03/1985"
+     - provider_name: "Dr. Sarah Johnson"
+     - encounter_start_date: "2024-11-15"
 
-  2. Classification:
-     - Exact match with Profile #1
+  2. Profile Classification:
+     - Exact match with Profile #1 (Jane Smith 1985)
      - Confidence: 0.95
      - Status: 'matched'
 
   3. Quality Tier:
-     - Criteria A: ✅ (name + DOB)
-     - Criteria B: ✅ (if provider present)
-     - Tier: HIGH
+     - Calculated as HIGH (complete identity + provider details)
+     - See 11-DATA-QUALITY-SYSTEM.md for tier calculation logic
 
   4. Result:
      - Encounter assigned to Profile #1
-     - High quality tier
      - No user intervention needed
 ```
 

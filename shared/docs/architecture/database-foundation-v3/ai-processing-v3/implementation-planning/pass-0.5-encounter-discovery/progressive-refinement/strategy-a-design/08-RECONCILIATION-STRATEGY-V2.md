@@ -344,12 +344,12 @@ async function reconcilePendingEncountersV2(
     // STEP 2C: Take clinical data from first pending (all should be consistent)
     const firstPending = groupPendings.sort((a, b) => a.chunk_number - b.chunk_number)[0];
 
-    // STEP 2D: Insert final encounter
+    // STEP 2D: Insert final encounter (aligned with 03-TABLE-DESIGN-V3 schema)
     const { data: inserted } = await supabase
       .from('healthcare_encounters')
       .insert({
         patient_id: firstPending.patient_id,
-        primary_shell_file_id: shellFileId,
+        source_shell_file_id: shellFileId,          // renamed from primary_shell_file_id in 03-TABLE-DESIGN-V3
         encounter_type: firstPending.encounter_type,
         encounter_start_date: firstPending.encounter_start_date,
         encounter_end_date: firstPending.encounter_end_date,
@@ -375,6 +375,7 @@ async function reconcilePendingEncountersV2(
 
         position_confidence: positionConfidence,
 
+        // page_ranges is integer[][] in both pending and final tables
         page_ranges: mergedPageRanges,
         pass_0_5_confidence: firstPending.confidence,
         summary: firstPending.summary,

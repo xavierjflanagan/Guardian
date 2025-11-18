@@ -327,7 +327,7 @@ This rule applies REGARDLESS of whether the encounter has an end date. Having a 
 ### Date Fields (Database Column Names)
 - **encounterStartDate**: Start date in YYYY-MM-DD format
 - **encounterEndDate**: End date in YYYY-MM-DD format (null if ongoing)
-- Note: Database column is "encounter_date_end" not "encounter_end_date"
+- Note: Database column is "encounter_end_date" not "encounter_end_date"
 
 ### Confidence Score
 - 0.0 to 1.0 scale
@@ -534,7 +534,7 @@ export function mapV10ResponseToDatabase(encounter: any): any {
     // Encounter details (columns that exist)
     encounter_type: encounter.encounterType,
     encounter_start_date: encounter.encounterStartDate,
-    encounter_date_end: encounter.encounterEndDate,
+    encounter_end_date: encounter.encounterEndDate,
     encounter_timeframe_status: encounter.encounterTimeframeStatus || 'unknown_end_date',
     date_source: encounter.dateSource || 'ai_extracted',
 
