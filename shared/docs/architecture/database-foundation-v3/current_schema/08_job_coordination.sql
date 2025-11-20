@@ -600,7 +600,7 @@ BEGIN
     (p_encounter_data->>'end_text_height')::INTEGER,
     (p_encounter_data->>'end_y')::INTEGER,
     (p_encounter_data->>'position_confidence')::NUMERIC,
-    (p_encounter_data->'page_ranges')::INTEGER[][],
+    (p_encounter_data->>'page_ranges')::INTEGER[][],    -- Migration 54: Fixed JSONB cast (->> not ->)
     (p_encounter_data->>'pass_0_5_confidence')::NUMERIC,
     (p_encounter_data->>'summary')::TEXT,
     'pass_0_5'::VARCHAR,
@@ -638,7 +638,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION reconcile_pending_to_final IS
   'Atomically converts pending encounters to final encounter. Inserts into healthcare_encounters,
    marks pendings as completed, and updates page assignments. All operations succeed or fail together.
-   Returns final encounter ID. (Migration 52, updated Migration 53: fixed column names)';
+   Returns final encounter ID. (Migration 52, 53: column names, Migration 54: page_ranges JSONB cast)';
 
 
 -- RPC #2: Atomic Cascade Pending Count Increment (Migration 52)
