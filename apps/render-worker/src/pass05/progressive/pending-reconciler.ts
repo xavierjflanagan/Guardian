@@ -172,16 +172,28 @@ export async function reconcilePendingEncounters(
 
   // STEP 6: Update metrics after reconciliation (Rabbit #11, #17 - Migration 57)
   try {
-    const { error: metricsError } = await supabase.rpc('update_strategy_a_metrics', {
-      p_shell_file_id: shellFileId,
-      p_session_id: sessionId
-    });
+    // Fix Issue #2: Get ai_processing_sessions.id (not pass05_progressive_sessions.id)
+    const { data: aiSession, error: sessionError } = await supabase
+      .from('ai_processing_sessions')
+      .select('id')
+      .eq('shell_file_id', shellFileId)
+      .eq('pass_number', 0.5)
+      .single();
 
-    if (metricsError) {
-      console.error(`[Reconcile] Failed to update metrics:`, metricsError);
-      // Don't throw - metrics update failure shouldn't block reconciliation success
+    if (sessionError || !aiSession) {
+      console.error(`[Reconcile] Failed to get ai_processing_sessions.id:`, sessionError);
     } else {
-      console.log(`[Reconcile] Updated Strategy A metrics successfully`);
+      const { error: metricsError } = await supabase.rpc('update_strategy_a_metrics', {
+        p_shell_file_id: shellFileId,
+        p_session_id: aiSession.id  // Use ai_processing_sessions.id, not Strategy A session
+      });
+
+      if (metricsError) {
+        console.error(`[Reconcile] Failed to update metrics:`, metricsError);
+        // Don't throw - metrics update failure shouldn't block reconciliation success
+      } else {
+        console.log(`[Reconcile] Updated Strategy A metrics successfully`);
+      }
     }
   } catch (error) {
     console.error(`[Reconcile] Exception updating metrics:`, error);

@@ -17,7 +17,7 @@ import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
 import { buildEncounterDiscoveryPromptV11 } from '../aiPrompts.v11';
 import { extractCoordinatesForMarker } from './coordinate-extractor';
-import { generateCascadeId, generatePendingId, shouldCascade } from './cascade-manager';
+import { generateCascadeId, generatePendingId, shouldCascade, trackCascade, incrementCascadePendings } from './cascade-manager';
 import { extractIdentifiers, ParsedIdentifier } from './identifier-extractor';
 
 /**
@@ -214,6 +214,33 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
       console.log(`[Chunk ${params.chunkNumber}] Generated cascade_id for implicit cascade: ${pending.pending_id} → ${pending.cascade_id}`);
     }
   });
+
+  // FIX Issue #1: Track cascade chains in database
+  // Separate new cascades (origin) from continuations
+  const newCascadeIds = new Set<string>();
+  const continuationCascadeIds = new Set<string>();
+
+  pendings.forEach((pending) => {
+    if (pending.cascade_id) {
+      if (pending.continues_previous) {
+        continuationCascadeIds.add(pending.cascade_id);
+      } else {
+        newCascadeIds.add(pending.cascade_id);
+      }
+    }
+  });
+
+  // Create cascade chain records for new cascades (origin chunk)
+  for (const cascadeId of newCascadeIds) {
+    await trackCascade(cascadeId, params.sessionId, params.chunkNumber);
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Tracked new cascade chain: ${cascadeId}`);
+  }
+
+  // Increment cascade chain counters for continuations
+  for (const cascadeId of continuationCascadeIds) {
+    await incrementCascadePendings(cascadeId);
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Incremented cascade chain: ${cascadeId}`);
+  }
 
   // Save all pendings to database (Strategy A: no direct finals)
   console.log(`[Chunk ${params.chunkNumber}] Saving ${pendings.length} pending encounters...`);

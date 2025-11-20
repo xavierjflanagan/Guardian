@@ -137,11 +137,9 @@ export function shouldCascade(
 
   // Additional validation: encounter touches chunk boundary at page level
   // This catches cases where AI might have missed the cascading flag
-  if (
-    encounter.end_boundary_type === 'inter_page' &&
-    encounter.end_page === lastPageOfChunk
-  ) {
-    return true; // Encounter ends exactly at chunk boundary
+  // Fix Issue #3: Catch ANY encounter ending at last page, regardless of boundary_type
+  if (encounter.end_page === lastPageOfChunk) {
+    return true; // Encounter touches last page - always cascade for safety
   }
 
   return false;
