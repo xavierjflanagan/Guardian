@@ -23,6 +23,55 @@ import {
 } from './database';
 
 /**
+ * Pick best value from array of nullable strings
+ * Migration 58: Helper for identity field merging
+ *
+ * Prefers non-null, non-empty values.
+ * For multiple non-empty values, picks longest (more information = better).
+ *
+ * @param values - Array of nullable strings from multiple pending encounters
+ * @returns Best value or null if all are null/empty
+ */
+function pickBestValue(values: (string | null)[]): string | null {
+  const nonNull = values.filter((v): v is string => v !== null && v.trim() !== '');
+  if (nonNull.length === 0) return null;
+  if (nonNull.length === 1) return nonNull[0];
+
+  // Pick longest value (more information = better)
+  return nonNull.reduce((best, current) =>
+    current.length > best.length ? current : best
+  );
+}
+
+/**
+ * Normalize date string to ISO format (YYYY-MM-DD)
+ * Migration 58: Helper for date field normalization
+ *
+ * Handles mixed formats: "November 14, 1965", "11/14/1965", etc.
+ * Required for PostgreSQL DATE casting in reconcile_pending_to_final RPC.
+ *
+ * @param dateString - Date string in any parseable format
+ * @returns ISO date string (YYYY-MM-DD) or null if unparseable
+ */
+function normalizeDateToISO(dateString: string | null): string | null {
+  if (!dateString) return null;
+
+  try {
+    const parsed = new Date(dateString);
+    if (isNaN(parsed.getTime())) return null;
+
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.warn('[Identity] Failed to parse date:', dateString, error);
+    return null;
+  }
+}
+
+/**
  * Main reconciliation entry point
  *
  * Called by session-manager.ts after all chunks complete.
@@ -135,8 +184,23 @@ export async function reconcilePendingEncounters(
         created_by_user_id: firstPending.created_by_user_id,
         manual_created_by: null,
         api_source_name: null,
-        api_import_date: null
+        api_import_date: null,
+
+        // Migration 58: Identity fields (merged from all pendings in cascade)
+        patient_full_name: pickBestValue(groupPendings.map(p => p.patient_full_name)),
+        patient_date_of_birth: normalizeDateToISO(
+          pickBestValue(groupPendings.map(p => p.patient_date_of_birth))
+        ),
+        patient_address: pickBestValue(groupPendings.map(p => p.patient_address)),
+        chief_complaint: firstPending.encounter_data?.chief_complaint || null
       };
+
+      console.log('[Reconcile] Identity merged:', {
+        patient_full_name: encounterData.patient_full_name,
+        patient_date_of_birth: encounterData.patient_date_of_birth,
+        patient_address: encounterData.patient_address,
+        chief_complaint: encounterData.chief_complaint
+      });
 
       // Call atomic RPC to create final encounter
       const pendingIds = groupPendings.map(p => p.id);

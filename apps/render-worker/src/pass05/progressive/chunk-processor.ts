@@ -11,7 +11,8 @@ import {
   batchInsertPendingEncountersV3,
   batchInsertPendingIdentifiers,
   batchInsertPageAssignments,
-  updatePageSeparationAnalysis
+  updatePageSeparationAnalysis,
+  supabase
 } from './database';
 import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
@@ -234,6 +235,18 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   for (const cascadeId of newCascadeIds) {
     await trackCascade(cascadeId, params.sessionId, params.chunkNumber);
     console.log(`[Chunk ${params.chunkNumber}] ✓ Tracked new cascade chain: ${cascadeId}`);
+
+    // Migration 59: Increment session total_cascades counter
+    const { data: newCount, error: counterError } = await supabase.rpc(
+      'increment_session_total_cascades',
+      { p_session_id: params.sessionId }
+    );
+
+    if (counterError) {
+      console.error(`[Chunk ${params.chunkNumber}] Failed to increment cascade counter:`, counterError);
+    } else {
+      console.log(`[Chunk ${params.chunkNumber}] ✓ Session total_cascades now: ${newCount}`);
+    }
   }
 
   // Increment cascade chain counters for continuations
@@ -381,6 +394,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     : 0;
 
   // Save chunk results to database
+  const endTime = Date.now(); // Migration 59: Capture end time
   await saveChunkResults({
     sessionId: params.sessionId,
     chunkNumber: params.chunkNumber,
@@ -399,7 +413,9 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     continuesCount: pendings.filter(p => p.continues_previous).length,        // Strategy A field
     aiResponseRaw: aiResponse.content,
     processingTimeMs,
-    pageSeparationAnalysis                                                    // Optional batching analysis
+    pageSeparationAnalysis,                                                   // Optional batching analysis
+    startedAt: new Date(startTime).toISOString(),                             // Migration 59
+    completedAt: new Date(endTime).toISOString()                              // Migration 59
   });
 
   console.log(`[Chunk ${params.chunkNumber}] Complete: ${pendings.length} pendings created, confidence ${avgConfidence.toFixed(2)}, ${processingTimeMs}ms, $${cost.toFixed(4)}`);

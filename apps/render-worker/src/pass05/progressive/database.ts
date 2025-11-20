@@ -132,6 +132,8 @@ export async function saveChunkResults(params: {
   aiResponseRaw: any;
   processingTimeMs: number;
   pageSeparationAnalysis?: any;        // Optional batching analysis (Migration 47)
+  startedAt: string;                   // Migration 59: Chunk start timestamp
+  completedAt: string;                 // Migration 59: Chunk completion timestamp
 }): Promise<void> {
   const { error } = await supabase
     .from('pass05_chunk_results')
@@ -154,7 +156,9 @@ export async function saveChunkResults(params: {
       continues_count: params.continuesCount,                   // Strategy A field
       page_separation_analysis: params.pageSeparationAnalysis,  // Strategy A field (optional)
       processing_time_ms: params.processingTimeMs,
-      ai_response_raw: params.aiResponseRaw
+      ai_response_raw: params.aiResponseRaw,
+      started_at: params.startedAt,                             // Migration 59
+      completed_at: params.completedAt                          // Migration 59
     });
 
   if (error) {

@@ -539,7 +539,7 @@ BEGIN
   FROM pass05_pending_encounters
   WHERE id = p_pending_ids[1];
 
-  -- Insert final encounter atomically
+  -- Insert final encounter atomically (EXTENDED with identity fields - Migration 58)
   INSERT INTO healthcare_encounters (
     patient_id,
     source_shell_file_id,
@@ -582,7 +582,12 @@ BEGIN
     reconciled_from_pendings,
     chunk_count,
     cascade_id,
-    completed_at
+    completed_at,
+    -- Migration 58: Identity fields
+    patient_full_name,
+    patient_date_of_birth,
+    patient_address,
+    chief_complaint
   )
   SELECT
     p_patient_id,
@@ -632,7 +637,12 @@ BEGIN
      FROM pass05_pending_encounters
      WHERE id = ANY(p_pending_ids)),
     v_cascade_id,
-    NOW()
+    NOW(),
+    -- Migration 58: Identity fields (extracted from JSONB)
+    (p_encounter_data->>'patient_full_name')::TEXT,
+    (p_encounter_data->>'patient_date_of_birth')::DATE,
+    (p_encounter_data->>'patient_address')::TEXT,
+    (p_encounter_data->>'chief_complaint')::TEXT
   RETURNING id INTO v_encounter_id;
 
   -- Mark all pendings as completed (atomic with insert)
@@ -664,9 +674,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION reconcile_pending_to_final IS
-  'Atomically converts pending encounters to final encounter. Inserts into healthcare_encounters,
-   marks pendings as completed, and updates page assignments. All operations succeed or fail together.
-   Returns final encounter ID. (Migrations 52-53: column names, Migration 55: page_ranges array conversion,
+  'Migration 58: Extended reconcile_pending_to_final to extract identity fields from JSONB.
+   Now extracts patient_full_name, patient_date_of_birth, patient_address, and chief_complaint
+   from p_encounter_data JSONB parameter and writes to healthcare_encounters.
+   These fields must be added to the JSONB by TypeScript reconciler using pickBestValue()
+   and normalizeDateToISO() helpers. See STRATEGY-A-DATA-QUALITY-AUDIT.md Issue #8.
+   (Migrations 52-53: column names, Migration 55: page_ranges array conversion,
    Migration 56: pending_id type mismatch fix, Migration 57: audit trail and tracking fields)';
 
 
@@ -697,6 +710,9 @@ CREATE OR REPLACE FUNCTION update_strategy_a_metrics(
 ) RETURNS VOID AS $$
 DECLARE
   v_metrics_id UUID;
+  v_strategy_a_session_id UUID;
+
+  -- Existing metrics (Migration 57)
   v_pendings_total INTEGER;
   v_cascades_total INTEGER;
   v_orphans_total INTEGER;
@@ -704,7 +720,25 @@ DECLARE
   v_final_encounters_count INTEGER;
   v_real_world_count INTEGER;
   v_pseudo_count INTEGER;
+
+  -- NEW: Token and cost metrics (Migration 58)
+  v_total_input_tokens INTEGER;
+  v_total_output_tokens INTEGER;
+  v_total_tokens INTEGER;
+  v_total_cost_usd NUMERIC(10,6);
+
+  -- NEW: Quality metrics (Migration 58)
+  v_ocr_avg_confidence NUMERIC(3,2);
+  v_encounter_confidence_avg NUMERIC(3,2);
+  v_encounter_types TEXT[];
+
+  -- NEW: Performance metrics (Migration 58)
+  v_processing_time_ms INTEGER;
+  v_ai_model_used TEXT;
+  v_total_pages INTEGER;
+  v_batching_required BOOLEAN;
 BEGIN
+  -- Get metrics record
   SELECT id INTO v_metrics_id
   FROM pass05_encounter_metrics
   WHERE shell_file_id = p_shell_file_id
@@ -714,15 +748,22 @@ BEGIN
     RAISE EXCEPTION 'No metrics record found for shell_file_id: %', p_shell_file_id;
   END IF;
 
+  -- Get Strategy A session ID (pass05_progressive_sessions.id)
+  SELECT id INTO v_strategy_a_session_id
+  FROM pass05_progressive_sessions
+  WHERE shell_file_id = p_shell_file_id;
+
+  -- EXISTING QUERY: Pendings, cascades, orphans, chunks
   SELECT
     COUNT(*),
     COUNT(DISTINCT cascade_id) FILTER (WHERE cascade_id IS NOT NULL),
     COUNT(*) FILTER (WHERE status = 'pending'),
-    (SELECT MAX(chunk_number) FROM pass05_chunk_results WHERE session_id = p_session_id)
+    (SELECT MAX(chunk_number) FROM pass05_chunk_results WHERE session_id = v_strategy_a_session_id)
   INTO v_pendings_total, v_cascades_total, v_orphans_total, v_chunk_count
   FROM pass05_pending_encounters
-  WHERE session_id = p_session_id;
+  WHERE session_id = v_strategy_a_session_id;
 
+  -- EXISTING QUERY: Final encounter counts
   SELECT
     COUNT(*),
     COUNT(*) FILTER (WHERE is_real_world_visit = TRUE),
@@ -732,27 +773,124 @@ BEGIN
   WHERE source_shell_file_id = p_shell_file_id
     AND identified_in_pass = 'pass_0_5';
 
+  -- NEW QUERY 1: Token and cost metrics from progressive session
+  SELECT
+    total_input_tokens,
+    total_output_tokens,
+    total_cost_usd
+  INTO v_total_input_tokens, v_total_output_tokens, v_total_cost_usd
+  FROM pass05_progressive_sessions
+  WHERE id = v_strategy_a_session_id;
+
+  -- Calculate total tokens
+  v_total_tokens := COALESCE(v_total_input_tokens, 0) + COALESCE(v_total_output_tokens, 0);
+
+  -- NEW QUERY 2: Quality metrics from final encounters
+  SELECT
+    AVG(pass_0_5_confidence),
+    ARRAY_AGG(DISTINCT encounter_type) FILTER (WHERE encounter_type IS NOT NULL)
+  INTO v_encounter_confidence_avg, v_encounter_types
+  FROM healthcare_encounters
+  WHERE source_shell_file_id = p_shell_file_id
+    AND identified_in_pass = 'pass_0_5';
+
+  -- NEW QUERY 3: OCR confidence from chunk results
+  SELECT AVG(ocr_confidence)
+  INTO v_ocr_avg_confidence
+  FROM pass05_chunk_results
+  WHERE session_id = v_strategy_a_session_id;
+
+  -- NEW QUERY 4: Performance metrics from progressive session
+  SELECT
+    ai_model_used,
+    total_pages,
+    strategy_version
+  INTO v_ai_model_used, v_total_pages, v_batching_required
+  FROM pass05_progressive_sessions
+  WHERE id = v_strategy_a_session_id;
+
+  -- Convert strategy_version to batching_required boolean
+  -- Strategy A = TRUE (universal progressive), Strategy B = FALSE (direct processing)
+  v_batching_required := (v_batching_required = 'strategy_a');
+
+  -- NEW QUERY 5: Processing time from chunk results (total duration)
+  SELECT
+    EXTRACT(EPOCH FROM (MAX(completed_at) - MIN(started_at))) * 1000
+  INTO v_processing_time_ms
+  FROM pass05_chunk_results
+  WHERE session_id = v_strategy_a_session_id;
+
+  -- UPDATE: All metrics (existing + new)
   UPDATE pass05_encounter_metrics
   SET
+    -- Existing fields (Migration 57)
     encounters_detected = v_final_encounters_count,
     real_world_encounters = v_real_world_count,
     pseudo_encounters = v_pseudo_count,
-    pendings_total = v_pendings_total,
-    cascades_total = v_cascades_total,
-    orphans_total = v_orphans_total,
-    chunk_count = v_chunk_count
+
+    -- NEW: Token and cost metrics (Migration 58)
+    input_tokens = COALESCE(v_total_input_tokens, 0),
+    output_tokens = COALESCE(v_total_output_tokens, 0),
+    total_tokens = COALESCE(v_total_tokens, 0),
+    ai_cost_usd = v_total_cost_usd,
+
+    -- NEW: Quality metrics (Migration 58)
+    ocr_average_confidence = v_ocr_avg_confidence,
+    encounter_confidence_average = v_encounter_confidence_avg,
+    encounter_types_found = v_encounter_types,
+
+    -- NEW: Performance metrics (Migration 58)
+    processing_time_ms = COALESCE(v_processing_time_ms::INTEGER, 0),
+    ai_model_used = COALESCE(v_ai_model_used, 'unknown'),
+    total_pages = COALESCE(v_total_pages, 0),
+    batching_required = COALESCE(v_batching_required, FALSE)
   WHERE id = v_metrics_id;
 
-  RAISE NOTICE 'Updated metrics: % encounters (% real-world, % pseudo) from % pendings, % cascades, % chunks',
+  RAISE NOTICE 'Updated metrics: % encounters (% real-world, % pseudo) from % pendings, % cascades, % chunks, % tokens (% in, % out), cost $%, OCR conf %, enc conf %',
     v_final_encounters_count, v_real_world_count, v_pseudo_count,
-    v_pendings_total, v_cascades_total, v_chunk_count;
+    v_pendings_total, v_cascades_total, v_chunk_count,
+    v_total_tokens, v_total_input_tokens, v_total_output_tokens,
+    v_total_cost_usd, v_ocr_avg_confidence, v_encounter_confidence_avg;
 END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION update_strategy_a_metrics IS
-  'Migration 57: Updates pass05_encounter_metrics after Strategy A reconciliation completes.
-   Populates pendings_total, cascades_total, orphans_total, chunk_count, and corrects
-   encounter counts that were written as zeros before reconciliation. (Rabbit #17)';
+  'Migration 58: Extended update_strategy_a_metrics to populate all ~23 fields in pass05_encounter_metrics.
+   Previously only populated 7 fields (encounters_detected, real_world_encounters, pseudo_encounters,
+   pendings_total, cascades_total, orphans_total, chunk_count). Now also populates:
+   - Token metrics (input_tokens, output_tokens, total_tokens)
+   - Cost metrics (ai_cost_usd)
+   - Quality metrics (ocr_average_confidence, encounter_confidence_average, encounter_types_found)
+   - Performance metrics (processing_time_ms, ai_model_used, total_pages, batching_required)
+   See STRATEGY-A-DATA-QUALITY-AUDIT.md Issue #10 for details.';
+
+
+-- RPC #2.6: Atomic Cascade Counter Increment (Migration 59)
+CREATE OR REPLACE FUNCTION increment_session_total_cascades(
+  p_session_id UUID
+) RETURNS INTEGER AS $$
+DECLARE
+  v_new_count INTEGER;
+BEGIN
+  -- Atomically increment total_cascades
+  UPDATE pass05_progressive_sessions
+  SET total_cascades = total_cascades + 1
+  WHERE id = p_session_id
+  RETURNING total_cascades INTO v_new_count;
+
+  IF v_new_count IS NULL THEN
+    RAISE EXCEPTION 'Session not found: %', p_session_id;
+  END IF;
+
+  RETURN v_new_count;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION increment_session_total_cascades IS
+  'Migration 59: Atomically increments total_cascades counter in pass05_progressive_sessions.
+   Called by chunk-processor.ts when a new cascade is created (encounters with is_cascading=true).
+   Returns the new total_cascades value after increment.
+   See STRATEGY-A-DATA-QUALITY-AUDIT.md Issue #4 for details.';
 
 
 -- RPC #3: Atomic Session Metrics Finalization (Migration 52)
