@@ -125,10 +125,13 @@ Examples:
 
 **Critical Cascade Rules:**
 
-An encounter is **cascading** if it touches the chunk boundary (extends beyond current chunk):
-- Set \`is_cascading: true\`
+An encounter is **cascading** if it reaches or extends past the LAST page of this chunk:
+- **This chunk contains pages ${pageRange[0]} to ${pageRange[1]}**
+- **If encounter ends at page ${pageRange[1]} (last page) OR LATER → Set \`is_cascading: true\`**
 - Set \`expected_continuation\`: What you expect in next chunk (e.g., "discharge_summary", "lab_results")
 - Set \`cascade_context\`: Brief note about continuation state
+
+**Why:** An encounter ending at the chunk's last page likely continues into the next chunk. Mark it as cascading so the system can link it with continuation data from the next chunk.
 
 Example cascading encounter:
 \`\`\`json
