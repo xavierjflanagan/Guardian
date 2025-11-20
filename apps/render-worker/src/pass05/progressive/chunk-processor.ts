@@ -193,6 +193,28 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     }
   }
 
+  // FIX: Assign cascade_ids to encounters that will cascade BEFORE persisting
+  // This ensures encounters ending at chunk boundary get proper cascade_ids,
+  // not just implicit ones during handoff building
+  pendings.forEach((pending, index) => {
+    if (!pending.cascade_id && shouldCascade(
+      {
+        is_cascading: pending.is_cascading,
+        end_boundary_type: pending.end_boundary_type,
+        end_page: pending.end_page,
+        encounter_type: pending.encounter_type
+      },
+      params.chunkNumber,
+      params.totalChunks,
+      params.pageRange[1]
+    )) {
+      // This encounter will cascade but doesn't have cascade_id yet
+      // (AI said is_cascading: false, but shouldCascade detected it ends at boundary)
+      pending.cascade_id = generateCascadeId(params.sessionId, params.chunkNumber, index, pending.encounter_type);
+      console.log(`[Chunk ${params.chunkNumber}] Generated cascade_id for implicit cascade: ${pending.pending_id} → ${pending.cascade_id}`);
+    }
+  });
+
   // Save all pendings to database (Strategy A: no direct finals)
   console.log(`[Chunk ${params.chunkNumber}] Saving ${pendings.length} pending encounters...`);
 
