@@ -546,7 +546,7 @@ BEGIN
     facility_name,
     start_page,
     start_boundary_type,
-    start_text_marker,
+    start_marker,              -- Migration 53: Fixed from start_text_marker
     start_marker_context,
     start_region_hint,
     start_text_y_top,
@@ -554,7 +554,7 @@ BEGIN
     start_y,
     end_page,
     end_boundary_type,
-    end_text_marker,
+    end_marker,                -- Migration 53: Fixed from end_text_marker
     end_marker_context,
     end_region_hint,
     end_text_y_top,
@@ -638,7 +638,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION reconcile_pending_to_final IS
   'Atomically converts pending encounters to final encounter. Inserts into healthcare_encounters,
    marks pendings as completed, and updates page assignments. All operations succeed or fail together.
-   Returns final encounter ID. (Migration 52)';
+   Returns final encounter ID. (Migration 52, updated Migration 53: fixed column names)';
 
 
 -- RPC #2: Atomic Cascade Pending Count Increment (Migration 52)

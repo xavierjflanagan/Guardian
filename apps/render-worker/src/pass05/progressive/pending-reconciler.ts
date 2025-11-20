@@ -89,14 +89,15 @@ export async function reconcilePendingEncounters(
       const qualityData = calculateQualityTier(firstPending);
 
       // Build encounter data JSONB for RPC
+      // Rabbit #3 fix: Access JSONB fields correctly
       const encounterData = {
-        encounter_type: firstPending.encounter_type,
-        encounter_start_date: firstPending.encounter_start_date,
-        encounter_end_date: firstPending.encounter_end_date,
-        encounter_timeframe_status: firstPending.encounter_timeframe_status,
-        date_source: firstPending.date_source,
-        provider_name: firstPending.provider_name,
-        facility_name: firstPending.facility_name,
+        encounter_type: firstPending.encounter_data?.encounter_type || 'unknown',
+        encounter_start_date: firstPending.encounter_start_date,  // Top-level column
+        encounter_end_date: firstPending.encounter_end_date,      // Top-level column
+        encounter_timeframe_status: firstPending.encounter_data?.encounter_timeframe_status || 'completed',
+        date_source: firstPending.encounter_data?.date_source || 'ai_extracted',
+        provider_name: firstPending.provider_name,                // Top-level column
+        facility_name: firstPending.facility_name,                // Top-level column
 
         // Position data (17 fields from mergePositionData)
         start_page: mergedPosition.start_page,
@@ -121,9 +122,9 @@ export async function reconcilePendingEncounters(
 
         // Page ranges and metadata
         page_ranges: mergedPageRanges,
-        pass_0_5_confidence: firstPending.confidence,
-        summary: firstPending.summary,
-        is_real_world_visit: firstPending.is_real_world_visit,
+        pass_0_5_confidence: firstPending.confidence,             // Top-level column
+        summary: firstPending.encounter_data?.summary || null,     // Rabbit #3: From JSONB
+        is_real_world_visit: firstPending.is_real_world_visit,   // Top-level column
 
         // Quality tier (from calculation)
         data_quality_tier: qualityData.tier,
@@ -247,7 +248,10 @@ function validateCascadeGroup(
   }
 
   // Check 2: All have same encounter_type
-  const encounterTypes = new Set(pendings.map(p => p.encounter_type));
+  // Rabbit #3: Access from encounter_data JSONB
+  const encounterTypes = new Set(
+    pendings.map(p => p.encounter_data?.encounter_type || 'unknown')
+  );
   if (encounterTypes.size > 1) {
     errors.push(`Multiple encounter types: ${Array.from(encounterTypes).join(', ')}`);
   }
@@ -518,14 +522,20 @@ async function aggregateBatchingAnalysis(
     }
   }
 
-  // Sort by page number
+  // Check if we have any split points before processing
+  if (allSplitPoints.length === 0) {
+    console.log(`[Reconcile] No split points to aggregate`);
+    return;
+  }
+
+  // Sort by page number with null-safe access (Rabbit #6 fix)
   allSplitPoints.sort((a, b) => {
     const pageA = a.split_type === 'inter_page'
-      ? a.between_pages[0]
-      : a.page;
+      ? (a.between_pages?.[0] ?? a.page ?? 0)
+      : (a.page ?? 0);
     const pageB = b.split_type === 'inter_page'
-      ? b.between_pages[0]
-      : b.page;
+      ? (b.between_pages?.[0] ?? b.page ?? 0)
+      : (b.page ?? 0);
     return pageA - pageB;
   });
 

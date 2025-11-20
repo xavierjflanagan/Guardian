@@ -229,9 +229,11 @@ export async function insertPendingEncounterV3(
   pending: PendingEncounter
 ): Promise<string> {
   // Build encounter_data jsonb from encounter core fields
+  // Rabbit #4 fix: Include date_source in JSONB
   const encounterData = {
     encounter_type: pending.encounter_type,
     encounter_timeframe_status: pending.encounter_timeframe_status,
+    date_source: pending.date_source || 'ai_extracted',  // Rabbit #4: Added missing field
     summary: pending.summary,
     confidence: pending.confidence,
     // Clinical fields (V11 additions)
