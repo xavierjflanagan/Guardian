@@ -1,124 +1,162 @@
 # Pass 0.5 Strategy A - Script Analysis V3
 
-**Date:** November 18, 2024
-**Version:** 3.0
+**Date:** November 20, 2024
+**Version:** 3.1
+**Status:** IMPLEMENTATION COMPLETE - Strategy A (v11) operational
 **Supersedes:** 02-SCRIPT-ANALYSIS-V2.md (v2.0, Nov 15, 2024)
-**Purpose:** Complete script change plan with full Files 04-13 integration
+**Purpose:** Document current Pass05 script structure after Strategy A implementation
 
-## Changelog from V2
+## Implementation Status
 
-**Major Integrations Since V2:**
-- **File 10:** Profile classification system (identity extraction, matching, orphan detection)
-- **File 11:** Data quality tiers (A/B/C criteria calculation)
-- **File 12:** Encounter source metadata (tracking document origins)
-- **File 13:** Manual encounter scaffolding (minimal - most features OUT OF SCOPE)
+**Strategy A (v11) - COMPLETED:**
+- All legacy code paths archived to `_archive/` directory
+- Universal progressive mode now the ONLY code path
+- All documents (1-1000+ pages) use identical processing pipeline
+- Current version: v11 (see CURRENT_VERSION file)
 
-**New Worker Files Required:**
-- `coordinate-extractor.ts` - OCR coordinate lookup for intra-page boundaries
-- `cascade-manager.ts` - Cascade ID generation and tracking
-- `profile-classifier.ts` - Identity normalization and profile matching (optional/future)
-- `identifier-extractor.ts` - Medical identifier parsing and storage
-- `aiPrompts.v11.ts` - V11 prompt with all new features
-
-**Updated Script Complexity:**
-- `chunk-processor.ts`: MEDIUM → **HIGH** (identity extraction, identifier parsing, coordinate extraction)
-- `pending-reconciler.ts`: HIGH → **VERY HIGH** (identifier migration, quality calculation, metadata handling)
-- Timeline: 4-5 weeks → **5-6 weeks** (profile classification adds complexity)
-
-**New Database Fields (from Files 10-13):**
-- Identity markers: 4 fields (patient_full_name, patient_date_of_birth, patient_address, patient_phone)
-- Classification: 4 fields (matched_profile_id, match_confidence, match_status, is_orphan_identity)
-- Quality: 1 field (data_quality_tier)
-- Source metadata: 5 fields (encounter_source, manual_created_by, created_by_user_id, api_source_name, api_import_date)
-- **Total new fields since V2:** +14 fields across both tables
+**Archive Summary (November 20, 2024):**
+- Legacy prompts archived: v2.4, v2.7, v2.8, v2.9, v10
+- Legacy standard mode archived: manifestBuilder.ts
+- Legacy documentation archived: prompt-versions-and-improvements/
+- See `_archive/README.md` for details
 
 ---
 
-## Executive Summary
+## Current Script Structure (as of November 20, 2024)
 
-### What is Strategy A?
+### Execution Flow (Single Code Path)
 
-**Universal Progressive Processing** - ALL documents (1-page to 1000-page) use the same progressive chunk-based processing pipeline.
+```
+encounterDiscovery.ts (entry point)
+  ↓
+progressive/session-manager.ts
+  ↓
+progressive/chunk-processor.ts (uses aiPrompts.v11.ts)
+  ├→ progressive/cascade-manager.ts
+  ├→ progressive/coordinate-extractor.ts
+  ├→ progressive/identifier-extractor.ts
+  └→ progressive/handoff-builder.ts
+  ↓
+progressive/database.ts (batch inserts to pass05_pending_encounters)
+  ↓
+progressive/pending-reconciler.ts (reconcile after all chunks)
+  ↓
+healthcare_encounters (final table)
+```
 
-### Complete Feature Set
-
-**Core Pipeline (Files 04-08):**
-- ✅ Cascade-based encounter continuity
-- ✅ Sub-page position granularity (13 position fields)
-- ✅ OCR coordinate extraction for intra-page boundaries
-- ✅ Batching analysis for Pass 1/2 optimization
-- ✅ Simplified reconciliation (group by cascade_id)
-
-**Identity & Quality (Files 10-11):**
-- ✅ Patient identity extraction (name, DOB, address, phone)
-- ✅ Medical identifier extraction (MRN, insurance, Medicare)
-- ✅ Profile classification (match to account profiles)
-- ✅ Orphan identity detection (3+ occurrences suggest new profile)
-- ✅ Data quality tiers (A/B/C criteria → low/medium/high/verified)
-
-**Source Tracking (File 12):**
-- ✅ Encounter source metadata (shell_file, manual, API)
-- ✅ Creator tracking (user who uploaded/created)
-- ✅ API source identification (for quality tier calculation)
-
-**Out of Scope (File 13):**
-- ❌ Manual encounter UI (future)
-- ❌ AI chat sessions (future)
-- ❌ Voice recording processing (future)
-- ❌ Progress note generation (future)
-
-### Implementation Scope
-
-**Worker Files:**
-- **New files:** 5 (coordinate-extractor, cascade-manager, profile-classifier, identifier-extractor, aiPrompts.v11)
-- **Modified files:** 5 (chunk-processor, reconciler, session-manager, handoff-builder, database)
-- **No changes:** 4 (provider files, model files)
-
-**Database Integration:**
-- **New tables:** 6 (cascade_chains, reconciliation_log, pending_identifiers, encounter_identifiers, orphan_identities, classification_audit)
-- **Modified tables:** 2 (pass05_pending_encounters +39 cols, healthcare_encounters +38 cols)
-- **Supporting tables:** 2 (pass05_chunk_results, shell_files)
-
-**Estimated Timeline:**
-- Core pipeline (Files 04-08): 3 weeks
-- Identity & quality (Files 10-11): 1.5 weeks
-- Source metadata (File 12): 0.5 weeks
-- Testing & integration: 1 week
-- **Total: 5-6 weeks**
-
----
-
-## Directory Structure
+### Directory Structure
 
 ```
 apps/render-worker/src/pass05/
-├── Core Scripts
-├── progressive/
-│   ├── session-manager.ts          [MODIFY - Medium]
-│   ├── chunk-processor.ts          [MODIFY - HIGH]
-│   ├── pending-reconciler.ts       [MODIFY - VERY HIGH]
-│   ├── handoff-builder.ts          [MODIFY - Low]
-│   ├── database.ts                 [MODIFY - Medium]
-│   ├── types.ts                    [MODIFY - Medium]
-│   ├── coordinate-extractor.ts     [NEW - File 07]
-│   ├── cascade-manager.ts          [NEW - File 05]
-│   ├── identifier-extractor.ts     [NEW - File 10]
-│   ├── profile-classifier.ts       [NEW - File 10, optional]
-│   └── quality-calculator.ts       [NEW - File 11, can be function in reconciler]
-├── providers/
-│   ├── base-provider.ts            [NO CHANGE]
-│   ├── google-provider.ts          [NO CHANGE]
-│   ├── openai-provider.ts          [NO CHANGE]
-│   └── provider-factory.ts         [NO CHANGE]
-├── models/
-│   ├── model-registry.ts           [NO CHANGE]
-│   └── model-selector.ts           [NO CHANGE]
-└── aiPrompts.v11.ts                [NEW - File 04]
+├── CURRENT_VERSION                  [v11 version indicator]
+├── PASS05_ARCHITECTURE.md           [Architecture documentation]
+├── index.ts                         [Main entry point for worker]
+├── encounterDiscovery.ts            [Simplified router to progressive mode]
+├── types.ts                         [Core type definitions]
+├── aiPrompts.v11.ts                 [ONLY active prompt - v11]
+│
+├── _archive/                        [Legacy code (Nov 20, 2024)]
+│   ├── README.md                    [Archive documentation]
+│   ├── legacy-prompts/              [v2.4, v2.7, v2.8, v2.9, v10]
+│   ├── legacy-standard-mode/        [manifestBuilder.ts]
+│   └── prompt-versions-and-improvements/  [Historical docs]
+│
+├── progressive/                     [Active progressive pipeline]
+│   ├── session-manager.ts           [Session orchestration]
+│   ├── chunk-processor.ts           [50-page chunk processing]
+│   ├── pending-reconciler.ts        [Post-chunk reconciliation]
+│   ├── database.ts                  [Database operations]
+│   ├── handoff-builder.ts           [Inter-chunk continuity]
+│   ├── types.ts                     [Progressive mode types]
+│   ├── post-processor.ts            [Post-processing utilities]
+│   ├── cascade-manager.ts           [Cascade ID generation]
+│   ├── coordinate-extractor.ts      [OCR coordinate lookup]
+│   └── identifier-extractor.ts      [Medical identifier parsing]
+│
+├── providers/                       [AI provider abstraction]
+│   ├── base-provider.ts             [Abstract base class]
+│   ├── google-provider.ts           [Google Gemini]
+│   ├── openai-provider.ts           [OpenAI GPT]
+│   └── provider-factory.ts          [Provider selection]
+│
+└── models/                          [Model configuration]
+    ├── model-registry.ts            [Available models]
+    └── model-selector.ts            [Model selection logic]
 ```
 
 ---
 
-## Part 1: Script Categories
+## Script Categories
+
+### 1. Entry Points
+
+#### index.ts
+**Purpose:** Main Pass05 entry point called by worker
+**Location:** `apps/render-worker/src/pass05/index.ts`
+**Key Functions:**
+- `runPass05(input)` - Main orchestration function
+- Idempotency checking via shell_files table
+- Creates AI processing session
+- Writes metrics to pass05_encounter_metrics
+- Updates shell_files completion status
+
+**Execution Flow:**
+1. Check if already processed (idempotency)
+2. Call discoverEncounters()
+3. Create AI processing session
+4. Write encounter metrics
+5. Write page assignments
+6. Finalize shell_file status
+
+#### encounterDiscovery.ts
+**Purpose:** Simplified router to progressive mode (Strategy A v11)
+**Location:** `apps/render-worker/src/pass05/encounterDiscovery.ts`
+**Key Functions:**
+- `discoverEncounters(input)` - Routes all documents to progressive mode
+
+**Changes from Legacy:**
+- Removed all version routing logic (v2.4, v2.7, v2.8, v2.9, v10)
+- Removed environment variable checks
+- Removed 100-page threshold logic
+- Now simply calls processDocumentProgressively() for ALL documents
+
+---
+
+### 2. Active Processing Pipeline (progressive/)
+
+#### session-manager.ts
+**Purpose:** Session-level orchestration for progressive processing
+**Key Functions:**
+- `processDocumentProgressively()` - Main progressive mode entry point
+- Chunks documents into 50-page batches
+- Manages session state across chunks
+- Coordinates final reconciliation
+
+#### chunk-processor.ts
+**Purpose:** Process individual 50-page chunks
+**Key Functions:**
+- `processChunk()` - Process single chunk with AI
+- Uses aiPrompts.v11.ts for AI analysis
+- Extracts encounters, identifiers, coordinates
+- Handles cascade-based continuity
+
+**Dependencies:**
+- cascade-manager.ts (cascade ID generation)
+- coordinate-extractor.ts (OCR position lookup)
+- identifier-extractor.ts (medical identifier parsing)
+- handoff-builder.ts (inter-chunk continuity)
+
+#### pending-reconciler.ts
+**Purpose:** Reconcile all pending encounters after all chunks complete
+**Key Functions:**
+- `reconcilePendings()` - Consolidate cascade-linked encounters
+- Migrate identifiers to encounter_identifiers table
+- Calculate data quality tiers
+- Write to healthcare_encounters table
+
+---
+
+## Part 1: Active Scripts (Operational)
 
 ### 1. KEEP AS-IS (Infrastructure) ✅
 
