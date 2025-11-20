@@ -629,11 +629,16 @@ BEGIN
   END LOOP;
 
   -- Update page assignments (atomic)
+  -- Migration 56 FIX: Use subquery to match TEXT pending_id with UUID[] p_pending_ids
   UPDATE pass05_page_assignments
   SET
     encounter_id = v_encounter_id,
     reconciled_at = NOW()
-  WHERE pending_id = ANY(p_pending_ids);
+  WHERE pending_id IN (
+    SELECT pending_id
+    FROM pass05_pending_encounters
+    WHERE id = ANY(p_pending_ids)
+  );
 
   RETURN v_encounter_id;
 END;
@@ -642,7 +647,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION reconcile_pending_to_final IS
   'Atomically converts pending encounters to final encounter. Inserts into healthcare_encounters,
    marks pendings as completed, and updates page assignments. All operations succeed or fail together.
-   Returns final encounter ID. (Migrations 52-53: column names, Migration 55: page_ranges array conversion)';
+   Returns final encounter ID. (Migrations 52-53: column names, Migration 55: page_ranges array conversion, Migration 56: pending_id type mismatch fix)';
 
 
 -- RPC #2: Atomic Cascade Pending Count Increment (Migration 52)
