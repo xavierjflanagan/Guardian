@@ -149,6 +149,18 @@ export async function processDocumentProgressively(
       `[Progressive] Reconciliation complete: ${finalEncounterIds.length} final encounters created`
     );
 
+    // Update session with reconciliation completion timestamp (Rabbit #19 - Migration 57)
+    const { error: updateError } = await supabase
+      .from('pass05_progressive_sessions')
+      .update({
+        reconciliation_completed_at: new Date().toISOString()
+      })
+      .eq('id', session.id);
+
+    if (updateError) {
+      console.error(`[Progressive] Failed to update reconciliation_completed_at:`, updateError);
+    }
+
     // STEP 4: Finalize session metrics via atomic RPC
     console.log(`[Progressive] Finalizing session metrics...`);
 

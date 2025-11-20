@@ -532,7 +532,13 @@ CREATE OR REPLACE FUNCTION reconcile_pending_to_final(
 DECLARE
   v_encounter_id UUID;
   v_pending_id UUID;
+  v_cascade_id TEXT;
 BEGIN
+  -- Migration 57: Get cascade_id from first pending
+  SELECT cascade_id INTO v_cascade_id
+  FROM pass05_pending_encounters
+  WHERE id = p_pending_ids[1];
+
   -- Insert final encounter atomically
   INSERT INTO healthcare_encounters (
     patient_id,
@@ -571,7 +577,12 @@ BEGIN
     quality_criteria_met,
     quality_calculation_date,
     encounter_source,
-    created_by_user_id
+    created_by_user_id,
+    -- Migration 57: Audit trail and tracking fields
+    reconciled_from_pendings,
+    chunk_count,
+    cascade_id,
+    completed_at
   )
   SELECT
     p_patient_id,
@@ -614,7 +625,14 @@ BEGIN
     (p_encounter_data->'quality_criteria_met')::JSONB,
     NOW(),
     'shell_file'::VARCHAR,
-    (p_encounter_data->>'created_by_user_id')::UUID
+    (p_encounter_data->>'created_by_user_id')::UUID,
+    -- Migration 57: Audit trail and tracking fields
+    cardinality(p_pending_ids),
+    (SELECT COUNT(DISTINCT chunk_number)
+     FROM pass05_pending_encounters
+     WHERE id = ANY(p_pending_ids)),
+    v_cascade_id,
+    NOW()
   RETURNING id INTO v_encounter_id;
 
   -- Mark all pendings as completed (atomic with insert)
@@ -624,6 +642,7 @@ BEGIN
     SET
       status = 'completed',
       reconciled_to = v_encounter_id,
+      reconciled_at = NOW(),   -- Migration 57: Add reconciliation timestamp
       updated_at = NOW()
     WHERE id = v_pending_id;
   END LOOP;
@@ -647,7 +666,8 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION reconcile_pending_to_final IS
   'Atomically converts pending encounters to final encounter. Inserts into healthcare_encounters,
    marks pendings as completed, and updates page assignments. All operations succeed or fail together.
-   Returns final encounter ID. (Migrations 52-53: column names, Migration 55: page_ranges array conversion, Migration 56: pending_id type mismatch fix)';
+   Returns final encounter ID. (Migrations 52-53: column names, Migration 55: page_ranges array conversion,
+   Migration 56: pending_id type mismatch fix, Migration 57: audit trail and tracking fields)';
 
 
 -- RPC #2: Atomic Cascade Pending Count Increment (Migration 52)
@@ -668,6 +688,71 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION increment_cascade_pending_count IS
   'Atomically increments pending count for cascade chain. Called when continuation
    encounter detected in subsequent chunk. Replaces fetch+update pattern in database.ts. (Migration 52)';
+
+
+-- RPC #2.5: Update Strategy A Metrics After Reconciliation (Migration 57)
+CREATE OR REPLACE FUNCTION update_strategy_a_metrics(
+  p_shell_file_id UUID,
+  p_session_id UUID
+) RETURNS VOID AS $$
+DECLARE
+  v_metrics_id UUID;
+  v_pendings_total INTEGER;
+  v_cascades_total INTEGER;
+  v_orphans_total INTEGER;
+  v_chunk_count INTEGER;
+  v_final_encounters_count INTEGER;
+  v_real_world_count INTEGER;
+  v_pseudo_count INTEGER;
+BEGIN
+  SELECT id INTO v_metrics_id
+  FROM pass05_encounter_metrics
+  WHERE shell_file_id = p_shell_file_id
+    AND processing_session_id = p_session_id;
+
+  IF v_metrics_id IS NULL THEN
+    RAISE EXCEPTION 'No metrics record found for shell_file_id: %', p_shell_file_id;
+  END IF;
+
+  SELECT
+    COUNT(*),
+    COUNT(DISTINCT cascade_id) FILTER (WHERE cascade_id IS NOT NULL),
+    COUNT(*) FILTER (WHERE status = 'pending'),
+    (SELECT MAX(chunk_number) FROM pass05_chunk_results WHERE session_id = p_session_id)
+  INTO v_pendings_total, v_cascades_total, v_orphans_total, v_chunk_count
+  FROM pass05_pending_encounters
+  WHERE session_id = p_session_id;
+
+  SELECT
+    COUNT(*),
+    COUNT(*) FILTER (WHERE is_real_world_visit = TRUE),
+    COUNT(*) FILTER (WHERE is_real_world_visit = FALSE)
+  INTO v_final_encounters_count, v_real_world_count, v_pseudo_count
+  FROM healthcare_encounters
+  WHERE source_shell_file_id = p_shell_file_id
+    AND identified_in_pass = 'pass_0_5';
+
+  UPDATE pass05_encounter_metrics
+  SET
+    encounters_detected = v_final_encounters_count,
+    real_world_encounters = v_real_world_count,
+    pseudo_encounters = v_pseudo_count,
+    pendings_total = v_pendings_total,
+    cascades_total = v_cascades_total,
+    orphans_total = v_orphans_total,
+    chunk_count = v_chunk_count
+  WHERE id = v_metrics_id;
+
+  RAISE NOTICE 'Updated metrics: % encounters (% real-world, % pseudo) from % pendings, % cascades, % chunks',
+    v_final_encounters_count, v_real_world_count, v_pseudo_count,
+    v_pendings_total, v_cascades_total, v_chunk_count;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION update_strategy_a_metrics IS
+  'Migration 57: Updates pass05_encounter_metrics after Strategy A reconciliation completes.
+   Populates pendings_total, cascades_total, orphans_total, chunk_count, and corrects
+   encounter counts that were written as zeros before reconciliation. (Rabbit #17)';
 
 
 -- RPC #3: Atomic Session Metrics Finalization (Migration 52)

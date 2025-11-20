@@ -5,22 +5,21 @@
 **Hunter:** Claude (AI Assistant)
 **Request:** "Find any other rabbits like this, as if there is one rabbit in the garden there are usually more"
 **Method:** Systematic verification of all active pass05 code against database schema
-**Status:** 🔴 CRITICAL ISSUES FOUND - DEPLOYMENT BLOCKED
+**Status:** ✅ CORE FUNCTIONAL - HIGH PRIORITY IMPROVEMENTS NEEDED
 
 ---
 
 ## Executive Summary
 
-**Total Rabbits Found:** 6 critical issues (2 fixed, 4 unfixed)
-**Files Affected:** 3 locations (`pending-reconciler.ts`, `database.ts`, `reconcile_pending_to_final` RPC)
-**Impact:** System failed production test - multiple cascade failures
-**Priority:** PRODUCTION BLOCKER - System completely non-functional
+**Total Rabbits Found:** 13 issues (7 critical fixed, 6 high/medium priority unfixed)
+**Files Affected:** 6 locations (`pending-reconciler.ts`, `database.ts`, `reconcile_pending_to_final` RPC, `chunk-processor.ts`, `session-manager.ts`, `index.ts`)
+**Impact:** Core system functional - reconciliation working, but missing audit trails and metrics
+**Priority:** HIGH PRIORITY - Audit trail and metrics tracking incomplete
 
-**Production Test Status:** ❌ FAILED (Job: b70820df-b271-4da4-a809-d84acfdab232)
-- Session: 644bfbd9-b781-4891-916a-d51caf12ceda
-- Document: 3 pages, 1 chunk
-- Failure Point: Reconciliation phase
-- Errors: 2 runtime crashes
+**Production Test Status:** ✅ PASSING (Session: 1fe015a5-b7fa-4e07-83c6-966847ba855b)
+- Document: 142 pages, 3 chunks
+- Result: 1 final encounter created successfully from 3 pending encounters
+- Remaining Issues: Missing timestamps, incomplete metrics, tracking gaps
 
 ---
 
@@ -88,12 +87,12 @@ Code tried to write to non-existent column:
 
 ---
 
-## Rabbit #3: JSONB Field Access Pattern Mismatch (🔴 UNFIXED)
+## Rabbit #3: JSONB Field Access Pattern Mismatch (✅ FIXED)
 
 **File:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts`
 **Lines:** 93-99, 125, 250
-**Status:** 🔴 CRITICAL - REQUIRES FIX
-**Severity:** BLOCKING
+**Status:** ✅ FIXED (Date TBD)
+**Severity:** Was CRITICAL - Now resolved
 
 ### Issue
 Code accesses fields as top-level properties when they are stored in `encounter_data` JSONB column.
@@ -177,13 +176,13 @@ const encounterTypes = new Set(
 
 ---
 
-## Rabbit #4: Missing Field in encounter_data JSONB (🔴 UNFIXED)
+## Rabbit #4: Missing Field in encounter_data JSONB (✅ FIXED)
 
 **File:** `apps/render-worker/src/pass05/progressive/database.ts`
 **Function:** `insertPendingEncounterV3`
 **Lines:** 233-248
-**Status:** 🔴 CRITICAL - REQUIRES FIX
-**Severity:** BLOCKING
+**Status:** ✅ FIXED (Date TBD)
+**Severity:** Was CRITICAL - Now resolved
 
 ### Issue
 The field `date_source` is accessed by `pending-reconciler.ts` but never stored in `encounter_data` JSONB.
@@ -374,11 +373,11 @@ These are **in-memory TypeScript objects** created by `parseV11Response()` (line
 
 ---
 
-## Rabbit #5: RPC Column Name Mismatch (🔴 PRODUCTION FAILURE)
+## Rabbit #5: RPC Column Name Mismatch (✅ FIXED)
 
 **File:** Database RPC function `reconcile_pending_to_final`
-**Status:** 🔴 CRITICAL - CAUSING PRODUCTION FAILURES
-**Severity:** BLOCKING
+**Status:** ✅ FIXED (Migration 53)
+**Severity:** Was CRITICAL - Now resolved
 **Evidence:** Production logs from job b70820df-b271-4da4-a809-d84acfdab232
 
 ### Issue
@@ -422,12 +421,12 @@ INSERT INTO healthcare_encounters (
 
 ---
 
-## Rabbit #6: Unsafe Array Access in Batching Analysis (🔴 PRODUCTION CRASH)
+## Rabbit #6: Unsafe Array Access in Batching Analysis (✅ FIXED)
 
 **File:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts`
 **Lines:** 524-527
-**Status:** 🔴 CRITICAL - CAUSING CRASHES
-**Severity:** BLOCKING
+**Status:** ✅ FIXED (Date TBD)
+**Severity:** Was CRITICAL - Now resolved
 **Evidence:** Production logs from session 644bfbd9-b781-4891-916a-d51caf12ceda
 
 ### Issue
@@ -528,6 +527,419 @@ if (allSplitPoints.length === 0) {
 5. Deploy to Render.com
 6. Run integration test
 7. Document results in this file
+
+---
+
+---
+
+## Rabbit #7: Rabbit reserved for future use
+
+---
+
+## Rabbit #8: JSONB Array to PostgreSQL Array Conversion (✅ FIXED)
+
+**File:** Database RPC function `reconcile_pending_to_final` (Migration 54, then Migration 55)
+**Status:** ✅ FIXED (Migrations 54 & 55 - 2025-11-20)
+**Severity:** CRITICAL - Blocked all reconciliations
+**Evidence:** Session a1775405-30ec-4e6e-9f3d-7834c1376cb8
+
+### Issue
+PostgreSQL cannot cast JSONB arrays directly to INTEGER[][] type. Two attempts were needed:
+
+**First Attempt (Migration 54):** Changed `->` to `->>`
+- Error: "malformed array literal: \"[[1, 100]]\""
+- Root cause: `->>` gives JSON format text `"[[1,100]]"` but PostgreSQL expects `{{1,100}}`
+
+**Second Attempt (Migration 55):** Used `jsonb_array_elements()` to properly convert
+- Success: Converts JSONB arrays to PostgreSQL array format
+
+### Fix Applied (Migration 55)
+```sql
+-- CORRECT: Properly convert JSONB array to INTEGER[][]
+(SELECT ARRAY(
+  SELECT ARRAY[(elem->0)::INTEGER, (elem->1)::INTEGER]
+  FROM jsonb_array_elements(p_encounter_data->'page_ranges') AS elem
+))
+```
+
+### Verification
+- Tested with sample data: `{"page_ranges": [[1, 10], [20, 30]]}`
+- Output: `{{1,10},{20,30}}` ✅
+
+---
+
+## Rabbit #9: Type Mismatch in Page Assignments Update (✅ FIXED)
+
+**File:** Database RPC function `reconcile_pending_to_final` (Migration 56)
+**Status:** ✅ FIXED (Migration 56 - 2025-11-20)
+**Severity:** CRITICAL - Blocked page assignment updates
+**Evidence:** Session b18955d5-f0fc-4710-bbfa-d6ea0eaace5c
+**Error:** "operator does not exist: text = uuid"
+
+### Issue
+Line 176 tried to compare TEXT column with UUID[] array:
+```sql
+-- WRONG:
+WHERE pending_id = ANY(p_pending_ids)
+-- Compared: pass05_page_assignments.pending_id (TEXT) with p_pending_ids (UUID[])
+```
+
+### Fix Applied (Migration 56)
+```sql
+-- CORRECT: Use subquery to match TEXT pending_id with UUID[] p_pending_ids
+UPDATE pass05_page_assignments
+SET
+  encounter_id = v_encounter_id,
+  reconciled_at = NOW()
+WHERE pending_id IN (
+  SELECT pending_id
+  FROM pass05_pending_encounters
+  WHERE id = ANY(p_pending_ids)
+);
+```
+
+---
+
+## Rabbit #10: Cascade Inheritance Logic Ordering (✅ FIXED)
+
+**File:** `apps/render-worker/src/pass05/progressive/chunk-processor.ts`
+**Lines:** 418-440
+**Status:** ✅ FIXED (Commit TBD - 2025-11-20)
+**Severity:** HIGH - Created multiple encounters instead of one
+**Evidence:** Session 0426b428-8e9d-4681-8b3a-3c2910714a9b (3 encounters created instead of 1)
+
+### Issue
+Code required BOTH `is_cascading` AND `continues_previous` for cascade_id inheritance:
+```typescript
+// WRONG:
+if (enc.is_cascading) {
+  if (enc.continues_previous && cascadeContexts.length > 0) {
+    // Inherit cascade_id
+```
+
+But AI prompt says continuation that ENDS has `is_cascading: false`, so chunks 2-3 never inherited cascade_id.
+
+### Fix Applied
+```typescript
+// CORRECT: Check continues_previous FIRST (regardless of is_cascading)
+if (enc.continues_previous && cascadeContexts.length > 0) {
+  // CONTINUATION: Inherit cascade_id from previous chunk
+  const matchingCascade = cascadeContexts.find(ctx => ctx.encounter_type === enc.encounter_type);
+
+  if (matchingCascade) {
+    cascade_id = matchingCascade.cascade_id;
+    console.log(`[Parse V11] Encounter ${index} continues cascade ${cascade_id} from previous chunk (is_cascading: ${enc.is_cascading})`);
+  }
+} else if (enc.is_cascading) {
+  // NEW CASCADE: Generate new cascade_id starting in this chunk
+  cascade_id = generateCascadeId(sessionId, chunkNumber, index, enc.encounter_type);
+}
+```
+
+### Impact
+- Before: Chunks 2-3 had `cascade_id: NULL`, reconciled separately → 3 final encounters
+- After: All chunks share same cascade_id → 1 final encounter ✅
+
+---
+
+## Rabbit #11: Metrics Written Before Reconciliation (🔴 UNFIXED)
+
+**File:** `apps/render-worker/src/pass05/index.ts`
+**Line:** ~157
+**Status:** 🔴 HIGH PRIORITY - Metrics showing zeros
+**Severity:** HIGH - Dashboard shows 0 encounters despite successful processing
+**Evidence:** Session 1fe015a5-b7fa-4e07-83c6-966847ba855b
+
+### Issue
+Metrics are written BEFORE reconciliation completes:
+```typescript
+// Line ~157 (WRONG):
+await writeMetrics(encounters, ...);  // encounters.length = 0 in progressive mode
+```
+
+### Expected Values
+- encounters_detected: 1 (not 0)
+- real_world_encounters: 1 (not 0)
+- pseudo_encounters: 0
+- pendings_total: 3
+- cascades_total: 1
+- orphans_total: 0
+- chunk_count: 3
+
+### Required Fix
+Update metrics AFTER reconciliation completes with final encounter counts.
+
+---
+
+## Rabbit #12: Implicit Cascades Missing cascade_id (✅ FIXED)
+
+**File:** `apps/render-worker/src/pass05/progressive/chunk-processor.ts`
+**Lines:** 196-216
+**Status:** ✅ FIXED (Commit TBD - 2025-11-20)
+**Severity:** HIGH - Created 2 encounters instead of 1
+**Evidence:** Session bab35449-0cff-4406-9ad2-5a35f3ade8d8
+
+### Issue
+Encounter ending at page 50 (chunk boundary) but AI said `is_cascading: false`. The `shouldCascade()` function correctly detected it, but cascade_id was only assigned during handoff building (after persistence).
+
+Result: Chunk 1 had `cascade_id: NULL` in database, chunks 2-3 got "implicit_pending_xxx" cascade_id.
+
+### Fix Applied
+Assign cascade_id BEFORE persistence:
+```typescript
+// FIX: Assign cascade_ids to encounters that will cascade BEFORE persisting
+pendings.forEach((pending, index) => {
+  if (!pending.cascade_id && shouldCascade(
+    {
+      is_cascading: pending.is_cascading,
+      end_boundary_type: pending.end_boundary_type,
+      end_page: pending.end_page,
+      encounter_type: pending.encounter_type
+    },
+    params.chunkNumber,
+    params.totalChunks,
+    params.pageRange[1]
+  )) {
+    // This encounter will cascade but doesn't have cascade_id yet
+    pending.cascade_id = generateCascadeId(params.sessionId, params.chunkNumber, index, pending.encounter_type);
+    console.log(`[Chunk ${params.chunkNumber}] Generated cascade_id for implicit cascade: ${pending.pending_id} → ${pending.cascade_id}`);
+  }
+});
+```
+
+---
+
+## Rabbit #13: AI Prompt Ambiguity for Cascading Detection (✅ FIXED)
+
+**File:** `apps/render-worker/src/pass05/aiPrompts.v11.ts`
+**Lines:** 128-134
+**Status:** ✅ FIXED (Commit TBD - 2025-11-20)
+**Severity:** MEDIUM - AI not setting is_cascading correctly
+**Evidence:** Chunk 1 had `is_cascading: false` despite ending at page 50 (chunk boundary)
+
+### Issue
+Prompt said "extends beyond current chunk" - ambiguous. AI interpreted as "goes PAST the last page", so encounter ending AT page 50 (not PAST it) → `is_cascading: false`.
+
+### Fix Applied
+Made prompt explicit and concrete:
+```typescript
+An encounter is **cascading** if it reaches or extends past the LAST page of this chunk:
+- **This chunk contains pages ${pageRange[0]} to ${pageRange[1]}**
+- **If encounter ends at page ${pageRange[1]} (last page) OR LATER → Set \`is_cascading: true\`**
+- Set \`expected_continuation\`: What you expect in next chunk (e.g., "discharge_summary", "lab_results")
+- Set \`cascade_context\`: Brief note about continuation state
+
+**Why:** An encounter ending at the chunk's last page likely continues into the next chunk. Mark it as cascading so the system can link it with continuation data from the next chunk.
+```
+
+### Verification
+Session 1fe015a5-b7fa-4e07-83c6-966847ba855b: Chunk 1 now correctly has `is_cascading: TRUE` ✅
+
+---
+
+## NEW RABBITS: Audit Trail and Metrics Tracking Gaps (🔴 UNFIXED)
+
+**Discovery Date:** 2025-11-20 (Post-successful reconciliation analysis)
+**Method:** Systematic NULL value analysis across all Strategy A tables
+**Status:** 🔴 HIGH/MEDIUM PRIORITY - Incomplete tracking
+
+### High Priority Audit Trail Issues
+
+#### Rabbit #14: Missing reconciled_at Timestamp (Pending Encounters)
+
+**Table:** `pass05_pending_encounters`
+**Column:** `reconciled_at`
+**Status:** 🔴 HIGH PRIORITY
+**Impact:** No audit trail of when pendings were reconciled
+
+**Issue:**
+Migration 56 reconciliation RPC updates `status` and `reconciled_to` but not `reconciled_at`:
+```sql
+-- CURRENT (INCOMPLETE):
+UPDATE pass05_pending_encounters
+SET
+  status = 'completed',
+  reconciled_to = v_encounter_id,
+  updated_at = NOW()
+WHERE id = v_pending_id;
+```
+
+**Fix Required:**
+```sql
+-- ADD:
+reconciled_at = NOW()
+```
+
+---
+
+#### Rabbit #15: Missing reconciled_from_pendings (Final Encounter)
+
+**Table:** `healthcare_encounters`
+**Column:** `reconciled_from_pendings`
+**Status:** 🔴 HIGH PRIORITY
+**Impact:** Can't trace which pendings created which final encounter
+
+**Issue:**
+Reconciliation RPC receives `p_pending_ids UUID[]` but doesn't store them in final encounter.
+
+**Fix Required:**
+Add to INSERT statement:
+```sql
+reconciled_from_pendings = p_pending_ids
+```
+
+---
+
+#### Rabbit #16: Missing chunk_count (Final Encounter)
+
+**Table:** `healthcare_encounters`
+**Column:** `chunk_count`
+**Status:** 🔴 HIGH PRIORITY
+**Impact:** Can't see how many chunks contributed to encounter
+
+**Current Value:** Shows 1, should be 3
+
+**Fix Required:**
+Count distinct chunk_number from p_pending_ids:
+```sql
+chunk_count = (
+  SELECT COUNT(DISTINCT chunk_number)
+  FROM pass05_pending_encounters
+  WHERE id = ANY(p_pending_ids)
+)
+```
+
+---
+
+#### Rabbit #17: Missing Migration 49 Metrics
+
+**Table:** `pass05_encounter_metrics`
+**Columns:** `pendings_total`, `cascades_total`, `orphans_total`, `chunk_count`
+**Status:** 🔴 HIGH PRIORITY
+**Impact:** Strategy A reconciliation metrics not tracked
+
+**Current Values:** All NULL
+
+**Expected Values:**
+- pendings_total: 3
+- cascades_total: 1
+- orphans_total: 0
+- chunk_count: 3
+
+**Fix Required:**
+Update metrics table after reconciliation completes.
+
+---
+
+### Medium Priority Tracking Issues
+
+#### Rabbit #18: Missing total_cascades (Session)
+
+**Table:** `pass05_progressive_sessions`
+**Column:** `total_cascades`
+**Status:** ⚠️ MEDIUM PRIORITY
+**Impact:** Session doesn't show cascade count
+
+**Current Value:** 0, should be 1
+
+**Fix Required:**
+Update session-manager.ts to increment when cascade_id assigned.
+
+---
+
+#### Rabbit #19: Missing reconciliation_completed_at (Session)
+
+**Table:** `pass05_progressive_sessions`
+**Column:** `reconciliation_completed_at`
+**Status:** ⚠️ MEDIUM PRIORITY
+**Impact:** No timestamp for when session reconciliation finished
+
+**Current Value:** NULL
+
+**Fix Required:**
+Update pass05_progressive_sessions after reconciliation completes.
+
+---
+
+#### Rabbit #20: Missing started_at/completed_at (Chunk Results)
+
+**Table:** `pass05_chunk_results`
+**Columns:** `started_at`, `completed_at`
+**Status:** ⚠️ MEDIUM PRIORITY
+**Impact:** Can't analyze chunk timing patterns
+
+**Current Values:** NULL (despite processing_time_ms being populated)
+
+**Fix Required:**
+Update database.ts `recordChunkResult()` to include timestamps.
+
+---
+
+#### Rabbit #21: Missing completed_at (Final Encounter)
+
+**Table:** `healthcare_encounters`
+**Column:** `completed_at`
+**Status:** ⚠️ MEDIUM PRIORITY
+**Impact:** No completion timestamp for encounters
+
+**Current Value:** NULL
+
+**Design Question:** When is an encounter "completed"?
+- At reconciliation time (when final encounter created)?
+- After downstream passes (Pass 1, Pass 2) extract data from it?
+
+**Fix Required:** Define completion semantics, then implement timestamp.
+
+---
+
+#### Rabbit #22: cascade_id NULL in healthcare_encounters (Design Question)
+
+**Table:** `healthcare_encounters`
+**Column:** `cascade_id`
+**Status:** ⚠️ DESIGN QUESTION
+**Impact:** Can't directly query final encounter's source cascade
+
+**Current Value:** NULL
+
+**Analysis:**
+- Final encounter WAS created from cascade (cascade_id: "cascade_1_0_hospital_admission")
+- But healthcare_encounters.cascade_id is NULL
+- Can be queried via: `SELECT cascade_id FROM pass05_pending_encounters WHERE reconciled_to = <encounter_id>`
+
+**User Decision:** "If we can easily insert cascade_id into the healthcare_encounter column then lets. But if instead it can be served with sql queries then whats the point in adding it into every row."
+
+**Recommendation:** Add it to RPC - it's a single line:
+```sql
+cascade_id = (SELECT cascade_id FROM pass05_pending_encounters WHERE id = p_pending_ids[1])
+```
+
+---
+
+## Updated Deployment Status
+
+**CURRENT STATUS:** ✅ CORE SYSTEM FUNCTIONAL - HIGH PRIORITY IMPROVEMENTS NEEDED
+
+**Production Test Results (Session: 1fe015a5-b7fa-4e07-83c6-966847ba855b):**
+- ✅ 142-page document processed successfully
+- ✅ 3 chunks processed
+- ✅ 3 pending encounters created
+- ✅ 1 final encounter reconciled correctly
+- ✅ All cascade logic working
+- ⚠️ Missing audit trail timestamps
+- ⚠️ Metrics showing zeros
+- ⚠️ Incomplete tracking fields
+
+**Required Actions:**
+1. Fix Rabbit #11 (metrics written before reconciliation)
+2. Fix Rabbit #14-#17 (high priority audit trail gaps) - Migration 57
+3. Fix Rabbit #18-#21 (medium priority tracking gaps) - Code updates
+4. Review Rabbit #22 (cascade_id design question) - User decision required
+5. Test fixes with sample document
+6. Deploy to Render.com
+
+**Estimated Fix Time:** 2-3 hours
+**Testing Time:** 30 minutes
+**Total Time to Complete:** 2.5-3.5 hours
 
 ---
 

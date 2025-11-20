@@ -170,6 +170,24 @@ export async function reconcilePendingEncounters(
   // STEP 5: Aggregate batching analysis to shell_files
   await aggregateBatchingAnalysis(sessionId, shellFileId, totalPages);
 
+  // STEP 6: Update metrics after reconciliation (Rabbit #11, #17 - Migration 57)
+  try {
+    const { error: metricsError } = await supabase.rpc('update_strategy_a_metrics', {
+      p_shell_file_id: shellFileId,
+      p_session_id: sessionId
+    });
+
+    if (metricsError) {
+      console.error(`[Reconcile] Failed to update metrics:`, metricsError);
+      // Don't throw - metrics update failure shouldn't block reconciliation success
+    } else {
+      console.log(`[Reconcile] Updated Strategy A metrics successfully`);
+    }
+  } catch (error) {
+    console.error(`[Reconcile] Exception updating metrics:`, error);
+    // Don't throw - metrics update failure shouldn't block reconciliation success
+  }
+
   console.log(`[Reconcile] Reconciliation complete: ${finalEncounterIds.length} final encounters created`);
 
   return finalEncounterIds;
