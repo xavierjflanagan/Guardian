@@ -11,6 +11,41 @@ exports.parseEncounterResponse = parseEncounterResponse;
 const supabase_js_1 = require("@supabase/supabase-js");
 const supabase = (0, supabase_js_1.createClient)(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 /**
+ * v2.3: Validate page assignments (if present)
+ * Ensures all pages assigned, encounter IDs match, justifications present
+ */
+function validatePageAssignments(pageAssignments, encounters, totalPages) {
+    // Check all pages are assigned (if totalPages known)
+    if (totalPages) {
+        const assignedPages = new Set(pageAssignments.map(pa => pa.page));
+        if (assignedPages.size !== totalPages) {
+            console.warn(`[Pass 0.5 v2.3] Page assignment count mismatch: ` +
+                `${assignedPages.size} pages assigned, but document has ${totalPages} pages`);
+        }
+        // Check for missing pages
+        for (let page = 1; page <= totalPages; page++) {
+            if (!assignedPages.has(page)) {
+                console.warn(`[Pass 0.5 v2.3] Page ${page} not assigned to any encounter`);
+            }
+        }
+    }
+    // Check encounter_id consistency
+    const encounterIds = new Set(encounters.map(e => e.encounter_id).filter(Boolean));
+    const assignmentEncounterIds = new Set(pageAssignments.map(pa => pa.encounter_id));
+    for (const id of assignmentEncounterIds) {
+        if (!encounterIds.has(id)) {
+            throw new Error(`[Pass 0.5 v2.3] Page assignment references unknown encounter_id "${id}". ` +
+                `Encounter IDs in encounters array: ${Array.from(encounterIds).join(', ')}`);
+        }
+    }
+    // Check justifications present
+    for (const pa of pageAssignments) {
+        if (!pa.justification || pa.justification.trim().length === 0) {
+            console.warn(`[Pass 0.5 v2.3] Page ${pa.page} missing justification`);
+        }
+    }
+}
+/**
  * Validate that page ranges do not overlap between encounters
  * Phase 1 requirement: Each page belongs to exactly one encounter
  */
@@ -67,9 +102,23 @@ function validateEncounterType(type) {
 /**
  * Parse AI response and enrich with spatial bbox data from OCR
  * Note: Idempotency handled at runPass05() level
+ *
+ * v2.3: Returns page_assignments if present in AI response
+ * v2.9: Implements two-branch logic for date waterfall (Migration 42)
  */
-async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFileId) {
+async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFileId, totalPages) {
     const parsed = JSON.parse(aiResponse);
+    // v2.9: Retrieve file metadata for date fallback logic
+    const { data: shellFileData } = await supabase
+        .from('shell_files')
+        .select('created_at, original_filename')
+        .eq('id', shellFileId)
+        .single();
+    const fileCreatedAt = shellFileData?.created_at ? new Date(shellFileData.created_at) : new Date();
+    // v2.3: Validate page_assignments if present
+    if (parsed.page_assignments) {
+        validatePageAssignments(parsed.page_assignments, parsed.encounters, totalPages);
+    }
     // CRITICAL: Validate page ranges have valid end values
     for (const aiEnc of parsed.encounters) {
         for (const range of aiEnc.pageRanges) {
@@ -97,6 +146,43 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             }
             return [start, end];
         }).sort((a, b) => a[0] - b[0]);
+        // Extract spatial bounds from OCR for this encounter's pages (use normalized ranges)
+        const spatialBounds = extractSpatialBounds(normalizedPageRanges, ocrOutput);
+        // v2.9: Two-Branch Logic (Migration 42)
+        // Branch A: Real-world encounters (direct AI mapping)
+        // Branch B: Pseudo encounters (date waterfall fallback)
+        let encounterStartDate;
+        let encounterDateEnd;
+        let encounterTimeframeStatus;
+        let dateSource;
+        if (aiEnc.isRealWorldVisit) {
+            // Branch A: Real-world encounters - direct mapping from AI
+            encounterStartDate = aiEnc.dateRange?.start || null;
+            encounterDateEnd = aiEnc.dateRange?.end || null;
+            encounterTimeframeStatus = aiEnc.encounterTimeframeStatus || 'completed';
+            dateSource = aiEnc.dateSource || 'ai_extracted';
+        }
+        else {
+            // Branch B: Pseudo encounters - date waterfall fallback
+            if (aiEnc.dateRange?.start) {
+                // AI extracted date from document (e.g., lab collection date)
+                encounterStartDate = aiEnc.dateRange.start;
+                dateSource = 'ai_extracted';
+            }
+            else if (fileCreatedAt) {
+                // Fallback to file creation date
+                encounterStartDate = fileCreatedAt.toISOString().split('T')[0]; // YYYY-MM-DD
+                dateSource = 'file_metadata';
+            }
+            else {
+                // Last resort: current date
+                encounterStartDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                dateSource = 'upload_date';
+            }
+            // Pseudo encounters: start = end (completed observation)
+            encounterDateEnd = encounterStartDate;
+            encounterTimeframeStatus = 'completed';
+        }
         // Pre-create encounter in database to get UUID
         // UPSERT for idempotency: safe to retry if manifest write fails
         const { data: dbEncounter, error } = await supabase
@@ -105,16 +191,21 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             patient_id: patientId, // Required NOT NULL field
             encounter_type: aiEnc.encounterType, // Safe now (validated)
             is_real_world_visit: aiEnc.isRealWorldVisit,
-            encounter_date: aiEnc.dateRange?.start || null,
-            encounter_date_end: aiEnc.dateRange?.end || null, // For multi-day encounters (added in migration)
+            encounter_start_date: encounterStartDate, // Migration 42: Renamed from encounter_date
+            encounter_end_date: encounterDateEnd, // For multi-day encounters (Migration 38/42)
+            encounter_timeframe_status: encounterTimeframeStatus, // Migration 42: Explicit completion status
+            date_source: dateSource, // Migration 38/42: Track date provenance with waterfall logic
             provider_name: aiEnc.provider || null,
             facility_name: aiEnc.facility || null,
             primary_shell_file_id: shellFileId, // Link to source document
             page_ranges: normalizedPageRanges, // Use normalized (sorted) ranges
+            spatial_bounds: spatialBounds, // Migration 38: Bounding box coordinates
             identified_in_pass: 'pass_0_5',
-            pass_0_5_confidence: aiEnc.confidence
+            pass_0_5_confidence: aiEnc.confidence,
+            source_method: 'ai_pass_0_5', // Migration 38: Replaced ai_extracted boolean
+            summary: aiEnc.summary || null // Migration 38: AI-generated plain English description
         }, {
-            onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_date,page_ranges',
+            onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_start_date,page_ranges', // Migration 42: Updated conflict key
             ignoreDuplicates: false // Update existing record
         })
             .select('id')
@@ -122,22 +213,33 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
         if (error || !dbEncounter) {
             throw new Error(`Failed to create encounter in database: ${error?.message}`);
         }
-        // Extract spatial bounds from OCR for this encounter's pages (use normalized ranges)
-        const spatialBounds = extractSpatialBounds(normalizedPageRanges, ocrOutput);
         encounters.push({
             encounterId: dbEncounter.id,
             encounterType: aiEnc.encounterType, // Safe now (validated)
             isRealWorldVisit: aiEnc.isRealWorldVisit,
-            dateRange: aiEnc.dateRange,
+            dateRange: encounterStartDate ? {
+                start: encounterStartDate,
+                end: encounterDateEnd || undefined
+            } : undefined,
+            encounterTimeframeStatus: encounterTimeframeStatus, // v2.9: Migration 42
+            dateSource: dateSource, // v2.9: Migration 42
             provider: aiEnc.provider,
             facility: aiEnc.facility,
             pageRanges: normalizedPageRanges, // Return normalized ranges
             spatialBounds,
             confidence: aiEnc.confidence,
+            summary: aiEnc.summary, // Migration 41: Include encounter summary in manifest for Pass 1/2 context
             extractedText: aiEnc.extractedText
         });
     }
-    return { encounters };
+    // v2.3: Return page_assignments if present (for analysis and debugging)
+    const result = {
+        encounters
+    };
+    if (parsed.page_assignments) {
+        result.page_assignments = parsed.page_assignments;
+    }
+    return result;
 }
 /**
  * Extract bounding boxes from OCR for specified page ranges
@@ -155,7 +257,10 @@ function extractSpatialBounds(pageRanges, ocrOutput) {
                 continue;
             // Create comprehensive page region (entire page for now)
             // Phase 2: Could create sub-page regions based on content density
-            const pageDims = { width: ocrPage.width, height: ocrPage.height };
+            // Support both legacy (width/height) and new (dimensions) OCR structure
+            const pageDims = ocrPage.dimensions
+                ? { width: ocrPage.dimensions.width, height: ocrPage.dimensions.height }
+                : { width: ocrPage.width || 0, height: ocrPage.height || 0 };
             const entirePageBbox = {
                 vertices: [
                     { x: 0, y: 0 },

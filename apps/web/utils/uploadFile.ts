@@ -31,7 +31,7 @@ export async function uploadFile(file: File, patientId: string): Promise<string>
         file_size_bytes: file.size,
         mime_type: file.type,
         patient_id: patientId,
-        estimated_pages: 1, // Default, will be updated by OCR
+        // Note: estimated_pages removed - Edge Function calculates from file size
       },
     }
   );

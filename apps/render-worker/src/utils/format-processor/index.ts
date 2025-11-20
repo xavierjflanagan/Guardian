@@ -19,7 +19,17 @@ import type { ProcessedPage, PreprocessResult, FormatProcessorConfig } from './t
 import { extractTiffPages } from './tiff-processor';
 import { extractPdfPages } from './pdf-processor';
 import convert from 'heic-convert';
-import sharp from 'sharp';
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
+
+// Lazy loader for Sharp - only loads when first image processing is needed
+let sharpInstance: typeof import('sharp') | null = null;
+async function getSharp() {
+  if (!sharpInstance) {
+    sharpInstance = (await import('sharp')).default;
+  }
+  return sharpInstance;
+}
 
 /**
  * Preprocess a file for OCR
@@ -111,7 +121,8 @@ export async function preprocessForOCR(
       // Wrap ArrayBuffer in Node.js Buffer for convenience methods
       const jpegBuffer = Buffer.from(jpegArrayBuffer);
 
-      // Extract dimensions from converted JPEG using Sharp
+      // Extract dimensions from converted JPEG using Sharp (lazy loaded)
+      const sharp = await getSharp();
       const jpegMeta = await sharp(jpegBuffer).metadata();
 
       const heicProcessingTime = Date.now() - heicStartTime;
@@ -170,7 +181,8 @@ export async function preprocessForOCR(
       // Decode base64 to buffer
       const buffer = Buffer.from(base64Data, 'base64');
 
-      // Process through Sharp for EXIF auto-rotation, optimization, and dimension extraction
+      // Process through Sharp for EXIF auto-rotation, optimization, and dimension extraction (lazy loaded)
+      const sharp = await getSharp();
       const pipeline = sharp(buffer)
         .rotate() // Auto-rotate using EXIF orientation (critical for iPhone photos)
         .resize(config?.maxWidth || 1600, null, {

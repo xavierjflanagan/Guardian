@@ -1,20 +1,15 @@
 /**
- * Task 1: Healthcare Encounter Discovery
+ * Task 1: Healthcare Encounter Discovery - STRATEGY A (V11)
  *
- * Strategy Selection (via PASS_05_STRATEGY env var):
- * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
- * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
- * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
+ * STRATEGY A (V11):
+ * - ALL documents use progressive mode (no page threshold)
+ * - Cascade-based encounter continuity
+ * - All encounters created as "pendings" first, reconciled later
+ * - Uses aiPrompts.v11.ts via chunk-processor.ts
  */
 
-import OpenAI from 'openai';
-import { GoogleCloudVisionOCR, EncounterMetadata } from './types';
-import { buildEncounterDiscoveryPrompt } from './aiPrompts';
-import { buildOCROptimizedPrompt } from './aiPromptsOCR';
-// import { buildVisionPrompt } from './aiPromptsVision'; // For future Vision implementation
-import { parseEncounterResponse } from './manifestBuilder';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
+import { processDocumentProgressively } from './progressive/session-manager';
 
 export interface EncounterDiscoveryInput {
   shellFileId: string;
@@ -26,6 +21,7 @@ export interface EncounterDiscoveryInput {
 export interface EncounterDiscoveryOutput {
   success: boolean;
   encounters?: EncounterMetadata[];
+  page_assignments?: PageAssignment[];
   error?: string;
   aiModel: string;
   aiCostUsd: number;
@@ -34,93 +30,35 @@ export interface EncounterDiscoveryOutput {
 }
 
 /**
- * Task 1: Extract healthcare encounters from OCR text
- * Strategy selected via PASS_05_STRATEGY environment variable
+ * STRATEGY A (v11): Extract healthcare encounters using universal progressive mode
+ *
+ * All documents (1-1000+ pages) use the same progressive pipeline:
+ * - Chunks documents into 50-page batches
+ * - Processes each chunk with aiPrompts.v11 (cascade-aware)
+ * - Creates pending encounters during processing
+ * - Reconciles all pendings after all chunks complete
  */
 export async function discoverEncounters(
   input: EncounterDiscoveryInput
 ): Promise<EncounterDiscoveryOutput> {
 
   try {
-    // Read strategy from environment variable (defaults to 'ocr')
-    const strategy = (process.env.PASS_05_STRATEGY || 'ocr') as 'ocr' | 'ocr_optimized' | 'vision';
+    console.log(`[Pass 0.5] STRATEGY A (v11): Universal progressive mode for ${input.pageCount} pages`);
 
-    console.log(`[Pass 0.5] Using strategy: ${strategy}`);
-
-    // Vision strategy requires image loading infrastructure (not yet implemented)
-    if (strategy === 'vision') {
-      throw new Error(
-        'Vision strategy not yet implemented. ' +
-        'Requires image loading from Supabase Storage. ' +
-        'Use PASS_05_STRATEGY=ocr or ocr_optimized instead.'
-      );
-    }
-
-    // Select prompt builder based on strategy
-    const promptBuilder = strategy === 'ocr_optimized'
-      ? buildOCROptimizedPrompt
-      : buildEncounterDiscoveryPrompt;
-
-    // Build prompt with OCR text
-    const prompt = promptBuilder({
-      fullText: input.ocrOutput.fullTextAnnotation.text,
-      pageCount: input.pageCount,
-      ocrPages: input.ocrOutput.fullTextAnnotation.pages
-    });
-
-    // Detect GPT-5 vs GPT-4o (same pattern as Pass 1)
-    const model = 'gpt-5-mini';
-    const isGPT5 = model.startsWith('gpt-5');
-
-    // Build request parameters with model-specific handling
-    const requestParams: any = {
-      model: model,
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a medical document analyzer specializing in healthcare encounter extraction.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      response_format: { type: 'json_object' }
-    };
-
-    // Model-specific parameters (same pattern as Pass 1)
-    if (isGPT5) {
-      // GPT-5: Uses max_completion_tokens, temperature fixed at 1.0
-      requestParams.max_completion_tokens = 32000; // Safe limit for GPT-5-mini (supports up to 128k)
-    } else {
-      // GPT-4o and earlier: Uses max_tokens and custom temperature
-      requestParams.max_tokens = 32000;
-      requestParams.temperature = 0.1; // Low temperature for consistent extraction
-    }
-
-    // Call OpenAI API
-    const response = await openai.chat.completions.create(requestParams);
-
-    // Parse AI response
-    const aiOutput = response.choices[0].message.content;
-    if (!aiOutput) {
-      throw new Error('Empty response from AI');
-    }
-
-    const parsed = await parseEncounterResponse(aiOutput, input.ocrOutput, input.patientId, input.shellFileId);
-
-    // Calculate cost
-    const inputTokens = response.usage?.prompt_tokens || 0;
-    const outputTokens = response.usage?.completion_tokens || 0;
-    const cost = calculateCost(inputTokens, outputTokens);
+    const progressiveResult = await processDocumentProgressively(
+      input.shellFileId,
+      input.patientId,
+      input.ocrOutput.fullTextAnnotation.pages
+    );
 
     return {
       success: true,
-      encounters: parsed.encounters,
-      aiModel: response.model,  // Dynamic from OpenAI response
-      aiCostUsd: cost,
-      inputTokens,
-      outputTokens
+      encounters: [], // Strategy A: Encounters written to DB, query healthcare_encounters to retrieve
+      page_assignments: [], // Strategy A: Handled by reconciliation, query pass05_page_assignments
+      aiModel: progressiveResult.aiModel,
+      aiCostUsd: progressiveResult.totalCost,
+      inputTokens: progressiveResult.totalInputTokens,
+      outputTokens: progressiveResult.totalOutputTokens
     };
 
   } catch (error) {
@@ -128,21 +66,10 @@ export async function discoverEncounters(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-      aiModel: 'unknown',  // No response available on error
+      aiModel: 'unknown',
       aiCostUsd: 0,
       inputTokens: 0,
       outputTokens: 0
     };
   }
-}
-
-function calculateCost(inputTokens: number, outputTokens: number): number {
-  // GPT-5-mini pricing (as of Oct 2025)
-  const INPUT_PRICE_PER_1M = 0.25;  // $0.25 per 1M tokens (verified)
-  const OUTPUT_PRICE_PER_1M = 2.00;  // $2.00 per 1M tokens (verified)
-
-  const inputCost = (inputTokens / 1_000_000) * INPUT_PRICE_PER_1M;
-  const outputCost = (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_1M;
-
-  return inputCost + outputCost;
 }

@@ -1,12 +1,13 @@
 /**
- * Task 1: Healthcare Encounter Discovery
+ * Task 1: Healthcare Encounter Discovery - STRATEGY A (V11)
  *
- * Strategy Selection (via PASS_05_STRATEGY env var):
- * - 'ocr' (default): Current baseline prompt with OCR text (gpt-5-mini)
- * - 'ocr_optimized': OCR-optimized prompt focused on text patterns (gpt-5-mini)
- * - 'vision': Vision-optimized prompt with raw images (gpt-5-mini vision) - NOT YET IMPLEMENTED
+ * STRATEGY A (V11):
+ * - ALL documents use progressive mode (no page threshold)
+ * - Cascade-based encounter continuity
+ * - All encounters created as "pendings" first, reconciled later
+ * - Uses aiPrompts.v11.ts via chunk-processor.ts
  */
-import { GoogleCloudVisionOCR, EncounterMetadata } from './types';
+import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
 export interface EncounterDiscoveryInput {
     shellFileId: string;
     patientId: string;
@@ -16,6 +17,7 @@ export interface EncounterDiscoveryInput {
 export interface EncounterDiscoveryOutput {
     success: boolean;
     encounters?: EncounterMetadata[];
+    page_assignments?: PageAssignment[];
     error?: string;
     aiModel: string;
     aiCostUsd: number;
@@ -23,8 +25,13 @@ export interface EncounterDiscoveryOutput {
     outputTokens: number;
 }
 /**
- * Task 1: Extract healthcare encounters from OCR text
- * Strategy selected via PASS_05_STRATEGY environment variable
+ * STRATEGY A (v11): Extract healthcare encounters using universal progressive mode
+ *
+ * All documents (1-1000+ pages) use the same progressive pipeline:
+ * - Chunks documents into 50-page batches
+ * - Processes each chunk with aiPrompts.v11 (cascade-aware)
+ * - Creates pending encounters during processing
+ * - Reconciles all pendings after all chunks complete
  */
 export declare function discoverEncounters(input: EncounterDiscoveryInput): Promise<EncounterDiscoveryOutput>;
 //# sourceMappingURL=encounterDiscovery.d.ts.map

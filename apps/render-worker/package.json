@@ -5,7 +5,7 @@
   "main": "dist/worker.js",
   "scripts": {
     "build": "tsc --project ./tsconfig.json",
-    "start": "node dist/worker.js",
+    "start": "node --expose-gc --max-old-space-size=450 dist/worker.js",
     "dev": "tsx src/worker.ts",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
@@ -15,6 +15,7 @@
     "deploy:production": "cp -r ./* ../../../../../../../apps/render-worker/ && cd ../../../../../../../ && git add apps/render-worker && git commit -m 'Deploy worker to production' && git push origin main"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.38.0",
     "@types/heic-convert": "^2.1.0",
     "dotenv": "^16.3.1",

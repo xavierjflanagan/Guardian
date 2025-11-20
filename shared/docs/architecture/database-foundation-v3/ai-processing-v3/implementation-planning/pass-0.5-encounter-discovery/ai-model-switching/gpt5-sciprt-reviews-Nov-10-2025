@@ -1,0 +1,206 @@
+I'll open all six created files in parallel to cache context, then provide a focused review of file 1 (`model-registry.ts`) first.
+
+[6 tools called]
+
+I read all six created files to cache context. I’ll review file 1 (`model-registry.ts`) first, then wait for your go-ahead before moving to file 2.
+
+### File 1 of 6 — apps/render-worker/src/pass05/models/model-registry.ts
+
+- Summary: Central registry of supported models; clear typing; good numeric separators; helpful getters.
+- Architectural symmetry: Matches the provider abstraction and selector. OpenAI vs Google fields line up with provider expectations.
+- Main risks/bugs:
+  - OpenAI max tokens param likely incorrect for Chat Completions.
+    - The registry sets OpenAI to `max_completion_tokens`, which your OpenAI provider passes to Chat Completions. Chat Completions expects `max_tokens` (not `max_completion_tokens`). This can lead to unbounded completions or ignored limits.
+    
+    Code reference:
+
+    ```61:63:apps/render-worker/src/pass05/models/model-registry.ts
+    temperatureSupported: true,  // API supports temperature, but current implementation uses default 1.0
+    maxTokensParam: 'max_completion_tokens'
+    ```
+  - Minor comment drift on temperature: registry comment says “uses default 1.0,” but the provider sets `temperature = 0.1` when supported.
+
+    ```61:63:apps/render-worker/src/pass05/models/model-registry.ts
+    temperatureSupported: true,  // API supports temperature, but current implementation uses default 1.0
+    maxTokensParam: 'max_completion_tokens'
+    ```
+
+- Non-blocking considerations:
+  - Static pricing in code is easy operationally but goes stale quickly. You’ve documented a future enhancement for env overrides in the plan; keep that path in mind. The log in the selector prints these prices, so any drift will be user-visible.
+  - Optionally consider an enum for `maxTokensParam` to avoid typos.
+
+- What I recommend changing (safe edits):
+  - For OpenAI entries (`gpt-5`, `gpt-5-mini`), change `maxTokensParam` to `max_tokens` to match Chat Completions (unless you intend to switch to the Responses API imminently).
+  - Either update the temperature comment here to reflect 0.1 in the provider or remove the “default 1.0” note to avoid confusion.
+
+
+
+### File 2 of 6 — `apps/render-worker/src/pass05/models/model-selector.ts`
+
+- Strengths
+  - Clear, fail-fast validation; ensures exactly one model is active and an API key is present.
+  - Good, readable error messages guiding Render configuration.
+  - Logs selected model and context window for observability.
+
+- Potential issues / edge cases
+  - Truthy parsing doesn’t trim whitespace; a value like " true " would be treated as false.
+    
+    ```39:41:apps/render-worker/src/pass05/models/model-selector.ts
+    const envValue = process.env[model.envVar];
+    const isActive = ['true', 'TRUE', '1', 'yes', 'YES'].includes(envValue || 'false');
+    ```
+  - Static pricing is logged from the registry; this can drift without code changes. If the registry isn’t promptly updated when providers change pricing, logs may mislead operators.
+    
+    ```77:80:apps/render-worker/src/pass05/models/model-selector.ts
+    console.log(`[Pass 0.5] Selected model: ${model.displayName} (${model.vendor}/${model.modelId})`);
+    console.log(`[Pass 0.5] Context window: ${model.contextWindow.toLocaleString()} tokens`);
+    console.log(`[Pass 0.5] Cost: $${model.inputCostPer1M}/1M input, $${model.outputCostPer1M}/1M output`);
+    ```
+
+- Suggestions (no code changes made)
+  - Trim and lowercase before comparison, and consider adding 'on' as truthy:
+    - Example: `const val = (envValue || '').trim().toLowerCase(); const isActive = ['true','1','yes','on'].includes(val);`
+  - Consider logging “cost estimation enabled at $X/$Y from registry” to make it explicit the numbers are static, or switch logs to token counts only if pricing isn’t strictly maintained.
+  - Optional: include the required API key name in the “No AI model selected” hint text so users see which key will be needed with each toggle.
+
+
+
+
+
+### File 3 of 6 — `apps/render-worker/src/pass05/providers/base-provider.ts`
+
+- Strengths
+  - Clean abstraction and single interface for providers.
+  - Centralized cost calculation and context-window validation.
+  - Reusable token estimation helper; avoids duplication.
+
+- Potential issues / nits
+  - Docstring vs implementation mismatch: comment promises 4-decimal rounding, but code returns raw float.
+  
+    ```62:72:apps/render-worker/src/pass05/providers/base-provider.ts
+    /**
+     * Calculate cost based on token usage and model pricing
+     *
+     * @param inputTokens - Number of input tokens used
+     * @param outputTokens - Number of output tokens generated
+     * @returns Cost in USD (to 4 decimal places)
+     */
+    protected calculateCost(inputTokens: number, outputTokens: number): number {
+      const inputCost = (inputTokens / 1_000_000) * this.model.inputCostPer1M;
+      const outputCost = (outputTokens / 1_000_000) * this.model.outputCostPer1M;
+      return inputCost + outputCost;
+    }
+    ```
+  - Context check only considers prompt tokens; combined prompt + tool/system overhead remains the caller’s responsibility. This is fine given current usage, but worth documenting to avoid double counting.
+  - Token estimator (chars/4) is intentionally rough; acceptable, but expect variance for CJK and OCR-heavy text.
+
+- Recommendations (no code changes made)
+  - Either round in `calculateCost` (e.g., `Number((inputCost+outputCost).toFixed(4))`) or update the comment to reflect the current behavior.
+  - Add a brief note in the JSDoc that `validateContextWindow` assumes the provided count includes all overhead (system/schema), keeping the contract explicit.
+  - Optional: expose a protected `roundCurrency` helper to standardize any future monetary rounding.
+
+
+
+
+  ### File 4 of 6 — `apps/render-worker/src/pass05/providers/openai-provider.ts`
+
+- Strengths
+  - Clean request construction; consistent JSON-mode setting.
+  - Solid error handling branches for 401/429/context-length issues.
+  - Returns standardized `AIResponse` with token usage and cost.
+
+- Issues to address
+  - Param name mismatch for Chat Completions:
+    - Chat Completions expects `max_tokens`; `max_completion_tokens` is for the Responses API. Using it here risks the cap being ignored.
+    
+    ```39:44:apps/render-worker/src/pass05/providers/openai-provider.ts
+    // Set max tokens parameter (GPT-5 uses max_completion_tokens)
+    if (this.model.maxTokensParam === 'max_completion_tokens') {
+      requestParams.max_completion_tokens = this.model.maxOutput;
+    } else {
+      requestParams.max_tokens = this.model.maxOutput;
+    }
+    ```
+    - Fix: If staying on Chat Completions, always set `max_tokens`. If you want `max_completion_tokens`, switch this provider to the Responses API.
+  - Completion cap risk:
+    - You pass `this.model.maxOutput` directly. For OpenAI chat, extremely high caps (e.g., 128k) may exceed per-request or current model limits. Consider a sane cap (e.g., 32k) or a per-vendor limit map to avoid 400s/timeouts.
+  - JSON mode/model support:
+    - `response_format: { type: 'json_object' }` is supported by a subset of models. Confirm GPT-5/-mini support; otherwise fall back to tool-calling or schema-in-prompt parsing to avoid “not supported” errors.
+
+- Suggestions (no changes made)
+  - Short-term: Force `max_tokens` for this provider and clamp to a conservative ceiling (configurable).
+  - Medium-term: Consider migrating to OpenAI Responses API (then `max_completion_tokens` becomes correct and you gain better structured output options).
+  - Optional: Add a provider-level safety guard to ensure requested `max_tokens` ≤ `contextWindow - promptTokens` to reduce overflow errors.
+
+
+
+
+  ### File 5 of 6 — `apps/render-worker/src/pass05/providers/google-provider.ts`
+
+- Strengths
+  - Correctly sets `generationConfig` (temperature, `maxOutputTokens`) and forces JSON output.
+  - Uses `usageMetadata` to capture token counts; standardizes to `AIResponse`.
+  - Thoughtful error handling for quota, token, auth, and 429 cases.
+
+- Potential issues / checks
+  - Confirm field casing for JSON mode in current SDK version:
+  
+    ```28:34:apps/render-worker/src/pass05/providers/google-provider.ts
+    generationConfig: {
+      temperature: this.model.temperatureSupported ? 0.1 : 1.0,
+      maxOutputTokens: this.model.maxOutput,
+      responseMimeType: 'application/json'
+    }
+    ```
+    Some releases used `responseMimeType`, others `responseMIMEType` or REST’s `response_mime_type`. If JSON forcing fails, the model may return free-form text.
+  - Consider clamping `maxOutputTokens` to a safe per-request ceiling if the service enforces sub-65K limits in practice (to prevent 400s/timeouts).
+  - Token fallback: when `usageMetadata` is absent/intermittent, you fall back to estimated prompt tokens but not for output (defaults to 0). That can undercount cost. Optional: default output tokens to `estimateTokens(response.text())`.
+
+- Suggestions (no code changes made)
+  - Verify the `responseMimeType` key against the installed `@google/generative-ai` version; switch if needed.
+  - Optional safety cap (configurable) on `maxOutputTokens`.
+  - Optional: add a defensive output token estimate fallback when `usageMetadata` is missing.
+
+
+
+
+  ### File 6 of 6 — `apps/render-worker/src/pass05/providers/provider-factory.ts`
+
+- Strengths
+  - Small, focused factory with clear mapping from vendor to provider.
+  - Helpful error message for unsupported vendors.
+  - Clean imports and no side effects.
+
+- Architectural symmetry
+  - Aligns with `ModelDefinition.vendor` union and the two concrete providers.
+  - Keeps vendor-specific construction out of callers.
+
+- Potential issues / improvement opportunities
+  - Instance churn: creates a fresh client/provider per call. Consider memoizing per `(vendor, modelId)` to reuse SDK clients and reduce connection overhead, especially under load.
+  - Extensibility: adding a vendor requires touching both the `ModelDefinition.vendor` union and this `switch`. A simple vendor→class map (record) or an enum could reduce repetitive edits.
+  - Error typing: current `default` throws a stringly message. Fine, but you could throw a custom error type for easier detection upstream (optional).
+
+- Minor nits
+  - If you add caching, ensure lifecycle (e.g., handle key rotation) by invalidating cache when related env vars change at startup.
+
+Code reference:
+
+```21:34:apps/render-worker/src/pass05/providers/provider-factory.ts
+export class AIProviderFactory {
+  static createProvider(model: ModelDefinition): BaseAIProvider {
+    switch (model.vendor) {
+      case 'openai':
+        return new OpenAIProvider(model);
+
+      case 'google':
+        return new GoogleProvider(model);
+
+      default:
+        throw new Error(
+          `Unsupported vendor: ${model.vendor}\n` +
+          `Supported vendors: openai, google`
+        );
+    }
+  }
+}
+```

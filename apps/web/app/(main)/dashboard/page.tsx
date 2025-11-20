@@ -97,7 +97,7 @@ export default function DashboardPage() {
 
     try {
       // V3: uploadFile now handles everything (storage + shell-file-processor-v3 + job enqueue)
-      const shellFileId = await uploadFile(file, user.id);
+      const _shellFileId = await uploadFile(file, user.id);
 
       setUploadMessage("File uploaded and AI processing started!");
 

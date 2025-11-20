@@ -1,0 +1,51 @@
+Few questions and feedback comments on certaincolumn outputs in tables for these pass 05 test resutls; 
+
+questions from 3rd Nov 2025 review:
+pass05 encounter metrics table
+- In the pass05 encounter metrics table, the "pages_per_encounter" column was correct for the 2 page tiff file as well as
+  the previous single 13 page file, but for the frankenstein file it assigned each
+  encounter as 10 pages each when it should have been 13 and 7 (the total_pages column
+  correctly stated 20 pages) - so we need to investigate why it got it so wrong for the
+  frankenstein file; manifest id = ab2b90d5-da79-4f21-9610-971e667731a9 . 
+- Batching; 
+   - manifest id b70f6cf2-73e1-4014-88cd-5265965c63af for 142 page pdf that was uploaded and analysed by pass 05. batching_required column was 1 for this, why? And batch_count was 1. 
+  - where is the actual batching happening? the second key pillar of pass05 is to identify where batching should ideally happen. Obviously an ideal spot is inbetween two encounters. But batching is only needed if page count > x . 
+
+
+Healthcare_encounters table
+- This is not being updated at all really. there are so many empty columns in this table. Pass05 ai model is not producing the output to populate many o these columns that it could or should be doing. 
+- for example 
+    - healthcare encounter ID: 30bb946b-7f42-4db0-89ec-0bd186a65635
+       - this is correctly labeled in tabel as a pseudo_lab_report but there is no encounter_date, facility_name, summary. 
+       - the ai_extracted column is false - what does this mean? the requires_review is also false. Furthermore the condeince values for both those columns are null
+       - the clinical_effective_date is null ?
+       - spatial_bounds is empty []
+       - encounter_date_end is null - should this be filled out if we know the encounter_date is a single date? ie it was just a blood test result on 1 day. 
+
+
+
+ 
+questions from 6th November 2025 review:
+
+Shell_files table:
+- We store the processed image as well as the original image in the shell_files table (or at least a direction on where the processed image is stroed correct?), But what about lsiting the file size of the processed image? BEcause i see that we list the file size of the original file/image as file_size_bytes and also provide the 'mime_type' - please assess this whole concept and issue im getting at and see what the right approach is from a software architectural pov
+    - I also see that 'file_type' is empty as well as file_subtype,
+    - ai_synthesized_summary also empty
+    - in general, a lot of the columns are empty of null - we need to analyse this and suss out whats going on and what should be empty vs null vs filled with values. 
+    - provider_name and facility_name are empty for all records as well. 
+    - what is upload_context ? (thats also null)
+    - but i see the processed_image_mime column is populated which is good 
+
+Healthcare_encounters table:
+- healthcare_encounter ID 8c89d8f3-4a1b-4ffe-8890-352ae84700d8 is clearly a lab report / lab test result file, but it was labelled by pass05 ai as 'outpatient' - i suspect this is because there is no option for in the constraints for lab report etc. - please investigate. 
+- are we recording facility address anywhere? facility_name is being inputted when available, but the image/file also includes the address and we need to ask ourselves if we should be recording the address in the database or not, and if so how we would design for this - seperate table or names and addresses and numbers etc so main table doesnt get saturated with columns? Or do we just include a new column . For example, the picture of the moxifloxacin medication from 'SYDNEY HOSPITAL AND SYDNEY EYE HOSPITAL PHARMACY DEPARTMENT' has address and phone number right next to the name in the image - and i can see this info being useful to patients. Only concerns are that numbers and addresses may change over time, so could be a interesting arhictectural db design challenge.
+- encounter_date is being inputted correctly when its relevant to do so, but i do wonder how the system will deal with date formats from countries like the US which are different to Australia. How do we handle this currently? 
+
+shell_file_manifests table:
+- pass_0_5_version - whats the prupose of this column? it just states "1.0.0" for all colums for all uploads over past week. Where is this coming from? whats it meant to be telling us?
+- The 'manifest_data' column appears to be working well. This is the info that we use downstream, for encounter assignment to clinical entities (either in pass 1 or pass 2 or both), as well as to give pass 1 and 2 context about what the broader context of the file is if it has been batched into small context destroying page by page batches for example. But upon reading through a sample manifest, i notice there is no real summary of each file or rather of each encounter within the uploaded file. We did organize for the AI during pass05 to make a summary of each encounter and that 'summary' column is present in the healthcare_encounters table, - so my question is, should we inject this summary into the manifest_data column for each encounter that the manifest describes, or is this a waste of time, because we could do that with sql joins and pull out whatever extra info we want from the heatlhcare_encoutner table to accompany the manifest data? 
+
+pass_05_encounter_metrics table:
+- I notice this table still has "batching_required" column that is currently outputting "FALSE" values for all recent uploads, even when the file is 20+ pages long. - Hence whats the purpose of this column, and where is it coming from? 
+
+

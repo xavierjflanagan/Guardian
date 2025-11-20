@@ -6,6 +6,8 @@
 /**
  * Pass 0.5 Shell File Manifest
  * Output of encounter discovery (Task 1)
+ *
+ * v2.3 ADDITION: page_assignments array with explicit page-to-encounter mapping
  */
 export interface ShellFileManifest {
   shellFileId: string;
@@ -21,8 +23,37 @@ export interface ShellFileManifest {
   // Task 1: Encounter discovery (always present)
   encounters: EncounterMetadata[];
 
+  // v2.3: Page-by-page assignments with justifications (MANDATORY for v2.3+)
+  page_assignments?: PageAssignment[];
+
   // Task 2: Batching (null in Phase 1 MVP)
   batching: null | BatchingPlan;
+}
+
+/**
+ * Page Assignment with Justification (v2.3)
+ * Forces explicit page-to-encounter mapping with reasoning
+ */
+export interface PageAssignment {
+  /**
+   * Page number (1-indexed)
+   */
+  page: number;
+
+  /**
+   * Encounter ID this page belongs to
+   * Must match an encounter_id in the encounters array
+   */
+  encounter_id: string;
+
+  /**
+   * Brief justification for this page assignment (15-20 words)
+   * Examples:
+   * - "Continuation of discharge summary, same provider and facility"
+   * - "NEW Encounter Summary header, different provider and facility"
+   * - "Signature block for previous encounter, Dr Smith closeout"
+   */
+  justification: string;
 }
 
 export interface EncounterMetadata {
@@ -30,11 +61,27 @@ export interface EncounterMetadata {
   encounterType: EncounterType;
   isRealWorldVisit: boolean;
 
-  // Temporal data
+  // Temporal data (v2.9: Updated for Migration 42)
   dateRange?: {
-    start: string;  // ISO date
-    end?: string;   // ISO date (optional for single-day encounters)
+    start: string;  // ISO date (encounter start date)
+    end?: string;   // ISO date (encounter end date - NULL for ongoing, same as start for single-day)
   };
+
+  /**
+   * Encounter timeframe status (v2.9 - Migration 42)
+   * - completed: Encounter has ended (single-day OR multi-day with discharge)
+   * - ongoing: Currently admitted/ongoing care (hospital stay without discharge)
+   * - unknown_end_date: Start date found but unclear if completed or ongoing
+   */
+  encounterTimeframeStatus?: 'completed' | 'ongoing' | 'unknown_end_date';
+
+  /**
+   * Date source tracking (v2.9 - Migration 42)
+   * - ai_extracted: Date successfully extracted from document content
+   * - file_metadata: Fallback to file creation metadata (pseudo encounters)
+   * - upload_date: Last resort fallback to upload timestamp (pseudo encounters)
+   */
+  dateSource?: 'ai_extracted' | 'file_metadata' | 'upload_date';
 
   // Provider/facility (only for real-world visits)
   provider?: string;
@@ -56,6 +103,12 @@ export interface EncounterMetadata {
    * Source: OpenAI GPT-5-mini analysis (NOT OCR confidence)
    */
   confidence: number;
+
+  /**
+   * Plain English summary of encounter (Migration 38)
+   * Example: "Annual physical exam with Dr. Smith at City Medical Center"
+   */
+  summary?: string;
 
   extractedText?: string;  // Sample text from encounter (for debugging)
 }
@@ -151,10 +204,22 @@ export interface GoogleCloudVisionOCR {
 }
 
 export interface OCRPage {
-  width: number;
-  height: number;
-  confidence: number;
-  blocks: OCRBlock[];
+  page_number?: number;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+
+  // OCR text fields (in priority order for extraction)
+  spatially_sorted_text?: string;  // BEST: Spatially sorted for better AI comprehension
+  original_gcv_text?: string;      // GOOD: Raw Google Cloud Vision output
+  text?: string;                   // FALLBACK: Simple text field
+
+  // Legacy structured format (may not be present)
+  width?: number;
+  height?: number;
+  confidence?: number;
+  blocks?: OCRBlock[];
 }
 
 export interface OCRBlock {

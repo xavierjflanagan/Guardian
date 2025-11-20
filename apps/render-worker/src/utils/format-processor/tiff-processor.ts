@@ -5,8 +5,18 @@
  * Uses Sharp library for image processing.
  */
 
-import sharp from 'sharp';
+// MEMORY OPTIMIZATION: Lazy load Sharp only when needed (saves ~60MB at startup)
+// import sharp from 'sharp';  // OLD: Eager load
 import type { ProcessedPage } from './types';
+
+// Lazy loader for Sharp - only loads when first TIFF is processed
+let sharpInstance: typeof import('sharp') | null = null;
+async function getSharp() {
+  if (!sharpInstance) {
+    sharpInstance = (await import('sharp')).default;
+  }
+  return sharpInstance;
+}
 
 /**
  * Extract all pages from a multi-page TIFF file
@@ -28,7 +38,8 @@ export async function extractTiffPages(
   // Step 1: Decode base64 to buffer
   const buffer = Buffer.from(base64Tiff, 'base64');
 
-  // Step 2: Load TIFF and get metadata
+  // Step 2: Load TIFF and get metadata (lazy load Sharp)
+  const sharp = await getSharp();
   const image = sharp(buffer);
   const metadata = await image.metadata();
 

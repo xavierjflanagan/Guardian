@@ -196,6 +196,132 @@ COMMENT ON COLUMN ocr_artifacts.pages IS 'Number of pages processed';
 COMMENT ON COLUMN ocr_artifacts.bytes IS 'Total size of all OCR artifacts in bytes';
 
 -- =============================================================================
+-- SECTION 0B: OCR PROCESSING METRICS
+-- =============================================================================
+-- Added 2025-11-08 (Migration 43): OCR performance metrics for batch optimization
+-- Purpose: Store per-job OCR performance data for batch size optimization and cost analysis
+
+CREATE TABLE IF NOT EXISTS ocr_processing_metrics (
+  -- Primary key
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Foreign key references
+  shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+
+  -- Correlation tracking (links to application logs)
+  correlation_id TEXT NOT NULL,
+
+  -- Batch configuration (optimization target)
+  batch_size INTEGER NOT NULL CHECK (batch_size > 0),
+  total_batches INTEGER NOT NULL CHECK (total_batches > 0),
+  total_pages INTEGER NOT NULL CHECK (total_pages > 0),
+
+  -- Timing metrics (all in milliseconds)
+  started_at TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ NOT NULL,
+  processing_time_ms INTEGER NOT NULL CHECK (processing_time_ms >= 0),
+  average_batch_time_ms NUMERIC(10,2) CHECK (average_batch_time_ms IS NULL OR average_batch_time_ms >= 0),
+  average_page_time_ms NUMERIC(10,2) CHECK (average_page_time_ms IS NULL OR average_page_time_ms >= 0),
+  provider_avg_latency_ms INTEGER CHECK (provider_avg_latency_ms IS NULL OR provider_avg_latency_ms >= 0),
+
+  -- Individual batch timings for distribution analysis
+  batch_times_ms INTEGER[] NOT NULL DEFAULT '{}',
+
+  -- Success/failure tracking
+  successful_pages INTEGER NOT NULL DEFAULT 0 CHECK (successful_pages >= 0),
+  failed_pages INTEGER NOT NULL DEFAULT 0 CHECK (failed_pages >= 0),
+  failed_page_numbers INTEGER[] NOT NULL DEFAULT '{}',
+
+  -- Quality metrics
+  average_confidence NUMERIC(5,4) CHECK (average_confidence >= 0.0 AND average_confidence <= 1.0),
+  total_text_length INTEGER CHECK (total_text_length >= 0),
+
+  -- Resource usage (memory tracking)
+  peak_memory_mb INTEGER CHECK (peak_memory_mb > 0),
+  memory_freed_mb INTEGER CHECK (memory_freed_mb IS NULL OR memory_freed_mb >= 0),
+
+  -- Cost estimation (for budget tracking)
+  estimated_cost_usd NUMERIC(10,6) CHECK (estimated_cost_usd >= 0),
+  estimated_cost_per_page_usd NUMERIC(10,6) CHECK (estimated_cost_per_page_usd >= 0),
+
+  -- Provider info
+  ocr_provider TEXT NOT NULL DEFAULT 'google_vision' CHECK (ocr_provider IN ('google_vision', 'aws_textract', 'azure_cv')),
+
+  -- Deployment context (for environment comparison)
+  environment TEXT CHECK (environment IN ('development', 'staging', 'production')),
+  app_version TEXT,
+  worker_id TEXT,
+
+  -- Retry tracking (detect problematic documents)
+  retry_count INTEGER NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
+
+  -- Queue wait time (operational metric - detects worker starvation)
+  queue_wait_ms INTEGER CHECK (queue_wait_ms >= 0),
+
+  -- Audit timestamp
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Constraint: completed_at must be after started_at
+  CONSTRAINT valid_ocr_timing CHECK (completed_at >= started_at)
+);
+
+-- Indexes for ocr_processing_metrics
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_shell_file ON ocr_processing_metrics(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_correlation ON ocr_processing_metrics(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_patient_id ON ocr_processing_metrics(patient_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ocr_metrics_correlation ON ocr_processing_metrics(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_created_at ON ocr_processing_metrics(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_batch_perf ON ocr_processing_metrics(batch_size, average_page_time_ms);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_patient_created_at ON ocr_processing_metrics(patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ocr_metrics_shell_file_created_at ON ocr_processing_metrics(shell_file_id, created_at DESC);
+
+-- Enable RLS
+ALTER TABLE ocr_processing_metrics ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy: Users can view their own OCR metrics
+DO $ocr_metrics_policy_user$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ocr_processing_metrics' AND policyname = 'Users can view own OCR metrics') THEN
+        CREATE POLICY "Users can view own OCR metrics"
+          ON ocr_processing_metrics
+          FOR SELECT
+          USING (
+            patient_id IN (
+              SELECT profile_id FROM get_accessible_profiles(auth.uid())
+            )
+          );
+    END IF;
+END $ocr_metrics_policy_user$;
+
+-- RLS Policy: Service role full access
+DO $ocr_metrics_policy_service$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ocr_processing_metrics' AND policyname = 'Service role full access to OCR metrics') THEN
+        CREATE POLICY "Service role full access to OCR metrics"
+          ON ocr_processing_metrics
+          FOR ALL
+          USING (
+            coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+          )
+          WITH CHECK (
+            coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+          );
+    END IF;
+END $ocr_metrics_policy_service$;
+
+-- Grants
+GRANT SELECT ON ocr_processing_metrics TO authenticated;
+GRANT ALL ON ocr_processing_metrics TO service_role;
+
+-- Table and column comments
+COMMENT ON TABLE ocr_processing_metrics IS 'OCR processing performance metrics for batch optimization and cost analysis. Stores one row per shell_file OCR session.';
+COMMENT ON COLUMN ocr_processing_metrics.batch_size IS 'Number of pages processed per batch (optimization target).';
+COMMENT ON COLUMN ocr_processing_metrics.processing_time_ms IS 'Total OCR session processing time in milliseconds.';
+COMMENT ON COLUMN ocr_processing_metrics.provider_avg_latency_ms IS 'Average Google Cloud Vision API response time per request (milliseconds).';
+COMMENT ON COLUMN ocr_processing_metrics.queue_wait_ms IS 'Time from job creation to job start (milliseconds). High values indicate worker starvation.';
+COMMENT ON COLUMN ocr_processing_metrics.batch_times_ms IS 'Array of individual batch processing times for distribution analysis.';
+COMMENT ON COLUMN ocr_processing_metrics.correlation_id IS 'Links to application logs for detailed debugging. Must be unique per OCR session.';
+
+-- =============================================================================
 -- SECTION 1: AI PROCESSING SESSION MANAGEMENT
 -- =============================================================================
 
@@ -688,17 +814,25 @@ ALTER TABLE manual_review_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_confidence_scoring ENABLE ROW LEVEL SECURITY;
 -- MOVED TO 05_healthcare_journey.sql: clinical_alert_rules and provider_action_items RLS
 
--- AI processing sessions - profile-based access (idempotent)
+-- AI processing sessions - profile-based access with service role bypass (Migration 46: 2025-11-10)
+ALTER TABLE ai_processing_sessions ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS ai_sessions_access ON ai_processing_sessions;
 CREATE POLICY ai_sessions_access ON ai_processing_sessions
-    FOR ALL TO authenticated
+    FOR ALL
     USING (
-        has_profile_access(auth.uid(), patient_id)
-        OR is_admin()
+        -- Service role: full access (backend worker needs to create sessions)
+        coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+        OR
+        -- Authenticated users: access via profile ownership or admin
+        (auth.role() = 'authenticated' AND (has_profile_access(auth.uid(), patient_id) OR is_admin()))
     )
     WITH CHECK (
-        has_profile_access(auth.uid(), patient_id)
-        OR is_admin()
+        -- Service role: full access for inserts
+        coalesce((current_setting('request.jwt.claims', true)::jsonb->>'role')::text, '') = 'service_role'
+        OR
+        -- Authenticated users: can insert for their own profiles or if admin
+        (auth.role() = 'authenticated' AND (has_profile_access(auth.uid(), patient_id) OR is_admin()))
     );
 
 -- Entity processing audit - profile-based access via session (idempotent)
@@ -1388,6 +1522,676 @@ CREATE POLICY narrative_view_cache_profile_access ON narrative_view_cache
     FOR ALL TO authenticated
     USING (has_profile_access(auth.uid(), profile_id) OR is_admin())
     WITH CHECK (has_profile_access(auth.uid(), profile_id) OR is_admin());
+
+-- =============================================================================
+-- SECTION 12: PASS 0.5 ENCOUNTER DISCOVERY INFRASTRUCTURE (Migration 45 - 2025-11-11)
+-- =============================================================================
+-- Note: pass05_page_assignments table is defined in Section 7 (Strategy A) at line 1951
+
+-- Backward-compatible view replacing deprecated shell_file_manifests table
+CREATE OR REPLACE VIEW shell_file_manifests_v2 AS
+SELECT
+  sf.id as manifest_id, -- Stable manifest_id = shell_file_id
+  sf.id as shell_file_id,
+  sf.patient_id,
+  sf.created_at,
+  sf.pass_0_5_version,
+  m.processing_time_ms,
+  sf.page_count as total_pages,
+  COUNT(he.id) as total_encounters_found,
+  sf.ocr_average_confidence,
+  jsonb_build_object(
+    'shellFileId', sf.id,
+    'patientId', sf.patient_id,
+    'totalPages', sf.page_count,
+    'ocrAverageConfidence', sf.ocr_average_confidence,
+    'encounters', COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'encounterId', he.id,
+          'encounterType', he.encounter_type,
+          'isRealWorldVisit', he.is_real_world_visit,
+          'dateRange', jsonb_build_object(
+            'start', he.encounter_start_date,
+            'end', he.encounter_end_date
+          ),
+          'encounterTimeframeStatus', he.encounter_timeframe_status,
+          'dateSource', he.date_source,
+          'provider', he.provider_name,
+          'facility', he.facility_name,
+          'pageRanges', he.page_ranges,
+          'confidence', he.pass_0_5_confidence,
+          'summary', he.summary,
+          'spatialBounds', he.spatial_bounds
+        ) ORDER BY he.encounter_start_date, he.id
+      ) FILTER (WHERE he.id IS NOT NULL),
+      '[]'::jsonb
+    ),
+    'page_assignments', COALESCE(pa.assignments, '[]'::jsonb),
+    'batching', null
+  ) as manifest_data,
+  m.ai_model_used
+FROM shell_files sf
+LEFT JOIN healthcare_encounters he ON he.primary_shell_file_id = sf.id
+LEFT JOIN pass05_encounter_metrics m ON m.shell_file_id = sf.id
+LEFT JOIN LATERAL (
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'page', page_num,
+      'encounter_id', encounter_id,
+      'justification', justification
+    ) ORDER BY page_num
+  ) as assignments
+  FROM pass05_page_assignments
+  WHERE shell_file_id = sf.id
+) pa ON true
+WHERE sf.pass_0_5_completed = true
+GROUP BY sf.id, sf.patient_id, sf.created_at, sf.pass_0_5_version,
+         sf.page_count, sf.ocr_average_confidence,
+         m.processing_time_ms, m.ai_model_used, pa.assignments;
+
+COMMENT ON VIEW shell_file_manifests_v2 IS
+  'Backward-compatible view replacing the deprecated shell_file_manifests table.
+   Aggregates data from distributed sources (shell_files, healthcare_encounters, metrics).
+   manifest_id uses sf.id (shell_file_id) for stability - same UUID on every query,
+   enables caching, WHERE clauses, and perfect backward compatibility.
+   Security: Only service_role should query this directly. Authenticated users should
+   access via base tables with RLS protection.';
+
+-- View security: Restrict to service_role only (base table RLS protects actual data access)
+REVOKE ALL ON shell_file_manifests_v2 FROM PUBLIC;
+REVOKE ALL ON shell_file_manifests_v2 FROM authenticated;
+GRANT SELECT ON shell_file_manifests_v2 TO service_role;
+
+-- Note: Security grants for pass05_page_assignments are in Section 7 (Strategy A)
+
+-- =============================================================================
+-- SECTION 7: PASS 0.5 PROGRESSIVE REFINEMENT (Strategy A)
+-- =============================================================================
+-- Added: Migration 44 (2025-11-10) - Initial Pass 0.5 infrastructure
+-- Updated: Migration 47 (2025-11-18) - Strategy A sessions and chunks
+-- Updated: Migration 48 (2025-11-18) - Strategy A pending encounters complete redesign
+--
+-- PURPOSE: Progressive chunk-based processing for documents of any size
+-- STRATEGY: Strategy A - Universal cascade-based processing (1-page to 1000-page)
+-- DESIGN: Files 04-12 (cascade + identity + quality + source tracking)
+--
+-- ARCHITECTURE:
+--   Phase 1: Document chunked into 50-page segments
+--   Phase 2: Each chunk processed sequentially with cascade handoff
+--   Phase 3: Pending encounters reconciled by cascade_id into final encounters
+--   Phase 4: Metrics aggregated for reporting
+--
+-- KEY FEATURES:
+--   - Cascade ID system links encounters spanning chunk boundaries
+--   - Sub-page position granularity (OCR coordinate-based boundaries)
+--   - Identity extraction and profile classification (File 10)
+--   - Data quality tiers (A/B/C) based on completeness (File 11)
+--   - Multi-source support (shell_file, manual, API) (File 12)
+--   - Batching analysis for downstream Pass 1/2 optimization
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- pass05_progressive_sessions
+-- -----------------------------------------------------------------------------
+-- Tracks progressive processing sessions for documents
+-- Strategy A: Used for ALL documents (not just >100 pages)
+--
+-- Migration 47 Changes (2025-11-18):
+--   - Deleted: total_encounters_found, total_encounters_completed (orphaned)
+--   - Renamed: total_encounters_pending → total_pendings_created
+--   - Added: total_cascades, strategy_version, reconciliation_completed_at, final_encounter_count
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS pass05_progressive_sessions (
+  -- Identity
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  shell_file_id uuid NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES user_profiles(id),
+
+  -- Document info
+  total_pages integer NOT NULL,
+  chunk_size integer NOT NULL,
+  total_chunks integer NOT NULL,
+
+  -- Progress tracking
+  current_chunk integer DEFAULT 0,
+  processing_status text DEFAULT 'initialized',
+  current_handoff_package jsonb,  -- Cascade context for next chunk
+
+  -- Encounter counts
+  total_pendings_created integer DEFAULT 0,  -- Pendings created during chunk processing
+  final_encounter_count integer,             -- Final encounters after reconciliation
+
+  -- Cascade tracking (Migration 47)
+  total_cascades integer DEFAULT 0,  -- Number of cascade chains created
+
+  -- Quality/Review
+  requires_manual_review boolean DEFAULT false,
+  review_reasons text[],
+  average_confidence numeric,
+
+  -- Strategy tracking (Migration 47)
+  strategy_version varchar(10) DEFAULT 'A-v1',  -- A-v1, B-v1, etc.
+
+  -- Metrics
+  total_processing_time interval,
+  total_ai_calls integer DEFAULT 0,
+  total_input_tokens integer DEFAULT 0,
+  total_output_tokens integer DEFAULT 0,
+  total_cost_usd numeric DEFAULT 0,
+
+  -- Timestamps
+  started_at timestamptz DEFAULT now(),
+  completed_at timestamptz,                    -- When all chunks processed
+  reconciliation_completed_at timestamptz,     -- When reconciliation finished (Migration 47)
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_pass05_sessions_shell_file ON pass05_progressive_sessions(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_pass05_sessions_status ON pass05_progressive_sessions(processing_status);
+CREATE INDEX IF NOT EXISTS idx_pass05_sessions_patient ON pass05_progressive_sessions(patient_id);
+
+COMMENT ON TABLE pass05_progressive_sessions IS
+  'Progressive processing sessions for Strategy A cascade-based encounter discovery.
+   Used for ALL documents regardless of page count (1-page to 1000-page).
+   Migration 47: Added cascade tracking, strategy versioning, and reconciliation timestamps.';
+
+
+-- -----------------------------------------------------------------------------
+-- pass05_chunk_results
+-- -----------------------------------------------------------------------------
+-- Per-chunk processing metrics and results
+-- Strategy A: Simplify to chunk-level metrics only
+--
+-- Migration 47 Changes (2025-11-18):
+--   - Deleted: encounters_started, encounters_completed, encounters_continued
+--   - Renamed: handoff_received → cascade_context_received, handoff_generated → cascade_package_sent
+--   - Added: pendings_created, cascading_count, cascade_ids, continues_count, page_separation_analysis
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS pass05_chunk_results (
+  -- Identity
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+  chunk_number integer NOT NULL,
+
+  -- Chunk scope
+  page_start integer NOT NULL,
+  page_end integer NOT NULL,
+
+  -- Processing status
+  processing_status text DEFAULT 'pending',
+  started_at timestamptz,
+  completed_at timestamptz,
+  processing_time_ms integer,
+
+  -- AI metrics
+  ai_model_used text,
+  input_tokens integer,
+  output_tokens integer,
+  ai_cost_usd numeric,
+  confidence_score numeric,
+
+  -- Error tracking
+  error_message text,
+  error_details jsonb,
+
+  -- Handoff/Cascade tracking (Migration 47)
+  cascade_context_received jsonb,  -- Cascade context from previous chunk (renamed)
+  cascade_package_sent jsonb,      -- Cascade context for next chunk (renamed)
+
+  -- Cascade metrics (Migration 47)
+  pendings_created integer DEFAULT 0,       -- Total pending encounters created in this chunk
+  cascading_count integer DEFAULT 0,        -- How many encounters reached chunk boundary
+  cascade_ids text[],                       -- Array of cascade IDs created/continued
+  continues_count integer DEFAULT 0,        -- How many encounters continued from previous
+
+  -- Batching analysis (Migration 47)
+  page_separation_analysis jsonb,  -- Safe split points for Pass 1/2 batching
+
+  -- Raw AI response
+  ai_response_raw jsonb,
+
+  -- Timestamps
+  created_at timestamptz DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_chunk_results_session ON pass05_chunk_results(session_id, chunk_number);
+CREATE INDEX IF NOT EXISTS idx_chunk_results_status ON pass05_chunk_results(processing_status);
+CREATE INDEX IF NOT EXISTS idx_chunk_results_separation_analysis ON pass05_chunk_results USING GIN (page_separation_analysis);  -- Migration 47
+
+COMMENT ON TABLE pass05_chunk_results IS
+  'Per-chunk processing results for progressive sessions.
+   Migration 47: Renamed handoff columns to cascade terminology, added cascade metrics and batching analysis.';
+
+
+-- -----------------------------------------------------------------------------
+-- pass05_pending_encounters
+-- -----------------------------------------------------------------------------
+-- Temporary storage for encounters during processing
+-- Strategy A: Hub table - ALL encounters pass through here before reconciliation
+--
+-- Migration 48 Changes (2025-11-18): MAJOR REDESIGN
+--   - Deleted: chunk_last_seen, last_seen_context
+--   - Renamed: temp_encounter_id → pending_id, chunk_started → chunk_number,
+--              partial_data → encounter_data, completed_encounter_id → reconciled_to,
+--              completed_at → reconciled_at
+--   - Added 39 columns: cascade (3), position (13), reconciliation (3), identity (4),
+--            provider (4), classification (4), quality (3), source (5)
+--   - Added 11 indexes, 2 constraints
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
+  -- Core identity
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+  pending_id text NOT NULL,           -- Unique within session (Migration 48: renamed)
+  chunk_number integer NOT NULL,      -- Which chunk created this (Migration 48: renamed)
+
+  -- Encounter data
+  encounter_data jsonb NOT NULL,      -- Raw AI output (Migration 48: renamed from partial_data)
+  page_ranges integer[][],            -- AI-reported page ranges
+  expected_continuation text,         -- For validation
+
+  -- Status
+  status text DEFAULT 'pending',
+  reconciled_to uuid,                 -- Links to healthcare_encounters.id (Migration 48: renamed)
+  reconciled_at timestamptz,          -- When reconciliation completed (Migration 48: renamed)
+  confidence numeric,
+  requires_review boolean DEFAULT false,
+
+  -- Cascade support (Migration 48)
+  cascade_id varchar(100),                 -- Links cascading encounters
+  is_cascading boolean DEFAULT false,      -- Reaches chunk boundary
+  continues_previous boolean DEFAULT false, -- Continues from previous chunk
+
+  -- Position tracking - START boundary (Migration 48/52)
+  start_page integer,                      -- First page of encounter
+  start_boundary_type varchar(20),         -- 'inter_page' or 'intra_page'
+  start_marker text,                       -- Descriptive text for boundary
+  start_marker_context varchar(100),       -- Migration 52: Additional text context for disambiguation
+  start_region_hint varchar(20),           -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
+  start_text_y_top integer,                -- OCR Y-coordinate (NULL if inter_page)
+  start_text_height integer,               -- OCR text height (NULL if inter_page)
+  start_y integer,                         -- Calculated split line (NULL if inter_page)
+
+  -- Position tracking - END boundary (Migration 48/52)
+  end_page integer,                        -- Last page of encounter
+  end_boundary_type varchar(20),           -- 'inter_page' or 'intra_page'
+  end_marker text,                         -- Descriptive text for boundary
+  end_marker_context varchar(100),         -- Migration 52: Additional text context for disambiguation
+  end_region_hint varchar(20),             -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
+  end_text_y_top integer,                  -- OCR Y-coordinate (NULL if inter_page)
+  end_text_height integer,                 -- OCR text height (NULL if inter_page)
+  end_y integer,                           -- Calculated split line (NULL if inter_page)
+
+  -- Position confidence (Migration 48)
+  position_confidence numeric,             -- Overall position accuracy (0.0-1.0)
+
+  -- Reconciliation metadata (Migration 48)
+  reconciliation_key varchar(255),         -- For descriptor matching
+  reconciliation_method varchar(20),       -- 'cascade', 'descriptor', 'orphan'
+  reconciliation_confidence numeric,       -- Reconciliation confidence (0.0-1.0)
+
+  -- Identity markers - File 10 (Migration 48)
+  patient_full_name text,                  -- Patient name (raw from AI)
+  patient_date_of_birth text,              -- DOB in text format (e.g., "15/03/1985")
+  patient_address text,                    -- Patient address if present
+  patient_phone varchar(50),               -- Patient phone if present
+
+  -- Provider/facility markers - Files 10/11 (Migration 48/52)
+  provider_name text,                      -- Healthcare provider name
+  facility_name text,                      -- Hospital/clinic name
+  encounter_start_date text,               -- Visit date (raw format)
+  encounter_end_date text,                 -- End date for multi-day encounters (nullable)
+  encounter_type text,                     -- Migration 52: outpatient/inpatient/emergency/etc
+  encounter_timeframe_status text,         -- Migration 52: completed/ongoing/unknown_end_date
+  date_source text,                        -- Migration 52: ai_extracted/file_metadata/upload_date
+  is_real_world_visit boolean DEFAULT true, -- Migration 52: Timeline Test result
+
+  -- Classification results - File 10 (Migration 48)
+  matched_profile_id uuid,                 -- Links to user_profiles(id)
+  match_confidence numeric,                -- Profile matching confidence (0.0-1.0)
+  match_status varchar(20),                -- 'matched', 'unmatched', 'orphan', 'review'
+  is_orphan_identity boolean DEFAULT false, -- Unmatched identity (3+ occurrences)
+
+  -- Quality tier - File 11 (Migration 48)
+  data_quality_tier varchar(20)
+    CHECK (data_quality_tier IN ('low', 'medium', 'high', 'verified')),
+  quality_criteria_met jsonb,              -- Criteria breakdown
+  quality_calculation_date timestamptz,    -- When tier was calculated
+
+  -- Source metadata - File 12 (Migration 48)
+  encounter_source varchar(20) NOT NULL DEFAULT 'shell_file'
+    CHECK (encounter_source IN ('shell_file', 'manual', 'api')),
+  manual_created_by varchar(20)
+    CHECK (manual_created_by IN ('provider', 'user', 'other_user')),
+  created_by_user_id uuid REFERENCES auth.users(id),  -- Auth user who uploaded
+  api_source_name varchar(100),            -- API source name (NULL for shell_file)
+  api_import_date date,                    -- API import date (NULL for shell_file)
+
+  -- Timestamps
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+
+  -- Constraints (Migration 48)
+  CONSTRAINT uq_pending_per_session UNIQUE (session_id, pending_id),
+  CONSTRAINT check_pending_shell_file_source_valid
+    CHECK (encounter_source != 'shell_file' OR session_id IS NOT NULL)
+);
+
+-- Cascade and reconciliation indexes (Migration 48)
+CREATE INDEX IF NOT EXISTS idx_pending_cascade ON pass05_pending_encounters(session_id, cascade_id);
+CREATE INDEX IF NOT EXISTS idx_pending_spatial ON pass05_pending_encounters(session_id, start_page, end_page);
+CREATE INDEX IF NOT EXISTS idx_pending_lookup ON pass05_pending_encounters(session_id, pending_id);
+CREATE INDEX IF NOT EXISTS idx_pending_descriptor ON pass05_pending_encounters(session_id, reconciliation_key)
+  WHERE reconciliation_key IS NOT NULL;
+
+-- Source metadata indexes (Migration 48)
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_source ON pass05_pending_encounters(encounter_source);
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_quality ON pass05_pending_encounters(data_quality_tier);
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_manual_creator ON pass05_pending_encounters(manual_created_by)
+  WHERE manual_created_by IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_creator ON pass05_pending_encounters(created_by_user_id);
+
+-- Classification indexes (Migration 48)
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_profile ON pass05_pending_encounters(matched_profile_id)
+  WHERE matched_profile_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_match_status ON pass05_pending_encounters(match_status);
+CREATE INDEX IF NOT EXISTS idx_pending_encounters_orphan ON pass05_pending_encounters(is_orphan_identity)
+  WHERE is_orphan_identity = true;
+
+COMMENT ON TABLE pass05_pending_encounters IS
+  'Pending encounters during progressive processing. ALL encounters pass through here before reconciliation.
+   Migration 48: Complete redesign for Strategy A with cascade, position, identity, quality, and source tracking.';
+
+
+-- =============================================================================
+-- TABLE: pass05_page_assignments
+-- =============================================================================
+-- Migration 44: Initial creation
+-- Migration 49: Strategy A redesign - dual-ID tracking, reconciliation, provenance
+
+CREATE TABLE IF NOT EXISTS pass05_page_assignments (
+  -- Core identification
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  shell_file_id uuid NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  page_num integer NOT NULL,
+
+  -- Dual-ID tracking (Migration 49)
+  session_id uuid NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,  -- Migration 49: Session reference
+  pending_id text NOT NULL,  -- Migration 49: Temporary ID during chunking
+  encounter_id uuid REFERENCES healthcare_encounters(id) ON DELETE CASCADE,  -- Migration 49: Changed from text NOT NULL to uuid nullable
+
+  -- Reconciliation tracking (Migration 49)
+  reconciled_at timestamptz,  -- Migration 49: When page was reconciled from pending to final
+
+  -- Provenance tracking (Migration 49)
+  chunk_number integer NOT NULL,  -- Migration 49: Which chunk assigned this page
+  cascade_id varchar(100),  -- Migration 49: Cascade chain ID if page belongs to cascading encounter
+
+  -- Page metadata
+  is_partial boolean DEFAULT false,  -- Migration 49: Page has multiple encounters (partial assignment)
+  justification text,
+
+  -- Timestamp
+  created_at timestamptz DEFAULT now(),
+
+  -- Constraints (Migration 49)
+  CONSTRAINT uq_page_per_pending UNIQUE (shell_file_id, page_num, pending_id),
+  CONSTRAINT fk_pending_encounter FOREIGN KEY (session_id, pending_id)
+    REFERENCES pass05_pending_encounters(session_id, pending_id) ON DELETE CASCADE,
+  CONSTRAINT fk_final_encounter FOREIGN KEY (encounter_id)
+    REFERENCES healthcare_encounters(id) ON DELETE CASCADE
+);
+
+-- Indexes (Migration 49)
+CREATE INDEX IF NOT EXISTS idx_page_assign_doc_page
+  ON pass05_page_assignments(shell_file_id, page_num);
+CREATE INDEX IF NOT EXISTS idx_page_assign_encounter
+  ON pass05_page_assignments(encounter_id) WHERE encounter_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_page_assign_pending
+  ON pass05_page_assignments(session_id, pending_id);
+CREATE INDEX IF NOT EXISTS idx_page_assign_chunk
+  ON pass05_page_assignments(session_id, chunk_number);
+CREATE INDEX IF NOT EXISTS idx_page_assign_cascade
+  ON pass05_page_assignments(cascade_id) WHERE cascade_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_page_assign_unreconciled
+  ON pass05_page_assignments(shell_file_id, pending_id) WHERE encounter_id IS NULL;
+
+COMMENT ON TABLE pass05_page_assignments IS
+  'Maps pages to encounters (pending during chunking, final after reconciliation).
+   Migration 49: Strategy A dual-ID tracking - pending_id during processing, encounter_id after reconciliation.';
+
+
+-- =============================================================================
+-- TABLE: pass05_encounter_metrics
+-- =============================================================================
+-- Migration 44: Initial creation
+-- Migration 49: Strategy A metrics - reconciliation, chunk, quality, identity tracking
+
+CREATE TABLE IF NOT EXISTS pass05_encounter_metrics (
+  -- Core identification
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id uuid NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  shell_file_id uuid NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  processing_session_id uuid NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+
+  -- Encounter counts
+  encounters_detected integer NOT NULL,
+  real_world_encounters integer NOT NULL,
+  pseudo_encounters integer NOT NULL,
+  planned_encounters integer DEFAULT 0,
+
+  -- Processing metrics
+  processing_time_ms integer NOT NULL,
+  processing_time_seconds numeric,
+  total_pages integer NOT NULL,
+
+  -- Reconciliation metrics (Migration 49)
+  pendings_total integer,  -- Migration 49: Total pending encounters before reconciliation
+  cascades_total integer,  -- Migration 49: Number of cascade chains created
+  orphans_total integer,  -- Migration 49: Pendings that couldn't reconcile
+  reconciliation_time_ms integer,  -- Migration 49: Time spent in reconciliation phase
+  reconciliation_method varchar(20),  -- Migration 49: Primary method ('cascade', 'descriptor', 'mixed')
+
+  -- Chunk metrics (Migration 49)
+  chunk_count integer,  -- Migration 49: Number of chunks processed
+  avg_chunk_time_ms integer,  -- Migration 49: Average time per chunk
+  max_chunk_time_ms integer,  -- Migration 49: Slowest chunk time
+
+  -- Quality position metrics (Migration 49)
+  pages_with_multi_encounters integer,  -- Migration 49: Pages with >1 encounter
+  position_confidence_avg numeric,  -- Migration 49: Average position confidence
+
+  -- Identity completeness metrics - File 10 (Migration 49)
+  encounters_with_patient_name integer DEFAULT 0,  -- Migration 49: Encounters with patient full name
+  encounters_with_dob integer DEFAULT 0,  -- Migration 49: Encounters with date of birth
+  encounters_with_provider integer DEFAULT 0,  -- Migration 49: Encounters with provider name
+  encounters_with_facility integer DEFAULT 0,  -- Migration 49: Encounters with facility name
+
+  -- Quality tier summary - File 11 (Migration 49)
+  encounters_high_quality integer DEFAULT 0,  -- Migration 49: HIGH or VERIFIED tier count
+  encounters_low_quality integer DEFAULT 0,  -- Migration 49: LOW or MEDIUM tier count
+
+  -- AI metrics
+  ai_model_used text NOT NULL,
+  input_tokens integer NOT NULL,
+  output_tokens integer NOT NULL,
+  total_tokens integer NOT NULL,
+  ai_cost_usd numeric,
+
+  -- Confidence metrics
+  ocr_average_confidence numeric,
+  encounter_confidence_average numeric,
+  encounter_types_found text[],
+
+  -- Timestamp
+  created_at timestamptz DEFAULT now()
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_encounter_metrics_shell_file
+  ON pass05_encounter_metrics(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_encounter_metrics_patient
+  ON pass05_encounter_metrics(patient_id);
+CREATE INDEX IF NOT EXISTS idx_encounter_metrics_session
+  ON pass05_encounter_metrics(processing_session_id);
+
+COMMENT ON TABLE pass05_encounter_metrics IS
+  'Final summary statistics for completed Pass 0.5 session.
+   Migration 49: Added reconciliation, chunk, quality, and identity completeness tracking for Strategy A.';
+
+
+-- =============================================================================
+-- SECTION 7: STRATEGY A - NEW SUPPORTING TABLES (Migration 51)
+-- =============================================================================
+-- Purpose: Cascade tracking, reconciliation audit, identity management
+-- Created: Migration 51 (2025-11-18)
+-- Tables: 6 (cascade_chains, reconciliation_log, pending_identifiers,
+--            encounter_identifiers, orphan_identities, classification_audit)
+
+-- TABLE 1: pass05_cascade_chains
+-- Purpose: Track cascade relationships between chunks (encounters spanning multiple chunks)
+-- Expected Usage: 0-5 rows per document (only multi-chunk encounters create cascades)
+CREATE TABLE IF NOT EXISTS pass05_cascade_chains (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+  cascade_id VARCHAR(100) UNIQUE NOT NULL,
+  origin_chunk INTEGER NOT NULL,              -- Where cascade started
+  last_chunk INTEGER,                          -- Where cascade ended (NULL if still open)
+  final_encounter_id UUID REFERENCES healthcare_encounters(id) ON DELETE SET NULL,
+  pendings_count INTEGER DEFAULT 1,            -- How many pendings in this chain
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMPTZ
+);
+
+COMMENT ON TABLE pass05_cascade_chains IS
+  'Tracks cascade relationships between chunks. Each cascade represents an encounter spanning multiple chunks.';
+
+CREATE INDEX IF NOT EXISTS idx_cascade_session ON pass05_cascade_chains(session_id);
+CREATE INDEX IF NOT EXISTS idx_cascade_final ON pass05_cascade_chains(final_encounter_id);
+CREATE INDEX IF NOT EXISTS idx_cascade_incomplete ON pass05_cascade_chains(session_id)
+  WHERE final_encounter_id IS NULL;
+
+
+-- TABLE 2: pass05_reconciliation_log
+-- Purpose: Audit trail for reconciliation decisions
+-- Expected Usage: 1-10 rows per document (one per reconciliation decision)
+CREATE TABLE IF NOT EXISTS pass05_reconciliation_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
+  cascade_id VARCHAR(100),
+  pending_ids TEXT[],                          -- Array of pending IDs reconciled
+  final_encounter_id UUID REFERENCES healthcare_encounters(id) ON DELETE SET NULL,
+  match_type VARCHAR(20),                      -- 'cascade', 'descriptor', 'orphan'
+  confidence NUMERIC(3,2),
+  reasons TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE pass05_reconciliation_log IS
+  'Audit trail for reconciliation decisions. Records how pending encounters were matched/merged.';
+
+CREATE INDEX IF NOT EXISTS idx_recon_session ON pass05_reconciliation_log(session_id);
+CREATE INDEX IF NOT EXISTS idx_recon_cascade ON pass05_reconciliation_log(cascade_id);
+
+
+-- TABLE 3: pass05_pending_encounter_identifiers
+-- Purpose: Store identity markers (MRN, insurance numbers, etc.) extracted during Pass 0.5
+-- Expected Usage: 0-5 rows per encounter (most encounters have 0-2 identifiers)
+CREATE TABLE IF NOT EXISTS pass05_pending_encounter_identifiers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL,
+  pending_id TEXT NOT NULL,
+  identifier_type VARCHAR(50),                 -- 'MRN', 'INSURANCE', 'MEDICARE', etc.
+  identifier_value VARCHAR(100),
+  issuing_organization TEXT,
+  detected_context TEXT,                       -- Raw text where identifier was found
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_pending_identifiers_pending
+    FOREIGN KEY (session_id, pending_id)
+    REFERENCES pass05_pending_encounters(session_id, pending_id)
+    ON DELETE CASCADE
+);
+
+COMMENT ON TABLE pass05_pending_encounter_identifiers IS
+  'Identity markers extracted during Pass 0.5 (MRN, insurance numbers, etc.). Migrated to final table during reconciliation.';
+
+CREATE INDEX IF NOT EXISTS idx_pending_identifiers_value ON pass05_pending_encounter_identifiers(identifier_value);
+CREATE INDEX IF NOT EXISTS idx_pending_identifiers_type ON pass05_pending_encounter_identifiers(identifier_type);
+CREATE INDEX IF NOT EXISTS idx_pending_identifiers_pending ON pass05_pending_encounter_identifiers(session_id, pending_id);
+
+
+-- TABLE 4: healthcare_encounter_identifiers
+-- Purpose: Final identity markers table after reconciliation (migrated from pending identifiers)
+-- Expected Usage: 0-5 rows per encounter (migrated from pending identifiers)
+CREATE TABLE IF NOT EXISTS healthcare_encounter_identifiers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  encounter_id UUID NOT NULL REFERENCES healthcare_encounters(id) ON DELETE CASCADE,
+  identifier_type VARCHAR(50),
+  identifier_value VARCHAR(100),
+  issuing_organization TEXT,
+  source_pending_id TEXT,                      -- Which pending created this
+  migrated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_encounter_identifier UNIQUE (encounter_id, identifier_type, identifier_value)
+);
+
+COMMENT ON TABLE healthcare_encounter_identifiers IS
+  'Final identity markers after reconciliation. Migrated from pass05_pending_encounter_identifiers.';
+
+CREATE INDEX IF NOT EXISTS idx_encounter_identifiers_value ON healthcare_encounter_identifiers(identifier_value);
+CREATE INDEX IF NOT EXISTS idx_encounter_identifiers_encounter ON healthcare_encounter_identifiers(encounter_id);
+
+
+-- TABLE 5: orphan_identities
+-- Purpose: Track unmatched identities that might become new profiles
+-- Expected Usage: 0-10 rows per account (only for unmatched identities appearing 3+ times)
+CREATE TABLE IF NOT EXISTS orphan_identities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  detected_name TEXT,
+  detected_dob TEXT,
+  encounter_count INTEGER DEFAULT 1,
+  first_seen TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  last_seen TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  suggested_for_profile BOOLEAN DEFAULT FALSE,
+  user_decision VARCHAR(20),                   -- 'accepted', 'rejected', 'pending'
+  created_profile_id UUID REFERENCES user_profiles(id) ON DELETE SET NULL
+);
+
+COMMENT ON TABLE orphan_identities IS
+  'Tracks unmatched identities for multi-profile account support. Suggests new profile creation after 3+ occurrences.';
+
+CREATE INDEX IF NOT EXISTS idx_orphan_identities_account ON orphan_identities(account_owner_id);
+CREATE INDEX IF NOT EXISTS idx_orphan_identities_name ON orphan_identities(detected_name);
+CREATE INDEX IF NOT EXISTS idx_orphan_identities_suggested ON orphan_identities(suggested_for_profile)
+  WHERE suggested_for_profile = TRUE;
+
+
+-- TABLE 6: profile_classification_audit
+-- Purpose: Audit trail for profile classification decisions (privacy/security requirement)
+-- Expected Usage: 1 row per pending encounter (classification audit trail)
+CREATE TABLE IF NOT EXISTS profile_classification_audit (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pending_encounter_id TEXT,
+  attempted_match JSONB,                       -- Sanitized matching attempt (no PII in logs)
+  result VARCHAR(50),                          -- 'matched', 'unmatched', 'orphan', 'review'
+  confidence NUMERIC(3,2),
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE profile_classification_audit IS
+  'Audit trail for profile classification decisions. Privacy/security requirement for healthcare compliance.';
+
+CREATE INDEX IF NOT EXISTS idx_classification_audit_pending ON profile_classification_audit(pending_encounter_id);
+CREATE INDEX IF NOT EXISTS idx_classification_audit_result ON profile_classification_audit(result);
+CREATE INDEX IF NOT EXISTS idx_classification_audit_created ON profile_classification_audit(created_at);
+
 
 COMMIT;
 
