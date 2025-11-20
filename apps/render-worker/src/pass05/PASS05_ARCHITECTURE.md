@@ -1,12 +1,15 @@
 # Pass 0.5 Architecture Documentation
 
-**Last Updated:** 2025-11-06
-**Current Production Version:** v2.9
-**Status:** Operational
+**Last Updated:** 2025-11-20
+**Current Production Version:** Strategy A v11
+**Status:** Operational - Universal Progressive Mode
+**Supersedes:** v2.9 single-shot processing
 
 ## Overview
 
 Pass 0.5 (Healthcare Encounter Discovery) is the first AI processing stage in the Guardian document analysis pipeline. It analyzes uploaded medical documents to identify and classify discrete healthcare encounters, preparing them for downstream clinical extraction.
+
+**Strategy A (v11):** ALL documents (1-1000+ pages) now use universal progressive processing with cascade-based encounter continuity. Legacy single-shot mode has been archived.
 
 ## Purpose
 
@@ -19,113 +22,167 @@ This enables:
 - Multi-document handling (Frankenstein files with multiple encounters)
 - Precise timeline placement for patient journey visualization
 - Targeted downstream processing (Pass 1/2 can focus on specific encounter types)
+- Scalable processing for documents of any size (1-1000+ pages)
 
-## File Structure
+## File Structure (as of November 20, 2024)
 
 ```
 apps/render-worker/src/pass05/
-├── aiPrompts.ts                 # Default prompt (v2.4) - fallback version
-├── aiPrompts.v2.7.ts            # Historical: Optimized version
-├── aiPrompts.v2.8.ts            # Historical: Previous production
-├── aiPrompts.v2.9.ts            # CURRENT PRODUCTION - Multi-day encounter support
-├── databaseWriter.ts            # Atomic database writer (RPC transaction wrapper)
-├── encounterDiscovery.ts        # Orchestrator - version selection, OpenAI calls
+├── CURRENT_VERSION              # v11 version indicator
+├── PASS05_ARCHITECTURE.md       # This file
 ├── index.ts                     # Entry point - idempotency, flow control
-├── manifestBuilder.ts           # AI response parser, validator, database pre-creation
+├── encounterDiscovery.ts        # Simplified router to progressive mode
 ├── types.ts                     # TypeScript interfaces and type definitions
-└── prompt-versions-and-improvements/  # Documentation for all versions
+├── aiPrompts.v11.ts             # ONLY active prompt - Strategy A v11
+│
+├── _archive/                    # Legacy code (archived Nov 20, 2024)
+│   ├── README.md                # Archive documentation
+│   ├── legacy-prompts/          # v2.4, v2.7, v2.8, v2.9, v10
+│   ├── legacy-standard-mode/    # manifestBuilder.ts
+│   └── prompt-versions-and-improvements/  # Historical docs
+│
+├── progressive/                 # Active progressive pipeline
+│   ├── session-manager.ts       # Session orchestration
+│   ├── chunk-processor.ts       # 50-page chunk processing
+│   ├── pending-reconciler.ts    # Post-chunk reconciliation
+│   ├── database.ts              # Database operations
+│   ├── handoff-builder.ts       # Inter-chunk continuity
+│   ├── types.ts                 # Progressive mode types
+│   ├── post-processor.ts        # Post-processing utilities
+│   ├── cascade-manager.ts       # Cascade ID generation
+│   ├── coordinate-extractor.ts  # OCR coordinate lookup
+│   └── identifier-extractor.ts  # Medical identifier parsing
+│
+├── providers/                   # AI provider abstraction
+│   ├── base-provider.ts         # Abstract base class
+│   ├── google-provider.ts       # Google Gemini
+│   ├── openai-provider.ts       # OpenAI GPT
+│   └── provider-factory.ts      # Provider selection
+│
+└── models/                      # Model configuration
+    ├── model-registry.ts        # Available models
+    └── model-selector.ts        # Model selection logic
 ```
 
-## Core Components
+## Core Components (Strategy A v11)
 
 ### 1. Entry Point (`index.ts`)
 
 **Purpose:** Main orchestration and entry point for Pass 0.5
 
 **Responsibilities:**
-- Idempotency check (avoids reprocessing)
-- Calls encounter discovery
-- Builds manifest
-- Writes to database atomically
+- Idempotency check via shell_files table (avoids reprocessing)
+- Calls encounter discovery (progressive mode)
+- Creates AI processing session
+- Writes metrics to pass05_encounter_metrics
+- Writes page assignments to pass05_page_assignments
+- Updates shell_files completion status
 - Error handling and metrics
 
 **Processing Flow:**
-1. Check for existing manifest (early return if already processed)
+1. Check shell_files.pass_0_5_completed (early return if already processed)
 2. Run encounter discovery (`discoverEncounters()`)
-3. Build manifest with encounter metadata
-4. Write manifest + metrics atomically (`writeManifestToDatabase()`)
-5. Return result with success status
+3. Create AI processing session (required for metrics FK)
+4. Write encounter metrics
+5. Write page assignments (if present)
+6. Finalize shell_file status
+7. Return result with success status
 
-**Key Feature:** Safe idempotency - if manifest exists, all related data (metrics, shell_files flags) MUST also exist due to atomic transaction wrapper.
+**Key Changes from Legacy:**
+- No longer writes to shell_file_manifests (Migration 45 - manifest-free)
+- Queries distributed data (healthcare_encounters + metrics) for idempotency response
+- Direct database writes instead of atomic RPC wrapper
 
-### 2. Encounter Discovery Orchestrator (`encounterDiscovery.ts`)
+### 2. Encounter Discovery Router (`encounterDiscovery.ts`)
 
-**Purpose:** Task 1 orchestration - extract encounters from OCR text
+**Purpose:** Simplified entry point - routes ALL documents to progressive mode
 
-**Key Features:**
-- **Version Selection:** Reads `PASS_05_VERSION` env var (v2.4/v2.7/v2.8/v2.9)
-- **Strategy Selection:** Reads `PASS_05_STRATEGY` env var (ocr/ocr_optimized/vision)
-- **Model Detection:** GPT-5 vs GPT-4o with different parameters
-- **Cost Calculation:** GPT-5-mini pricing ($0.25/1M input, $2.00/1M output)
+**Key Changes from Legacy:**
+- **Removed:** All version routing logic (v2.4, v2.7, v2.8, v2.9, v10)
+- **Removed:** Environment variable checks (PASS_05_VERSION, PASS_05_STRATEGY)
+- **Removed:** 100-page threshold logic
+- **Removed:** Standard mode processing code
+- **Simplified:** 238 lines → 76 lines
 
-**Model Handling:**
-- GPT-5: Uses `max_completion_tokens`, temperature fixed at 1.0
-- GPT-4o: Uses `max_tokens`, temperature 0.1
+**Current Implementation:**
+- Simply calls `processDocumentProgressively()` for ALL documents
+- No conditional logic - single code path
+- Returns empty encounters/page_assignments arrays (data written to DB by progressive pipeline)
 
 **Returns:**
-- `encounters`: Array of EncounterMetadata
-- `page_assignments`: v2.3 page-by-page assignments with justifications
-- `aiModel`, `aiCostUsd`, `inputTokens`, `outputTokens`: Metrics
+- `success`: Boolean
+- `aiModel`, `aiCostUsd`, `inputTokens`, `outputTokens`: Metrics from progressive mode
+- `encounters`: Empty array (query healthcare_encounters to retrieve)
+- `page_assignments`: Empty array (query pass05_page_assignments to retrieve)
 
-### 3. Manifest Builder (`manifestBuilder.ts`)
+### 3. Progressive Mode Pipeline (`progressive/`)
 
-**Purpose:** Parse AI response and enrich with spatial data
+#### session-manager.ts
+**Purpose:** Session-level orchestration for progressive processing
 
-**Critical Functions:**
+**Key Functions:**
+- `processDocumentProgressively()` - Main entry point
+- Chunks documents into 50-page batches
+- Manages session state across chunks
+- Coordinates final reconciliation via pending-reconciler
 
-**`parseEncounterResponse()`** - Main parsing and validation
-- Parses JSON from AI
-- Validates page assignments (v2.3)
-- Validates non-overlapping page ranges (Phase 1 constraint)
-- Validates encounter types (TypeScript union safety)
-- Implements two-branch date logic (v2.9):
-  - **Branch A (Real-world)**: Direct AI date mapping
-  - **Branch B (Pseudo)**: Date waterfall (ai_extracted → file_metadata → upload_date)
-- Pre-creates encounters in database (UPSERT for idempotency)
-- Extracts spatial bounds from OCR
+#### chunk-processor.ts
+**Purpose:** Process individual 50-page chunks with AI
 
-**`validatePageAssignments()`** - v2.3 validation
-- Ensures all pages assigned
-- Checks encounter_id consistency
-- Validates justifications present
+**Key Functions:**
+- `processChunk()` - Process single chunk with aiPrompts.v11
+- Extracts encounters, identifiers, coordinates
+- Handles cascade-based continuity
+- Writes pending encounters to pass05_pending_encounters
 
-**`validateNonOverlappingPageRanges()`** - Phase 1 constraint
-- Each page belongs to exactly ONE encounter
-- Throws error if overlap detected
+**Dependencies:**
+- cascade-manager.ts (cascade ID generation)
+- coordinate-extractor.ts (OCR position lookup)
+- identifier-extractor.ts (medical identifier parsing)
+- handoff-builder.ts (inter-chunk continuity)
 
-**`validateEncounterType()`** - Type safety
-- Validates against 17 valid EncounterType values
-- Prevents invalid types from AI
+#### pending-reconciler.ts
+**Purpose:** Reconcile all pending encounters after all chunks complete
 
-**Key Fixes:**
-- **FIX #3**: PageRanges normalization (sorts + fixes inverted ranges)
-- **FIX #4**: Type safety for encounterType validation
+**Key Functions:**
+- `reconcilePendings()` - Consolidate cascade-linked encounters
+- Groups by cascade_id to merge split encounters
+- Migrates identifiers to encounter_identifiers table
+- Calculates data quality tiers
+- Writes final encounters to healthcare_encounters
 
-### 4. Database Writer (`databaseWriter.ts`)
+#### database.ts
+**Purpose:** Database operations for progressive mode
 
-**Purpose:** Atomic database write via RPC transaction
+**Key Functions:**
+- Batch inserts to pass05_pending_encounters
+- Writes chunk results to pass05_chunk_results
+- Session state management
 
-**Key Features:**
-- **FIX #1**: Transaction wrapper - all 3 writes in single atomic RPC call:
-  1. shell_file_manifests (manifest data)
-  2. pass05_metrics (AI metrics)
-  3. shell_files.pass_05_completed flag
-- **FIX #2**: Separate planned vs pseudo encounter counts
-- Calls `write_pass05_manifest_atomic()` RPC function
-- Computes metrics from encounters
-- Tracks version via `PASS_05_VERSION` env var
+### 4. Supporting Modules
 
-**Why Atomic?** Prevents partial failures. If manifest exists, metrics and completion flags MUST also exist.
+#### cascade-manager.ts
+**Purpose:** Generate deterministic cascade IDs for encounter continuity
+
+**Key Functions:**
+- Creates cascade_id based on encounter characteristics
+- Links encounters across chunk boundaries
+- Enables reconciliation grouping
+
+#### coordinate-extractor.ts
+**Purpose:** Extract OCR coordinates for intra-page boundaries
+
+**Key Functions:**
+- Looks up OCR coordinates for position markers
+- Supports sub-page spatial granularity
+
+#### identifier-extractor.ts
+**Purpose:** Parse and extract medical identifiers
+
+**Key Functions:**
+- Extracts MRN, Medicare, insurance numbers
+- Stores in pending_identifiers during chunk processing
+- Migrated to encounter_identifiers during reconciliation
 
 ### 5. Type Definitions (`types.ts`)
 
@@ -259,7 +316,7 @@ apps/render-worker/src/pass05/
 
 **Usage:** Default if `PASS_05_VERSION` not set
 
-## Data Flow
+## Data Flow (Strategy A v11)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -279,55 +336,60 @@ apps/render-worker/src/pass05/
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ 4. index.ts (Pass 0.5 Entry Point)                              │
-│    - Idempotency check (existing manifest?)                     │
-│    - If exists: return early (all data guaranteed to exist)     │
+│    - Idempotency check (shell_files.pass_0_5_completed?)        │
+│    - If exists: query healthcare_encounters + metrics, return   │
 └───────────────────────┬─────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5. encounterDiscovery.ts (Orchestrator)                         │
-│    - Select prompt version (PASS_05_VERSION env var)            │
-│    - Select strategy (PASS_05_STRATEGY env var)                 │
-│    - Build prompt with OCR text                                 │
+│ 5. encounterDiscovery.ts (Simplified Router)                    │
+│    - Calls processDocumentProgressively() for ALL documents     │
+│    - No version/strategy selection (single code path)           │
 └───────────────────────┬─────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6. aiPrompts.v2.9.ts (Current Production Prompt)                │
-│    - buildEncounterDiscoveryPromptV29()                         │
-│    - Returns comprehensive prompt text                          │
+│ 6. session-manager.ts (Progressive Orchestration)               │
+│    - Splits document into 50-page chunks                        │
+│    - Processes each chunk sequentially                          │
+│    - Manages inter-chunk handoff data                           │
 └───────────────────────┬─────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 7. OpenAI GPT-5-mini API Call                                   │
-│    - Model: gpt-5 (GPT-5-mini)                                  │
-│    - Response format: JSON                                      │
-│    - Max completion tokens: 32000                               │
+│ 7. chunk-processor.ts (Per-Chunk Processing)                    │
+│    FOR EACH 50-PAGE CHUNK:                                      │
+│    - Build prompt with aiPrompts.v11                            │
+│    - Call OpenAI GPT API                                        │
+│    - Parse AI response                                          │
+│    - Generate cascade IDs (cascade-manager)                     │
+│    - Extract identifiers (identifier-extractor)                 │
+│    - Extract coordinates (coordinate-extractor)                 │
+│    - Write to pass05_pending_encounters (database.ts)           │
+│    - Build handoff for next chunk (handoff-builder)             │
 └───────────────────────┬─────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 8. manifestBuilder.ts (Parser & Validator)                      │
-│    - parseEncounterResponse()                                   │
-│    - Validate page assignments (v2.3)                           │
-│    - Validate non-overlapping page ranges (Phase 1)             │
-│    - Validate encounter types (TypeScript union)                │
-│    - Two-branch date logic (real-world vs pseudo)               │
-│    - Pre-create encounters in database (UPSERT)                 │
-│    - Extract spatial bounds from OCR                            │
+│ 8. pending-reconciler.ts (Post-Chunk Reconciliation)            │
+│    AFTER ALL CHUNKS COMPLETE:                                   │
+│    - Group pendings by cascade_id                               │
+│    - Merge split encounters across chunk boundaries             │
+│    - Calculate data quality tiers                               │
+│    - Migrate identifiers to encounter_identifiers               │
+│    - Write final encounters to healthcare_encounters            │
 └───────────────────────┬─────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│ 9. databaseWriter.ts (Atomic Writer)                            │
-│    - Call write_pass05_manifest_atomic() RPC                    │
-│    - Writes 3 tables atomically:                                │
-│      1. shell_file_manifests (manifest data)                    │
-│      2. pass05_metrics (AI metrics)                             │
-│      3. shell_files.pass_05_completed flag                      │
+│ 9. index.ts (Finalization)                                      │
+│    - Create AI processing session                               │
+│    - Write pass05_encounter_metrics                             │
+│    - Write pass05_page_assignments (if present)                 │
+│    - Update shell_files completion status                       │
 └───────────────────────┬─────────────────────────────────────────┘
                         ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ 10. Return Success                                              │
-│     - manifest: ShellFileManifest                               │
-│     - aiModel, aiCostUsd, processingTimeMs                      │
-│     - encounters with UUIDs                                     │
+│     - success: true                                             │
+│     - aiModel, aiCostUsd, inputTokens, outputTokens             │
+│     - encounters: [] (query healthcare_encounters)              │
+│     - page_assignments: [] (query pass05_page_assignments)      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -422,52 +484,70 @@ apps/render-worker/src/pass05/
 **Required:**
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key (full access)
-- `OPENAI_API_KEY`: OpenAI API key (GPT-5 access)
+- `OPENAI_API_KEY`: OpenAI API key for GPT API access
 
-**Optional:**
-- `PASS_05_VERSION`: Prompt version (default: "v2.4", production: "v2.9")
-  - Valid values: "v2.4", "v2.7", "v2.8", "v2.9"
-- `PASS_05_STRATEGY`: Processing strategy (default: "ocr")
-  - Valid values: "ocr", "ocr_optimized", "vision" (not yet implemented)
+**Removed (Strategy A v11):**
+- `PASS_05_VERSION`: No longer used (single v11 prompt)
+- `PASS_05_STRATEGY`: No longer used (progressive mode only)
 
-## Database Integration
+## Database Integration (Strategy A v11)
 
 ### Tables Written
 
-**shell_file_manifests:**
-- `shell_file_id`: FK to shell_files
-- `manifest_data`: Full manifest JSON (JSONB)
-- `total_pages`, `total_encounters_found`, `ocr_average_confidence`
-- `ai_model_used`, `ai_cost_usd`, `processing_time_ms`
-- `pass_0_5_version`: Tracks prompt version used
+**pass05_pending_encounters:** (Intermediate storage during chunk processing)
+- Written by chunk-processor.ts for each chunk
+- `session_id`: Links to processing session
+- `chunk_number`: Which chunk created this pending
+- `cascade_id`: Deterministic ID for encounter continuity
+- All encounter fields (type, dates, provider, facility, etc.)
+- Reconciled after all chunks via pending-reconciler.ts
 
-**healthcare_encounters:**
-- Created via UPSERT in `parseEncounterResponse()`
+**healthcare_encounters:** (Final encounter storage)
+- Written by pending-reconciler.ts after reconciliation
 - `patient_id`, `encounter_type`, `is_real_world_visit`
-- `encounter_start_date`, `encounter_end_date` (v2.9 - Migration 42)
-- `encounter_timeframe_status` (v2.9)
-- `date_source` (v2.9)
+- `encounter_start_date`, `encounter_end_date`
+- `encounter_timeframe_status` (completed/ongoing/unknown_end_date)
+- `date_source` (ai_extracted/file_metadata/upload_date)
 - `provider_name`, `facility_name`
-- `primary_shell_file_id`, `page_ranges`, `spatial_bounds`
+- `source_shell_file_id`, `page_ranges`, `spatial_bounds`
 - `pass_0_5_confidence`, `summary`
+- `data_quality_tier` (low/medium/high/verified)
+- Identity fields: `patient_full_name`, `patient_date_of_birth`, etc.
 
-**pass05_metrics:**
+**pass05_encounter_metrics:**
+- Written by index.ts after processing completes
 - `processing_session_id`: FK to ai_processing_sessions
 - `shell_file_id`: FK to shell_files
+- `patient_id`: FK to user_profiles
 - `encounters_detected`, `real_world_encounters`, `planned_encounters`, `pseudo_encounters`
-- `input_tokens`, `output_tokens`, `ai_cost_usd`
+- `input_tokens`, `output_tokens`, `total_tokens`, `ai_cost_usd`
 - `encounter_confidence_average`, `encounter_types_found`
+- `processing_time_ms`, `ai_model_used`
 
-**shell_files:**
-- `pass_05_completed`: Set to true (atomic with manifest write)
+**pass05_page_assignments:** (Optional per-page mappings)
+- Written by index.ts if AI returns page_assignments
+- `shell_file_id`: FK to shell_files
+- `page_num`: Page number (1-indexed)
+- `encounter_id`: FK to healthcare_encounters
+- `justification`: Brief reasoning (15-20 words)
+
+**shell_files:** (Completion tracking)
+- `pass_0_5_completed`: Boolean flag
+- `pass_0_5_completed_at`: Timestamp
+- `pass_0_5_version`: "v11" (Strategy A)
+- `pass_0_5_progressive`: true (always progressive mode)
+
+**Supporting Tables:**
+- `pass05_chunk_results`: Chunk-level processing results
+- `pass05_sessions`: Progressive session state
+- `encounter_identifiers`: Medical identifiers (MRN, Medicare, etc.)
+- `pending_identifiers`: Identifiers during chunk processing
+- `cascade_chains`: Cascade ID tracking
 
 ### RPC Functions
 
-**write_pass05_manifest_atomic():**
-- Transaction wrapper for atomic writes
-- Writes manifest + metrics + shell_files flag
-- All or nothing - prevents partial failures
-- Parameters: manifest fields + metrics fields
+**No longer used:**
+- `write_pass05_manifest_atomic()`: Removed in Migration 45 (manifest-free architecture)
 
 ## Cost Analysis
 
@@ -542,17 +622,29 @@ apps/render-worker/src/pass05/
 
 ## Summary
 
-Pass 0.5 is a production-ready, version-controlled AI system for healthcare encounter discovery. The current production version (v2.9) supports multi-day encounters, explicit completion tracking, and robust date provenance. The system is idempotent, atomic, and handles complex Frankenstein files with multiple encounters.
+Pass 0.5 is a production-ready, scalable AI system for healthcare encounter discovery. **Strategy A (v11)** uses universal progressive processing for ALL documents (1-1000+ pages) with cascade-based encounter continuity. Legacy single-shot and conditional routing have been archived.
 
-Key strengths:
-- Version-controlled prompts (4 versions available)
+**Key Architecture Principles:**
+- **Single Code Path:** ALL documents use progressive mode (no thresholds)
+- **Cascade-Based Continuity:** Deterministic cascade IDs link encounters across chunk boundaries
+- **Pending-then-Reconcile:** Chunks write to pending table, reconciliation merges at end
+- **Scalable:** Handles any document size (tested to 1000+ pages)
+- **Idempotent:** Safe retry via shell_files.pass_0_5_completed check
+
+**Key Features:**
+- 50-page chunk processing with inter-chunk handoff
+- Multi-day encounter support (admission + discharge dates)
+- Medical identifier extraction (MRN, Medicare, insurance)
+- Data quality tiers (low/medium/high/verified)
+- Patient identity extraction (name, DOB, address, phone)
+- Sub-page position granularity (13 position fields)
 - Comprehensive validation (page assignments, type safety, page ranges)
-- Two-branch date logic (real-world vs pseudo)
-- Atomic database writes (transaction wrapper)
-- Cost-effective ($0.005-0.050 per file)
-- Idempotent (safe retry)
 
-Active files: 6 production, 3 historical
-Total lines of code: ~2,600
-Current model: GPT-5-mini
-Database tables: 4 (shell_file_manifests, healthcare_encounters, pass05_metrics, shell_files)
+**Current State (November 20, 2024):**
+- Active prompt: aiPrompts.v11.ts (ONLY prompt)
+- Active files: 23 total (10 progressive pipeline, 4 providers, 2 models, 7 core)
+- Archived files: 10 legacy prompts + manifestBuilder.ts + documentation
+- Total lines of code: ~4,500 (progressive pipeline adds complexity)
+- Current model: OpenAI GPT (configurable via model-selector)
+- Database tables: 9+ (pending encounters, final encounters, metrics, identifiers, sessions, etc.)
+- Cost: $0.005-0.050 per file (similar to legacy, but scales to any size)
