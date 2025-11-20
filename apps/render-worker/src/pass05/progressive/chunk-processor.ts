@@ -415,24 +415,28 @@ function parseV11Response(
     // Generate cascade_id with inheritance logic
     let cascade_id: string | null = null;
 
-    if (enc.is_cascading) {
-      if (enc.continues_previous && cascadeContexts.length > 0) {
-        // CONTINUATION: Inherit cascade_id from previous chunk
-        // Match by encounter_type (simple heuristic - could be enhanced with better matching)
-        const matchingCascade = cascadeContexts.find(ctx => ctx.encounter_type === enc.encounter_type);
+    // FIX: Handle continuation encounters first (regardless of is_cascading status)
+    // A continuation encounter that ENDS in current chunk has is_cascading=false
+    // but still needs to inherit the cascade_id from previous chunk
+    if (enc.continues_previous && cascadeContexts.length > 0) {
+      // CONTINUATION: Inherit cascade_id from previous chunk
+      // Match by encounter_type (simple heuristic - could be enhanced with better matching)
+      const matchingCascade = cascadeContexts.find(ctx => ctx.encounter_type === enc.encounter_type);
 
-        if (matchingCascade) {
-          cascade_id = matchingCascade.cascade_id;
-          console.log(`[Parse V11] Encounter ${index} continues cascade ${cascade_id} from previous chunk`);
-        } else {
-          // Fallback: AI says continues_previous but we can't find matching cascade
-          console.warn(`[Parse V11] Encounter ${index} claims continues_previous but no matching cascade found (type: ${enc.encounter_type})`);
+      if (matchingCascade) {
+        cascade_id = matchingCascade.cascade_id;
+        console.log(`[Parse V11] Encounter ${index} continues cascade ${cascade_id} from previous chunk (is_cascading: ${enc.is_cascading})`);
+      } else {
+        // Fallback: AI says continues_previous but we can't find matching cascade
+        console.warn(`[Parse V11] Encounter ${index} claims continues_previous but no matching cascade found (type: ${enc.encounter_type})`);
+        // Only generate new cascade_id if this encounter itself is cascading
+        if (enc.is_cascading) {
           cascade_id = generateCascadeId(sessionId, chunkNumber, index, enc.encounter_type);
         }
-      } else {
-        // NEW CASCADE: Generate new cascade_id starting in this chunk
-        cascade_id = generateCascadeId(sessionId, chunkNumber, index, enc.encounter_type);
       }
+    } else if (enc.is_cascading) {
+      // NEW CASCADE: Generate new cascade_id starting in this chunk
+      cascade_id = generateCascadeId(sessionId, chunkNumber, index, enc.encounter_type);
     }
 
     return {
