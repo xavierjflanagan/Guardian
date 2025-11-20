@@ -277,7 +277,7 @@ export async function parseEncounterResponse(
           date_source: dateSource,  // Migration 38/42: Track date provenance with waterfall logic
           provider_name: aiEnc.provider || null,
           facility_name: aiEnc.facility || null,
-          primary_shell_file_id: shellFileId,  // Link to source document
+          source_shell_file_id: shellFileId,  // Link to source document
           page_ranges: normalizedPageRanges,  // Use normalized (sorted) ranges
           spatial_bounds: spatialBounds,  // Migration 38: Bounding box coordinates
           identified_in_pass: 'pass_0_5',
@@ -286,7 +286,7 @@ export async function parseEncounterResponse(
           summary: aiEnc.summary || null  // Migration 38: AI-generated plain English description
         },
         {
-          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_start_date,page_ranges',  // Migration 42: Updated conflict key
+          onConflict: 'patient_id,source_shell_file_id,encounter_type,encounter_start_date,page_ranges',  // Migration 42: Updated conflict key
           ignoreDuplicates: false  // Update existing record
         }
       )

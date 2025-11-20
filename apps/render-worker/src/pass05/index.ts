@@ -50,7 +50,7 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
       const { data: encounters } = await supabase
         .from('healthcare_encounters')
         .select('*')
-        .eq('primary_shell_file_id', input.shellFileId);
+        .eq('source_shell_file_id', input.shellFileId);
 
       const { data: metrics } = await supabase
         .from('pass05_encounter_metrics')

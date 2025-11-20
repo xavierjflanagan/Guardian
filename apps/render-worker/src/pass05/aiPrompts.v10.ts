@@ -529,7 +529,7 @@ export function mapV10ResponseToDatabase(encounter: any): any {
   return {
     // Core identification
     patient_id: encounter.patientId,
-    primary_shell_file_id: encounter.shellFileId,
+    source_shell_file_id: encounter.shellFileId,
 
     // Encounter details (columns that exist)
     encounter_type: encounter.encounterType,
