@@ -10,7 +10,7 @@
  * To use this version: Set environment variable PASS_05_VERSION=v2.7
  */
 
-import { OCRPage } from './types';
+import { OCRPage } from '../../types';
 
 export interface PromptInput {
   fullText: string;

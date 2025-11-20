@@ -15,7 +15,7 @@ import {
   BoundingBoxNorm,
   SpatialBound,
   PageAssignment
-} from './types';
+} from '../../types';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

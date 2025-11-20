@@ -13,7 +13,7 @@
  * conflicted with and tried to override the base prompt.
  */
 
-import { OCRPage } from './types';
+import { OCRPage } from '../../types';
 
 export interface V10PromptConfig {
   fullText: string;

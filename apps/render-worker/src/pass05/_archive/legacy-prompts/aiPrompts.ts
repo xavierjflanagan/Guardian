@@ -35,7 +35,7 @@
  *    - Updated Example 3 to show dated lab report as timeline-worthy encounter
  */
 
-import { OCRPage } from './types';
+import { OCRPage } from '../../types';
 
 export interface PromptInput {
   fullText: string;
