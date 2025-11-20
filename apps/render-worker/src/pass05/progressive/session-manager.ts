@@ -173,7 +173,6 @@ export async function processDocumentProgressively(
       .from('shell_files')
       .update({
         pass_0_5_completed: true,
-        pass_0_5_progressive: true,
         pass_0_5_version: 'v11-strategy-a',
         status: 'completed',
         processing_completed_at: new Date().toISOString()

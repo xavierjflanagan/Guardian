@@ -39,7 +39,7 @@ export async function runPass05(input: Pass05Input): Promise<Pass05Output> {
     // Migration 45: IDEMPOTENCY CHECK - Query shell_files instead of manifest table
     const { data: shellFile } = await supabase
       .from('shell_files')
-      .select('pass_0_5_completed, pass_0_5_version, pass_0_5_progressive')
+      .select('pass_0_5_completed, pass_0_5_version')
       .eq('id', input.shellFileId)
       .single();
 
