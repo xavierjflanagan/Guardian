@@ -256,6 +256,7 @@ Deno.serve(async (request: Request) => {
     const response = await processShellFileUpload(
       supabase,
       requestData,
+      authUser.user.id,
       idempotencyKey,
       correlationId
     );
@@ -314,6 +315,7 @@ function validateUploadRequest(data: ShellFileUploadRequest): any {
 async function processShellFileUpload(
   supabase: any,
   data: ShellFileUploadRequest,
+  uploadedBy: string,
   idempotencyKey: string,
   correlationId: string
 ): Promise<UploadProcessingResponse> {
@@ -342,6 +344,7 @@ async function processShellFileUpload(
       .from('shell_files')
       .insert({
         patient_id: data.patient_id,
+        uploaded_by: uploadedBy,
         filename: data.filename,
         original_filename: data.filename,
         file_size_bytes: data.file_size_bytes,
