@@ -1,22 +1,47 @@
 # Pass 0.5 Strategy A - V11 Prompt Specification
 
-**Date:** November 14, 2024 (Updated: November 15, 2024)
-**Version:** 1.1
+**Date:** November 14, 2024 (Updated: November 19, 2025)
+**Version:** 2.0 (MAJOR UPDATE)
 **Purpose:** Define the V11 unified progressive prompt for Strategy A
 
-**UPDATE (Nov 15, 2024):** Position tracking updated to match batching design (inter_page/intra_page), added batching analysis output, added pseudo-encounter detection (Timeline Test from v2.9), added OCR integration.
+**UPDATE (Nov 19, 2025) - BREAKING CHANGES:**
+- **Added Identity Extraction**: 4 patient demographic fields (name, DOB, address, phone)
+- **Added Medical Identifier Extraction**: MRN, Medicare, insurance IDs with validation
+- **Updated Cascade Package Structure**: Changed to `cascade_contexts` array (snake_case for AI JSON)
+- **Added Source Metadata**: `encounter_source` and `created_by_user_id` fields
+- **Added Profile Classification Fields**: System-populated fields explained (not AI-generated)
+- **Added Data Quality Tier**: System-calculated quality scoring explained
+- **Updated Page Separation Analysis**: Simplified structure, renamed fields
+- **Documented Cascade ID Format**: Deterministic generation algorithm
+- **Total New Fields**: 20+ fields added to match Nov 18-19, 2025 implementation
+
+**NAMING CONVENTION:**
+- **AI JSON Output**: Use snake_case (`cascade_contexts`, `medical_identifiers`, `page_number`)
+- **TypeScript Code**: Worker normalizes to camelCase (`cascadeContexts`, `medicalIdentifiers`, `pageNumber`)
+- This spec documents AI JSON output format (snake_case)
+
+**PREVIOUS UPDATE (Nov 15, 2024):** Position tracking updated to match batching design (inter_page/intra_page), added batching analysis output, added pseudo-encounter detection (Timeline Test from v2.9), added OCR integration.
 
 ## Executive Summary
 
-V11 is the evolution of V10 designed specifically for Strategy A's simplified architecture. Key changes:
+V11 is the evolution of V10 designed specifically for Strategy A's simplified architecture. Key features:
+
+**Core Encounter Detection:**
 - Every encounter gets cascade_id detection logic
-- Simplified handoff to just cascade context
-- **Position tracking with inter_page vs intra_page boundaries (matches batching design)**
-- **Batching analysis output for downstream Pass 1/2 splitting**
-- **Pseudo-encounter detection using Timeline Test (from v2.9)**
-- **OCR bounding box integration for precise Y-coordinates**
-- Removed complex state management
+- Simplified handoff to just cascade context (via `cascade_contexts` array)
+- Position tracking with inter_page vs intra_page boundaries (matches batching design)
+- Batching analysis output for downstream Pass 1/2 splitting
+- Pseudo-encounter detection using Timeline Test (from v2.9)
+- OCR bounding box integration for precise Y-coordinates
 - Clear instructions: AI never generates IDs
+
+**NEW in V2.0 (Nov 19, 2025):**
+- **Identity Extraction**: 4 patient demographic fields for profile matching
+- **Medical Identifier Extraction**: MRN, Medicare, insurance IDs with organizational context
+- **Enhanced Cascade Context**: 6-field structure with pending linking
+- **Source Tracking**: Distinguish shell_file vs manual vs API encounters
+- **Profile Classification Support**: Extract data for downstream matching (AI doesn't match, system does)
+- **Data Quality Support**: Extract complete data for quality tier calculation (AI doesn't calculate, system does)
 
 ## Core Design Principles
 
@@ -60,21 +85,53 @@ V11 is the evolution of V10 designed specifically for Strategy A's simplified ar
 }
 ```
 
-### 3. Simplified Handoff
-**V10 Handoff (Complex):**
+### 3. Identity Extraction (NEW in V2.0)
 ```json
 {
-  "pendingEncounter": {
-    "tempId": "encounter_temp_chunk1_001",
-    "partialData": {...},
-    "expectedContinuation": "discharge_summary",
-    "pageRanges": [[1,50]]
-  },
-  "activeContext": {...}
+  // NEW: Patient demographic fields for profile matching
+  "patient_full_name": "John Michael Smith",
+  "patient_date_of_birth": "15/03/1985",
+  "patient_address": "123 Main Street, Sydney NSW 2000",
+  "patient_phone": "0412 345 678"
 }
 ```
 
-**V11 Handoff (Simple):**
+**Purpose**: These fields enable the system to match encounters to existing user profiles or detect orphan identities (patients not yet in the system).
+
+**AI Responsibility**: Extract complete, accurate demographic data when present in documents.
+
+**System Responsibility**: Use extracted data for profile matching, calculate match confidence, detect orphans (AI does NOT perform matching).
+
+### 4. Medical Identifier Extraction (NEW in V2.0)
+```json
+{
+  // NEW: Medical identifiers with organizational context
+  "medical_identifiers": [
+    {
+      "identifier_type": "MRN",
+      "identifier_value": "MRN123456",
+      "issuing_organization": "St Vincent's Hospital",
+      "detected_context": "Patient ID: MRN123456 (St Vincent's)"
+    },
+    {
+      "identifier_type": "Medicare",
+      "identifier_value": "2950123456",
+      "issuing_organization": "Services Australia",
+      "detected_context": "Medicare Card: 2950 1234 5678 9 (1)"
+    }
+  ]
+}
+```
+
+**Purpose**: Medical identifiers (MRN, Medicare, insurance) are crucial for profile matching and duplicate detection.
+
+**AI Responsibility**: Extract identifiers with their organizational context.
+
+**System Responsibility**: Validate formats, normalize values, use for profile matching (AI does NOT validate or normalize).
+
+### 5. Updated Cascade Package Structure (BREAKING CHANGE in V2.0)
+
+**V10/V11.0 Handoff (OLD - DEPRECATED):**
 ```json
 {
   "cascade_context": {
@@ -84,6 +141,49 @@ V11 is the evolution of V10 designed specifically for Strategy A's simplified ar
   }
 }
 ```
+
+**V11.2 Handoff (NEW - REQUIRED):**
+```json
+{
+  "cascade_contexts": [  // ← AI outputs snake_case (worker normalizes to camelCase)
+    {
+      // NOTE: cascade_id and pending_id shown here are SYSTEM-GENERATED
+      // AI does NOT output these fields - they are added by the worker
+      // This example shows the FINAL shape after system processing
+
+      "encounter_type": "hospital_admission",     // AI outputs this
+      "partial_summary": "STEMI patient, PCI completed, stable in CCU",  // AI outputs this
+      "expected_in_next_chunk": "discharge_summary",  // AI outputs this
+      "ai_context": "Patient stable, awaiting discharge planning"  // AI outputs this
+    }
+  ]
+}
+```
+
+**AI Output vs System-Generated Fields:**
+- **AI outputs**: `encounter_type`, `partial_summary`, `expected_in_next_chunk`, `ai_context`
+- **System adds later**: `cascade_id` (deterministic ID), `pending_id` (links to pending encounter)
+
+**Why the Change?**
+- Multiple encounters can cascade simultaneously (array handles this)
+- `cascade_id` and `pending_id` added by system to link contexts to specific encounters
+- `ai_context` provides richer continuity hints
+- Clearer field names (`partial_summary`, `expected_in_next_chunk`)
+
+### 6. Source Metadata (NEW in V2.0)
+```json
+{
+  // NEW: Track encounter source
+  "encounter_source": "shell_file",  // or "manual" or "api"
+  "created_by_user_id": null  // null for shell_file, user_id for manual entry
+}
+```
+
+**Purpose**: Distinguish uploaded documents from manual entry or API-sourced encounters.
+
+**AI Responsibility**: For shell_file processing, these are always `"shell_file"` and `null` (system sets these).
+
+**System Responsibility**: Set correctly based on entry method.
 
 ## V11 Prompt Structure
 
@@ -177,7 +277,10 @@ Use the provided OCR bounding box data to extract coordinates:
 1. Locate the marker text in OCR data for the page
 2. Extract bbox.y (top coordinate) as text_y_top
 3. Extract bbox.height as text_height
-4. Calculate split line: text_y_top - text_height (creates buffer zone above text)
+4. Calculate split line based on marker direction:
+   - "before" markers: split_y = text_y_top (split ABOVE text)
+   - "after" markers: split_y = text_y_top + text_height (split BELOW text)
+5. Store coordinates: { y: text_y_top, height: text_height } for intra_page splits
 
 ### Position Confidence Scoring
 
@@ -192,25 +295,34 @@ Why this matters:
 - Allows validation of AI-identified boundaries
 ```
 
-### 5. Handoff Context Handling
+### 5. Handoff Context Handling (V2.0 - Updated)
 ```
-## CASCADE CONTEXT FROM PREVIOUS CHUNK
+## CASCADE CONTEXTS FROM PREVIOUS CHUNK
 
-{if cascade_context provided}
-You received cascade context indicating an encounter continues from the previous chunk:
-- Type: {encounter_type}
-- Summary: {summary}
-- Expecting: {expecting}
+{if cascade_contexts array provided}
+You received cascade contexts indicating encounters that continue from the previous chunk.
 
-Instructions:
-1. Look for the continuation of this encounter
-2. When found, include cascade_context: "continues from previous chunk"
-3. Start your pageRanges from where you find it in this chunk
-4. If it ends in this chunk, mark is_cascading: false
-5. If it continues beyond this chunk, mark is_cascading: true
+For each cascade context in the array:
+{
+  "encounter_type": "{encounter_type}",
+  "partial_summary": "{what we know so far}",
+  "expected_in_next_chunk": "{what to look for}",
+  "ai_context": "{additional continuity information}"
+}
+
+Instructions for each cascading encounter:
+1. Look for the continuation based on encounter_type and expected_in_next_chunk
+2. When found, set continues_previous: true in your encounter object
+3. Set cascade_context: "continues from previous chunk" (or more specific context)
+4. Start your page_ranges from where you find it in this chunk
+5. If it ends in this chunk, mark is_cascading: false
+6. If it continues beyond this chunk, mark is_cascading: true and set expected_continuation
+
+Note: You may receive MULTIPLE cascade contexts if multiple encounters were cascading.
+Handle each independently.
 ```
 
-### 6. Output Schema
+### 6. Output Schema (V2.0 - Updated Nov 2025)
 ```json
 {
   "encounters": [
@@ -219,11 +331,12 @@ Instructions:
       "encounter_type": "hospital_admission",
       "is_cascading": true,
       "cascade_context": "admission continuing to next chunk",
+      "expected_continuation": "discharge_summary",  // NEW V2.0: What to expect in next chunk
 
       // Dates
       "encounter_start_date": "2024-03-15",
       "encounter_end_date": null,  // null if ongoing or unknown
-      "date_source": "extracted",
+      "date_source": "ai_extracted",  // Enum: 'ai_extracted' | 'file_metadata' | 'upload_date'
 
       // Position data (inter_page vs intra_page)
       // IMPORTANT: Pages are document-absolute (1-N), NOT chunk-relative
@@ -247,13 +360,56 @@ Instructions:
       // Pseudo-encounter detection (Timeline Test)
       "is_real_world_visit": true,  // Has date + provider/facility
 
+      // NEW V2.0: Identity Extraction (Section 3)
+      "patient_full_name": "John Michael Smith",
+      "patient_date_of_birth": "15/03/1985",
+      "patient_address": "123 Main Street, Sydney NSW 2000",
+      "patient_phone": "0412 345 678",
+
+      // NEW V2.0: Medical Identifiers (Section 4)
+      "medical_identifiers": [
+        {
+          "identifier_type": "MRN",
+          "identifier_value": "MRN123456",
+          "issuing_organization": "St Vincent's Hospital",
+          "detected_context": "Patient ID: MRN123456"
+        },
+        {
+          "identifier_type": "MEDICARE",
+          "identifier_value": "1234 56789 0",
+          "issuing_organization": "Medicare Australia",
+          "detected_context": "Medicare Number: 1234 56789 0"
+        }
+      ],
+
+      // NEW V2.0: Source Metadata (Section 6)
+      // NOTE: encounter_source and created_by_user_id are SYSTEM-SET, not AI-extracted
+      // AI does NOT populate these fields - they are documented here for completeness only
+      // "encounter_source": "shell_file",  // System sets based on upload method
+      // "created_by_user_id": "uuid",      // System sets from auth context
+
+      // NEW V2.0: Profile Classification Fields (Section 8.1)
+      // NOTE: These are SYSTEM-POPULATED after AI extraction, NOT set by AI
+      // AI extracts identity data above, system performs matching
+      // "matched_profile_id": "uuid",      // System sets via profile matching
+      // "match_confidence": 0.95,          // System calculates match score
+      // "match_status": "matched",         // System determines: matched/unmatched/orphan/review
+      // "is_orphan_identity": false,       // System sets if no profile match
+
+      // NEW V2.0: Data Quality Tier (Section 8.2)
+      // NOTE: This is SYSTEM-CALCULATED based on A/B/C criteria, NOT set by AI
+      // AI extracts complete data, system calculates quality tier
+      // "data_quality_tier": "high",       // System calculates: low/medium/high/verified
+
       // Clinical content
       "provider_name": "Dr. Smith",
-      "facility": "St Vincent's Hospital",
+      "facility_name": "St Vincent's Hospital",  // Note: facility_name (matches database column)
       "department": "Cardiac ICU",
       "chief_complaint": "Chest pain",
       "diagnoses": ["STEMI"],
       "procedures": ["PCI with stent"],
+      "provider_role": "Cardiologist",  // Provider's specialty/role
+      "disposition": "Admitted to CCU",  // Patient disposition
       "summary": "STEMI patient admitted for cardiac intervention",
 
       // Confidence
@@ -267,12 +423,20 @@ Instructions:
       "justification": "Contains 'ADMISSION NOTE' and date '15/03/2024'"
     }
   ],
-  "cascade_package": {
-    // Only populated if any encounters are cascading
-    "encounter_type": "hospital_admission",
-    "summary": "STEMI patient in cardiac ICU, PCI completed",
-    "expecting": "discharge_summary"
-  }
+
+  // NEW V2.0: Updated Cascade Package Structure (Section 5 - BREAKING CHANGE)
+  // Old v2.9: Single object { encounter_type, summary, expecting }
+  // New V2.0: Array of cascade contexts (supports multiple cascading encounters)
+  "cascade_contexts": [
+    {
+      // NOTE: cascade_id and pending_id are SYSTEM-GENERATED, not AI-extracted
+      // AI provides the context below, system generates IDs during processing
+      "encounter_type": "hospital_admission",
+      "partial_summary": "STEMI patient in cardiac ICU, PCI completed",
+      "expected_in_next_chunk": "discharge_summary",
+      "ai_context": "Patient stable post-PCI, awaiting discharge planning"
+    }
+  ]
 }
 ```
 
@@ -303,11 +467,55 @@ When persisting page assignments, the worker will:
 4. After reconciliation, update encounter_id → final healthcare_encounters.id
 ```
 
-#### Cascade Package
+#### Cascade Package (V2.0 - BREAKING CHANGE)
 ```
-The cascade_package is your handoff to the next chunk.
-Only populate if you have cascading encounters.
-Keep it minimal - just enough context for continuity.
+V2.0 CHANGE: cascade_package is now cascade_contexts (array, not object)
+
+Old v2.9 format (DEPRECATED):
+{
+  "cascade_package": {
+    "encounter_type": "hospital_admission",
+    "summary": "...",
+    "expecting": "..."
+  }
+}
+
+New V2.0 format (REQUIRED):
+{
+  "cascade_contexts": [
+    {
+      "encounter_type": "hospital_admission",
+      "partial_summary": "...",           // RENAMED from "summary"
+      "expected_in_next_chunk": "...",    // RENAMED from "expecting"
+      "ai_context": "..."                 // NEW field for free-form context
+    }
+  ]
+}
+
+Key Changes:
+- Now an ARRAY (supports multiple cascading encounters per chunk)
+- Field renames for clarity: summary → partial_summary, expecting → expected_in_next_chunk
+- New ai_context field for additional continuity information
+- System will add cascade_id and pending_id (DO NOT generate these)
+
+Only populate cascade_contexts if you have cascading encounters (is_cascading: true).
+Keep it minimal - just enough context for the next chunk to recognize the continuation.
+
+**IMPORTANT: Two Different Cascade Fields**
+
+1. **Per-encounter `cascade_context` (string):**
+   - Field on each encounter object
+   - Describes this encounter's cascade state within the current chunk
+   - Examples: "continues from previous chunk", "new admission starting in this chunk"
+
+2. **Top-level `cascade_contexts` (array):**
+   - Top-level field in output JSON (same level as encounters, page_assignments)
+   - Array of cascade handoff objects for the NEXT chunk
+   - Only populated if encounters in THIS chunk are cascading (is_cascading: true)
+   - Worker uses per-encounter data to build this handoff array
+
+These are related but distinct: encounter.cascade_context describes current state,
+top-level cascade_contexts provides handoff data for next chunk.
 ```
 
 ### 8. Pseudo-Encounter Detection (Timeline Test)
@@ -364,6 +572,130 @@ is_real_world_visit: false  // Fails Timeline Test (pseudo-encounter)
 **CRITICAL:** Lab/imaging reports WITH specific collection/study dates + facility ARE timeline-worthy (real world visits).
 ```
 
+### 8.1. Profile Classification Support (NEW in V2.0 - SYSTEM-SIDE)
+
+```
+## PROFILE CLASSIFICATION (SYSTEM-POPULATED, NOT AI)
+
+**Important**: The AI does NOT perform profile matching. The system uses extracted identity data and medical identifiers to match encounters to user profiles after chunk processing.
+
+### AI Responsibility: Extract Data
+
+Extract these fields when present:
+- `patient_full_name`: Full name as it appears
+- `patient_date_of_birth`: DOB in any format found
+- `patient_address`: Full address if present
+- `patient_phone`: Phone number if present
+- `medical_identifiers`: Array of MRN, Medicare, insurance IDs
+
+### System Responsibility: Perform Matching
+
+The system will:
+1. Normalize extracted identities (format names, parse DOBs)
+2. Query existing `user_profiles` for matches
+3. Calculate match confidence based on field overlap
+4. Detect orphan identities (3+ unmatched occurrences)
+5. Populate these fields (AI does NOT set these):
+   - `matched_profile_id`: UUID of matched profile or null
+   - `match_confidence`: 0-1 confidence score
+   - `match_status`: 'matched' | 'unmatched' | 'orphan' | 'review'
+   - `is_orphan_identity`: Boolean flag for orphans
+
+### AI Output (What You Provide)
+
+{
+  // Extract these when present
+  "patient_full_name": "John Michael Smith",
+  "patient_date_of_birth": "15/03/1985",
+  "patient_address": "123 Main St, Sydney NSW 2000",
+  "patient_phone": "0412 345 678",
+  "medical_identifiers": [
+    {
+      "identifier_type": "MRN",
+      "identifier_value": "MRN123456",
+      "issuing_organization": "St Vincent's Hospital",
+      "detected_context": "Patient ID: MRN123456"
+    }
+  ],
+
+  // DO NOT SET - System populates after chunk processing
+  // "matched_profile_id": null,  // ← System sets
+  // "match_confidence": null,     // ← System sets
+  // "match_status": null,         // ← System sets
+  // "is_orphan_identity": false   // ← System sets
+}
+
+**Key Point**: Focus on extracting complete, accurate identity data. The system handles the matching logic.
+```
+
+### 8.2. Data Quality Tier Support (NEW in V2.0 - SYSTEM-CALCULATED)
+
+```
+## DATA QUALITY TIER (SYSTEM-CALCULATED, NOT AI)
+
+**Important**: The AI does NOT calculate data quality tiers. The system calculates quality based on completeness of extracted data.
+
+### Quality Tier Criteria (System Logic)
+
+**Tier A - Identity Completeness**:
+- All 4 identity fields present (name, DOB, address, phone)
+- Threshold: 4/4 fields = Criteria A met
+
+**Tier B - Clinical Context**:
+- Provider name OR facility name present
+- Encounter start date present
+- Threshold: 2/2 fields = Criteria B met
+
+**Tier C - Medical Identifiers**:
+- At least 1 medical identifier present (MRN, Medicare, insurance)
+- Threshold: 1+ identifiers = Criteria C met
+
+**Quality Tiers**:
+- `low`: Only C met (has identifier, minimal context)
+- `medium`: B + C met (clinical context + identifier)
+- `high`: A + B + C met (complete identity + clinical + identifier)
+- `verified`: User manually confirmed data (highest tier)
+
+### AI Responsibility: Extract Complete Data
+
+To support high-quality tiers, extract:
+- All available identity fields (complete addresses, full names, formatted DOBs)
+- Provider AND facility names when both present
+- All medical identifiers with organizational context
+- Precise encounter dates
+
+### System Responsibility: Calculate Tier
+
+The system will:
+1. Count identity fields present
+2. Check clinical context completeness
+3. Check medical identifiers present
+4. Calculate tier based on criteria met
+5. Populate `data_quality_tier` field (AI does NOT set this)
+
+### AI Output (What You Provide)
+
+{
+  // Extract these completely to enable high quality tier
+  "patient_full_name": "John Michael Smith",       // → Criteria A (1/4)
+  "patient_date_of_birth": "15/03/1985",           // → Criteria A (2/4)
+  "patient_address": "123 Main St, Sydney NSW 2000", // → Criteria A (3/4)
+  "patient_phone": "0412 345 678",                 // → Criteria A (4/4) ✓
+
+  "provider_name": "Dr. Sarah Jones",              // → Criteria B (1/2)
+  "encounter_start_date": "2024-03-15",            // → Criteria B (2/2) ✓
+
+  "medical_identifiers": [                         // → Criteria C (1+) ✓
+    { "identifier_type": "MRN", ...}
+  ],
+
+  // DO NOT SET - System calculates after extraction
+  // "data_quality_tier": "high"  // ← System calculates (A+B+C met)
+}
+
+**Key Point**: Extract complete data to enable high-quality tiers. The system handles the tier calculation logic.
+```
+
 ### 9. Batching Analysis Output
 
 ```
@@ -389,40 +721,45 @@ Safe split points within a single page.
 
 Example: Page 23 has consultation ending mid-page, pathology report beginning below
 
-### Output Structure
+### Output Structure (V2.0 - Matches types.ts)
 
 {
   "page_separation_analysis": {
-    "chunk_number": 1,
-    "pages_analyzed": [1, 50],
     "safe_split_points": [
       {
-        "split_location": "inter_page",
-        "between_pages": [11, 12],
-        "split_type": "natural_boundary",
-        "confidence": 1.0,
-        "justification": "Day 2 notes end page 11. Radiology begins page 12."
+        "page_number": 12,  // Page where split occurs (inter-page: page after boundary)
+        "split_type": "inter_page",  // BoundaryType: 'inter_page' | 'intra_page'
+        "marker": "Day 2 notes end page 11. Radiology begins page 12.",
+        "confidence": 1.0
+        // No coordinates for inter_page splits
       },
       {
-        "split_location": "intra_page",
-        "page": 23,
+        "page_number": 23,  // Page where split occurs
+        "split_type": "intra_page",  // Split occurs within this page
         "marker": "just before header 'PATHOLOGY REPORT'",
-        "text_y_top": 1200,
-        "split_y": 1178,
-        "text_height": 22,
-        "split_type": "new_document",
         "confidence": 0.92,
-        "justification": "Consultation concludes. New pathology document begins."
+        "coordinates": {  // Required for intra_page splits
+          "y": 1200,      // Y coordinate (pixels from top) where split occurs
+          "height": 22    // Text height at split point
+        }
       }
     ],
-    "metadata": {
-      "splits_found": 8,
-      "avg_confidence": 0.94,
+    "summary": {  // Optional summary statistics
+      "total_splits": 8,
       "inter_page_count": 3,
-      "intra_page_count": 5
+      "intra_page_count": 5,
+      "average_confidence": 0.94,
+      "pages_per_split": 6.25
     }
   }
 }
+
+**Key Changes from V1.0:**
+- Removed: `chunk_number`, `pages_analyzed`, `split_location`, `between_pages`, `justification`
+- Simplified: `split_type` now only indicates inter_page vs intra_page (not semantic types)
+- Nested coordinates: `text_y_top`, `split_y`, `text_height` → `coordinates.y` and `coordinates.height`
+- Renamed: `metadata` → `summary`, `splits_found` → `total_splits`, `avg_confidence` → `average_confidence`
+- Added: `pages_per_split` to summary
 
 ### Safe Split Criteria
 
@@ -470,7 +807,11 @@ You receive OCR data in this format alongside the document text:
 1. **Find marker text:** Search OCR blocks for the header/marker
 2. **Extract y-coordinate:** Use bbox.y as text_y_top
 3. **Extract height:** Use bbox.height as text_height
-4. **Calculate split line:** text_y_top - text_height (creates buffer above text)
+4. **Determine marker direction:** "before" vs "after" from marker text
+5. **Calculate split line:**
+   - "before" markers: split_y = text_y_top (split ABOVE text)
+   - "after" markers: split_y = text_y_top + text_height (split BELOW text)
+6. **Store in coordinates:** { y: text_y_top, height: text_height }
 
 ### Coordinate System
 
@@ -627,16 +968,15 @@ This allows processing larger chunks or using smaller models.
     {"page": 2, "encounter_index": 0, "justification": "Shows 'blood pressure 140/90'"},
     {"page": 3, "encounter_index": 0, "justification": "Contains 'Plan: Continue lisinopril'"}
   ],
-  "cascade_package": null,
+  "cascade_contexts": [],  // V2.0: No cascading encounters
   "page_separation_analysis": {
-    "chunk_number": 1,
-    "pages_analyzed": [1, 3],
-    "safe_split_points": [],
-    "metadata": {
-      "splits_found": 0,
-      "avg_confidence": 0,
+    "safe_split_points": [],  // V2.0: No safe splits in this short document
+    "summary": {
+      "total_splits": 0,
       "inter_page_count": 0,
-      "intra_page_count": 0
+      "intra_page_count": 0,
+      "average_confidence": 0,
+      "pages_per_split": 0
     }
   }
 }
@@ -679,39 +1019,39 @@ This allows processing larger chunks or using smaller models.
     // ... pages 2-49 ...
     {"page": 50, "encounter_index": 0, "justification": "Shows 'Day 2 progress notes'"}
   ],
-  "cascade_package": {
-    "encounter_type": "hospital_admission",
-    "summary": "STEMI patient, PCI completed, stable in CCU",
-    "expecting": "discharge_summary"
-  },
+  "cascade_contexts": [  // V2.0: Array of cascade contexts
+    {
+      "encounter_type": "hospital_admission",
+      "partial_summary": "STEMI patient, PCI completed, stable in CCU",
+      "expected_in_next_chunk": "discharge_summary",
+      "ai_context": "Patient stable post-PCI, awaiting discharge planning"
+    }
+  ],
   "page_separation_analysis": {
-    "chunk_number": 1,
-    "pages_analyzed": [1, 50],
     "safe_split_points": [
       {
-        "split_location": "inter_page",
-        "between_pages": [11, 12],
-        "split_type": "natural_boundary",
-        "confidence": 1.0,
-        "justification": "Page 11 ends Day 1 notes. Page 12 begins radiology report."
+        "page_number": 12,  // V2.0: Page after boundary
+        "split_type": "inter_page",
+        "marker": "Page 11 ends Day 1 notes. Page 12 begins radiology report.",
+        "confidence": 1.0
       },
       {
-        "split_location": "intra_page",
-        "page": 28,
+        "page_number": 28,
+        "split_type": "intra_page",
         "marker": "just before header 'PATHOLOGY RESULTS'",
-        "text_y_top": 1350,
-        "split_y": 1328,
-        "text_height": 22,
-        "split_type": "new_document",
         "confidence": 0.91,
-        "justification": "Progress notes end. Pathology report begins mid-page."
+        "coordinates": {
+          "y": 1350,
+          "height": 22
+        }
       }
     ],
-    "metadata": {
-      "splits_found": 2,
-      "avg_confidence": 0.96,
+    "summary": {
+      "total_splits": 2,
       "inter_page_count": 1,
-      "intra_page_count": 1
+      "intra_page_count": 1,
+      "average_confidence": 0.96,
+      "pages_per_split": 25.0
     }
   }
 }
@@ -760,48 +1100,185 @@ This allows processing larger chunks or using smaller models.
     // ... pages 55-74 omitted for brevity ...
     {"page": 75, "encounter_index": 0, "justification": "Shows 'Follow-up instructions'"}
   ],
-  "cascade_package": null,
+  "cascade_contexts": [],  // V2.0: Cascade completed in this chunk
   "page_separation_analysis": {
-    "chunk_number": 2,
-    "pages_analyzed": [51, 100],
     "safe_split_points": [
       {
-        "split_location": "inter_page",
-        "between_pages": [62, 63],
-        "split_type": "natural_boundary",
-        "confidence": 1.0,
-        "justification": "Page 62 ends discharge medications. Page 63 begins cardiology consult report."
+        "page_number": 63,  // V2.0: Page after boundary
+        "split_type": "inter_page",
+        "marker": "Page 62 ends discharge medications. Page 63 begins cardiology consult report.",
+        "confidence": 1.0
       },
       {
-        "split_location": "intra_page",
-        "page": 75,
+        "page_number": 75,
+        "split_type": "intra_page",
         "marker": "just before header 'OUTPATIENT CLINIC VISIT - 2024-03-30'",
-        "text_y_top": 1850,
-        "split_y": 1826,
-        "text_height": 24,
-        "split_type": "new_encounter",
         "confidence": 0.88,
-        "justification": "Discharge summary ends. New outpatient visit begins mid-page (encounter boundary, not batching split)."
+        "coordinates": {
+          "y": 1850,
+          "height": 24
+        }
       }
     ],
-    "metadata": {
-      "splits_found": 2,
-      "avg_confidence": 0.94,
+    "summary": {
+      "total_splits": 2,
       "inter_page_count": 1,
-      "intra_page_count": 1
+      "intra_page_count": 1,
+      "average_confidence": 0.94,
+      "pages_per_split": 25.0
     }
   }
 }
 ```
 
+## V2.0 Summary: All Breaking Changes
+
+**Version History:**
+- **V1.0** (Nov 14, 2024): Original V11 spec with cascade detection, position tracking
+- **V2.0** (Nov 19, 2025): Strategy A enhancements - identity extraction, profile classification support, data quality tier
+
+### New Required Fields (AI Must Extract)
+
+**Identity Extraction (4 fields):**
+- `patient_full_name` - Full patient name as appears in document
+- `patient_date_of_birth` - DOB in any format (system normalizes)
+- `patient_address` - Patient address
+- `patient_phone` - Patient phone number
+
+**Medical Identifiers (array):**
+- `medical_identifiers[]` - Array of medical IDs:
+  - `identifier_type` - MRN, MEDICARE, INSURANCE, etc.
+  - `identifier_value` - Actual identifier value
+  - `issuing_organization` - Hospital/provider that issued ID
+  - `detected_context` - Raw text where identifier was found
+
+**Cascade Enhancement (1 field):**
+- `expected_continuation` - What AI expects in next chunk (was separate in cascade_package)
+
+### New System-Populated Fields (AI Does NOT Extract)
+
+**Profile Classification (4 fields - Section 8.1):**
+- `matched_profile_id` - Which user_profile matched (system sets)
+- `match_confidence` - Match confidence score (system calculates)
+- `match_status` - Match result: matched/unmatched/orphan/review (system determines)
+- `is_orphan_identity` - True if no profile match (system sets)
+
+**Data Quality (1 field - Section 8.2):**
+- `data_quality_tier` - Quality tier: low/medium/high/verified (system calculates based on A/B/C criteria)
+
+**Source Metadata (2 fields - Section 6):**
+- `encounter_source` - How encounter created: shell_file/manual/api (system sets)
+- `created_by_user_id` - User who uploaded/created (system sets)
+
+### Breaking Changes
+
+**1. Cascade Package Structure (Section 5):**
+```
+OLD v2.9:
+{
+  "cascade_package": {
+    "encounter_type": "...",
+    "summary": "...",
+    "expecting": "..."
+  }
+}
+
+NEW V2.0:
+{
+  "cascade_contexts": [  // Now ARRAY
+    {
+      "encounter_type": "...",
+      "partial_summary": "...",           // RENAMED
+      "expected_in_next_chunk": "...",    // RENAMED
+      "ai_context": "..."                 // NEW
+    }
+  ]
+}
+```
+
+**2. Batching Analysis Structure (Section 9):**
+```
+OLD V1.0:
+{
+  "page_separation_analysis": {
+    "chunk_number": 1,
+    "pages_analyzed": [1, 50],
+    "safe_split_points": [
+      {
+        "split_location": "inter_page",
+        "between_pages": [11, 12],
+        "split_type": "natural_boundary",  // Semantic type
+        "justification": "...",
+        "text_y_top": 1200,
+        "split_y": 1178,
+        "text_height": 22
+      }
+    ],
+    "metadata": {
+      "splits_found": 8,
+      "avg_confidence": 0.94
+    }
+  }
+}
+
+NEW V2.0:
+{
+  "page_separation_analysis": {
+    "safe_split_points": [
+      {
+        "page_number": 12,                    // CHANGED: Single page number
+        "split_type": "inter_page",           // SIMPLIFIED: Just boundary type
+        "marker": "...",                      // KEPT
+        "confidence": 0.94,                   // KEPT
+        "coordinates": {                      // NESTED: Only for intra_page
+          "y": 1200,
+          "height": 22
+        }
+      }
+    ],
+    "summary": {                              // RENAMED from metadata
+      "total_splits": 8,                      // RENAMED from splits_found
+      "inter_page_count": 3,
+      "intra_page_count": 5,
+      "average_confidence": 0.94,             // RENAMED from avg_confidence
+      "pages_per_split": 6.25                 // NEW
+    }
+  }
+}
+```
+
+Key Changes:
+- Removed: `chunk_number`, `pages_analyzed`, `split_location`, `between_pages`, `justification`
+- Simplified: `split_type` now only 'inter_page' | 'intra_page' (not semantic types)
+- Nested coordinates: Flat fields → `coordinates.y` and `coordinates.height`
+- Renamed: `metadata` → `summary`, field name changes for consistency
+
+### Implementation Notes
+
+**AI Responsibilities:**
+1. Extract ALL identity data and medical identifiers from documents
+2. Extract complete clinical data (dates, providers, facilities, diagnoses, etc.)
+3. Provide cascade context for encounters spanning chunks
+4. Set `expected_continuation` field for cascading encounters
+5. Identify safe split points WITHIN encounters for batching (page_separation_analysis)
+
+**System Responsibilities:**
+1. Generate all IDs (cascade_id, pending_id, encounter IDs)
+2. Perform profile matching using extracted identity data
+3. Calculate data quality tier based on completeness of extracted data
+4. Set source metadata based on upload context
+
+**Key Principle:** AI extracts complete data, system performs classification and matching.
+
 ## Conclusion
 
-V11 represents a significant simplification while improving accuracy. By removing ID generation from the AI and focusing on cascade detection and position tracking, we achieve:
+V2.0 enhances V11 with identity extraction and profile classification support while maintaining the core principle: **AI describes what it sees, system handles the mechanics.**
 
-1. Cleaner separation of concerns
-2. More reliable encounter linking
-3. Better sub-page precision
-4. Simpler reconciliation logic
-5. Reduced prompt complexity
+By extracting patient identity data and medical identifiers, V2.0 enables:
+1. Automatic profile classification (multi-patient household support)
+2. Data quality tier calculation (treatment confidence scoring)
+3. Orphan identity detection (unmatched patients)
+4. Medical identifier tracking (cross-system record linkage)
+5. Audit trail for profile matching decisions
 
-The key insight: Let AI describe what it sees, let the system handle the mechanics.
+The cascade system remains unchanged in principle - only the output structure evolved to support multiple concurrent cascades per chunk.

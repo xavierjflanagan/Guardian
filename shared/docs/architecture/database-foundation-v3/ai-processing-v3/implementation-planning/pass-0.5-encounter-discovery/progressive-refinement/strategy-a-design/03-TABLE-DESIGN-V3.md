@@ -33,11 +33,11 @@
 **Columns to RENAME:** 8 columns for clarity
 **Columns to ADD:** 96+ new columns across all tables
   - pass05_progressive_sessions: +4
-  - pass05_pending_encounters: +39
+  - pass05_pending_encounters: +43
   - pass05_chunk_results: +5
   - pass05_page_assignments: +6
   - pass05_encounter_metrics: +15
-  - healthcare_encounters: +38
+  - healthcare_encounters: +42
   - shell_files: +5 (includes critical uploaded_by for auth user tracking)
 **New Tables:** 6 total
   - 2 reconciliation tables (cascade_chains, reconciliation_log)
@@ -80,13 +80,13 @@
 | Table | DELETE | RENAME | ADD | New Indexes | Migration Complexity |
 |-------|--------|--------|-----|-------------|---------------------|
 | pass05_progressive_sessions | 2 | 1 | 4 | 0 | Low |
-| pass05_pending_encounters | 2 | 5 | 39 | 11 | High |
+| pass05_pending_encounters | 2 | 5 | 43 | 11 | High |
 | pass05_chunk_results | 3 | 2 | 5 | 1 | Medium |
 | pass05_page_assignments | 1 | 0 | 6 | 6 | High |
 | pass05_encounter_metrics | 3 | 0 | 15 | 0 | Medium |
-| healthcare_encounters | 4 | 2 | 38 | 2 | Medium |
+| healthcare_encounters | 4 | 2 | 42 | 2 | Medium |
 | shell_files | 3 | 0 | 5 | 3 | Low |
-| **TOTALS** | **18** | **10** | **112** | **23** | - |
+| **TOTALS** | **18** | **10** | **116** | **23** | - |
 
 ### New Tables to Create
 
@@ -322,28 +322,32 @@ WHERE strategy_version IS NULL;
 - `completed_encounter_id` → `reconciled_to`
 - `completed_at` → `reconciled_at`
 
-**ADD (38 columns):**
+**ADD (42 columns):**
 ```sql
 -- Core cascade support (3 columns)
 cascade_id varchar(100)                    -- Links cascading encounters
 is_cascading boolean DEFAULT false         -- Does this cascade to next chunk?
 continues_previous boolean DEFAULT false   -- Continues from previous chunk?
 
--- START boundary position - matches batching design pattern (6 columns)
+-- START boundary position - matches batching design pattern (8 columns)
 start_page integer NOT NULL                -- First page of encounter
 start_boundary_type varchar(20)            -- 'inter_page' or 'intra_page'
-start_marker text                          -- Descriptive text (e.g., "after header 'ADMISSION'")
-start_text_y_top integer                   -- NULL if inter_page; Y-coord of marker text top
-start_text_height integer                  -- NULL if inter_page; height of marker text
-start_y integer                            -- NULL if inter_page; calculated split line (y_top - height)
+start_marker text                          -- Exact text marking encounter start (e.g., "ADMISSION NOTE")
+start_marker_context varchar(100)          -- 10-20 chars before/after for disambiguation
+start_region_hint varchar(20)              -- 'top'|'upper_middle'|'lower_middle'|'bottom' (NULL if inter_page)
+start_text_y_top integer                   -- NULL until post-processor extracts from OCR
+start_text_height integer                  -- NULL until post-processor extracts from OCR
+start_y integer                            -- NULL until post-processor calculates
 
--- END boundary position - matches batching design pattern (6 columns)
+-- END boundary position - matches batching design pattern (8 columns)
 end_page integer NOT NULL                  -- Last page of encounter
 end_boundary_type varchar(20)              -- 'inter_page' or 'intra_page'
-end_marker text                            -- Descriptive text (e.g., "before header 'DISCHARGE'")
-end_text_y_top integer                     -- NULL if inter_page; Y-coord of marker text top
-end_text_height integer                    -- NULL if inter_page; height of marker text
-end_y integer                              -- NULL if inter_page; calculated split line (y_top - height)
+end_marker text                            -- Exact text marking encounter end (e.g., "DISCHARGE SUMMARY")
+end_marker_context varchar(100)            -- 10-20 chars before/after for disambiguation
+end_region_hint varchar(20)                -- 'top'|'upper_middle'|'lower_middle'|'bottom' (NULL if inter_page)
+end_text_y_top integer                     -- NULL until post-processor extracts from OCR
+end_text_height integer                    -- NULL until post-processor extracts from OCR
+end_y integer                              -- NULL until post-processor calculates
 
 -- Overall position confidence (1 column)
 position_confidence numeric                -- Confidence in boundary positions (0.0-1.0)
@@ -1163,7 +1167,7 @@ is_real_world_visit = FALSE → Pseudo-encounter
 
 **RENAME:** None
 
-**ADD (38 columns total):**
+**ADD (42 columns total):**
 
 **Column Parity Principle:** These match `pass05_pending_encounters` to ensure data flows cleanly through reconciliation.
 
@@ -1173,22 +1177,26 @@ cascade_id varchar(100)                -- Which cascade created this (if any)
 chunk_count integer DEFAULT 1          -- How many chunks this encounter spanned
 reconciliation_key text                -- Unique descriptor for duplicate detection
 
--- POSITION TRACKING (13 columns - matches batching design pattern)
+-- POSITION TRACKING (17 columns - matches batching design pattern + marker/region hints)
 -- START boundary position
 start_page integer                     -- First page of encounter
 start_boundary_type varchar(20)        -- 'inter_page' or 'intra_page'
-start_marker text                      -- Descriptive text (e.g., "after header 'ADMISSION'")
-start_text_y_top integer               -- NULL if inter_page; Y-coord of marker text top
-start_text_height integer              -- NULL if inter_page; height of marker text
-start_y integer                        -- NULL if inter_page; calculated split line (y_top - height)
+start_marker text                      -- Exact text marking encounter start
+start_marker_context varchar(100)      -- 10-20 chars before/after for disambiguation
+start_region_hint varchar(20)          -- 'top'|'upper_middle'|'lower_middle'|'bottom' (NULL if inter_page)
+start_text_y_top integer               -- Y-coord extracted by post-processor
+start_text_height integer              -- Height extracted by post-processor
+start_y integer                        -- Calculated split line by post-processor
 
 -- END boundary position
 end_page integer                       -- Last page of encounter
 end_boundary_type varchar(20)          -- 'inter_page' or 'intra_page'
-end_marker text                        -- Descriptive text (e.g., "before header 'DISCHARGE'")
-end_text_y_top integer                 -- NULL if inter_page; Y-coord of marker text top
-end_text_height integer                -- NULL if inter_page; height of marker text
-end_y integer                          -- NULL if inter_page; calculated split line (y_top - height)
+end_marker text                        -- Exact text marking encounter end
+end_marker_context varchar(100)        -- 10-20 chars before/after for disambiguation
+end_region_hint varchar(20)            -- 'top'|'upper_middle'|'lower_middle'|'bottom' (NULL if inter_page)
+end_text_y_top integer                 -- Y-coord extracted by post-processor
+end_text_height integer                -- Height extracted by post-processor
+end_y integer                          -- Calculated split line by post-processor
 
 -- Overall position confidence
 position_confidence numeric            -- Confidence in boundary positions (0.0-1.0)
@@ -2100,68 +2108,76 @@ CREATE INDEX idx_classification_audit_created ON profile_classification_audit(cr
 
 ## Part 4: Migration Execution Planning
 
-### Phase 1: Pre-Migration Verification
+### Phase 1: Pre-Migration Verification ✅ COMPLETE
 
 **CRITICAL: Verify current system behavior before migrating**
 
-- [ ] Query existing tables to confirm column usage patterns
-- [ ] Check for any unexpected data in "orphaned" columns
-- [ ] Verify RPC/API signatures match documentation
-- [ ] Review code for undocumented column usage
-- [ ] Test queries with representative data
+- [X] Query existing tables to confirm column usage patterns
+- [X] Check for any unexpected data in "orphaned" columns
+- [X] Verify RPC/API signatures match documentation
+- [X] Review code for undocumented column usage
+- [X] Test queries with representative data
 
-### Phase 2: Migration Sequence
+### Phase 2: Migration Sequence ✅ COMPLETE
 
-Migrations should be executed in this order:
+**All migrations executed successfully: 2025-11-18**
 
-#### Stage 1: Drop View (Low Risk)
-1. `pass05_progressive_performance` (VIEW) - Drop first, no dependencies
+#### Stage 1: Drop View (Low Risk) ✅
+1. `pass05_progressive_performance` (VIEW) - **Migration 47 COMPLETE**
 
-#### Stage 2: Modify Core Progressive Tables (Medium Risk)
-2. `pass05_progressive_sessions` - Session tracking
-3. `pass05_chunk_results` - Chunk metrics
-4. `pass05_pending_encounters` - Pending storage (high complexity)
+#### Stage 2: Modify Core Progressive Tables (Medium Risk) ✅
+2. `pass05_progressive_sessions` - **Migration 47 COMPLETE**
+3. `pass05_chunk_results` - **Migration 47 COMPLETE**
+4. `pass05_pending_encounters` - **Migration 48 COMPLETE** (39 new fields)
 
-#### Stage 3: Add Supporting Tables (Low Risk)
-5. `pass05_cascade_chains` - New table (cascade tracking)
-6. `pass05_reconciliation_log` - New table (reconciliation audit)
-7. `pass05_pending_encounter_identifiers` - New table (identity markers)
-8. `healthcare_encounter_identifiers` - New table (final identity markers)
-9. `orphan_identities` - New table (orphan detection)
-10. `profile_classification_audit` - New table (classification audit)
+#### Stage 3: Add Supporting Tables (Low Risk) ✅
+5. `pass05_cascade_chains` - **Migration 51 COMPLETE**
+6. `pass05_reconciliation_log` - **Migration 51 COMPLETE**
+7. `pass05_pending_encounter_identifiers` - **Migration 51 COMPLETE**
+8. `healthcare_encounter_identifiers` - **Migration 51 COMPLETE**
+9. `orphan_identities` - **Migration 51 COMPLETE**
+10. `profile_classification_audit` - **Migration 51 COMPLETE**
 
-#### Stage 4: Modify Display Tables (Low Risk)
-11. `pass05_page_assignments` - Page mapping
-12. `pass05_encounter_metrics` - Final metrics
+#### Stage 4: Modify Display Tables (Low Risk) ✅
+11. `pass05_page_assignments` - **Migration 49 COMPLETE**
+12. `pass05_encounter_metrics` - **Migration 49 COMPLETE**
 
-#### Stage 5: Modify Core Tables (Low Risk)
-13. `healthcare_encounters` - Final encounter storage
-14. `shell_files` - Document metadata
+#### Stage 5: Modify Core Tables (Low Risk) ✅
+13. `healthcare_encounters` - **Migration 50 COMPLETE**
+14. `shell_files` - **Migration 50 COMPLETE**
 
-### Phase 3: Post-Migration Tasks
+### Phase 3: Post-Migration Tasks ✅ COMPLETE
 
-**For Each Migration:**
+**Migration Execution Summary:**
 
-- [ ] Execute migration via `mcp__supabase__apply_migration()`
-- [ ] Run verification query
-- [ ] Update `current_schema/*.sql` files
-- [ ] Update bridge schemas (if applicable)
-- [ ] Update TypeScript types (if applicable)
-- [ ] Mark migration header complete
+- [X] **Migration 47**: Drop view + modify sessions/chunks - `2025-11-18_47_strategy_a_sessions_and_chunks.sql`
+- [X] **Migration 48**: Pending encounters (39 fields) - `2025-11-18_48_strategy_a_pending_encounters.sql`
+- [X] **Migration 49**: Page assignments + metrics - `2025-11-18_49_strategy_a_page_assignments_and_metrics.sql`
+- [X] **Migration 50**: Healthcare encounters + shell files - `2025-11-18_50_strategy_a_healthcare_encounters_and_shell_files.sql`
+- [X] **Migration 51**: All 6 new supporting tables - `2025-11-18_51_strategy_a_new_tables.sql`
 
-### Phase 4: Code Updates
+**Source of Truth Schemas Updated:**
+- [X] `current_schema/03_clinical_core.sql` - healthcare_encounters, shell_files (lines 96-631)
+- [X] `current_schema/04_ai_processing.sql` - All Pass 0.5 tables (SECTIONS 6-7, lines 1648-2228)
 
-**Files Requiring Updates (After All Migrations):**
+**Migration Headers:**
+- [X] All 5 migration files marked complete with execution dates and line references
 
-1. **session-manager.ts** - Remove pass_0_5_progressive references
-2. **chunk-processor.ts** - Add cascade ID generation, position extraction
-3. **pending-reconciler.ts** - Complete rewrite for cascade-based reconciliation
-4. **post-processor.ts** - Add position field extraction
-5. **handoff-builder.ts** - Simplify to cascade context only
-6. **manifestBuilder.ts** - Update for renamed columns
-7. **index.ts** - Update SELECT queries
+### Phase 4: Code Updates ✅ COMPLETE
 
-### Phase 5: Testing Checklist
+**Status:** All implementation work complete (2025-11-20)
+
+**Implementation Details:** See `02-SCRIPT-ANALYSIS-V3.md` for comprehensive implementation tracking across Weeks 2-6.
+
+**Summary:**
+- ✅ 4 new files created (aiPrompts.v11.ts, coordinate-extractor.ts, cascade-manager.ts, identifier-extractor.ts)
+- ✅ 6 files modified (session-manager.ts, chunk-processor.ts, pending-reconciler.ts, handoff-builder.ts, database.ts, types.ts)
+- ✅ Migration 52 executed with 4 issues (marker columns, RPC functions, column additions)
+- ✅ TypeScript compilation passing
+- ⏭️ Bridge schemas deferred (can regenerate at runtime)
+- ⏭️ profile-classifier.ts deferred (optional future enhancement)
+
+### Phase 5: Testing Checklist 🔄 PENDING
 
 **Unit Tests:**
 - [ ] Cascade ID generation logic

@@ -3,20 +3,22 @@
  * Processes individual chunks with context handoff
  */
 
-import { ChunkParams, ChunkResult } from './types';
-import { EncounterMetadata, PageAssignment, OCRPage } from '../types';
-import { buildHandoffPackage } from './handoff-builder';
-import { saveChunkResults, savePendingEncounter } from './database';
+import { ChunkParams, ChunkResult, PendingEncounter } from './types';
+import { OCRPage } from '../types';
+import { buildCascadeContext } from './handoff-builder';
+import {
+  saveChunkResults,
+  batchInsertPendingEncountersV3,
+  batchInsertPendingIdentifiers,
+  batchInsertPageAssignments,
+  updatePageSeparationAnalysis
+} from './database';
 import { getSelectedModel } from '../models/model-selector';
 import { AIProviderFactory } from '../providers/provider-factory';
-import { buildEncounterDiscoveryPromptV10, mapV10ResponseToDatabase } from '../aiPrompts.v10';
-import { postProcessEncounters, validateHandoffPackage } from './post-processor';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { buildEncounterDiscoveryPromptV11 } from '../aiPrompts.v11';
+import { extractCoordinatesForMarker } from './coordinate-extractor';
+import { generateCascadeId, generatePendingId, shouldCascade } from './cascade-manager';
+import { extractIdentifiers, ParsedIdentifier } from './identifier-extractor';
 
 /**
  * Process a single chunk of pages
@@ -27,7 +29,7 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0]}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
 
   // Extract OCR text for this chunk
-  // FIX: pageRange is now 1-based, so use pageRange[0] directly as the starting page number
+  // pageRange is 1-based (e.g., [51, 100]), so convert to 0-based for extractTextFromPages (e.g., 50)
   const fullText = extractTextFromPages(params.pages, params.pageRange[0] - 1);
 
   // Add guardrails and logging
@@ -41,27 +43,33 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
   console.log(`[Chunk ${params.chunkNumber}] Extracted ${fullText.length} chars of OCR text`);
   console.log(`[Chunk ${params.chunkNumber}] First 200 chars: ${fullText.substring(0, 200)}`);
 
-  // Build v10 universal prompt (includes progressive logic natively)
-  const prompt = buildEncounterDiscoveryPromptV10({
+  // Build OCR page map for coordinate extraction
+  // Map: absolute 1-based page number → OCRPage
+  const ocrPageMap = new Map<number, OCRPage>();
+  params.pages.forEach((page, index) => {
+    const absolutePageNum = params.pageRange[0] + index; // Convert chunk-local to absolute
+    ocrPageMap.set(absolutePageNum, page);
+  });
+  console.log(`[Chunk ${params.chunkNumber}] Built OCR page map with ${ocrPageMap.size} pages (${params.pageRange[0]}-${params.pageRange[1]})`);
+
+  // Build V11 prompt with marker + region hint pattern
+  const prompt = buildEncounterDiscoveryPromptV11({
     fullText,
-    pageCount: params.totalPages,
-    ocrPages: params.pages,
     progressive: {
       chunkNumber: params.chunkNumber,
       totalChunks: params.totalChunks,
       pageRange: params.pageRange,
       totalPages: params.totalPages,
-      handoffReceived: params.handoffReceived
+      cascadeContextReceived: params.handoffReceived?.cascadeContexts  // V11: extract cascade contexts
     }
   });
 
-  // Log to verify we're using v10 prompt
-  console.log(`[Chunk ${params.chunkNumber}] Using v10 universal prompt with native progressive support`);
-  if (prompt.includes('PROGRESSIVE MODE ACTIVE')) {
-    console.log(`[Chunk ${params.chunkNumber}] Progressive mode confirmed active in prompt`);
+  console.log(`[Chunk ${params.chunkNumber}] Using V11 prompt with marker + region hint pattern (Strategy A)`);
+  if (prompt.includes('start_text_marker')) {
+    console.log(`[Chunk ${params.chunkNumber}] ✓ V11 marker fields confirmed in prompt`);
   }
-  if (prompt.includes('"status": "continuing"')) {
-    console.log(`[Chunk ${params.chunkNumber}] Status field examples found in prompt`);
+  if (prompt.includes('is_cascading')) {
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Cascade detection fields confirmed in prompt`);
   }
 
   // Get AI model and provider
@@ -79,120 +87,249 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   const processingTimeMs = Date.now() - startTime;
 
-  // Parse and normalize response (snake_case → camelCase)
-  const parsed = parseProgressiveResponse(aiResponse.content, params.chunkNumber);
+  // Parse V11 response into PendingEncounter objects
+  // STRATEGY A: ALL encounters become pendings, no direct finals
+  const { pendings, pageSeparationAnalysis, identifiersByEncounter } = parseV11Response(
+    aiResponse.content,
+    params.sessionId,
+    params.chunkNumber,
+    params.handoffReceived?.cascadeContexts || []
+  );
 
-  // Post-process encounters to ensure proper status fields
-  const processedEncounters = postProcessEncounters({
-    encounters: parsed.encounters,
-    chunkNumber: params.chunkNumber,
-    totalChunks: params.totalChunks,
-    chunkStartPage: params.pageRange[0],
-    chunkEndPage: params.pageRange[1],
-    isLastChunk: params.chunkNumber === params.totalChunks
-  });
+  console.log(`[Chunk ${params.chunkNumber}] Parsed ${pendings.length} pending encounters from V11 response`);
 
-  // Separate completed vs continuing encounters
-  const completedEncounters: EncounterMetadata[] = [];
-  const completedPageAssignments: PageAssignment[] = parsed.pageAssignments;  // FIXED: Use parsed page assignments
-  let pendingEncounter: ChunkResult['pendingEncounter'] = null;
+  // Extract OCR coordinates for intra-page boundaries
+  console.log(`[Chunk ${params.chunkNumber}] Extracting coordinates for ${pendings.length} pendings...`);
 
-  for (const enc of processedEncounters) {
-    if (enc.status === 'complete') {
-      // Map v10 camelCase response to database snake_case format
-      const dbEncounter = mapV10ResponseToDatabase({
-        ...enc,
-        patientId: params.patientId,
-        shellFileId: params.shellFileId
-      });
+  for (const pending of pendings) {
+    // Extract START coordinates
+    if (pending.start_boundary_type === 'intra_page' && pending.start_text_marker) {
+      const startPage = ocrPageMap.get(pending.start_page);
+      if (startPage) {
+        try {
+          const coords = await extractCoordinatesForMarker(
+            pending.start_text_marker,
+            pending.start_marker_context,
+            pending.start_region_hint as any,
+            pending.start_page,
+            startPage
+          );
 
-      // Persist completed encounters to database
-      const { data: inserted, error: insertError } = await supabase
-        .from('healthcare_encounters')
-        .upsert(dbEncounter, {
-          onConflict: 'patient_id,primary_shell_file_id,encounter_type,encounter_start_date,page_ranges'
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        throw new Error(`Failed to persist completed encounter: ${insertError.message}`);
+          if (coords) {
+            pending.start_text_y_top = coords.text_y_top;
+            pending.start_text_height = coords.text_height;
+            pending.start_y = coords.split_y;  // For START: split BEFORE marker
+            console.log(`[Chunk ${params.chunkNumber}] ✓ START coords for ${pending.pending_id}: y=${coords.split_y}`);
+          } else {
+            console.warn(`[Chunk ${params.chunkNumber}] ⚠ START coord extraction failed for ${pending.pending_id}, keeping as intra_page with null coords`);
+          }
+        } catch (error) {
+          console.error(`[Chunk ${params.chunkNumber}] ✗ START coord extraction error for ${pending.pending_id}:`, error);
+        }
       }
+    }
 
-      // Convert to EncounterMetadata for return value
-      const encounter: any = {
-        encounterId: inserted.id,
-        encounterType: enc.encounterType as any,
-        dateRange: enc.encounterStartDate ? {
-          start: enc.encounterStartDate,
-          end: enc.encounterEndDate
-        } : undefined,
-        encounterTimeframeStatus: enc.encounterTimeframeStatus || 'unknown_end_date',
-        dateSource: enc.dateSource || 'ai_extracted',
-        provider: enc.providerName,
-        facility: enc.facility,
-        pageRanges: enc.pageRanges || [],
-        confidence: enc.confidence,
-        summary: enc.summary,
-        spatialBounds: [],
-        isRealWorldVisit: true
-      };
-      completedEncounters.push(encounter);
+    // Extract END coordinates
+    if (pending.end_boundary_type === 'intra_page' && pending.end_text_marker) {
+      const endPage = ocrPageMap.get(pending.end_page);
+      if (endPage) {
+        try {
+          const coords = await extractCoordinatesForMarker(
+            pending.end_text_marker,
+            pending.end_marker_context,
+            pending.end_region_hint as any,
+            pending.end_page,
+            endPage
+          );
 
-    } else if (enc.status === 'continuing') {
-      // This encounter extends beyond chunk boundary
-      if (!enc.tempId) {
-        console.warn(`[Chunk ${params.chunkNumber}] Continuing encounter missing tempId, skipping`);
-        continue;
-      }
-
-      pendingEncounter = {
-        tempId: enc.tempId,
-        startPage: params.pageRange[0],
-        encounterDate: enc.encounterStartDate,
-        provider: enc.providerName,
-        encounterType: enc.encounterType as any,
-        partialData: {
-          encounterType: enc.encounterType as any,
-          dateRange: enc.encounterStartDate ? {
-            start: enc.encounterStartDate,
-            end: enc.encounterEndDate
-          } : undefined,
-          provider: enc.providerName,
-          facility: enc.facility,
-          pageRanges: enc.pageRanges || [],
-          confidence: enc.confidence,
-          summary: enc.summary
-        },
-        lastSeenContext: getLastContext(params.pages),
-        confidence: enc.confidence,
-        expectedContinuation: enc.expectedContinuation
-      };
-
-      // Save to pending encounters table
-      if (pendingEncounter) {
-        await savePendingEncounter(params.sessionId, pendingEncounter, params.chunkNumber);
+          if (coords) {
+            pending.end_text_y_top = coords.text_y_top;
+            pending.end_text_height = coords.text_height;
+            // CRITICAL: For END boundaries, split AFTER the marker
+            pending.end_y = coords.text_y_top + coords.text_height;
+            console.log(`[Chunk ${params.chunkNumber}] ✓ END coords for ${pending.pending_id}: y=${pending.end_y}`);
+          } else {
+            console.warn(`[Chunk ${params.chunkNumber}] ⚠ END coord extraction failed for ${pending.pending_id}, keeping as intra_page with null coords`);
+          }
+        } catch (error) {
+          console.error(`[Chunk ${params.chunkNumber}] ✗ END coord extraction error for ${pending.pending_id}:`, error);
+        }
       }
     }
   }
 
-  // Build handoff package for next chunk
-  const handoffGenerated = validateHandoffPackage(
-    buildHandoffPackage({
-      pendingEncounter,
-      completedEncounters,
-      activeContext: parsed.activeContext,
-      chunkNumber: params.chunkNumber
-    })
+  // Extract coordinates for page_separation_analysis safe splits
+  if (pageSeparationAnalysis?.safe_split_points?.length > 0) {
+    console.log(`[Chunk ${params.chunkNumber}] Extracting coordinates for ${pageSeparationAnalysis.safe_split_points.length} safe split points...`);
+
+    for (const splitPoint of pageSeparationAnalysis.safe_split_points) {
+      // Only extract for intra_page splits (inter_page splits don't need coordinates)
+      if (splitPoint.split_type === 'intra_page' && splitPoint.marker) {
+        const splitPage = ocrPageMap.get(splitPoint.page);
+
+        if (splitPage) {
+          try {
+            const coords = await extractCoordinatesForMarker(
+              splitPoint.marker,
+              splitPoint.marker_context,
+              splitPoint.region_hint as any,
+              splitPoint.page,
+              splitPage
+            );
+
+            if (coords) {
+              splitPoint.text_y_top = coords.text_y_top;
+              splitPoint.text_height = coords.text_height;
+              splitPoint.split_y = coords.split_y;
+              console.log(`[Chunk ${params.chunkNumber}] ✓ Safe split coords for page ${splitPoint.page}: y=${coords.split_y}`);
+            } else {
+              console.warn(`[Chunk ${params.chunkNumber}] ⚠ Safe split coord extraction failed for page ${splitPoint.page}, keeping null coords`);
+            }
+          } catch (error) {
+            console.error(`[Chunk ${params.chunkNumber}] ✗ Safe split coord extraction error for page ${splitPoint.page}:`, error);
+          }
+        }
+      }
+    }
+  }
+
+  // Save all pendings to database (Strategy A: no direct finals)
+  console.log(`[Chunk ${params.chunkNumber}] Saving ${pendings.length} pending encounters...`);
+
+  if (pendings.length > 0) {
+    await batchInsertPendingEncountersV3(params.sessionId, params.chunkNumber, pendings);
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Saved ${pendings.length} pendings`);
+  }
+
+  // Extract and save medical identifiers (MRN, Medicare, Insurance IDs)
+  console.log(`[Chunk ${params.chunkNumber}] Extracting medical identifiers...`);
+
+  const identifiersByPending = new Map<string, ParsedIdentifier[]>();
+  let totalIdentifiers = 0;
+
+  pendings.forEach((pending, index) => {
+    const rawIdentifiers = identifiersByEncounter.get(index);
+
+    if (rawIdentifiers && rawIdentifiers.length > 0) {
+      const extractionResult = extractIdentifiers(rawIdentifiers, {
+        facility_name: pending.facility_name || undefined,
+        provider_name: pending.provider_name || undefined,
+        encounter_type: pending.encounter_type
+      });
+
+      if (extractionResult.identifiers.length > 0) {
+        identifiersByPending.set(pending.pending_id, extractionResult.identifiers);
+        totalIdentifiers += extractionResult.identifiers.length;
+      }
+
+      if (extractionResult.validation_warnings.length > 0) {
+        console.warn(`[Chunk ${params.chunkNumber}] Identifier warnings for ${pending.pending_id}:`, extractionResult.validation_warnings);
+      }
+    }
+  });
+
+  if (identifiersByPending.size > 0) {
+    await batchInsertPendingIdentifiers(params.sessionId, identifiersByPending);
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Saved ${totalIdentifiers} identifiers for ${identifiersByPending.size} pendings`);
+  } else {
+    console.log(`[Chunk ${params.chunkNumber}] No identifiers to save`);
+  }
+
+  // Map page_ranges to individual page assignments
+  console.log(`[Chunk ${params.chunkNumber}] Mapping page assignments...`);
+
+  const pageAssignments: Array<{
+    pending_id: string;
+    cascade_id: string | null;
+    page_num: number;
+    justification: string;
+  }> = [];
+
+  pendings.forEach((pending) => {
+    // Expand page_ranges (array of [start, end] ranges) into individual page numbers
+    pending.page_ranges.forEach((range) => {
+      const [startPage, endPage] = range;
+
+      for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+        pageAssignments.push({
+          pending_id: pending.pending_id,
+          cascade_id: pending.cascade_id,
+          page_num: pageNum,
+          justification: `${pending.encounter_type} (${pending.encounter_start_date || 'unknown date'})`
+        });
+      }
+    });
+  });
+
+  if (pageAssignments.length > 0) {
+    await batchInsertPageAssignments(
+      params.sessionId,
+      params.shellFileId,
+      params.chunkNumber,
+      pageAssignments
+    );
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Saved ${pageAssignments.length} page assignments for ${pendings.length} pendings`);
+  } else {
+    console.log(`[Chunk ${params.chunkNumber}] No page assignments to save`);
+  }
+
+  // Save page_separation_analysis to shell_files (only on final chunk)
+  if (params.chunkNumber === params.totalChunks && pageSeparationAnalysis) {
+    console.log(`[Chunk ${params.chunkNumber}] Saving page_separation_analysis with ${pageSeparationAnalysis.safe_split_points?.length || 0} split points...`);
+    await updatePageSeparationAnalysis(params.shellFileId, pageSeparationAnalysis);
+    console.log(`[Chunk ${params.chunkNumber}] ✓ Saved page_separation_analysis to shell_files`);
+  }
+
+  // Build cascade context for next chunk
+  const cascadingPendings = pendings.filter(p =>
+    shouldCascade(
+      {
+        is_cascading: p.is_cascading,
+        end_boundary_type: p.end_boundary_type,
+        end_page: p.end_page,
+        encounter_type: p.encounter_type
+      },
+      params.chunkNumber,
+      params.totalChunks,
+      params.pageRange[1]
+    )
   );
+
+  // ANALYTICS: Track implicit cascades (where AI forgot is_cascading flag)
+  const explicitCascades = cascadingPendings.filter(p => p.is_cascading);
+  const implicitCascades = cascadingPendings.filter(p => !p.is_cascading);
+
+  if (implicitCascades.length > 0) {
+    console.warn(`[Chunk ${params.chunkNumber}] ⚠️ IMPLICIT CASCADES DETECTED: ${implicitCascades.length}/${cascadingPendings.length} cascading encounters missing is_cascading flag`);
+    console.warn(`[Chunk ${params.chunkNumber}] Implicit cascade IDs: ${implicitCascades.map(p => p.pending_id).join(', ')}`);
+    console.warn(`[Chunk ${params.chunkNumber}] This indicates AI prompt quality issue - should be rare with good prompts`);
+  }
+
+  const handoffGenerated = cascadingPendings.length > 0
+    ? buildCascadeContext({
+        cascadingEncounters: cascadingPendings.map(p => ({
+          // Safety: Generate fallback ID for implicit cascades (where AI forgot is_cascading flag)
+          // Implicit cascades detected by shouldCascade but have null cascade_id
+          cascade_id: p.cascade_id || `implicit_${p.pending_id}`,
+          pending_id: p.pending_id,
+          encounter_type: p.encounter_type,
+          summary: p.summary,
+          expected_continuation: p.expected_continuation,
+          cascade_context: p.cascade_context
+        })),
+        chunkNumber: params.chunkNumber
+      })
+    : null;
+
+  console.log(`[Chunk ${params.chunkNumber}] Generated handoff for ${cascadingPendings.length} cascading encounters (${explicitCascades.length} explicit, ${implicitCascades.length} implicit)`);
 
   // Calculate cost
   const cost = calculateCost(model.modelId, aiResponse.inputTokens, aiResponse.outputTokens);
 
   // Calculate average confidence
-  const avgConfidence = completedEncounters.length > 0
-    ? completedEncounters.reduce((sum, e) => sum + e.confidence, 0) / completedEncounters.length
-    : pendingEncounter?.confidence || 0;
+  const avgConfidence = pendings.length > 0
+    ? pendings.reduce((sum, p) => sum + p.confidence, 0) / pendings.length
+    : 0;
 
   // Save chunk results to database
   await saveChunkResults({
@@ -204,22 +341,25 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     inputTokens: aiResponse.inputTokens,
     outputTokens: aiResponse.outputTokens,
     cost,
-    confidence: avgConfidence,  // Add confidence score
-    handoffReceived: params.handoffReceived,
-    handoffGenerated,
-    encountersCompleted: completedEncounters.length,
-    encountersPending: pendingEncounter ? 1 : 0,
+    confidence: avgConfidence,
+    cascadeContextReceived: params.handoffReceived?.cascadeContexts || null,  // Strategy A renamed field
+    cascadePackageSent: handoffGenerated?.cascadeContexts || null,           // Strategy A renamed field
+    pendingsCreated: pendings.length,                                         // Strategy A field
+    cascadingCount: cascadingPendings.length,                                 // Strategy A field
+    cascadeIds: cascadingPendings.map(p => p.cascade_id!).filter(Boolean),   // Strategy A field
+    continuesCount: pendings.filter(p => p.continues_previous).length,        // Strategy A field
     aiResponseRaw: aiResponse.content,
-    processingTimeMs
+    processingTimeMs,
+    pageSeparationAnalysis                                                    // Optional batching analysis
   });
 
-  console.log(`[Chunk ${params.chunkNumber}] Complete: ${completedEncounters.length} encounters, confidence ${avgConfidence.toFixed(2)}, ${processingTimeMs}ms, $${cost.toFixed(4)}`);
+  console.log(`[Chunk ${params.chunkNumber}] Complete: ${pendings.length} pendings created, confidence ${avgConfidence.toFixed(2)}, ${processingTimeMs}ms, $${cost.toFixed(4)}`);
 
   return {
-    completedEncounters,
-    completedPageAssignments,
-    pendingEncounter,
-    handoffGenerated,
+    completedEncounters: [],  // Strategy A: no direct finals
+    completedPageAssignments: [],  // TODO Week 4: map page assignments
+    pendingEncounter: null,  // DEPRECATED (v2.9 field)
+    handoffGenerated,  // Can be null when no cascading encounters
     metrics: {
       inputTokens: aiResponse.inputTokens,
       outputTokens: aiResponse.outputTokens,
@@ -231,81 +371,153 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 }
 
 /**
- * Parse AI response using v10 universal schema (camelCase)
+ * Parse V11 AI response into PendingEncounter objects
  *
- * V10 prompt outputs camelCase natively with progressive fields built-in.
- * No normalization needed as the prompt directly includes status/tempId/expectedContinuation.
+ * STRATEGY A: ALL encounters become pendings, no direct finals
+ * V11 adds marker + region hint pattern for coordinate extraction
+ *
+ * @param content - AI response content
+ * @param sessionId - Session ID
+ * @param chunkNumber - Current chunk number
+ * @param cascadeContexts - Incoming cascade contexts from previous chunk
  */
-function parseProgressiveResponse(content: any, chunkNumber: number): {
-  encounters: Array<{
-    status: 'complete' | 'continuing';
-    tempId?: string;
-    encounterType: string;
-    encounterStartDate?: string;
-    encounterEndDate?: string;
-    encounterTimeframeStatus?: 'completed' | 'ongoing' | 'unknown_end_date';
-    dateSource?: 'ai_extracted' | 'file_metadata' | 'upload_date';
-    providerName?: string;
-    facility?: string;
-    pageRanges: number[][];
-    confidence: number;
-    summary?: string;
-    expectedContinuation?: string;
-  }>;
-  pageAssignments: PageAssignment[];
-  activeContext?: any;
-  extractionMetadata?: any;
+function parseV11Response(
+  content: any,
+  sessionId: string,
+  chunkNumber: number,
+  cascadeContexts: Array<{
+    cascade_id: string;
+    pending_id: string;
+    encounter_type: string;
+    partial_summary: string;
+    expected_in_next_chunk: string;
+    ai_context: string;
+  }>
+): {
+  pendings: PendingEncounter[];
+  pageSeparationAnalysis: any; // Will be stored in shell_files.page_separation_analysis
+  identifiersByEncounter: Map<number, any[]>; // Map of encounter index → raw AI identifiers
 } {
-  // v10 outputs camelCase with native progressive fields
   const parsed = typeof content === 'string' ? JSON.parse(content) : content;
 
-  // V10 format already includes all required fields
-  const encounters = (parsed.encounters || []).map((enc: any, idx: number) => {
-    // V10 prompt explicitly requires status field
-    if (!enc.status) {
-      console.error(`[Chunk ${chunkNumber}] CRITICAL: Encounter ${idx} missing required status field!`);
-      console.error(`[Chunk ${chunkNumber}] This indicates the AI didn't follow v10 schema. Defaulting to 'complete'.`);
+  // Track identifiers by encounter index for later extraction
+  const identifiersByEncounter = new Map<number, any[]>();
+
+  // Parse encounters into pendings
+  const pendings: PendingEncounter[] = (parsed.encounters || []).map((enc: any, index: number) => {
+    // Store raw identifiers for later extraction (Week 4)
+    if (enc.identifiers && enc.identifiers.length > 0) {
+      identifiersByEncounter.set(index, enc.identifiers);
     }
+    // Generate pending_id (always unique per chunk)
+    const pending_id = generatePendingId(sessionId, chunkNumber, index);
+
+    // Generate cascade_id with inheritance logic
+    let cascade_id: string | null = null;
+
+    if (enc.is_cascading) {
+      if (enc.continues_previous && cascadeContexts.length > 0) {
+        // CONTINUATION: Inherit cascade_id from previous chunk
+        // Match by encounter_type (simple heuristic - could be enhanced with better matching)
+        const matchingCascade = cascadeContexts.find(ctx => ctx.encounter_type === enc.encounter_type);
+
+        if (matchingCascade) {
+          cascade_id = matchingCascade.cascade_id;
+          console.log(`[Parse V11] Encounter ${index} continues cascade ${cascade_id} from previous chunk`);
+        } else {
+          // Fallback: AI says continues_previous but we can't find matching cascade
+          console.warn(`[Parse V11] Encounter ${index} claims continues_previous but no matching cascade found (type: ${enc.encounter_type})`);
+          cascade_id = generateCascadeId(sessionId, chunkNumber, index, enc.encounter_type);
+        }
+      } else {
+        // NEW CASCADE: Generate new cascade_id starting in this chunk
+        cascade_id = generateCascadeId(sessionId, chunkNumber, index, enc.encounter_type);
+      }
+    }
+
     return {
-      status: enc.status || 'complete',  // V10 requires this field
-      tempId: enc.tempId,  // Required when status='continuing'
-      encounterType: enc.encounterType,
-      encounterStartDate: enc.encounterStartDate,
-      encounterEndDate: enc.encounterEndDate,
-      encounterTimeframeStatus: enc.encounterTimeframeStatus || 'unknown_end_date',
-      dateSource: enc.dateSource || 'ai_extracted',
-      providerName: enc.providerName,
-      providerRole: enc.providerRole,  // V10 includes provider role
-      facility: enc.facility,
-      department: enc.department,  // V10 includes department
-      chiefComplaint: enc.chiefComplaint,  // V10 includes chief complaint
-      diagnoses: enc.diagnoses || [],  // V10 includes diagnoses array
-      procedures: enc.procedures || [],  // V10 includes procedures array
-      medications: enc.medications || [],  // V10 includes medications array
-      disposition: enc.disposition,  // V10 includes disposition
-      pageRanges: enc.pageRanges || [],
-      confidence: enc.confidence,
+      // IDs
+      session_id: sessionId,
+      pending_id,
+      cascade_id,
+
+      // Cascade fields
+      is_cascading: enc.is_cascading || false,
+      continues_previous: enc.continues_previous || false,
+      cascade_context: enc.cascade_context || null,
+      expected_continuation: enc.expected_continuation || null,
+
+      // Position fields (17 fields - AI provided)
+      start_page: enc.start_page,
+      start_boundary_type: enc.start_boundary_type,
+      start_text_marker: enc.start_text_marker || null,
+      start_marker_context: enc.start_marker_context || null,
+      start_region_hint: enc.start_region_hint || null,
+      start_text_y_top: null,  // Filled by coordinate extractor
+      start_text_height: null,  // Filled by coordinate extractor
+      start_y: null,  // Filled by coordinate extractor
+
+      end_page: enc.end_page,
+      end_boundary_type: enc.end_boundary_type,
+      end_text_marker: enc.end_text_marker || null,
+      end_marker_context: enc.end_marker_context || null,
+      end_region_hint: enc.end_region_hint || null,
+      end_text_y_top: null,  // Filled by coordinate extractor
+      end_text_height: null,  // Filled by coordinate extractor
+      end_y: null,  // Filled by coordinate extractor
+
+      position_confidence: enc.position_confidence || 0.5,
+
+      // Identity fields (parsed but not persisted until Week 4)
+      patient_full_name: enc.patient_full_name || null,
+      patient_date_of_birth: enc.patient_date_of_birth || null,
+      patient_address: enc.patient_address || null,
+      patient_phone: enc.patient_phone || null,
+
+      // Classification fields (set in Week 4)
+      matched_profile_id: null,
+      match_confidence: null,
+      match_status: null,
+      is_orphan_identity: false,
+
+      // Quality field (set in Week 4)
+      data_quality_tier: null,
+
+      // Source metadata
+      encounter_source: 'shell_file' as const,
+      created_by_user_id: null,  // Set from params if available
+
+      // Encounter core fields
+      encounter_type: enc.encounter_type,
+      page_ranges: enc.page_ranges || [],
+      encounter_start_date: enc.encounter_start_date,
+      encounter_end_date: enc.encounter_end_date,
+      encounter_timeframe_status: enc.encounter_timeframe_status,
+      provider_name: enc.provider_name,
+      facility_name: enc.facility_name,
+      confidence: enc.confidence || 0.5,
       summary: enc.summary,
-      expectedContinuation: enc.expectedContinuation  // Required when status='continuing'
+
+      // Clinical fields (V11 additions)
+      diagnoses: enc.diagnoses || [],
+      procedures: enc.procedures || [],
+      chief_complaint: enc.chief_complaint,
+      department: enc.department,
+      provider_role: enc.provider_role,
+      disposition: enc.disposition,
+
+      // Timeline Test (computed)
+      is_real_world_visit: !!(
+        (enc.encounter_start_date || enc.encounter_end_date) &&
+        (enc.provider_name || enc.facility_name)
+      )
     };
   });
 
-  // Parse page assignments (v10 camelCase format)
-  const pageAssignments: PageAssignment[] = (parsed.pageAssignments || []).map((pa: any) => ({
-    page: pa.page,
-    encounter_id: pa.encounterId,  // v10 uses camelCase
-    justification: pa.justification
-  }));
+  // Parse page separation analysis (safe splits)
+  const pageSeparationAnalysis = parsed.page_separation_analysis || null;
 
-  // Extract metadata if present
-  const extractionMetadata = parsed.extractionMetadata || {};
-
-  return {
-    encounters,
-    pageAssignments,
-    activeContext: parsed.activeContext,  // V10 provides rich context
-    extractionMetadata
-  };
+  return { pendings, pageSeparationAnalysis, identifiersByEncounter };
 }
 
 /**
@@ -364,33 +576,6 @@ function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): strin
     const actualPageNum = startPageNum + idx + 1;
     return `--- PAGE ${actualPageNum} START ---\n${text}\n--- PAGE ${actualPageNum} END ---`;
   }).join('\n\n');
-}
-
-/**
- * Get last 500 characters of OCR text for context continuity
- * FIXED: Use same field precedence as extractTextFromPages
- */
-function getLastContext(pages: any[]): string {
-  if (pages.length === 0) return '';
-
-  const lastPage = pages[pages.length - 1];
-
-  // Use same field priority as extractTextFromPages
-  let text = '';
-
-  if (lastPage.lines && Array.isArray(lastPage.lines)) {
-    text = lastPage.lines
-      .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
-      .map((line: any) => line.text)
-      .join(' ');
-  } else {
-    text = lastPage.spatially_sorted_text
-      || lastPage.original_gcv_text
-      || lastPage.text
-      || '';
-  }
-
-  return text.length > 500 ? text.slice(-500) : text;
 }
 
 /**

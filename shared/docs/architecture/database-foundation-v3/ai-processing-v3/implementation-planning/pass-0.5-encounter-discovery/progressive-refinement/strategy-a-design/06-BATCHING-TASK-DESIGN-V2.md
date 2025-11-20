@@ -2,13 +2,14 @@
 
 **Date:** November 15, 2024
 **Version:** 2.0
+**Updated:** November 19, 2024 - Marker + Region Hint Pattern
 **Purpose:** Define how Pass 0.5 identifies safe splitting points for downstream Pass 1/2 batching
 
 ## Executive Summary
 
 Pass 0.5 identifies ADDITIONAL safe split points where medical documents can be divided for parallel processing without losing clinical context. These split points supplement the natural encounter boundaries and can occur both between pages (inter-page) and within pages (intra-page).
 
-**Key Innovation:** Pass 0.5 provides both descriptive text markers AND precise Y-coordinates with buffer zones, eliminating ambiguity for downstream processing.
+**Key Innovation (Updated Nov 19, 2024):** Pass 0.5 now uses a marker + region hint pattern. The AI identifies text markers and region hints (top/upper_middle/lower_middle/bottom), while post-processing scripts extract precise Y-coordinates. This eliminates token overhead while maintaining accuracy.
 
 **Important:** Encounter boundaries (where one encounter ends and another begins) are inherently safe split points and are NOT included in this batching analysis. Downstream processing will combine encounter boundaries with these additional split points.
 
@@ -42,6 +43,21 @@ When the content naturally ends on one page and new content begins on the next:
 
 When safe split point exists within a single page:
 
+**Updated (Nov 19, 2024) - Marker + Region Hint Pattern:**
+```json
+{
+  "split_location": "intra_page",
+  "page": 23,
+  "marker": "PATHOLOGY REPORT",
+  "marker_context": "...previous text...PATHOLOGY REPORT Date: 2024-03-15",
+  "region_hint": "upper_middle",
+  "text_y_top": null,  // Will be extracted by post-processor
+  "text_height": null, // Will be extracted by post-processor
+  "split_y": null      // Will be calculated by post-processor
+}
+```
+
+**Original Design (For Reference):**
 ```json
 {
   "split_location": "intra_page",
@@ -286,9 +302,10 @@ For INTRA-PAGE splits:
 - Aim for ~1 split per 3 pages minimum
 - Must identify at least 1 split per 5 pages maximum
 
-### Important Notes
-- Use OCR bbox data to provide exact Y-coordinates
-- Calculate split_y as text_y_top minus text_height (buffer zone)
+### Important Notes (Updated Nov 19, 2024)
+- AI identifies text markers and region hints only
+- Post-processor (coordinate-extractor.ts) extracts exact Y-coordinates from OCR
+- Region hints help disambiguate when same marker appears multiple times
 - DO NOT output unsafe boundaries (only safe splits)
 - Higher confidence for clear headers, lower for contextual boundaries
 ```

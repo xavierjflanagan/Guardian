@@ -1,60 +1,63 @@
 /**
- * Progressive Session Manager
+ * Progressive Session Manager - Strategy A
  * Orchestrates multi-chunk processing for large documents
+ *
+ * STRATEGY A (V11) RECONCILIATION FLOW:
+ * 1. Process all chunks sequentially (create pendings, no finals)
+ * 2. After all chunks complete → call reconcilePendingEncounters()
+ * 3. Reconciliation groups by cascade_id, merges position data, creates finals
+ * 4. Call finalizeSessionMetrics() RPC for atomic session finalization
+ *
+ * Key Difference from v2.9:
+ * - NO completed encounters during chunk processing
+ * - ALL reconciliation happens AFTER all chunks complete
+ * - Uses atomic RPCs for data integrity
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { HandoffPackage, ChunkParams } from './types';
-import { OCRPage, EncounterMetadata, PageAssignment } from '../types';
+import { OCRPage } from '../types';
 import {
   initializeProgressiveSession,
   updateSessionProgress,
   markSessionFailed,
-  finalizeProgressiveSession,
-  getPendingEncounters
+  finalizeSessionMetrics,
+  supabase
 } from './database';
 import { processChunk } from './chunk-processor';
-import {
-  reconcilePendingEncounters,
-  mergePageRangesForAllEncounters,
-  updatePageAssignmentsAfterReconciliation,
-  recalculateEncounterMetrics
-} from './pending-reconciler';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { reconcilePendingEncounters } from './pending-reconciler';
 
 const CHUNK_SIZE = 50; // Pages per chunk
-const PAGE_THRESHOLD = 100; // Switch to progressive mode above this
-
-/**
- * Determine if document requires progressive processing
- * Migration 45: Automatic based on page count (no environment variable)
- */
-export function shouldUseProgressiveMode(totalPages: number): boolean {
-  return totalPages > PAGE_THRESHOLD;
-}
 
 /**
  * Progressive processing result
  */
 export interface ProgressiveResult {
-  encounters: EncounterMetadata[];
-  pageAssignments: PageAssignment[];
+  finalEncounters: string[]; // Array of encounter UUIDs created
   sessionId: string;
   totalChunks: number;
   totalCost: number;
-  totalInputTokens: number;  // FIXED: Track separately for accurate reporting
-  totalOutputTokens: number;  // FIXED: Track separately for accurate reporting
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalPendingsCreated: number; // Strategy A: Track pendings created
   requiresManualReview: boolean;
   reviewReasons: string[];
-  aiModel: string; // Migration 45: AI model used for processing
+  aiModel: string;
 }
 
 /**
  * Process large document progressively
+ *
+ * Strategy A Flow:
+ * 1. Initialize session
+ * 2. Process chunks sequentially (creates pendings only)
+ * 3. After all chunks → reconcile pendings to finals
+ * 4. Finalize session metrics via RPC
+ * 5. Update shell_files completion status
+ *
+ * @param shellFileId - UUID of shell file being processed
+ * @param patientId - UUID of patient (from session context)
+ * @param pages - OCR pages for entire document
+ * @returns Progressive result with final encounters and metrics
  */
 export async function processDocumentProgressively(
   shellFileId: string,
@@ -63,7 +66,7 @@ export async function processDocumentProgressively(
 ): Promise<ProgressiveResult> {
   const totalPages = pages.length;
 
-  // Initialize session
+  // STEP 1: Initialize progressive session
   const session = await initializeProgressiveSession(
     shellFileId,
     patientId,
@@ -71,159 +74,136 @@ export async function processDocumentProgressively(
     CHUNK_SIZE
   );
 
-  console.log(`[Progressive] Started session ${session.id} for ${totalPages} pages (${session.totalChunks} chunks)`);
+  console.log(
+    `[Progressive] Started session ${session.id} for ${totalPages} pages (${session.totalChunks} chunks)`
+  );
 
-  const allEncounters: EncounterMetadata[] = [];
-  const allPageAssignments: PageAssignment[] = [];
-  let handoffPackage: HandoffPackage | null = null;
-  let totalCost = 0;
-  let totalInputTokens = 0;  // FIXED: Track separately
-  let totalOutputTokens = 0;  // FIXED: Track separately
+  let cascadePackage: HandoffPackage | null = null;
   const reviewReasons: string[] = [];
-  let aiModel = ''; // Migration 45: Track model used
+  let aiModel = '';
 
   try {
-    // Process chunks sequentially
+    // STEP 2: Process chunks sequentially
     for (let chunkNum = 1; chunkNum <= session.totalChunks; chunkNum++) {
-      // FIX: Use 1-based page numbering for medical documents
-      // Pages in documents are numbered 1-N, not 0-based array indexing
+      // Calculate chunk boundaries (1-based page numbering)
       const startIdx = (chunkNum - 1) * CHUNK_SIZE;
       const endIdx = Math.min(startIdx + CHUNK_SIZE, totalPages);
       const chunkPages = pages.slice(startIdx, endIdx);
 
-      // Convert to 1-based page numbers for chunk boundaries
-      const pageStart = startIdx + 1;  // Convert 0-based index to 1-based page number
-      const pageEnd = endIdx;          // endIdx is already correct (1-50, 51-100, 101-142)
+      const pageStart = startIdx + 1; // Convert to 1-based
+      const pageEnd = endIdx;
 
-      console.log(`[Progressive] Processing chunk ${chunkNum}/${session.totalChunks} (pages ${pageStart}-${pageEnd})`);
+      console.log(
+        `[Progressive] Processing chunk ${chunkNum}/${session.totalChunks} (pages ${pageStart}-${pageEnd})`
+      );
 
       const chunkParams: ChunkParams = {
         sessionId: session.id,
         chunkNumber: chunkNum,
         totalChunks: session.totalChunks,
         pages: chunkPages,
-        pageRange: [pageStart, pageEnd],  // FIX: Now 1-based (1-50, 51-100, 101-142)
+        pageRange: [pageStart, pageEnd],
         totalPages,
-        handoffReceived: handoffPackage,
+        handoffReceived: cascadePackage,
         patientId,
         shellFileId
       };
 
       const result = await processChunk(chunkParams);
 
-      // Accumulate completed encounters and page assignments
-      allEncounters.push(...result.completedEncounters);
-      allPageAssignments.push(...result.completedPageAssignments);
-
-      // Track metrics
-      totalCost += result.metrics.cost;
-      totalInputTokens += result.metrics.inputTokens;  // FIXED: Track separately
-      totalOutputTokens += result.metrics.outputTokens;  // FIXED: Track separately
-      aiModel = result.metrics.aiModel; // Migration 45: Capture model used
+      // Track AI model used
+      aiModel = result.metrics.aiModel;
 
       // Low confidence warning
       if (result.metrics.confidence < 0.7) {
-        reviewReasons.push(`Chunk ${chunkNum} low confidence: ${result.metrics.confidence}`);
+        reviewReasons.push(
+          `Chunk ${chunkNum} low confidence: ${result.metrics.confidence.toFixed(2)}`
+        );
       }
 
-      // Update session progress
-      handoffPackage = result.handoffGenerated;
-      await updateSessionProgress(session.id, chunkNum, handoffPackage);
+      // Update session progress with cascade package
+      cascadePackage = result.handoffGenerated;
+      if (cascadePackage) {
+        await updateSessionProgress(session.id, chunkNum, cascadePackage);
+      }
 
-      console.log(`[Progressive] Chunk ${chunkNum} complete: ${result.completedEncounters.length} encounters, ${result.metrics.cost.toFixed(4)} USD`);
-    }
-
-    // Reconcile any pending encounters
-    console.log(`[Progressive] Reconciling pending encounters...`);
-    const pendingRecords = await getPendingEncounters(session.id);
-
-    if (pendingRecords.length > 0) {
-      const reconciledEncounters = await reconcilePendingEncounters(
-        session.id,
-        pendingRecords,
-        allEncounters
+      console.log(
+        `[Progressive] Chunk ${chunkNum} complete, ` +
+        `${result.metrics.cost.toFixed(4)} USD`
       );
-
-      allEncounters.push(...reconciledEncounters);
-      console.log(`[Progressive] Reconciled ${reconciledEncounters.length} pending encounters`);
     }
 
-    // CRITICAL FIX: Persist page assignments BEFORE running post-reconciliation fixes
-    // Fix 2B and 2C depend on page assignments existing in the database
-    if (allPageAssignments.length > 0) {
-      const assignmentRecords = allPageAssignments.map(pa => ({
-        shell_file_id: shellFileId,
-        page_num: pa.page,
-        encounter_id: pa.encounter_id,
-        justification: pa.justification
-      }));
+    console.log(`[Progressive] All chunks complete.`);
 
-      const { error: pageAssignError } = await supabase
-        .from('pass05_page_assignments')
-        .insert(assignmentRecords);
+    // STEP 3: Reconcile pending encounters to final encounters
+    console.log(`[Progressive] Starting reconciliation...`);
 
-      if (pageAssignError) {
-        console.error(`[Progressive] Failed to save page assignments: ${pageAssignError.message}`);
-        // Don't throw - non-critical for completion
-      } else {
-        console.log(`[Progressive] Saved ${assignmentRecords.length} page assignments`);
-      }
+    const finalEncounterIds = await reconcilePendingEncounters(
+      session.id,
+      shellFileId,
+      patientId,
+      totalPages
+    );
+
+    console.log(
+      `[Progressive] Reconciliation complete: ${finalEncounterIds.length} final encounters created`
+    );
+
+    // STEP 4: Finalize session metrics via atomic RPC
+    console.log(`[Progressive] Finalizing session metrics...`);
+
+    const sessionMetrics = await finalizeSessionMetrics(session.id);
+
+    console.log(
+      `[Progressive] Session metrics finalized: ` +
+      `${sessionMetrics.final_encounters} encounters, ` +
+      `${sessionMetrics.total_pendings_created} pendings processed, ` +
+      `$${sessionMetrics.total_cost_usd.toFixed(4)}`
+    );
+
+    // Check for unresolved pendings (requires manual review)
+    if (sessionMetrics.requires_review) {
+      reviewReasons.push(
+        `${sessionMetrics.pending_count} pending encounters not reconciled (requires manual review)`
+      );
     }
 
-    // FIX 2: Apply post-reconciliation fixes (AFTER page assignments persisted)
-    if (pendingRecords.length > 0) {
-      console.log(`[Progressive] Applying post-reconciliation fixes...`);
-
-      // Fix 2A: Merge page ranges from all chunks for each final encounter
-      await mergePageRangesForAllEncounters(session.id);
-
-      // Fix 2B: Update page assignments to map temp IDs to final encounter IDs
-      await updatePageAssignmentsAfterReconciliation(session.id, shellFileId);
-
-      // Fix 2C: Recalculate encounter metrics after page ranges and assignments updated
-      await recalculateEncounterMetrics(session.id, shellFileId);
-
-      console.log(`[Progressive] Post-reconciliation fixes complete`);
-    }
-
-    // Finalize session
-    await finalizeProgressiveSession(session.id);
-
-    // Update shell_files with completion status
-    const avgConfidence = allEncounters.length > 0
-      ? allEncounters.reduce((sum, e) => sum + (e.confidence || 0), 0) / allEncounters.length
-      : 0;
-
+    // STEP 5: Update shell_files with completion status
     const { error: shellUpdateError } = await supabase
       .from('shell_files')
       .update({
         pass_0_5_completed: true,
         pass_0_5_progressive: true,
-        pass_0_5_version: 'v2.9-progressive',
-        pass_0_5_confidence: avgConfidence,
+        pass_0_5_version: 'v11-strategy-a',
         status: 'completed',
         processing_completed_at: new Date().toISOString()
       })
       .eq('id', shellFileId);
 
     if (shellUpdateError) {
-      console.error(`[Progressive] Failed to update shell_files: ${shellUpdateError.message}`);
-      // Don't throw - this is not critical enough to fail the entire session
+      console.error(
+        `[Progressive] Failed to update shell_files: ${shellUpdateError.message}`
+      );
+      // Don't throw - non-critical
     }
 
-    console.log(`[Progressive] Session ${session.id} complete: ${allEncounters.length} total encounters, ${totalCost.toFixed(4)} USD`);
+    console.log(
+      `[Progressive] Session ${session.id} complete: ` +
+      `${finalEncounterIds.length} final encounters, ` +
+      `$${sessionMetrics.total_cost_usd.toFixed(4)}`
+    );
 
     return {
-      encounters: allEncounters,
-      pageAssignments: allPageAssignments,
+      finalEncounters: finalEncounterIds,
       sessionId: session.id,
       totalChunks: session.totalChunks,
-      totalCost,
-      totalInputTokens,  // FIXED: Return actual values
-      totalOutputTokens,  // FIXED: Return actual values
-      requiresManualReview: reviewReasons.length > 0,
+      totalCost: sessionMetrics.total_cost_usd,
+      totalInputTokens: 0, // TODO: Get from session metrics if needed
+      totalOutputTokens: 0, // TODO: Get from session metrics if needed
+      totalPendingsCreated: sessionMetrics.total_pendings_created,
+      requiresManualReview: reviewReasons.length > 0 || sessionMetrics.requires_review,
       reviewReasons,
-      aiModel // Migration 45: Return model used
+      aiModel
     };
 
   } catch (error) {

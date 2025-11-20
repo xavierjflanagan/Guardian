@@ -1,129 +1,389 @@
 /**
- * Pending Encounter Reconciler
- * Completes encounters that spanned multiple chunks
+ * Pending Encounter Reconciler - Strategy A
+ *
+ * Purpose: Convert pending encounters to final healthcare_encounters after all chunks complete.
+ *
+ * Strategy A Flow:
+ * 1. ALL encounters become pendings during chunk processing (no direct finals)
+ * 2. After all chunks complete, reconciliation groups pendings by cascade_id
+ * 3. Position data merged: first chunk's start + last chunk's end
+ * 4. Identifiers, quality tier calculated, and final encounter created via atomic RPC
+ *
+ * Source: 08-RECONCILIATION-STRATEGY-V2.md
+ * Complexity: VERY HIGH
  */
 
-import { PendingEncounterRecord } from './types';
-import { EncounterMetadata } from '../types';
-import { markPendingEncounterCompleted } from './database';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import {
+  getPendingsByStatus,
+  reconcilePendingsToFinal,
+  getChunkResultsForSession,
+  updateAggregatedBatchingAnalysis,
+  completeCascadeChain,
+  supabase
+} from './database';
 
 /**
- * Reconcile pending encounters at end of progressive session
+ * Main reconciliation entry point
+ *
+ * Called by session-manager.ts after all chunks complete.
+ * Groups pendings by cascade_id, merges position data, creates final encounters.
+ *
+ * @param sessionId - UUID of progressive session
+ * @param shellFileId - UUID of shell file
+ * @param patientId - UUID of patient (from session)
+ * @param totalPages - Total pages in document (for batching analysis)
+ * @returns Array of final encounter UUIDs created
  */
 export async function reconcilePendingEncounters(
-  _sessionId: string,
-  pendingRecords: PendingEncounterRecord[],
-  _completedEncounters: EncounterMetadata[]
-): Promise<EncounterMetadata[]> {
-  const reconciledEncounters: EncounterMetadata[] = [];
+  sessionId: string,
+  shellFileId: string,
+  patientId: string,
+  totalPages: number
+): Promise<string[]> {
+  console.log(`[Reconcile] Starting reconciliation for session ${sessionId}`);
 
-  console.log(`[Reconcile] Processing ${pendingRecords.length} pending encounters`);
+  // STEP 1: Session guard validation
+  await validateSessionReadyForReconciliation(sessionId);
 
-  for (const pending of pendingRecords) {
+  // STEP 2: Fetch all pending encounters
+  const pendings = await getPendingsByStatus(sessionId, 'pending');
+
+  if (pendings.length === 0) {
+    console.log(`[Reconcile] No pending encounters to reconcile`);
+    return [];
+  }
+
+  console.log(`[Reconcile] Found ${pendings.length} pending encounters`);
+
+  // STEP 3: Group by cascade_id
+  const cascadeGroups = groupPendingsByCascade(pendings);
+  console.log(`[Reconcile] Grouped into ${cascadeGroups.size} cascades`);
+
+  const finalEncounterIds: string[] = [];
+
+  // STEP 4: Process each cascade group
+  for (const [cascadeId, groupPendings] of cascadeGroups) {
     try {
-      // Try to complete this pending encounter
-      const encounter = await completePendingEncounter(pending, _completedEncounters);
+      console.log(`[Reconcile] Processing cascade ${cascadeId || 'null'} (${groupPendings.length} pendings)`);
 
-      if (encounter) {
-        reconciledEncounters.push(encounter);
-        console.log(`[Reconcile] Completed pending encounter ${pending.tempEncounterId}`);
-      } else {
-        console.warn(`[Reconcile] Could not complete pending encounter ${pending.tempEncounterId}, marking for review`);
-        await markPendingForReview(pending.id, 'Unable to complete encounter from partial data');
+      // Validate cascade group
+      const validation = validateCascadeGroup(groupPendings);
+      if (!validation.valid) {
+        console.error(`[Reconcile] Cascade ${cascadeId} validation failed:`, validation.errors);
+        await markCascadeAsAbandoned(groupPendings, validation.errors.join('; '));
+        continue;
       }
+
+      // Merge position data (17 fields)
+      const mergedPosition = mergePositionData(groupPendings);
+
+      // Merge page ranges
+      const mergedPageRanges = mergePageRanges(
+        groupPendings.flatMap(p => p.page_ranges || [])
+      );
+
+      // Get clinical data from first pending (should be consistent across cascade)
+      const firstPending = groupPendings.sort((a, b) => a.chunk_number - b.chunk_number)[0];
+
+      // Calculate quality tier
+      const qualityData = calculateQualityTier(firstPending);
+
+      // Build encounter data JSONB for RPC
+      const encounterData = {
+        encounter_type: firstPending.encounter_type,
+        encounter_start_date: firstPending.encounter_start_date,
+        encounter_end_date: firstPending.encounter_end_date,
+        encounter_timeframe_status: firstPending.encounter_timeframe_status,
+        date_source: firstPending.date_source,
+        provider_name: firstPending.provider_name,
+        facility_name: firstPending.facility_name,
+
+        // Position data (17 fields from mergePositionData)
+        start_page: mergedPosition.start_page,
+        start_boundary_type: mergedPosition.start_boundary_type,
+        start_text_marker: mergedPosition.start_text_marker,
+        start_marker_context: mergedPosition.start_marker_context,
+        start_region_hint: mergedPosition.start_region_hint,
+        start_text_y_top: mergedPosition.start_text_y_top,
+        start_text_height: mergedPosition.start_text_height,
+        start_y: mergedPosition.start_y,
+
+        end_page: mergedPosition.end_page,
+        end_boundary_type: mergedPosition.end_boundary_type,
+        end_text_marker: mergedPosition.end_text_marker,
+        end_marker_context: mergedPosition.end_marker_context,
+        end_region_hint: mergedPosition.end_region_hint,
+        end_text_y_top: mergedPosition.end_text_y_top,
+        end_text_height: mergedPosition.end_text_height,
+        end_y: mergedPosition.end_y,
+
+        position_confidence: mergedPosition.position_confidence,
+
+        // Page ranges and metadata
+        page_ranges: mergedPageRanges,
+        pass_0_5_confidence: firstPending.confidence,
+        summary: firstPending.summary,
+        is_real_world_visit: firstPending.is_real_world_visit,
+
+        // Quality tier (from calculation)
+        data_quality_tier: qualityData.tier,
+        quality_criteria_met: qualityData.criteria,
+
+        // Encounter source metadata (5 fields)
+        encounter_source: 'shell_file',
+        created_by_user_id: firstPending.created_by_user_id,
+        manual_created_by: null,
+        api_source_name: null,
+        api_import_date: null
+      };
+
+      // Call atomic RPC to create final encounter
+      const pendingIds = groupPendings.map(p => p.id);
+      const finalEncounterId = await reconcilePendingsToFinal(
+        pendingIds,
+        patientId,
+        shellFileId,
+        encounterData
+      );
+
+      console.log(`[Reconcile] Created final encounter ${finalEncounterId} from ${pendingIds.length} pendings`);
+
+      // Complete cascade chain tracking (if cascading encounter)
+      if (cascadeId) {
+        const lastChunk = Math.max(...groupPendings.map(p => p.chunk_number));
+        await completeCascadeChain(cascadeId, lastChunk, finalEncounterId, pendingIds.length);
+        console.log(`[Reconcile] Completed cascade chain ${cascadeId}`);
+      }
+
+      finalEncounterIds.push(finalEncounterId);
+
     } catch (error) {
-      console.error(`[Reconcile] Error reconciling ${pending.tempEncounterId}:`, error);
-      await markPendingForReview(
-        pending.id,
+      console.error(`[Reconcile] Error processing cascade ${cascadeId}:`, error);
+      await markCascadeAsAbandoned(
+        groupPendings,
         error instanceof Error ? error.message : String(error)
       );
     }
   }
 
-  return reconciledEncounters;
+  // STEP 5: Aggregate batching analysis to shell_files
+  await aggregateBatchingAnalysis(sessionId, shellFileId, totalPages);
+
+  console.log(`[Reconcile] Reconciliation complete: ${finalEncounterIds.length} final encounters created`);
+
+  return finalEncounterIds;
+}
+
+// ============================================================================
+// VALIDATION HELPERS
+// ============================================================================
+
+/**
+ * Session guard validation
+ *
+ * Ensures session is ready for reconciliation:
+ * - All chunks have completed
+ * - Session processing_status is appropriate
+ *
+ * @throws Error if session not ready
+ */
+async function validateSessionReadyForReconciliation(sessionId: string): Promise<void> {
+  // Fetch session metadata
+  const { data: session, error: sessionError } = await supabase
+    .from('pass05_progressive_sessions')
+    .select('processing_status, total_chunks')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError || !session) {
+    throw new Error(`Session ${sessionId} not found: ${sessionError?.message || 'unknown'}`);
+  }
+
+  // Check all chunks completed
+  const { count: completedCount, error: countError } = await supabase
+    .from('pass05_chunk_results')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', sessionId)
+    .eq('processing_status', 'completed');
+
+  if (countError) {
+    throw new Error(`Failed to count completed chunks: ${countError.message}`);
+  }
+
+  if (completedCount !== session.total_chunks) {
+    throw new Error(
+      `Premature reconciliation attempted: ${completedCount}/${session.total_chunks} chunks completed`
+    );
+  }
+
+  console.log(`[Reconcile] Session guard passed: ${completedCount}/${session.total_chunks} chunks completed`);
 }
 
 /**
- * FIX 2A: Merge page ranges from all chunks for each final encounter
- * Called AFTER reconciliation completes to consolidate page ranges
+ * Validate cascade group before reconciliation
+ *
+ * Checks:
+ * - All pendings have same cascade_id
+ * - All pendings have same encounter_type
+ * - Chunk numbers are sequential (no gaps)
+ * - Page ranges don't overlap incorrectly
+ *
+ * @param pendings - Pendings in cascade group
+ * @returns Validation result with errors
  */
-export async function mergePageRangesForAllEncounters(sessionId: string): Promise<void> {
-  console.log(`[Fix 2A] Merging page ranges for session ${sessionId}`);
+function validateCascadeGroup(
+  pendings: any[]
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
 
-  // Get all completed pendings grouped by final encounter
-  const { data: completedPendings, error: fetchError } = await supabase
-    .from('pass05_pending_encounters')
-    .select('completed_encounter_id, partial_data, page_ranges')
-    .eq('session_id', sessionId)
-    .eq('status', 'completed')
-    .not('completed_encounter_id', 'is', null);
-
-  if (fetchError) {
-    console.error(`[Fix 2A] Failed to fetch completed pendings: ${fetchError.message}`);
-    return;
+  if (pendings.length === 0) {
+    return { valid: false, errors: ['Empty cascade group'] };
   }
 
-  if (!completedPendings || completedPendings.length === 0) {
-    console.log(`[Fix 2A] No completed pendings to merge`);
-    return;
+  // Check 1: All have same cascade_id
+  const cascadeIds = new Set(pendings.map(p => p.cascade_id));
+  if (cascadeIds.size > 1) {
+    errors.push(`Multiple cascade IDs: ${Array.from(cascadeIds).join(', ')}`);
   }
 
-  // Group by final encounter ID
-  const encounterGroups = new Map<string, any[]>();
-  for (const pending of completedPendings) {
-    const finalId = pending.completed_encounter_id;
-    if (!encounterGroups.has(finalId)) {
-      encounterGroups.set(finalId, []);
-    }
-    encounterGroups.get(finalId)!.push(pending);
+  // Check 2: All have same encounter_type
+  const encounterTypes = new Set(pendings.map(p => p.encounter_type));
+  if (encounterTypes.size > 1) {
+    errors.push(`Multiple encounter types: ${Array.from(encounterTypes).join(', ')}`);
   }
 
-  console.log(`[Fix 2A] Found ${encounterGroups.size} unique final encounters to update`);
+  // Check 3: Sequential chunk numbers (if cascading)
+  if (pendings.length > 1) {
+    const sorted = pendings.slice().sort((a, b) => a.chunk_number - b.chunk_number);
+    const chunkNumbers = sorted.map(p => p.chunk_number);
 
-  // Merge page ranges for EACH final encounter
-  for (const [finalEncounterId, pendings] of encounterGroups) {
-    const allPageRanges: number[][] = [];
-
-    for (const p of pendings) {
-      // Check both locations for page ranges
-      const ranges = p.partial_data?.pageRanges || p.page_ranges || [];
-      if (Array.isArray(ranges) && ranges.length > 0) {
-        allPageRanges.push(...ranges);
+    for (let i = 1; i < chunkNumbers.length; i++) {
+      if (chunkNumbers[i] !== chunkNumbers[i - 1] + 1) {
+        errors.push(`Chunk gap: ${chunkNumbers[i - 1]} -> ${chunkNumbers[i]}`);
       }
     }
 
-    if (allPageRanges.length === 0) {
-      console.warn(`[Fix 2A] No page ranges found for encounter ${finalEncounterId}`);
-      continue;
-    }
+    // Check 4: Page ranges don't overlap incorrectly
+    for (let i = 1; i < sorted.length; i++) {
+      const prevEndPage = sorted[i - 1].end_page;
+      const currStartPage = sorted[i].start_page;
 
-    // Merge overlapping/adjacent ranges
-    const mergedRanges = mergePageRanges(allPageRanges);
-
-    console.log(`[Fix 2A] Encounter ${finalEncounterId}: ${allPageRanges.length} ranges -> ${mergedRanges.length} merged ranges`);
-
-    // Update the final encounter with merged ranges
-    const { error: updateError } = await supabase
-      .from('healthcare_encounters')
-      .update({ page_ranges: mergedRanges })
-      .eq('id', finalEncounterId);
-
-    if (updateError) {
-      console.error(`[Fix 2A] Failed to update encounter ${finalEncounterId}: ${updateError.message}`);
+      if (currStartPage < prevEndPage) {
+        errors.push(
+          `Page overlap: Chunk ${sorted[i - 1].chunk_number} ends at ${prevEndPage}, ` +
+          `Chunk ${sorted[i].chunk_number} starts at ${currStartPage}`
+        );
+      }
     }
   }
 
-  console.log(`[Fix 2A] Page range merging complete`);
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
+// ============================================================================
+// GROUPING HELPERS
+// ============================================================================
+
+/**
+ * Group pending encounters by cascade_id
+ *
+ * Non-cascading encounters have cascade_id = null, each gets own group.
+ *
+ * @param pendings - All pending encounters for session
+ * @returns Map of cascade_id -> pending array
+ */
+function groupPendingsByCascade(pendings: any[]): Map<string | null, any[]> {
+  const groups = new Map<string | null, any[]>();
+
+  for (const pending of pendings) {
+    const cascadeId = pending.cascade_id || null;
+
+    // Non-cascading encounters (cascade_id = null) each get own group
+    // Use pending_id as unique key for non-cascading
+    const key = cascadeId || pending.pending_id;
+
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(pending);
+  }
+
+  return groups;
+}
+
+// ============================================================================
+// POSITION MERGING HELPERS
+// ============================================================================
+
+/**
+ * Merge position data from cascade group
+ *
+ * Logic:
+ * - Start position: Take from FIRST chunk (earliest encounter start)
+ * - End position: Take from LAST chunk (latest encounter end)
+ * - Position confidence: Weighted average by page count
+ *
+ * Reference: 08-RECONCILIATION-STRATEGY-V2.md lines 62-139
+ *
+ * @param pendings - Sorted pending encounters in cascade
+ * @returns Merged position data (17 fields)
+ */
+function mergePositionData(pendings: any[]): any {
+  // Sort by chunk number
+  const sorted = pendings.slice().sort((a, b) => a.chunk_number - b.chunk_number);
+
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  // Calculate weighted average confidence
+  let totalConfidenceWeighted = 0;
+  let totalPages = 0;
+
+  for (const pending of sorted) {
+    const pageCount = (pending.end_page - pending.start_page + 1) || 1;
+    totalConfidenceWeighted += (pending.position_confidence || 0.5) * pageCount;
+    totalPages += pageCount;
+  }
+
+  const avgConfidence = totalPages > 0 ? totalConfidenceWeighted / totalPages : 0.5;
+
+  return {
+    // Start position (from FIRST chunk)
+    start_page: first.start_page,
+    start_boundary_type: first.start_boundary_type,
+    start_text_marker: first.start_text_marker,
+    start_marker_context: first.start_marker_context,
+    start_region_hint: first.start_region_hint,
+    start_text_y_top: first.start_text_y_top,
+    start_text_height: first.start_text_height,
+    start_y: first.start_y,
+
+    // End position (from LAST chunk)
+    end_page: last.end_page,
+    end_boundary_type: last.end_boundary_type,
+    end_text_marker: last.end_text_marker,
+    end_marker_context: last.end_marker_context,
+    end_region_hint: last.end_region_hint,
+    end_text_y_top: last.end_text_y_top,
+    end_text_height: last.end_text_height,
+    end_y: last.end_y,
+
+    // Weighted average confidence
+    position_confidence: avgConfidence
+  };
 }
 
 /**
- * Helper: Merge overlapping or adjacent page ranges
+ * Merge overlapping or adjacent page ranges
+ *
+ * Preserved from original pending-reconciler.ts (lines 130-153).
+ * This logic is correct for Strategy A.
+ *
+ * @param ranges - Array of [start, end] page ranges
+ * @returns Merged page ranges
  */
 function mergePageRanges(ranges: number[][]): number[][] {
   if (ranges.length === 0) return [];
@@ -150,270 +410,188 @@ function mergePageRanges(ranges: number[][]): number[][] {
   return merged;
 }
 
+// ============================================================================
+// QUALITY TIER HELPERS
+// ============================================================================
+
 /**
- * Try to complete a pending encounter
+ * Calculate quality tier for encounter
+ *
+ * Criteria:
+ * - Criteria A: Patient identity (full name + DOB from document)
+ * - Criteria B: Provider/facility (provider OR facility + encounter date)
+ * - Criteria C: Healthcare professional verification (manual or API)
+ *
+ * Tier Logic:
+ * - IF Criteria C met → VERIFIED
+ * - ELSE IF Criteria A AND Criteria B → HIGH
+ * - ELSE IF Criteria A (but NOT Criteria B) → MEDIUM
+ * - ELSE → LOW
+ *
+ * Reference: 11-DATA-QUALITY-SYSTEM.md lines 30-53
+ *
+ * @param pending - First pending in cascade (clinical data source)
+ * @returns Quality tier and criteria met JSONB
  */
-async function completePendingEncounter(
-  pending: PendingEncounterRecord,
-  _completedEncounters: EncounterMetadata[]
-): Promise<EncounterMetadata | null> {
-  const partial = pending.partialData;
+function calculateQualityTier(pending: any): {
+  tier: 'low' | 'medium' | 'high' | 'verified';
+  criteria: any;
+} {
+  // Criteria A: Patient identity confirmed
+  const criteriaA = !!(
+    pending.patient_full_name &&
+    pending.patient_date_of_birth
+  );
 
-  // Validate we have minimum required fields
-  if (!isEncounterComplete(partial)) {
-    console.warn(`[Reconcile] Pending encounter ${pending.tempEncounterId} missing required fields`);
-    return null;
+  // Criteria B: Provider/facility details confirmed
+  const criteriaB = !!(
+    (pending.provider_name || pending.facility_name) &&
+    pending.encounter_start_date
+  );
+
+  // Criteria C: Healthcare professional verification
+  // For uploaded shell_files, this is always false (no manual verification yet)
+  // Future: Check manual_created_by or api_source_name
+  const criteriaC = false;
+
+  // Calculate tier
+  let tier: 'low' | 'medium' | 'high' | 'verified';
+
+  if (criteriaC) {
+    tier = 'verified';
+  } else if (criteriaA && criteriaB) {
+    tier = 'high';
+  } else if (criteriaA) {
+    tier = 'medium';
+  } else {
+    tier = 'low';
   }
 
-  // CRITICAL FIX: Lookup patient_id and shell_file_id from session
-  const { data: session, error: sessionError } = await supabase
-    .from('pass05_progressive_sessions')
-    .select('patient_id, shell_file_id')
-    .eq('id', pending.sessionId)
-    .single();
-
-  if (sessionError || !session) {
-    throw new Error(`Failed to lookup session ${pending.sessionId}: ${sessionError?.message || 'Not found'}`);
-  }
-
-  // Build complete encounter from partial data
-  const encounter: any = {
-    encounterId: '',
-    encounterType: partial.encounterType,
-    dateRange: partial.dateRange,
-    encounterTimeframeStatus: partial.encounterTimeframeStatus || 'unknown_end_date',
-    dateSource: partial.dateSource || 'ai_extracted',
-    provider: partial.provider,
-    facility: partial.facility,
-    pageRanges: partial.pageRanges || [],
-    confidence: pending.confidence || 0.5,
-    summary: partial.summary,
-    spatialBounds: [],
-    isRealWorldVisit: true
+  return {
+    tier,
+    criteria: {
+      criteria_a: criteriaA,
+      criteria_b: criteriaB,
+      criteria_c: criteriaC
+    }
   };
-
-  // CRITICAL FIX: Check if encounter already exists before inserting
-  // This prevents duplicates when chunks have already finalized encounters
-  const { data: existing, error: existingError } = await supabase
-    .from('healthcare_encounters')
-    .select('id')
-    .eq('patient_id', session.patient_id)
-    .eq('primary_shell_file_id', session.shell_file_id)
-    .eq('encounter_type', partial.encounterType)
-    .eq('encounter_start_date', partial.dateRange?.start)
-    .limit(1)
-    .maybeSingle();
-
-  if (existingError) {
-    throw new Error(`Failed to check for existing encounter: ${existingError.message}`);
-  }
-
-  // If encounter already exists, skip insertion and use existing ID
-  if (existing) {
-    console.log(`[Reconcile] Encounter already exists (ID: ${existing.id}), skipping insertion`);
-    await markPendingEncounterCompleted(pending.id, existing.id);
-    encounter.encounterId = existing.id;
-    return encounter;
-  }
-
-  // Insert new encounter only if it doesn't exist
-  const { data: inserted, error } = await supabase
-    .from('healthcare_encounters')
-    .insert({
-      patient_id: session.patient_id,
-      primary_shell_file_id: session.shell_file_id,
-      encounter_type: partial.encounterType,
-      encounter_start_date: partial.dateRange?.start,
-      encounter_end_date: partial.dateRange?.end,
-      encounter_timeframe_status: partial.encounterTimeframeStatus || 'unknown_end_date',
-      date_source: partial.dateSource || 'ai_extracted',
-      provider_name: partial.provider,
-      facility_name: partial.facility,
-      page_ranges: partial.pageRanges || [],
-      pass_0_5_confidence: pending.confidence || 0.5,
-      summary: partial.summary,
-      identified_in_pass: 'pass_0_5',
-      source_method: 'ai_pass_0_5'
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to insert reconciled encounter: ${error.message}`);
-  }
-
-  // Mark pending encounter as completed
-  await markPendingEncounterCompleted(pending.id, inserted.id);
-
-  // Set the encounter ID in the return object
-  encounter.encounterId = inserted.id;
-
-  return encounter;
 }
 
+// ============================================================================
+// BATCHING ANALYSIS HELPERS
+// ============================================================================
+
 /**
- * Check if encounter has all required fields
+ * Aggregate batching analysis from all chunks
+ *
+ * Combines page_separation_analysis from all chunks into shell_files.page_separation_analysis.
+ * Sorts safe split points, calculates summary statistics.
+ *
+ * Reference: 08-RECONCILIATION-STRATEGY-V2.md lines 182-284
+ *
+ * @param sessionId - UUID of progressive session
+ * @param shellFileId - UUID of shell file
+ * @param totalPages - Total pages in document
  */
-function isEncounterComplete(data: any): boolean {
-  return !!(
-    data.encounterType &&
-    data.dateRange?.start &&
-    data.provider &&
-    data.pageRanges?.length > 0
+async function aggregateBatchingAnalysis(
+  sessionId: string,
+  shellFileId: string,
+  totalPages: number
+): Promise<void> {
+  console.log(`[Reconcile] Aggregating batching analysis for session ${sessionId}`);
+
+  // Fetch all chunk results
+  const chunkResults = await getChunkResultsForSession(sessionId);
+
+  if (chunkResults.length === 0) {
+    console.warn(`[Reconcile] No chunk results found for batching analysis`);
+    return;
+  }
+
+  // Combine all safe split points
+  const allSplitPoints: any[] = [];
+
+  for (const chunk of chunkResults) {
+    const analysis = chunk.page_separation_analysis;
+    if (analysis?.safe_split_points) {
+      allSplitPoints.push(...analysis.safe_split_points);
+    }
+  }
+
+  // Sort by page number
+  allSplitPoints.sort((a, b) => {
+    const pageA = a.split_type === 'inter_page'
+      ? a.between_pages[0]
+      : a.page;
+    const pageB = b.split_type === 'inter_page'
+      ? b.between_pages[0]
+      : b.page;
+    return pageA - pageB;
+  });
+
+  // Calculate summary statistics
+  const interPageCount = allSplitPoints.filter(s => s.split_type === 'inter_page').length;
+  const intraPageCount = allSplitPoints.filter(s => s.split_type === 'intra_page').length;
+  const avgConfidence = allSplitPoints.length > 0
+    ? allSplitPoints.reduce((sum, s) => sum + (s.confidence || 0), 0) / allSplitPoints.length
+    : 0;
+
+  // Build final analysis
+  const finalAnalysis = {
+    version: '2.0',
+    total_pages: totalPages,
+    analysis_date: new Date().toISOString(),
+    safe_split_points: allSplitPoints,
+    summary: {
+      total_splits: allSplitPoints.length,
+      inter_page_splits: interPageCount,
+      intra_page_splits: intraPageCount,
+      avg_confidence: avgConfidence,
+      pages_per_split: totalPages / (allSplitPoints.length || 1)
+    }
+  };
+
+  // Store in shell_files
+  await updateAggregatedBatchingAnalysis(shellFileId, finalAnalysis);
+
+  console.log(
+    `[Reconcile] Batching analysis aggregated: ${allSplitPoints.length} split points ` +
+    `(${interPageCount} inter, ${intraPageCount} intra)`
   );
 }
 
-/**
- * Mark pending encounter as requiring manual review
- */
-async function markPendingForReview(pendingId: string, _reason: string): Promise<void> {
-  const { error } = await supabase
-    .from('pass05_pending_encounters')
-    .update({
-      requires_review: true,
-      status: 'abandoned',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', pendingId);
-
-  if (error) {
-    console.error(`Failed to mark pending encounter for review:`, error);
-  }
-}
+// ============================================================================
+// ERROR HANDLING HELPERS
+// ============================================================================
 
 /**
- * FIX 2B: Update page assignments to map temp IDs to final encounter IDs
- * Called AFTER reconciliation completes
+ * Mark entire cascade as abandoned
+ *
+ * Called when cascade validation fails or reconciliation errors occur.
+ * Marks all pendings as 'abandoned' with review reason.
+ *
+ * @param pendings - Pendings in failed cascade
+ * @param reason - Error reason
  */
-export async function updatePageAssignmentsAfterReconciliation(
-  sessionId: string,
-  shellFileId: string
+async function markCascadeAsAbandoned(
+  pendings: any[],
+  reason: string
 ): Promise<void> {
-  console.log(`[Fix 2B] Updating page assignments for session ${sessionId}`);
+  console.error(`[Reconcile] Marking ${pendings.length} pendings as abandoned: ${reason}`);
 
-  // Get all completed pendings with their temp IDs and final encounter IDs
-  const { data: completedPendings, error: fetchError } = await supabase
-    .from('pass05_pending_encounters')
-    .select('temp_encounter_id, completed_encounter_id')
-    .eq('session_id', sessionId)
-    .eq('status', 'completed')
-    .not('completed_encounter_id', 'is', null);
+  for (const pending of pendings) {
+    const { error } = await supabase
+      .from('pass05_pending_encounters')
+      .update({
+        status: 'abandoned',
+        requires_review: true,
+        review_reason: `Reconciliation failed: ${reason}`,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pending.id);
 
-  if (fetchError) {
-    console.error(`[Fix 2B] Failed to fetch completed pendings: ${fetchError.message}`);
-    return;
-  }
-
-  if (!completedPendings || completedPendings.length === 0) {
-    console.log(`[Fix 2B] No completed pendings to update page assignments for`);
-    return;
-  }
-
-  // Group by final encounter ID to handle multi-encounter sessions
-  const encounterGroups = new Map<string, string[]>();
-  for (const pending of completedPendings) {
-    const finalId = pending.completed_encounter_id;
-    const tempId = pending.temp_encounter_id;
-
-    if (!encounterGroups.has(finalId)) {
-      encounterGroups.set(finalId, []);
-    }
-    encounterGroups.get(finalId)!.push(tempId);
-  }
-
-  console.log(`[Fix 2B] Found ${encounterGroups.size} final encounters with temp IDs to update`);
-
-  // Update page assignments for each final encounter group
-  for (const [finalEncounterId, tempIds] of encounterGroups) {
-    console.log(`[Fix 2B] Updating ${tempIds.length} temp IDs -> ${finalEncounterId}`);
-
-    const { error: updateError } = await supabase
-      .from('pass05_page_assignments')
-      .update({ encounter_id: finalEncounterId })
-      .eq('shell_file_id', shellFileId)
-      .in('encounter_id', tempIds);
-
-    if (updateError) {
-      console.error(`[Fix 2B] Failed to update page assignments for encounter ${finalEncounterId}: ${updateError.message}`);
-    } else {
-      console.log(`[Fix 2B] Successfully updated page assignments for ${tempIds.join(', ')} -> ${finalEncounterId}`);
+    if (error) {
+      console.error(`[Reconcile] Failed to mark pending ${pending.id} as abandoned:`, error);
     }
   }
-
-  // Handle chunk-level temp IDs (enc-001, enc-002, etc.)
-  // Only safe when exactly one final encounter exists
-  if (encounterGroups.size === 1) {
-    const singleFinalId = Array.from(encounterGroups.keys())[0];
-
-    console.log(`[Fix 2B] Updating chunk-level enc-* temp IDs -> ${singleFinalId}`);
-
-    const { error: encUpdateError } = await supabase
-      .from('pass05_page_assignments')
-      .update({ encounter_id: singleFinalId })
-      .eq('shell_file_id', shellFileId)
-      .like('encounter_id', 'enc-%');
-
-    if (encUpdateError) {
-      console.error(`[Fix 2B] Failed to update enc-* temp IDs: ${encUpdateError.message}`);
-    } else {
-      console.log(`[Fix 2B] Successfully updated enc-* temp IDs -> ${singleFinalId}`);
-    }
-  } else {
-    console.warn(`[Fix 2B] Multiple final encounters (${encounterGroups.size}) - cannot safely update enc-* temp IDs without mapping`);
-  }
-
-  console.log(`[Fix 2B] Page assignment updates complete`);
-}
-
-/**
- * FIX 2C: Recalculate session-level encounter metrics after reconciliation
- * Updates the actual encounter count (encounters_detected, real_world_encounters)
- * Called AFTER reconciliation completes
- */
-export async function recalculateEncounterMetrics(
-  sessionId: string,
-  shellFileId: string
-): Promise<void> {
-  console.log(`[Fix 2C] Recalculating encounter metrics for session ${sessionId}`);
-
-  // Get all completed pendings with their final encounter IDs
-  const { data: completedPendings, error: fetchError } = await supabase
-    .from('pass05_pending_encounters')
-    .select('completed_encounter_id')
-    .eq('session_id', sessionId)
-    .eq('status', 'completed')
-    .not('completed_encounter_id', 'is', null);
-
-  if (fetchError) {
-    console.error(`[Fix 2C] Failed to fetch completed pendings: ${fetchError.message}`);
-    return;
-  }
-
-  // Count unique final encounter IDs
-  const finalEncounterIds = completedPendings && completedPendings.length > 0
-    ? [...new Set(completedPendings.map(p => p.completed_encounter_id))]
-    : [];
-
-  const actualEncounterCount = finalEncounterIds.length;
-
-  console.log(`[Fix 2C] Session has ${actualEncounterCount} actual encounter(s) after reconciliation`);
-
-  // Update session-level metrics in pass05_encounter_metrics
-  // This corrects the "3 encounters" bug to show the actual count (e.g., 1)
-  const { error: updateError } = await supabase
-    .from('pass05_encounter_metrics')
-    .update({
-      encounters_detected: actualEncounterCount,
-      real_world_encounters: actualEncounterCount,
-      updated_at: new Date().toISOString()
-    })
-    .eq('shell_file_id', shellFileId);
-
-  if (updateError) {
-    console.error(`[Fix 2C] Failed to update encounter metrics: ${updateError.message}`);
-  } else {
-    console.log(`[Fix 2C] Updated metrics: encounters_detected = ${actualEncounterCount}, real_world_encounters = ${actualEncounterCount}`);
-  }
-
-  console.log(`[Fix 2C] Metrics recalculation complete`);
 }

@@ -10,11 +10,12 @@
  * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
  * - 'v2.8': Further optimizations
  * - 'v2.9': Latest optimizations
+ * - 'v11': Strategy A (universal progressive, cascade-based)
  *
- * Progressive Mode (via PASS_05_PROGRESSIVE_ENABLED env var):
- * - Documents >100 pages are automatically split into 50-page chunks
- * - Context handoff between chunks for incomplete encounters
- * - Prevents MAX_TOKENS errors on large documents
+ * STRATEGY A (V11):
+ * - ALL documents use progressive mode (no page threshold)
+ * - Cascade-based encounter continuity (not handoff-based)
+ * - All encounters created as "pendings" first, reconciled later
  */
 
 import { GoogleCloudVisionOCR, EncounterMetadata, PageAssignment } from './types';
@@ -22,11 +23,10 @@ import { buildEncounterDiscoveryPrompt } from './aiPrompts';
 import { buildEncounterDiscoveryPromptV27 } from './aiPrompts.v2.7';
 import { buildEncounterDiscoveryPromptV28 } from './aiPrompts.v2.8';
 import { buildEncounterDiscoveryPromptV29 } from './aiPrompts.v2.9';
-import { buildEncounterDiscoveryPromptV10 } from './aiPrompts.v10';
 import { parseEncounterResponse } from './manifestBuilder';
 import { getSelectedModel } from './models/model-selector';
 import { AIProviderFactory } from './providers/provider-factory';
-import { shouldUseProgressiveMode, processDocumentProgressively } from './progressive/session-manager';
+import { processDocumentProgressively } from './progressive/session-manager';
 import { createClient } from '@supabase/supabase-js';
 
 // Migration 45: Supabase client for shell_files finalization
@@ -117,39 +117,36 @@ export async function discoverEncounters(
     if (version === 'v10') {
       console.log(`[Pass 0.5] Using v10 universal prompt for ${input.pageCount} pages`);
 
-      // Documents >100 pages still use progressive chunking
-      if (shouldUseProgressiveMode(input.pageCount)) {
-        console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode with v10`);
+      // STRATEGY A: ALL documents use progressive mode (no threshold)
+      console.log(`[Pass 0.5] STRATEGY A: Using progressive mode for all documents (universal processing)`);
 
-        const progressiveResult = await processDocumentProgressively(
-          input.shellFileId,
-          input.patientId,
-          input.ocrOutput.fullTextAnnotation.pages
-        );
+      const progressiveResult = await processDocumentProgressively(
+        input.shellFileId,
+        input.patientId,
+        input.ocrOutput.fullTextAnnotation.pages
+      );
 
-        return {
-          success: true,
-          encounters: progressiveResult.encounters,
-          page_assignments: progressiveResult.pageAssignments,
-          aiModel: progressiveResult.aiModel,
-          aiCostUsd: progressiveResult.totalCost,
-          inputTokens: progressiveResult.totalInputTokens,
-          outputTokens: progressiveResult.totalOutputTokens
-        };
-      }
+      return {
+        success: true,
+        encounters: [], // Strategy A: Encounters created but not returned (use DB queries)
+        page_assignments: [], // Strategy A: Handled by reconciliation
+        aiModel: progressiveResult.aiModel,
+        aiCostUsd: progressiveResult.totalCost,
+        inputTokens: progressiveResult.totalInputTokens,
+        outputTokens: progressiveResult.totalOutputTokens
+      };
 
-      // Standard mode with v10 prompt
-      console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using v10 in single-pass mode`);
-
-      // Build v10 prompt without progressive parameters (single chunk)
-      // Will be processed by the standard mode code below
-      console.log(`[Pass 0.5] v10 will be processed in standard mode below`);
+      // NOTE: Single-pass mode removed for Strategy A - all docs use progressive
 
     } else {
       // LEGACY: Old versions still supported for backward compatibility
       console.log(`[Pass 0.5] Using legacy version ${version}`);
 
-      if (shouldUseProgressiveMode(input.pageCount)) {
+      // LEGACY: Use 100-page threshold for old versions
+      const PAGE_THRESHOLD = 100;
+      const useProgressive = input.pageCount > PAGE_THRESHOLD;
+
+      if (useProgressive) {
         console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode (compositional v2.9 + addons)`);
 
         const progressiveResult = await processDocumentProgressively(
@@ -160,8 +157,8 @@ export async function discoverEncounters(
 
         return {
           success: true,
-          encounters: progressiveResult.encounters,
-          page_assignments: progressiveResult.pageAssignments,
+          encounters: [], // Legacy: Encounters created but not returned (use DB queries)
+          page_assignments: [], // Legacy: Handled by reconciliation
           aiModel: progressiveResult.aiModel,
           aiCostUsd: progressiveResult.totalCost,
           inputTokens: progressiveResult.totalInputTokens,
@@ -174,11 +171,9 @@ export async function discoverEncounters(
     console.log(`[Pass 0.5] Standard mode processing...`);
 
     // Select prompt builder based on version
-    const promptBuilder = version === 'v10'
-      ? buildEncounterDiscoveryPromptV10
-      : version === 'v2.9'
-        ? buildEncounterDiscoveryPromptV29
-        : version === 'v2.8'
+    const promptBuilder = version === 'v2.9'
+      ? buildEncounterDiscoveryPromptV29
+      : version === 'v2.8'
           ? buildEncounterDiscoveryPromptV28
           : version === 'v2.7'
             ? buildEncounterDiscoveryPromptV27

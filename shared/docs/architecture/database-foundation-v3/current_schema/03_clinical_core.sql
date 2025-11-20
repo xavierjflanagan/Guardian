@@ -96,14 +96,15 @@ END $$;
 CREATE TABLE IF NOT EXISTS shell_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-    
+    uploaded_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE SET NULL, -- Migration 50: Auth user who uploaded
+
     -- Physical file metadata
     filename TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     file_size_bytes BIGINT NOT NULL,
     mime_type TEXT NOT NULL,
     storage_path TEXT NOT NULL,
-    
+
     -- Processing status
     status TEXT NOT NULL DEFAULT 'uploaded' CHECK (status IN (
         'uploaded', 'processing', 'pass1_complete', 'pass2_complete', 'pass3_complete',
@@ -111,29 +112,27 @@ CREATE TABLE IF NOT EXISTS shell_files (
     )),
     processing_started_at TIMESTAMPTZ,
     processing_completed_at TIMESTAMPTZ,
-    processing_error JSONB, -- Enhanced error details with structure
 
     -- Content analysis
     extracted_text TEXT,
-    ocr_confidence NUMERIC(3,2),
     ocr_raw_jsonb JSONB, -- Complete Google Cloud Vision OCR response for debugging/reprocessing (Migration 37 - 2025-11-03)
     page_count INTEGER DEFAULT 1,
-    
+
     -- POST-PASS 3: Shell File Synthesis (replaces primitive document intelligence)
     ai_synthesized_summary TEXT, -- Intelligent overview of all narratives in this shell file
     narrative_count INTEGER DEFAULT 0, -- Number of clinical narratives created from this shell file
     synthesis_completed_at TIMESTAMPTZ, -- When Pass 3 synthesis completed
-    
+
     -- V5 Phase 2: Job Coordination Integration
     processing_job_id UUID, -- Will reference job_queue(id) after 08_job_coordination.sql deployment
     processing_worker_id VARCHAR(100), -- Worker that processed this file
     processing_priority INTEGER DEFAULT 100, -- Processing priority (lower = higher priority)
     idempotency_key TEXT, -- Prevents duplicate processing
-    
+
     -- V5 Business Analytics Integration
     processing_cost_estimate DECIMAL(10,4) DEFAULT 0, -- Estimated processing cost
     processing_duration_seconds INTEGER, -- Actual processing time
-    
+
     -- Upload and processing metadata
     language_detected TEXT DEFAULT 'en',
 
@@ -143,14 +142,21 @@ CREATE TABLE IF NOT EXISTS shell_files (
     processed_image_mime TEXT, -- MIME type of processed image
     processed_image_size_bytes BIGINT, -- Migration 40: Combined total size in bytes of all processed JPEG pages (populated after all pages persisted)
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 39 - 2025-11-04, Migration 45 - 2025-11-11)
+    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 39 - 2025-11-04, Migration 45 - 2025-11-11, Migration 50 - 2025-11-18)
     pass_0_5_completed BOOLEAN DEFAULT FALSE, -- True if Pass 0.5 encounter discovery completed successfully
     pass_0_5_completed_at TIMESTAMPTZ, -- When Pass 0.5 completed
     pass_0_5_error TEXT, -- Pass 0.5 error message if failed
     pass_0_5_version TEXT DEFAULT NULL, -- Migration 45: Prompt version used (e.g., v2.9, v2.10)
-    pass_0_5_progressive BOOLEAN DEFAULT FALSE, -- Migration 45: TRUE if progressive refinement used (>100 pages)
     ocr_average_confidence NUMERIC(3,2) DEFAULT NULL, -- Migration 45: Average OCR confidence across all pages (0.00-1.00)
     page_separation_analysis JSONB, -- Migration 39: Inter-page dependency analysis for batching (safe_split_points, inseparable_groups)
+
+    -- Strategy A tracking (Migration 50)
+    progressive_session_id UUID REFERENCES pass05_progressive_sessions(id) ON DELETE SET NULL, -- Migration 50: Direct link to pass05 session
+    reconciliation_method VARCHAR(20), -- Migration 50: 'cascade', 'descriptor', 'mixed'
+
+    -- File 12: Encounter source classification (Migration 50)
+    shell_file_subtype VARCHAR(50), -- Migration 50: 'scanned_document', 'progress_note', 'voice_transcript', 'api_import'
+    api_source_name TEXT, -- Migration 50: For API imports: 'medicare_australia', 'my_health_record', etc.
 
     -- Audit and lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -511,51 +517,121 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     -- Encounter Classification
     encounter_type TEXT NOT NULL, -- 'outpatient', 'inpatient', 'emergency', 'specialist', 'telehealth', 'diagnostic'
     encounter_start_date TIMESTAMPTZ, -- Migration 42: Renamed from encounter_date for semantic clarity
+    encounter_end_date TIMESTAMPTZ, -- Migration 50: Renamed from encounter_date_end for consistency
 
     -- Provider and Facility Information
     provider_name TEXT,
     provider_type TEXT, -- 'primary_care', 'specialist', 'hospital', 'urgent_care'
     facility_name TEXT,
+    facility_address TEXT, -- Migration 50: Facility address if present
     specialty TEXT, -- 'cardiology', 'dermatology', 'family_medicine'
 
     -- Clinical Context
     chief_complaint TEXT, -- Patient's main concern
     summary TEXT, -- Visit summary
     clinical_impression TEXT, -- Provider's assessment
-    plan TEXT, -- Treatment plan
 
     -- Administrative
     billing_codes TEXT[], -- CPT codes for billing
 
     -- File Links
-    primary_shell_file_id UUID REFERENCES shell_files(id),
+    source_shell_file_id UUID REFERENCES shell_files(id), -- Migration 50: Renamed from primary_shell_file_id
     related_shell_file_ids UUID[] DEFAULT '{}',
+    all_shell_file_ids UUID[] DEFAULT ARRAY[]::UUID[], -- All documents referencing this encounter
 
     -- V3 AI Processing Integration
     source_method TEXT NOT NULL CHECK (source_method IN ('ai_pass_0_5', 'ai_pass_2', 'manual_entry', 'import')), -- Migration 38: Replaced ai_extracted boolean with granular tracking
     requires_review BOOLEAN DEFAULT FALSE,
 
-    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 38 - 2025-11-04, updated Migration 42 - 2025-11-06)
-    page_ranges INT[][] DEFAULT '{}', -- Page ranges in source document [[1,5], [10,12]]
+    -- Pass 0.5: Encounter Discovery (Migration 34 - 2025-10-30, updated Migration 38 - 2025-11-04, updated Migration 42 - 2025-11-06, Migration 50 - 2025-11-18)
+    page_ranges INT[][] DEFAULT '{}', -- Migration 50: Changed from INT[] to INT[][] for [start,end] pairs
     spatial_bounds JSONB, -- Bounding box coordinates for encounter region
     identified_in_pass TEXT DEFAULT 'pass_2', -- 'pass_0_5', 'pass_1', 'pass_2'
     is_real_world_visit BOOLEAN DEFAULT TRUE, -- Timeline Test: date + (provider OR facility)
     pass_0_5_confidence NUMERIC(3,2), -- AI confidence in encounter detection
     ocr_average_confidence NUMERIC(3,2), -- Average OCR quality for this encounter
-    encounter_end_date TIMESTAMPTZ, -- End date for multi-day encounters (NULL = ongoing, same as start = single-day)
     encounter_timeframe_status TEXT NOT NULL DEFAULT 'completed' CHECK (encounter_timeframe_status IN ('completed', 'ongoing', 'unknown_end_date')), -- Migration 42: Explicit encounter completion status
     date_source TEXT NOT NULL DEFAULT 'upload_date' CHECK (date_source IN ('ai_extracted', 'file_metadata', 'upload_date')), -- Migration 38/42: Track date provenance (made NOT NULL in Migration 42)
     is_planned_future BOOLEAN DEFAULT FALSE, -- True for scheduled appointments/procedures
 
+    -- CASCADE SUPPORT (Migration 50 - Strategy A)
+    cascade_id VARCHAR(100), -- Migration 50: Which cascade created this (if encounter spanned chunks)
+    chunk_count INTEGER DEFAULT 1, -- Migration 50: How many chunks this encounter spanned
+    reconciliation_key TEXT, -- Migration 50: Unique descriptor for duplicate detection
+
+    -- POSITION TRACKING (Migration 50/52 - Strategy A, 17 columns)
+    start_page INTEGER, -- Migration 50: First page of encounter
+    start_boundary_type VARCHAR(20), -- Migration 50: 'inter_page' or 'intra_page'
+    start_marker TEXT, -- Migration 50: Descriptive text for start boundary
+    start_marker_context VARCHAR(100), -- Migration 52: Additional text context for disambiguation
+    start_region_hint VARCHAR(20), -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
+    start_text_y_top INTEGER, -- Migration 50: Y-coordinate of marker text top (NULL if inter_page)
+    start_text_height INTEGER, -- Migration 50: Height of marker text (NULL if inter_page)
+    start_y INTEGER, -- Migration 50: Calculated split line (NULL if inter_page)
+    end_page INTEGER, -- Migration 50: Last page of encounter
+    end_boundary_type VARCHAR(20), -- Migration 50: 'inter_page' or 'intra_page'
+    end_marker TEXT, -- Migration 50: Descriptive text for end boundary
+    end_marker_context VARCHAR(100), -- Migration 52: Additional text context for disambiguation
+    end_region_hint VARCHAR(20), -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
+    end_text_y_top INTEGER, -- Migration 50: Y-coordinate of marker text top (NULL if inter_page)
+    end_text_height INTEGER, -- Migration 50: Height of marker text (NULL if inter_page)
+    end_y INTEGER, -- Migration 50: Calculated split line (NULL if inter_page)
+    position_confidence NUMERIC, -- Migration 50: Overall confidence in boundary positions (0.0-1.0)
+
+    -- RECONCILIATION TRACKING (Migration 50 - Strategy A)
+    completed_at TIMESTAMPTZ, -- Migration 50: When reconciliation created this final encounter
+    reconciled_from_pendings INTEGER, -- Migration 50: Count of pending encounters merged into this
+
+    -- IDENTITY MARKERS (Migration 50 - File 10)
+    patient_full_name TEXT, -- Migration 50: Full name extracted from document
+    patient_date_of_birth DATE, -- Migration 50: DOB extracted from document
+    patient_mrn TEXT, -- Migration 50: Medical record number if present
+    patient_address TEXT, -- Migration 50: Address if present
+
+    -- CLASSIFICATION RESULTS (Migration 50 - File 10)
+    matched_profile_id UUID REFERENCES user_profiles(id) ON DELETE SET NULL, -- Migration 50: Profile matched from multi-profile account
+    match_confidence NUMERIC, -- Migration 50: 0.0 to 1.0 confidence in match
+    match_status VARCHAR(20), -- Migration 50: 'matched', 'unmatched', 'orphan', 'review'
+    is_orphan_identity BOOLEAN DEFAULT FALSE, -- Migration 50: TRUE if no matching profile found
+
+    -- DATA QUALITY (Migration 50 - File 11)
+    data_quality_tier VARCHAR(20) CHECK (data_quality_tier IN ('low', 'medium', 'high', 'verified')), -- Migration 50: Quality grade
+    quality_criteria_met JSONB, -- Migration 50: JSON object tracking which criteria met
+    quality_calculation_date TIMESTAMPTZ, -- Migration 50: When quality tier was calculated
+
+    -- ENCOUNTER SOURCE METADATA (Migration 50 - File 12)
+    encounter_source VARCHAR(20) NOT NULL DEFAULT 'shell_file' CHECK (encounter_source IN ('shell_file', 'manual', 'api')), -- Migration 50: Source type
+    manual_created_by VARCHAR(20) CHECK (manual_created_by IN ('provider', 'user', 'other_user')), -- Migration 50: For manual entries
+    created_by_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL, -- Migration 50: Auth user who created/uploaded
+    api_source_name VARCHAR(100), -- Migration 50: For API imports
+    api_import_date DATE, -- Migration 50: Date of API import
+
     -- Phase 2: Master Encounter Grouping (Migration 34 - 2025-10-30)
     master_encounter_id UUID, -- Groups duplicate encounters from different documents
     master_encounter_confidence NUMERIC(3,2), -- Confidence in grouping (0.80-1.00)
-    all_shell_file_ids UUID[] DEFAULT ARRAY[]::UUID[], -- All documents referencing this encounter
+
+    -- Future features
+    clinical_event_id UUID,
+    primary_narrative_id UUID,
+    superseded_by_record_id UUID,
+    supersession_reason TEXT,
+    is_current BOOLEAN,
+    clinical_identity_key TEXT,
+    extracted_dates JSONB DEFAULT '[]',
+    date_conflicts JSONB DEFAULT '[]',
+
+    -- Temporal versioning
+    valid_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    valid_to TIMESTAMPTZ,
 
     -- Quality and Audit
     archived BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints (Migration 50)
+    CONSTRAINT check_shell_file_source_valid
+        CHECK (encounter_source != 'shell_file' OR source_shell_file_id IS NOT NULL)
 );
 
 -- Healthcare timeline events for UI display (CRITICAL V3 COMPONENT)
@@ -1578,6 +1654,19 @@ CREATE INDEX IF NOT EXISTS idx_encounters_real_world ON healthcare_encounters(is
 CREATE INDEX IF NOT EXISTS idx_encounters_planned_future ON healthcare_encounters(is_planned_future);
 CREATE INDEX IF NOT EXISTS idx_encounters_master ON healthcare_encounters(master_encounter_id);
 
+-- Migration 50: Strategy A indexes
+CREATE INDEX IF NOT EXISTS idx_encounters_cascade ON healthcare_encounters(cascade_id) WHERE cascade_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_encounters_spatial ON healthcare_encounters USING GIN (spatial_bounds) WHERE spatial_bounds IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_encounters_source ON healthcare_encounters(encounter_source);
+CREATE INDEX IF NOT EXISTS idx_encounters_quality ON healthcare_encounters(data_quality_tier);
+CREATE INDEX IF NOT EXISTS idx_encounters_manual_creator ON healthcare_encounters(manual_created_by) WHERE manual_created_by IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_encounters_creator ON healthcare_encounters(created_by_user_id);
+CREATE INDEX IF NOT EXISTS idx_encounters_profile ON healthcare_encounters(matched_profile_id) WHERE matched_profile_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_encounters_match_status ON healthcare_encounters(match_status);
+CREATE INDEX IF NOT EXISTS idx_encounters_orphan ON healthcare_encounters(is_orphan_identity) WHERE is_orphan_identity = TRUE;
+CREATE INDEX IF NOT EXISTS idx_encounters_source_file ON healthcare_encounters(source_shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_encounters_reconciliation_key ON healthcare_encounters(reconciliation_key) WHERE reconciliation_key IS NOT NULL;
+
 -- V3 Timeline Events indexes
 CREATE INDEX IF NOT EXISTS idx_timeline_patient ON healthcare_timeline_events(patient_id) WHERE archived IS NOT TRUE;
 CREATE INDEX IF NOT EXISTS idx_timeline_date ON healthcare_timeline_events(patient_id, event_date DESC) WHERE archived IS NOT TRUE;
@@ -1595,15 +1684,17 @@ CREATE INDEX IF NOT EXISTS idx_timeline_searchable ON healthcare_timeline_events
 -- medical_condition_codes and medication_reference tables no longer exist
 
 -- Shell files table indexes
-CREATE INDEX IF NOT EXISTS idx_shell_files_patient ON shell_files(patient_id);  
+CREATE INDEX IF NOT EXISTS idx_shell_files_patient ON shell_files(patient_id);
 CREATE INDEX IF NOT EXISTS idx_shell_files_status ON shell_files(status) WHERE status != 'archived';
-CREATE INDEX IF NOT EXISTS idx_shell_files_type ON shell_files(file_type, file_subtype);
 CREATE INDEX IF NOT EXISTS idx_shell_files_processing ON shell_files(status, processing_started_at) WHERE status = 'processing';
 -- V5 Phase 2 indexes for job coordination
 CREATE UNIQUE INDEX IF NOT EXISTS idx_shell_files_idempotency_key ON shell_files(idempotency_key) WHERE idempotency_key IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_shell_files_job_id ON shell_files(processing_job_id) WHERE processing_job_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shell_files_job ON shell_files(processing_job_id) WHERE processing_job_id IS NOT NULL; -- Migration 50: Renamed from idx_shell_files_job_id
 CREATE INDEX IF NOT EXISTS idx_shell_files_worker ON shell_files(processing_worker_id) WHERE processing_worker_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_shell_files_priority ON shell_files(processing_priority) WHERE status IN ('uploaded', 'processing');
+-- Migration 50: Strategy A indexes
+CREATE INDEX IF NOT EXISTS idx_shell_files_session ON shell_files(progressive_session_id) WHERE progressive_session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_shell_files_subtype ON shell_files(shell_file_subtype) WHERE shell_file_subtype IS NOT NULL;
 
 -- Patient conditions indexes
 CREATE INDEX IF NOT EXISTS idx_conditions_patient ON patient_conditions(patient_id) WHERE archived_at IS NULL;

@@ -192,7 +192,7 @@ async function parseEncounterResponse(aiResponse, ocrOutput, patientId, shellFil
             encounter_type: aiEnc.encounterType, // Safe now (validated)
             is_real_world_visit: aiEnc.isRealWorldVisit,
             encounter_start_date: encounterStartDate, // Migration 42: Renamed from encounter_date
-            encounter_date_end: encounterDateEnd, // For multi-day encounters (Migration 38/42)
+            encounter_end_date: encounterDateEnd, // For multi-day encounters (Migration 38/42)
             encounter_timeframe_status: encounterTimeframeStatus, // Migration 42: Explicit completion status
             date_source: dateSource, // Migration 38/42: Track date provenance with waterfall logic
             provider_name: aiEnc.provider || null,

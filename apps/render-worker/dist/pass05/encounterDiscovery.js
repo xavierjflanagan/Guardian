@@ -11,11 +11,12 @@
  * - 'v2.7': Optimized prompt with Phase 1 improvements (token reduction, linear flow)
  * - 'v2.8': Further optimizations
  * - 'v2.9': Latest optimizations
+ * - 'v11': Strategy A (universal progressive, cascade-based)
  *
- * Progressive Mode (via PASS_05_PROGRESSIVE_ENABLED env var):
- * - Documents >100 pages are automatically split into 50-page chunks
- * - Context handoff between chunks for incomplete encounters
- * - Prevents MAX_TOKENS errors on large documents
+ * STRATEGY A (V11):
+ * - ALL documents use progressive mode (no page threshold)
+ * - Cascade-based encounter continuity (not handoff-based)
+ * - All encounters created as "pendings" first, reconciled later
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.discoverEncounters = discoverEncounters;
@@ -23,6 +24,7 @@ const aiPrompts_1 = require("./aiPrompts");
 const aiPrompts_v2_7_1 = require("./aiPrompts.v2.7");
 const aiPrompts_v2_8_1 = require("./aiPrompts.v2.8");
 const aiPrompts_v2_9_1 = require("./aiPrompts.v2.9");
+const aiPrompts_v10_1 = require("./aiPrompts.v10");
 const manifestBuilder_1 = require("./manifestBuilder");
 const model_selector_1 = require("./models/model-selector");
 const provider_factory_1 = require("./providers/provider-factory");
@@ -65,7 +67,7 @@ async function discoverEncounters(input) {
     try {
         // Read strategy and version from environment variables
         const strategy = (process.env.PASS_05_STRATEGY || 'ocr');
-        const version = (process.env.PASS_05_VERSION || 'v2.9');
+        const version = (process.env.PASS_05_VERSION || 'v10');
         console.log(`[Pass 0.5] Using strategy: ${strategy}, version: ${version}`);
         // Vision strategy requires image loading infrastructure (not yet implemented)
         if (strategy === 'vision') {
@@ -73,11 +75,13 @@ async function discoverEncounters(input) {
                 'Requires image loading from Supabase Storage. ' +
                 'Use PASS_05_STRATEGY=ocr instead.');
         }
-        // PROGRESSIVE MODE: For documents >100 pages (uses compositional prompt architecture)
-        if ((0, session_manager_1.shouldUseProgressiveMode)(input.pageCount)) {
-            console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode (compositional v2.9 + addons)`);
+        // V10 UNIVERSAL ARCHITECTURE: Works for all document sizes
+        // Progressive mode handled internally by the prompt and post-processing
+        if (version === 'v10') {
+            console.log(`[Pass 0.5] Using v10 universal prompt for ${input.pageCount} pages`);
+            // STRATEGY A: ALL documents use progressive mode (no threshold)
+            console.log(`[Pass 0.5] STRATEGY A: Using progressive mode for all documents (universal processing)`);
             const progressiveResult = await (0, session_manager_1.processDocumentProgressively)(input.shellFileId, input.patientId, input.ocrOutput.fullTextAnnotation.pages);
-            // Progressive mode handles database writes internally, just return the result
             return {
                 success: true,
                 encounters: progressiveResult.encounters,
@@ -87,17 +91,40 @@ async function discoverEncounters(input) {
                 inputTokens: progressiveResult.totalInputTokens,
                 outputTokens: progressiveResult.totalOutputTokens
             };
+            // NOTE: Single-pass mode removed for Strategy A - all docs use progressive
+        }
+        else {
+            // LEGACY: Old versions still supported for backward compatibility
+            console.log(`[Pass 0.5] Using legacy version ${version}`);
+            // LEGACY: Use 100-page threshold for old versions
+            const PAGE_THRESHOLD = 100;
+            const useProgressive = input.pageCount > PAGE_THRESHOLD;
+            if (useProgressive) {
+                console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using progressive mode (compositional v2.9 + addons)`);
+                const progressiveResult = await (0, session_manager_1.processDocumentProgressively)(input.shellFileId, input.patientId, input.ocrOutput.fullTextAnnotation.pages);
+                return {
+                    success: true,
+                    encounters: progressiveResult.encounters,
+                    page_assignments: progressiveResult.pageAssignments,
+                    aiModel: progressiveResult.aiModel,
+                    aiCostUsd: progressiveResult.totalCost,
+                    inputTokens: progressiveResult.totalInputTokens,
+                    outputTokens: progressiveResult.totalOutputTokens
+                };
+            }
         }
         // STANDARD MODE: Process entire document in single pass (≤100 pages)
-        console.log(`[Pass 0.5] Document has ${input.pageCount} pages, using standard mode`);
+        console.log(`[Pass 0.5] Standard mode processing...`);
         // Select prompt builder based on version
-        const promptBuilder = version === 'v2.9'
-            ? aiPrompts_v2_9_1.buildEncounterDiscoveryPromptV29
-            : version === 'v2.8'
-                ? aiPrompts_v2_8_1.buildEncounterDiscoveryPromptV28
-                : version === 'v2.7'
-                    ? aiPrompts_v2_7_1.buildEncounterDiscoveryPromptV27
-                    : aiPrompts_1.buildEncounterDiscoveryPrompt;
+        const promptBuilder = version === 'v10'
+            ? aiPrompts_v10_1.buildEncounterDiscoveryPromptV10
+            : version === 'v2.9'
+                ? aiPrompts_v2_9_1.buildEncounterDiscoveryPromptV29
+                : version === 'v2.8'
+                    ? aiPrompts_v2_8_1.buildEncounterDiscoveryPromptV28
+                    : version === 'v2.7'
+                        ? aiPrompts_v2_7_1.buildEncounterDiscoveryPromptV27
+                        : aiPrompts_1.buildEncounterDiscoveryPrompt;
         // Build prompt with OCR text
         const prompt = promptBuilder({
             fullText: input.ocrOutput.fullTextAnnotation.text,
