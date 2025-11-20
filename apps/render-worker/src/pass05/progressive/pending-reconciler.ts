@@ -237,11 +237,13 @@ export async function reconcilePendingEncounters(
   // STEP 6: Update metrics after reconciliation (Rabbit #11, #17 - Migration 57)
   try {
     // Fix Issue #2: Get ai_processing_sessions.id (not pass05_progressive_sessions.id)
+    // Note: ai_processing_sessions doesn't have pass_number column, just filter by shell_file_id
     const { data: aiSession, error: sessionError } = await supabase
       .from('ai_processing_sessions')
       .select('id')
       .eq('shell_file_id', shellFileId)
-      .eq('pass_number', 0.5)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (sessionError || !aiSession) {
