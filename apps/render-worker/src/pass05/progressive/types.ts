@@ -177,6 +177,7 @@ export interface PendingEncounter extends PositionFields {
   encounter_start_date?: string;
   encounter_end_date?: string;
   encounter_timeframe_status?: 'completed' | 'ongoing' | 'unknown_end_date';
+  date_source?: 'ai_extracted' | 'file_metadata' | 'upload_date';  // How the date was determined
   provider_name?: string;
   facility_name?: string;
   confidence: number;
