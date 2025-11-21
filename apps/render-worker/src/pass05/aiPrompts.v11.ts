@@ -83,7 +83,7 @@ An encounter is ANY medical content that stems from a healthcare source or event
 - Test results (labs, imaging reports, pathology)
 - Healthcare communications (discharge summaries, treatment plans, consultant letters)
 
-**If medical content exists, create an encounter for it.** This ensures all data remains attached to its source.
+**If healthcare-related content exists, create an encounter for it.** Include the ENTIRE official document structure (clinical pages + administrative pages + structural pages). This ensures all data remains attached to its source.
 
 **Stage 2: Is this a real-world visit?** (Three-Part Test)
 After identifying an encounter, determine if it represents an ACTUAL healthcare interaction:
@@ -125,10 +125,10 @@ Examples:
 
 **Critical Cascade Rules:**
 
-An encounter is **cascading** if it reaches or extends past the LAST page of this chunk:
+An encounter is **cascading** if its OFFICIAL DOCUMENT STRUCTURE reaches or extends past the LAST page of this chunk:
 - **This chunk contains pages ${pageRange[0]} to ${pageRange[1]}**
 - **If encounter ends at page ${pageRange[1]} (last page) OR LATER → Set \`is_cascading: true\`**
-- Set \`expected_continuation\`: What you expect in next chunk (e.g., "discharge_summary", "lab_results")
+- Set \`expected_continuation\`: What you expect in next chunk (e.g., "discharge_summary", "lab_results", "document metadata")
 - Set \`cascade_context\`: Brief note about continuation state
 
 **Why:** An encounter ending at the chunk's last page likely continues into the next chunk. Mark it as cascading so the system can link it with continuation data from the next chunk.
@@ -459,10 +459,10 @@ Return a JSON object with this exact structure:
   "page_assignments": [
     {"page": 1, "encounter_index": 0},  // First encounter (index 0)
     {"page": 2, "encounter_index": 0},  // Still first encounter
-    {"page": 2, "encounter_index": 1},  // Second encounter ALSO on page 2
+    {"page": 2, "encounter_index": 1},  // Second encounter begins, ALSO on page 2
     {"page": 3, "encounter_index": 1},  // Second encounter continues
-    {"page": 4, "encounter_index": 1},
-    {"page": 5, "encounter_index": 1}
+    {"page": 4, "encounter_index": 1},  // Document metadata/footer/signatures (STILL part of second encounter)
+    {"page": 5, "encounter_index": 2}   // NEW third encounter begins
   ],
 
   "cascade_contexts": [
