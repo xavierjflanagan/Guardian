@@ -58,7 +58,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     maxOutput: 128_000,
     inputCostPer1M: 0.25,
     outputCostPer1M: 2.00,
-    temperatureSupported: true,  // Provider sets temperature to 0.1 for consistent output
+    temperatureSupported: false,  // GPT-5 is a reasoning model - only supports default temperature (1.0)
     maxTokensParam: 'max_completion_tokens'  // GPT-5 uses newer parameter
   },
   {
@@ -70,7 +70,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     maxOutput: 128_000,
     inputCostPer1M: 0.15,
     outputCostPer1M: 0.60,
-    temperatureSupported: true,  // Provider sets temperature to 0.1 for consistent output
+    temperatureSupported: false,  // GPT-5-mini is a reasoning model - only supports default temperature (1.0)
     maxTokensParam: 'max_completion_tokens'  // GPT-5-mini uses newer parameter
   },
 
