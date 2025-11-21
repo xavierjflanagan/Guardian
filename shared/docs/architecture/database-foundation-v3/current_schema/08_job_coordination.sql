@@ -811,19 +811,20 @@ BEGIN
   WHERE source_shell_file_id = p_shell_file_id
     AND identified_in_pass = 'pass_0_5';
 
-  -- NEW QUERY 1: Token and cost metrics from progressive session
+  -- Migration 62 FIX #3: Aggregate tokens/cost from chunk results (Race Condition Fix)
+  -- Do NOT query pass05_progressive_sessions because it is updated AFTER reconciliation
   SELECT
-    total_input_tokens,
-    total_output_tokens,
-    total_cost_usd
+    COALESCE(SUM(input_tokens), 0),
+    COALESCE(SUM(output_tokens), 0),
+    COALESCE(SUM(ai_cost_usd), 0)
   INTO v_total_input_tokens, v_total_output_tokens, v_total_cost_usd
-  FROM pass05_progressive_sessions
-  WHERE id = v_strategy_a_session_id;
+  FROM pass05_chunk_results
+  WHERE session_id = v_strategy_a_session_id;
 
   -- Calculate total tokens
   v_total_tokens := COALESCE(v_total_input_tokens, 0) + COALESCE(v_total_output_tokens, 0);
 
-  -- NEW QUERY 2: Quality metrics from final encounters
+  -- Migration 58: Quality metrics from final encounters
   SELECT
     AVG(pass_0_5_confidence),
     ARRAY_AGG(DISTINCT encounter_type) FILTER (WHERE encounter_type IS NOT NULL)
@@ -832,17 +833,24 @@ BEGIN
   WHERE source_shell_file_id = p_shell_file_id
     AND identified_in_pass = 'pass_0_5';
 
-  -- NEW QUERY 3: OCR confidence from chunk results
-  SELECT AVG(ocr_confidence)
+  -- Migration 62 FIX #1: Correct column name from ocr_confidence to ocr_average_confidence
+  SELECT AVG(ocr_average_confidence)
   INTO v_ocr_avg_confidence
   FROM pass05_chunk_results
   WHERE session_id = v_strategy_a_session_id;
 
-  -- Migration 58: Performance metrics from progressive session
-  SELECT
-    ai_model_used,
-    total_pages
-  INTO v_ai_model_used, v_total_pages
+  -- Migration 62 FIX #2: Query ai_model_used from pass05_chunk_results (not pass05_progressive_sessions)
+  -- Note: All chunks use same model, so LIMIT 1 is safe
+  SELECT ai_model_used
+  INTO v_ai_model_used
+  FROM pass05_chunk_results
+  WHERE session_id = v_strategy_a_session_id
+  ORDER BY chunk_number
+  LIMIT 1;
+
+  -- Query total_pages from pass05_progressive_sessions (this was CORRECT in Migration 60)
+  SELECT total_pages
+  INTO v_total_pages
   FROM pass05_progressive_sessions
   WHERE id = v_strategy_a_session_id;
 
@@ -891,11 +899,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION update_strategy_a_metrics IS
-  'Migration 60: Made p_session_id parameter optional (backward compatibility - ignored in function body).
+  'Migration 62: Fixed THREE bugs from Migration 60:
+   1. Column name typo: ocr_confidence → ocr_average_confidence
+   2. Wrong table query: ai_model_used now queried from pass05_chunk_results
+   3. Race condition: tokens/cost now aggregated from pass05_chunk_results (not progressive_sessions)
+   Migration 60: Made p_session_id parameter optional (backward compatibility - ignored in function body).
    Pass 0.5 metrics now self-contained and self-healing (creates record if missing).
    Function looks up metrics by shell_file_id, queries pass05_progressive_sessions for session data.
-   No longer depends on ai_processing_sessions FK (multi-pass tracker).
-   Includes robustness measures (ORDER BY/LIMIT 1) to handle duplicate records from re-uploads.';
+   No longer depends on ai_processing_sessions FK (multi-pass tracker).';
 
 
 -- RPC #2.6: Atomic Cascade Counter Increment (Migration 59)
