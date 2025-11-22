@@ -296,11 +296,17 @@ Extract comprehensive clinical information:
 ## 7. PAGE SEPARATION ANALYSIS
 
 In addition to encounter detection, identify safe split points WITHIN encounters for downstream batching.
+Your task for this section is to scan every page within each encounter to identify safe split points whereby the encounter can be safely split into two or more smaller batches for parallel AI processing.
+A safe split point is a point where the content immediately after the split point can be understood without the context that existed before the split point.
 
 **Critical Rules:**
 1. DO NOT mark encounter boundaries as split points (those are handled separately)
 2. ONLY identify splits WITHIN encounters - places where parallel processing is safe
 3. For intra-page splits, provide text marker and region hint (coordinates extracted later)
+4. NEVER mark a split point if:
+  - A sentence or paragraph continues from the previous page.
+  - A **list or table** continues from the previous page (unless the new page repeats the header and/or column headers).
+  - The content immediately after the split point depends on a section header from the previous page to be understood.
 
 **Two Types of Split Points:**
 
@@ -311,6 +317,8 @@ Natural page boundaries WITHIN same encounter where content naturally separates.
 
 **Intra-Page Splits:**
 Safe split points within a single page.
+- You MUST scan every page for safe intra-page transitions (safe split points)
+- Mark an intra-page split IMMEDIATELY BEFORE: A new Date Header, a new Clinical Section Title, or when a horizontal separator or "End of Report" footer is followed by new content.
 - Example: Page 23 has consultation ending mid-page, pathology report beginning below
 
 **Output Structure (follows same pattern as encounter boundaries):**
@@ -337,12 +345,13 @@ Safe split points within a single page.
 }
 \`\`\`
 
-**Safe Split Criteria:**
-Mark as SAFE when content after split can be understood with just encounter context:
+**Examples of Safe Split Points:**
 - Clear section headers WITHIN encounter ("PATHOLOGY REPORT", "DAY 2 NOTES")
 - New document type starts within same encounter
 - Complete clinical narrative ends, new one begins
-- Successive progress notes within same admission
+- The gaps between successive progress notes within same admission (same encounter)
+- When a progress note ends and a pathology report begins
+- When a medication list ends and a discharge summary begins
 
 # OUTPUT SCHEMA
 

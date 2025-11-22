@@ -945,4 +945,535 @@ Final encounter now stores cascade_id directly for easy querying.
 
 ---
 
+---
+
+## NEW RABBITS: Post-Launch Bug Discovery (November 22, 2025)
+
+**Discovery Date:** 2025-11-23
+**Discovery Method:** Manual production testing with 3-page and 142-page files
+**Hunter:** Xavier + Claude AI Assistant
+**Status:** 🔴 UNFIXED - Multiple reconciliation bugs identified
+
+---
+
+### Rabbit #23: Page Separation Analysis Output Failure - 🔴 CRITICAL
+
+**Component:** AI Prompt V11 `page_separation_analysis` output
+**Status:** 🔴 UNFIXED - Feature completely non-functional
+**Severity:** CRITICAL - Do NOT use this feature for any decisions
+**Evidence:**
+- 3-page file: Session be3bb1bb-f994-4dd2-9fb9-6fd931018df4
+- 142-page file: Session 505886de-f967-45da-909a-e8bb393dc322
+
+#### Issue
+
+AI outputs "safe split points" that would break content continuity and orphan related content.
+
+**3-Page File Analysis:**
+```json
+"page_separation_analysis": {
+  "safe_split_points": [
+    {"page": 2, "split_type": "inter_page", "confidence": 1.0},
+    {"page": 3, "split_type": "inter_page", "confidence": 1.0}
+  ]
+}
+```
+
+**Actual PDF Content:**
+- Page 1: Active Past History section **starts** (entries from 10/2016, 04/10/2016)
+- Page 2: Active Past History **continues** (entries from 27/12/2020), then Immunisations section starts mid-page
+- Page 3: Prescriptions section
+
+**The Problem:**
+- AI says "safe to split between pages 1-2" (page 2 split point)
+- Reality: This would orphan the second half of Active Past History list. The items on Page 2 (e.g., "27/12/2020...") would be separated from the "Active Past History" header on Page 1.
+- The list is semantically continuous - splitting it creates isolated no-context islands.
+
+#### Root Cause Analysis (Investigation Findings)
+
+Review of `aiPrompts.v11.ts` (Section 7) reveals the prompt logic is **too permissive** and lacks **negative constraints**.
+
+1.  **Permissive "Safe" Criteria:** The prompt defines a safe split as: *"Mark as SAFE when content after split can be understood with just encounter context"*.
+    *   *Why this fails:* The AI likely interprets a list item on Page 2 (e.g., "Diabetes Type 2") as "understandable" on its own. It fails to recognize that the *header* ("Active Past History") is a critical context anchor located on Page 1.
+
+2.  **Missing Negative Constraints:** The prompt does *not* explicitly forbid splitting:
+    *   Mid-sentence or mid-paragraph (implied but not enforced).
+    *   **Mid-list:** This is the specific failure mode here.
+    *   **Mid-table:** Likely a future failure mode.
+
+3.  **Ambiguity Resolution:**
+    *   The prompt *does* specify: *"For inter_page splits: Use the page number AFTER the split"*.
+    *   Therefore, output `page: 2` correctly means "Start of Page 2" (Split 1|2). The AI isn't confused about the page number, it's confused about the *safety* of the split.
+
+#### Required Fixes (Proposal for V12 Prompt)
+
+To fix this, we must move from "Permissive Guidelines" to "Strict Rules" in Section 7 of the prompt.
+
+**1. Add "Forbidden Split" Rules (Inter-Page Safety):**
+> **NEVER mark a split point if:**
+> - A sentence or paragraph continues from the previous page.
+> - A **list or table** continues from the previous page (unless the new page repeats the header).
+> - The content on the new page depends on a section header from the previous page to be understood.
+
+**2. Enforce "Fresh Start" Criterion:**
+> **A split is ONLY safe if the top of the new page starts with:**
+> - A new Document Title (e.g., "DISCHARGE SUMMARY").
+> - A new Section Header (e.g., "PLAN", "IMAGING RESULTS").
+> - A clear Date Header (e.g., "Progress Note - 2024/05/12").
+
+**3. Force Intra-Page Discovery (CRITICAL GAP):**
+Current performance shows ZERO intra-page splits, which is statistically impossible for large files.
+> **You MUST scan every page for mid-page transitions.**
+> **Mark an intra-page split IMMEDIATELY BEFORE:**
+> - A new Date Header starts mid-page.
+> - A new Clinical Section Title appears mid-page.
+> - A horizontal separator or "End of Report" footer is followed by new content.
+
+**4. Clarify Output Schema:**
+Rename `page` to `starts_at_page` or `split_before_page` in the JSON output to remove any human ambiguity during debugging.
+
+**5. Prompt Tuning:**
+Change the "Safe Split Criteria" to explicitly mention **"Semantic Continuity"**:
+> *"Safe means the content is **semantically self-contained**. If Page 2 is a list of medications but the header 'Current Medications' is on Page 1, this is NOT A SAFE SPLIT."*
+
+#### Impact
+- **Current:** Feature output is stored in `pass05_chunk_results.page_separation_analysis`.
+- **Action:** **DO NOT USE** this feature until the prompt is updated and validated against the "Active Past History" edge case.
+
+
+---
+
+### Rabbit #24: DOB Reconciliation Failure (DD/MM/YYYY Format) - 🔴 HIGH
+
+**Component:** TypeScript `normalizeDateToISO()` function in `pending-reconciler.ts`
+**Status:** 🔴 UNFIXED
+**Severity:** HIGH - Patient identity data loss for international date formats
+**Evidence:**
+- 3-page file (Vincent Cheers): DOB lost during reconciliation
+- 142-page file (Emma Thompson): DOB reconciled successfully
+
+#### Issue
+
+DOB reconciler only supports US date format (MM/DD/YYYY) and written format ("Month DD, YYYY"), but fails on Australian/European format (DD/MM/YYYY).
+
+**3-Page File (FAILED):**
+```sql
+-- Pending encounter:
+patient_date_of_birth: "16/02/1959"  -- Australian format (DD/MM/YYYY)
+
+-- Final encounter:
+patient_date_of_birth: NULL  ❌ -- Lost during reconciliation
+```
+
+**142-Page File (SUCCESS):**
+```sql
+-- Pending encounters (3 different formats):
+patient_date_of_birth: "November 14, 1965"   -- Written format
+patient_date_of_birth: "11/14/1965"          -- US format (MM/DD/YYYY)
+patient_date_of_birth: "November 14 , 1965"  -- Written with extra space
+
+-- Final encounter:
+patient_date_of_birth: "1965-11-14"  ✅ -- All variants parsed correctly
+```
+
+#### Root Cause Analysis (Investigation Complete)
+
+**Location:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts` lines 56-72
+
+**The Problem:**
+```typescript
+function normalizeDateToISO(dateString: string | null): string | null {
+  if (!dateString) return null;
+
+  try {
+    const parsed = new Date(dateString);  // ← BUG: JavaScript Date() assumes MM/DD/YYYY
+    if (isNaN(parsed.getTime())) return null;
+
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.warn('[Identity] Failed to parse date:', dateString, error);
+    return null;
+  }
+}
+```
+
+**Why "16/02/1959" Fails:**
+1. JavaScript `new Date("16/02/1959")` interprets slash-separated dates as **MM/DD/YYYY**
+2. Attempts to parse as **16th month**, 2nd day, 1959
+3. Month 16 is invalid → `NaN` → Returns `null`
+
+**Why "11/14/1965" Works:**
+1. Parsed as **11th month** (November), 14th day, 1965
+2. Valid date → `1965-11-14` ✅
+
+**Why Written Format Works:**
+1. `new Date("November 14, 1965")` uses text parsing (month name first)
+2. Not ambiguous → Parses correctly ✅
+
+**Database Side (NOT the problem):**
+The RPC at line 643 of `08_job_coordination.sql` uses:
+```sql
+(p_encounter_data->>'patient_date_of_birth')::DATE
+```
+This PostgreSQL `::DATE` cast **expects ISO format** (YYYY-MM-DD), which is what `normalizeDateToISO()` should provide. The bug is in the TypeScript normalization, not the database.
+
+#### Required Fix
+
+**Replace `normalizeDateToISO()` with smart date parser:**
+
+```typescript
+/**
+ * Normalize date string to ISO format (YYYY-MM-DD)
+ * Migration 63: Enhanced to support international date formats (DD/MM/YYYY)
+ *
+ * Handles formats:
+ * - Written: "November 14, 1965", "14 Nov 1965", "Nov 14, 1965"
+ * - US slash: "11/14/1965" (MM/DD/YYYY)
+ * - European slash: "14/11/1965" (DD/MM/YYYY)
+ * - ISO: "1965-11-14" (YYYY-MM-DD)
+ * - European dots: "14.11.1965" (DD.MM.YYYY)
+ * - European dash: "14-11-1965" (DD-MM-YYYY)
+ *
+ * Disambiguation logic for ambiguous dates (e.g., "05/06/1959"):
+ * - If first number > 12: Must be DD/MM/YYYY
+ * - If second number > 12: Must be MM/DD/YYYY
+ * - If both ≤ 12: Assume DD/MM/YYYY (international default)
+ *
+ * @param dateString - Date string in any parseable format
+ * @returns ISO date string (YYYY-MM-DD) or null if unparseable
+ */
+function normalizeDateToISO(dateString: string | null): string | null {
+  if (!dateString || dateString.trim() === '') return null;
+
+  const trimmed = dateString.trim();
+
+  try {
+    // 1. ISO format (YYYY-MM-DD) - pass through
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const date = new Date(trimmed);
+      if (!isNaN(date.getTime())) return trimmed;
+    }
+
+    // 2. Written format (let JS Date handle)
+    if (/[a-zA-Z]/.test(trimmed)) {
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, '0');
+        const day = String(parsed.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    }
+
+    // 3. Numeric formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY, DD-MM-YYYY)
+    const numericMatch = trimmed.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})$/);
+    if (numericMatch) {
+      let [_, first, second, year] = numericMatch;
+
+      // Normalize 2-digit year to 4-digit
+      if (year.length === 2) {
+        const yearNum = parseInt(year, 10);
+        year = yearNum < 50 ? `20${year}` : `19${year}`;
+      }
+
+      const firstNum = parseInt(first, 10);
+      const secondNum = parseInt(second, 10);
+
+      let day: number, month: number;
+
+      // Disambiguation logic
+      if (firstNum > 12) {
+        // First number > 12 → Must be DD/MM/YYYY
+        day = firstNum;
+        month = secondNum;
+      } else if (secondNum > 12) {
+        // Second number > 12 → Must be MM/DD/YYYY
+        month = firstNum;
+        day = secondNum;
+      } else {
+        // Ambiguous (both ≤ 12) → Default to DD/MM/YYYY (international)
+        day = firstNum;
+        month = secondNum;
+      }
+
+      // Validate day and month ranges
+      if (day < 1 || day > 31 || month < 1 || month > 12) {
+        console.warn('[Identity] Invalid day/month values:', { day, month, dateString });
+        return null;
+      }
+
+      // Format as ISO
+      const monthStr = String(month).padStart(2, '0');
+      const dayStr = String(day).padStart(2, '0');
+
+      // Validate the constructed date is valid
+      const testDate = new Date(`${year}-${monthStr}-${dayStr}`);
+      if (isNaN(testDate.getTime())) {
+        console.warn('[Identity] Constructed invalid date:', `${year}-${monthStr}-${dayStr}`);
+        return null;
+      }
+
+      return `${year}-${monthStr}-${dayStr}`;
+    }
+
+    // 4. Fallback: Try JS Date() as last resort
+    const fallback = new Date(trimmed);
+    if (!isNaN(fallback.getTime())) {
+      const year = fallback.getFullYear();
+      const month = String(fallback.getMonth() + 1).padStart(2, '0');
+      const day = String(fallback.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    console.warn('[Identity] No matching date format:', trimmed);
+    return null;
+
+  } catch (error) {
+    console.warn('[Identity] Failed to parse date:', dateString, error);
+    return null;
+  }
+}
+```
+
+**Test Cases:**
+```typescript
+// Should all return valid ISO dates:
+normalizeDateToISO("16/02/1959")         // "1959-02-16" (DD/MM/YYYY)
+normalizeDateToISO("11/14/1965")         // "1965-11-14" (MM/DD/YYYY - month 11)
+normalizeDateToISO("14/11/1965")         // "1965-11-14" (DD/MM/YYYY - day 14)
+normalizeDateToISO("31/12/1959")         // "1959-12-31" (DD/MM/YYYY - day 31)
+normalizeDateToISO("12/31/1959")         // "1959-12-31" (MM/DD/YYYY - day 31)
+normalizeDateToISO("05/06/1959")         // "1959-06-05" (DD/MM/YYYY - ambiguous default)
+normalizeDateToISO("November 14, 1965")  // "1965-11-14" (Written)
+normalizeDateToISO("1965-11-14")         // "1965-11-14" (ISO passthrough)
+normalizeDateToISO("14.11.1965")         // "1965-11-14" (DD.MM.YYYY)
+normalizeDateToISO("14-11-1965")         // "1965-11-14" (DD-MM-YYYY)
+normalizeDateToISO("59")                 // null (2-digit year alone)
+```
+
+#### Scope Expansion
+
+The `normalizeDateToISO()` function is currently ONLY used for `patient_date_of_birth` (line 191).
+
+**Other date fields in reconciler:**
+- `encounter_start_date` (line 596 in RPC) - Uses `::TIMESTAMPTZ` cast
+- `encounter_end_date` (line 597 in RPC) - Uses `::TIMESTAMPTZ` cast
+
+**These fields are NOT normalized** - they're passed directly to PostgreSQL as-is. The `::TIMESTAMPTZ` cast may be more forgiving than `::DATE`, but this should be verified.
+
+**Recommendation:**
+1. Fix `normalizeDateToISO()` immediately for patient DOB
+2. Test encounter date fields with international formats
+3. If encounter dates also fail, apply similar normalization
+
+#### Implementation Notes
+
+**File to modify:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts`
+**Lines:** 56-72 (replace `normalizeDateToISO` function)
+**Testing:** Process both test files again and verify DOB reconciles correctly
+**Deployment:** Requires Render.com worker re-deploy after code change
+
+---
+
+### Rabbit #25: Medical Identifiers Not Reconciled - 🔴 HIGH
+
+**Tables:** `healthcare_encounter_identifiers`, `pass05_pending_encounter_identifiers`
+**Status:** 🔴 UNFIXED
+**Severity:** HIGH - MRN and medical identifiers completely lost during reconciliation
+**Evidence:** Both identifier tables are **completely empty** despite MRNs present in source documents
+
+#### Issue
+
+Medical identifiers (MRN, patient IDs, etc.) are NOT being transferred from pending encounters to final encounters.
+
+**3-Page File:**
+- AI extracted: `medical_identifiers: [{"identifier_type": "MRN", "identifier_value": "MD", ...}]`
+- Expected in `pass05_pending_encounter_identifiers`: 1 row (MRN: MD)
+- **Actual:** 0 rows ❌
+
+**142-Page File:**
+- Document contains patient MRN/ID (user confirmed presence)
+- Expected in `healthcare_encounter_identifiers`: At least 1 row
+- **Actual:** 0 rows ❌
+
+#### Database Verification
+
+```sql
+-- Check pending identifiers table
+SELECT COUNT(*) FROM pass05_pending_encounter_identifiers;
+-- Result: 0  ❌
+
+-- Check final encounter identifiers table
+SELECT COUNT(*) FROM healthcare_encounter_identifiers;
+-- Result: 0  ❌
+```
+
+#### Root Cause Analysis
+
+**Two possible failure points:**
+
+**Failure Point 1: Chunk Processor → Pending Identifiers**
+- AI outputs `medical_identifiers` array in response
+- `chunk-processor.ts` parses AI response
+- `database.ts` should insert into `pass05_pending_encounter_identifiers`
+- **Hypothesis:** Identifiers never written to pending table
+
+**Failure Point 2: Reconciliation RPC → Final Identifiers**
+- `reconcile_pending_to_final` RPC should copy identifiers from pending → final
+- **Hypothesis:** RPC doesn't transfer identifiers at all
+
+#### Required Investigation
+
+1. Check if AI is outputting `medical_identifiers` in response:
+   ```sql
+   SELECT ai_response_raw::json->'encounters'->0->'medical_identifiers'
+   FROM pass05_chunk_results
+   WHERE session_id = 'be3bb1bb-f994-4dd2-9fb9-6fd931018df4';
+   ```
+
+2. Check if `chunk-processor.ts` extracts medical_identifiers from AI response
+
+3. Check if `database.ts` has function to insert into `pass05_pending_encounter_identifiers`
+
+4. Check if `reconcile_pending_to_final` RPC copies identifiers to `healthcare_encounter_identifiers`
+
+#### Expected Behavior
+
+**For 3-page file:**
+```sql
+-- pass05_pending_encounter_identifiers
+pending_id: <uuid>
+identifier_type: "MRN"
+identifier_value: "MD"
+issuing_organization: NULL
+
+-- After reconciliation → healthcare_encounter_identifiers
+encounter_id: <final_encounter_uuid>
+identifier_type: "MRN"
+identifier_value: "MD"
+issuing_organization: NULL
+```
+
+**For 142-page file:**
+```sql
+-- Should have MRN extracted from document
+-- Should appear in both pending and final identifier tables
+```
+
+---
+
+### Rabbit #26: Provider/Facility Names Missing in Final Encounter - 🔴 MEDIUM
+
+**Table:** `healthcare_encounters`
+**Status:** 🔴 PARTIALLY WORKING - 142p file works, 3p file doesn't
+**Severity:** MEDIUM - Provider/facility data reconciliation inconsistent
+
+#### Issue
+
+Provider and facility names are reconciling inconsistently between files.
+
+**3-Page File (Vincent Cheers):**
+```sql
+-- Pending encounter:
+provider_name: NULL
+facility_name: "South Coast Medical 2841 Pt Nepean Rd Blairgowrie 3942"
+
+-- Final encounter:
+provider_name: NULL  ✅ (No provider in source, expected NULL)
+facility_name: "South Coast Medical 2841 Pt Nepean Rd Blairgowrie 3942"  ✅
+```
+
+**142-Page File (Emma Thompson):**
+```sql
+-- Pending encounters (3 pendings with different providers):
+provider_name: "Patrick Callaghan, DO"
+provider_name: "Douglas S Prechtel, DO"
+provider_name: "Mark John HOSAK MD"
+
+-- Final encounter:
+provider_name: "Patrick Callaghan, DO"  ✅ (First pending's provider)
+facility_name: "St. Luke's Hospital - Allentown Campus"  ✅
+```
+
+#### Analysis
+
+**Provider Reconciliation Logic:**
+The RPC appears to use **first pending's provider** when reconciling multiple pendings with different providers. This is reasonable, but should be documented.
+
+**Potential Issue:**
+If all 3 pending encounters are from the SAME hospital admission (cascade chain), they should all have the **same provider** ideally. The fact that they have different providers suggests:
+1. AI extracted different attending physicians from different sections of the document
+2. The "primary provider" logic needs to be smarter (e.g., pick the provider with most pages/confidence)
+
+**Status:** This is working but may not be optimal. Not a bug per se, but worth reviewing the reconciliation strategy for multi-provider encounters.
+
+---
+
+### Rabbit #27: Patient Address Not Reconciled for 3-Page File - 🔴 MEDIUM
+
+**Table:** `healthcare_encounters`
+**Status:** 🔴 UNFIXED
+**Severity:** MEDIUM - Address data loss for some files
+
+#### Issue
+
+Patient address reconciliation is inconsistent.
+
+**3-Page File:**
+```sql
+-- Pending encounter:
+patient_address: "PO Box 96 Mc Crae 3938"
+
+-- Final encounter:
+patient_address: "PO Box 96 Mc Crae 3938"  ✅ (Reconciled correctly)
+```
+
+**142-Page File:**
+```sql
+-- Pending encounters:
+patient_address: NULL (Pending 1)
+patient_address: NULL (Pending 2)
+patient_address: "123 Collins Street Melbourne Melbourne , VIC 3000 USA" (Pending 3)
+
+-- Final encounter:
+patient_address: "123 Collins Street Melbourne Melbourne , VIC 3000 USA"  ✅
+```
+
+#### Analysis
+
+Address reconciliation appears to work when present. The RPC likely uses:
+- First non-NULL address from pending encounters
+- If all NULL, final encounter gets NULL
+
+**Status:** Working as designed, but worth noting that partial address data across pendings is reconciled correctly.
+
+---
+
+## Summary of New Rabbits (November 22, 2025)
+
+| Rabbit | Component | Severity | Status | Impact |
+|--------|-----------|----------|--------|--------|
+| #23 | Page separation analysis | CRITICAL | 🔴 UNFIXED | Feature completely broken - do NOT use |
+| #24 | DOB reconciliation (DD/MM/YYYY) | HIGH | 🔴 UNFIXED | Patient identity data loss for international dates |
+| #25 | Medical identifiers not reconciled | HIGH | 🔴 UNFIXED | MRN/patient ID completely lost |
+| #26 | Provider/facility reconciliation | MEDIUM | ⚠️ REVIEW | Works but may not be optimal for multi-provider |
+| #27 | Patient address reconciliation | MEDIUM | ✅ WORKING | Correctly handles NULL/non-NULL addresses |
+
+### Priority Fixes Needed
+
+**Immediate (Before Pass 2 Development):**
+1. **Rabbit #23:** Investigate and fix page separation analysis prompt/logic
+2. **Rabbit #24:** Enhance DOB parser for international date formats
+3. **Rabbit #25:** Fix medical identifiers pipeline (chunk processor → pending → final)
+
+**Medium Priority:**
+4. **Rabbit #26:** Review multi-provider reconciliation strategy
+5. Extend date format fixes to ALL date fields in reconciler
+
+---
+
 **End of Rabbit Hunt Report**
