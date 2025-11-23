@@ -618,27 +618,31 @@ function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): strin
   return pages.map((page, idx) => {
     let text = '';
 
-    // CORRECT: Extract text from blocks (worker.ts maps lines to blocks with text field)
-    if (page.blocks && page.blocks.length > 0) {
+    // PRIORITY 1: Use spatially sorted text (proper paragraph structure, table alignment)
+    if ((page as any).spatially_sorted_text) {
+      text = (page as any).spatially_sorted_text;
+    }
+    // FALLBACK 2: Extract text from blocks (worker.ts maps lines to blocks with text field)
+    else if (page.blocks && page.blocks.length > 0) {
       // Each block represents a line of text (worker.ts:1196-1208)
       text = page.blocks
         .map((block: any) => block.text || '')
         .filter((t: string) => t.length > 0)
         .join(' ');
     }
-    // FALLBACK: Try lines array (if not transformed by worker)
+    // FALLBACK 3: Try lines array (if not transformed by worker)
     else if ((page as any).lines && Array.isArray((page as any).lines)) {
       text = (page as any).lines
         .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
         .map((line: any) => line.text)
         .join(' ');
     }
-    // LAST RESORT: Try direct text fields
-    else if ((page as any).spatially_sorted_text) {
-      text = (page as any).spatially_sorted_text;
-    } else if ((page as any).original_gcv_text) {
+    // FALLBACK 4: Try original GCV text
+    else if ((page as any).original_gcv_text) {
       text = (page as any).original_gcv_text;
-    } else if (page.text) {
+    }
+    // FALLBACK 5: Last resort page.text
+    else if (page.text) {
       text = page.text;
     }
 
