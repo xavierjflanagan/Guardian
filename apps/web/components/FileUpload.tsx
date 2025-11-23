@@ -34,8 +34,12 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
   }, [onFileUpload]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[FileUpload] handleFileSelect called', { hasFiles: !!e.target.files, fileCount: e.target.files?.length });
     if (e.target.files && e.target.files[0]) {
-      onFileUpload(e.target.files[0]);
+      console.log('[FileUpload] File selected, calling onFileUpload:', e.target.files[0].name);
+      onFileUpload(e.target.files[0]).catch(err => {
+        console.error('[FileUpload] onFileUpload error:', err);
+      });
     }
   }, [onFileUpload]);
 
