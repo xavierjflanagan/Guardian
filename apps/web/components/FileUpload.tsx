@@ -62,9 +62,14 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
           accept="application/pdf,image/*"
           onChange={handleFileSelect}
           disabled={isUploading}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
           aria-label="Upload medical document"
+          id="file-upload-input"
         />
+        {/* DEBUG: Show input state */}
+        <div className="absolute top-2 right-2 text-xs bg-yellow-100 px-2 py-1 rounded z-50">
+          Input disabled: {isUploading ? 'YES' : 'NO'}
+        </div>
         
         <div className="space-y-4">
           <div className="flex justify-center">
