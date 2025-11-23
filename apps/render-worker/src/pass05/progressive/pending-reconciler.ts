@@ -44,6 +44,32 @@ function pickBestValue(values: (string | null)[]): string | null {
 }
 
 /**
+ * Pick best date based on quality hierarchy
+ * Migration 65: For multi-chunk encounters, prefer ai_extracted > file_metadata > upload_date
+ *
+ * @param dates - Array of {date, source} objects from multiple pendings
+ * @returns Best date and its source based on quality hierarchy
+ */
+function pickBestDateByQuality(
+  dates: Array<{ date: string | null; source: 'ai_extracted' | 'file_metadata' | 'upload_date' }>
+): { date: string | null; source: 'ai_extracted' | 'file_metadata' | 'upload_date' } {
+  // Quality ranking: ai_extracted (highest) > file_metadata > upload_date (lowest)
+  const qualityRank = { ai_extracted: 3, file_metadata: 2, upload_date: 1 };
+
+  // Filter to only non-null dates
+  const validDates = dates.filter(d => d.date !== null && d.date !== undefined && d.date !== '');
+
+  if (validDates.length === 0) {
+    return { date: null, source: 'ai_extracted' };
+  }
+
+  // Sort by quality (highest first), then pick first
+  const sorted = validDates.sort((a, b) => qualityRank[b.source] - qualityRank[a.source]);
+
+  return sorted[0];
+}
+
+/**
  * Date normalization result with metadata
  * Migration 63: Enhanced to support international date formats and ambiguity detection
  */
@@ -460,6 +486,15 @@ export async function reconcilePendingEncounters(
       // Get clinical data from first pending (should be consistent across cascade)
       const firstPending = groupPendings.sort((a, b) => a.chunk_number - b.chunk_number)[0];
 
+      // Migration 65: Merge is_real_world_visit using "any true = all true" logic
+      // If ANY chunk identified this as a real visit, the final encounter is a real visit
+      const isRealWorldVisit = groupPendings.some(p => p.is_real_world_visit);
+
+      if (groupPendings.length > 1) {
+        const trueCount = groupPendings.filter(p => p.is_real_world_visit).length;
+        console.log(`[Reconcile] Merging is_real_world_visit: ${trueCount}/${groupPendings.length} pendings say true → final: ${isRealWorldVisit}`);
+      }
+
       // Calculate quality tier
       const qualityData = calculateQualityTier(firstPending);
 
@@ -469,29 +504,46 @@ export async function reconcilePendingEncounters(
         'patient_date_of_birth'
       );
 
+      // Migration 65: Pick best date based on quality hierarchy
+      // For multi-chunk encounters, prefer AI-extracted dates over metadata/upload dates
+      const bestStartDate = pickBestDateByQuality(
+        groupPendings.map(p => ({
+          date: p.encounter_start_date,
+          source: p.date_source || 'ai_extracted'
+        }))
+      );
+
+      const bestEndDate = pickBestDateByQuality(
+        groupPendings.map(p => ({
+          date: p.encounter_end_date,
+          source: p.date_source || 'ai_extracted'
+        }))
+      );
+
       const startDateResult = normalizeDateToISO(
-        firstPending.encounter_start_date,
+        bestStartDate.date,
         'encounter_start_date'
       );
 
       const endDateResult = normalizeDateToISO(
-        firstPending.encounter_end_date,
+        bestEndDate.date,
         'encounter_end_date'
       );
 
-      // Migration 64: Date waterfall hierarchy for pseudo encounters
+      // Migration 64/65: Date waterfall hierarchy for pseudo encounters
       // For pseudo encounters without AI dates, fall back to file metadata → upload date
       let finalStartDate: string | null;
       let finalEndDate: string | null;
       let finalDateSource: 'ai_extracted' | 'file_metadata' | 'upload_date';
 
-      if (firstPending.is_real_world_visit) {
+      if (isRealWorldVisit) {
         // Branch A: Real-world encounters - use AI-extracted dates directly
+        // Migration 65: Use best quality date from multi-chunk merge
         finalStartDate = startDateResult.isoDate;
         finalEndDate = endDateResult.isoDate;
-        finalDateSource = 'ai_extracted';
+        finalDateSource = bestStartDate.source;  // Migration 65: Track source from quality merge
 
-        console.log(`[Reconcile] Real-world visit - using AI dates: ${finalStartDate} to ${finalEndDate || 'ongoing'}`);
+        console.log(`[Reconcile] Real-world visit - using AI dates (source: ${finalDateSource}): ${finalStartDate} to ${finalEndDate || 'ongoing'}`);
       } else {
         // Branch B: Pseudo encounters - date waterfall fallback
         if (startDateResult.isoDate) {
@@ -555,7 +607,7 @@ export async function reconcilePendingEncounters(
         page_ranges: mergedPageRanges,
         pass_0_5_confidence: firstPending.confidence,             // Top-level column
         summary: firstPending.encounter_data?.summary || null,     // Rabbit #3: From JSONB
-        is_real_world_visit: firstPending.is_real_world_visit,   // Top-level column
+        is_real_world_visit: isRealWorldVisit,   // Migration 65: Merged value (any true = all true)
 
         // Quality tier (from calculation)
         data_quality_tier: qualityData.tier,
@@ -597,8 +649,9 @@ export async function reconcilePendingEncounters(
         encounter_start_date: encounterData.encounter_start_date,
         encounter_start_date_raw: startDateResult.originalFormat,
         encounter_end_date: encounterData.encounter_end_date,
-        date_source: encounterData.date_source,  // Migration 64: Show waterfall provenance
-        is_real_world_visit: firstPending.is_real_world_visit
+        date_source: encounterData.date_source,  // Migration 64/65: Show waterfall provenance
+        is_real_world_visit: isRealWorldVisit,   // Migration 65: Merged value
+        pending_count: groupPendings.length
       });
 
       // Call atomic RPC to create final encounter
