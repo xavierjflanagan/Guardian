@@ -4,7 +4,7 @@ import React, { useCallback, useState, useRef } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface FileUploadProps {
-  onFileUpload: (file: File) => Promise<void>;
+  onFileUpload: (file: File) => void;
   isUploading: boolean;
   error: string | null;
   message: string | null;
@@ -32,9 +32,7 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
     console.log('[FileUpload] File dropped');
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       console.log('[FileUpload] Processing dropped file:', e.dataTransfer.files[0].name);
-      onFileUpload(e.dataTransfer.files[0]).catch(err => {
-        console.error('[FileUpload] onFileUpload error (drop):', err);
-      });
+      onFileUpload(e.dataTransfer.files[0]);
     }
   }, [onFileUpload]);
 
@@ -43,9 +41,7 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       console.log('[FileUpload] File selected, calling onFileUpload:', file.name);
-      onFileUpload(file).catch(err => {
-        console.error('[FileUpload] onFileUpload error:', err);
-      });
+      onFileUpload(file);
       // Reset input so same file can be selected again
       e.target.value = '';
     }

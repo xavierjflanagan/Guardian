@@ -97,7 +97,7 @@ export default function DashboardPage() {
   }, [fetchDocuments]);
 
   // Handle file upload
-  const handleDocumentUpload = async (file: File) => {
+  const handleDocumentUpload = (file: File) => {
     if (!user) {
       setUploadError("You must be signed in to upload files.");
       return;
@@ -121,6 +121,7 @@ export default function DashboardPage() {
         }
       })
       .finally(() => {
+        console.log('[DASHBOARD] Upload flow complete, clearing uploading state');
         setUploading(false);
       });
   };
