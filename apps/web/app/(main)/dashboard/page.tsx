@@ -101,8 +101,10 @@ export default function DashboardPage() {
 
       setUploadMessage("File uploaded and AI processing started!");
 
-      // Refresh documents list
-      await fetchDocuments();
+      // Refresh documents list (don't await - let it run in background)
+      fetchDocuments().catch(err => {
+        console.error("Error refreshing documents after upload:", err);
+      });
     } catch (err) {
       if (err instanceof Error) {
         setUploadError(err.message || "Upload failed.");
@@ -110,6 +112,7 @@ export default function DashboardPage() {
         setUploadError("Upload failed.");
       }
     } finally {
+      // Always reset uploading state, even if fetchDocuments fails
       setUploading(false);
     }
   };
