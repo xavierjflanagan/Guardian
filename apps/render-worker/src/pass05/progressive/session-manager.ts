@@ -138,11 +138,27 @@ export async function processDocumentProgressively(
     // STEP 3: Reconcile pending encounters to final encounters
     console.log(`[Progressive] Starting reconciliation...`);
 
+    // Migration 64: Fetch file metadata for date waterfall hierarchy
+    const { data: shellFile } = await supabase
+      .from('shell_files')
+      .select('created_at')
+      .eq('id', shellFileId)
+      .single();
+
+    const fileCreatedAt = shellFile?.created_at ? new Date(shellFile.created_at) : null;
+
+    if (fileCreatedAt) {
+      console.log(`[Progressive] File created at: ${fileCreatedAt.toISOString()}`);
+    } else {
+      console.warn(`[Progressive] No file created_at timestamp available - will use upload_date fallback`);
+    }
+
     const finalEncounterIds = await reconcilePendingEncounters(
       session.id,
       shellFileId,
       patientId,
-      totalPages
+      totalPages,
+      fileCreatedAt  // Migration 64: Pass file timestamp for date waterfall
     );
 
     console.log(

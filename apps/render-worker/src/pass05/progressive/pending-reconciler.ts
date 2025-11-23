@@ -405,13 +405,15 @@ function normalizeDateToISO(
  * @param shellFileId - UUID of shell file
  * @param patientId - UUID of patient (from session)
  * @param totalPages - Total pages in document (for batching analysis)
+ * @param fileCreatedAt - File creation timestamp for date waterfall fallback (Migration 64)
  * @returns Array of final encounter UUIDs created
  */
 export async function reconcilePendingEncounters(
   sessionId: string,
   shellFileId: string,
   patientId: string,
-  totalPages: number
+  totalPages: number,
+  fileCreatedAt: Date | null
 ): Promise<string[]> {
   console.log(`[Reconcile] Starting reconciliation for session ${sessionId}`);
 
@@ -477,15 +479,54 @@ export async function reconcilePendingEncounters(
         'encounter_end_date'
       );
 
+      // Migration 64: Date waterfall hierarchy for pseudo encounters
+      // For pseudo encounters without AI dates, fall back to file metadata → upload date
+      let finalStartDate: string | null;
+      let finalEndDate: string | null;
+      let finalDateSource: 'ai_extracted' | 'file_metadata' | 'upload_date';
+
+      if (firstPending.is_real_world_visit) {
+        // Branch A: Real-world encounters - use AI-extracted dates directly
+        finalStartDate = startDateResult.isoDate;
+        finalEndDate = endDateResult.isoDate;
+        finalDateSource = 'ai_extracted';
+
+        console.log(`[Reconcile] Real-world visit - using AI dates: ${finalStartDate} to ${finalEndDate || 'ongoing'}`);
+      } else {
+        // Branch B: Pseudo encounters - date waterfall fallback
+        if (startDateResult.isoDate) {
+          // AI extracted date from document (e.g., lab collection date, report date)
+          finalStartDate = startDateResult.isoDate;
+          finalDateSource = 'ai_extracted';
+          console.log(`[Reconcile] Pseudo encounter - using AI date: ${finalStartDate}`);
+        } else if (fileCreatedAt) {
+          // Fallback to file creation date
+          finalStartDate = fileCreatedAt.toISOString().split('T')[0]; // YYYY-MM-DD
+          finalDateSource = 'file_metadata';
+          console.log(`[Reconcile] Pseudo encounter - falling back to file metadata: ${finalStartDate}`);
+        } else {
+          // Last resort: use current date (should be rare)
+          finalStartDate = new Date().toISOString().split('T')[0];
+          finalDateSource = 'upload_date';
+          console.warn(`[Reconcile] Pseudo encounter - falling back to upload_date: ${finalStartDate}`);
+        }
+
+        // Pseudo encounters: start = end (completed observation/summary)
+        finalEndDate = finalStartDate;
+      }
+
       // Build encounter data JSONB for RPC
       // Rabbit #3 fix: Access JSONB fields correctly
       // Migration 63: Use normalized dates (isoDate property) for RPC payload
+      // Migration 64: Use date waterfall results
       const encounterData = {
         encounter_type: firstPending.encounter_data?.encounter_type || 'unknown',
-        encounter_start_date: startDateResult.isoDate,  // Migration 63: Normalized ISO date
-        encounter_end_date: endDateResult.isoDate,      // Migration 63: Normalized ISO date
-        encounter_timeframe_status: firstPending.encounter_data?.encounter_timeframe_status || 'completed',
-        date_source: firstPending.encounter_data?.date_source || 'ai_extracted',
+        encounter_start_date: finalStartDate,  // Migration 64: Waterfall result
+        encounter_end_date: finalEndDate,      // Migration 64: Waterfall result
+        encounter_timeframe_status: firstPending.is_real_world_visit
+          ? (firstPending.encounter_data?.encounter_timeframe_status || 'completed')
+          : 'completed',  // Pseudo encounters are always completed
+        date_source: finalDateSource,  // Migration 64: Accurate provenance tracking
         provider_name: firstPending.provider_name,                // Top-level column
         facility_name: firstPending.facility_name,                // Top-level column
 
@@ -555,7 +596,9 @@ export async function reconcilePendingEncounters(
         chief_complaint: encounterData.chief_complaint,
         encounter_start_date: encounterData.encounter_start_date,
         encounter_start_date_raw: startDateResult.originalFormat,
-        encounter_end_date: encounterData.encounter_end_date
+        encounter_end_date: encounterData.encounter_end_date,
+        date_source: encounterData.date_source,  // Migration 64: Show waterfall provenance
+        is_real_world_visit: firstPending.is_real_world_visit
       });
 
       // Call atomic RPC to create final encounter
