@@ -1436,6 +1436,12 @@ CREATE TABLE IF NOT EXISTS universal_medical_codes (
     normalized_embedding_text TEXT,
     normalized_embedding VECTOR(1536),
 
+    -- Migration 60 (2025-11-22): Embedding flexibility and authority tracking
+    authority_required BOOLEAN DEFAULT FALSE,
+    sapbert_embedding VECTOR(768),
+    sapbert_embedding_generated_at TIMESTAMPTZ,
+    active_embedding_model VARCHAR(20) DEFAULT 'openai' CHECK (active_embedding_model IN ('openai', 'sapbert')),
+
     -- Unique constraint
     UNIQUE(code_system, code_value)
 );
