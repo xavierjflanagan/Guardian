@@ -19,48 +19,75 @@ Pass 0.5 OCR integration has TWO distinct stages:
 
 **Deployment Context (Nov 23, 2025):** Pre-launch, pre-users. No A/B testing or feature flags needed - just ship the fix and test with sample documents. Rollback is a single git revert if issues arise.
 
-## PART 1: TEXT PREPARATION FOR AI (ISSUE DISCOVERED)
+## PART 1: TEXT PREPARATION FOR AI (ISSUE DISCOVERED & FIXED)
 
-### Current State (POTENTIALLY PROBLEMATIC)
+### Investigation Timeline (Nov 23, 2025)
 
-**Location:** `apps/render-worker/src/pass05/progressive/chunk-processor.ts:610-648`
+**Initial Hypothesis:**
+- Suspected chunk-processor.ts was using wrong fallback order
+- Expected to find `page.lines` being used instead of `spatially_sorted_text`
 
-**What Actually Happens:**
+**Discovery #1 - Two Problem Locations:**
+While investigating chunk-processor.ts, discovered the problem existed in TWO places:
+1. **worker.ts:1189** - Constructs fullTextAnnotation.text using `p.lines.map().join(' ')`
+2. **chunk-processor.ts:622** - Fallback order prioritized `page.blocks` before `spatially_sorted_text`
+
+**Discovery #2 - OCR Data Flow:**
+- worker.ts creates OCR pages with `spatially_sorted_text` field (line 838)
+- worker.ts then builds Pass05Input structure (lines 1182-1216)
+- fullTextAnnotation.text is constructed by joining page.lines with spaces
+- Page structure passed to chunk-processor was missing `spatially_sorted_text` field
+
+**Discovery #3 - Actual Bug Location:**
+The primary bug was in **worker.ts:1189**, not chunk-processor.ts:
 ```typescript
-function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): string {
-  return pages.map((page, idx) => {
-    let text = '';
+// BEFORE (BUG):
+text: ocrResult.pages.map((p: any, idx: number) =>
+  `--- PAGE ${idx + 1} START ---\n` +
+  p.lines.map((l: any) => l.text).join(' ') +  // ← Joins words with spaces!
+  `\n--- PAGE ${idx + 1} END ---`
+).join('\n\n'),
+```
 
-    // Fallback #1: Try blocks (doesn't exist in our OCR structure)
-    if (page.blocks && page.blocks.length > 0) {
-      text = page.blocks.map((block: any) => block.text || '').join(' ');
-    }
-    // Fallback #2: Try lines array ← CURRENTLY RUNS THIS!
-    else if ((page as any).lines && Array.isArray((page as any).lines)) {
-      text = (page as any).lines
-        .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
-        .map((line: any) => line.text)  // ← Joins WORDS with spaces!
-        .join(' ');
-    }
-    // Fallback #3: Try spatially_sorted_text ← NEVER REACHES HERE!
-    else if ((page as any).spatially_sorted_text) {
-      text = (page as any).spatially_sorted_text;  // ← Proper paragraph structure!
-    }
-    // Fallback #4: Original GCV text
-    else if ((page as any).original_gcv_text) {
-      text = (page as any).original_gcv_text;
-    }
+### Original State (BEFORE FIX)
 
-    return `--- PAGE ${actualPageNum} START ---\n${text}\n--- PAGE ${actualPageNum} END ---`;
-  }).join('\n\n');
+**Location 1: `apps/render-worker/src/worker.ts:1187-1191`**
+
+```typescript
+fullTextAnnotation: {
+  text: ocrResult.pages.map((p: any, idx: number) =>
+    `--- PAGE ${idx + 1} START ---\n` +
+    p.lines.map((l: any) => l.text).join(' ') +  // ← PROBLEM!
+    `\n--- PAGE ${idx + 1} END ---`
+  ).join('\n\n'),
+  pages: ocrResult.pages.map((page: any) => ({
+    // ... page structure WITHOUT spatially_sorted_text
+  }))
+}
+```
+
+**Location 2: `apps/render-worker/src/pass05/progressive/chunk-processor.ts:622`**
+
+```typescript
+// Fallback #1: Try blocks (worker.ts maps lines to blocks)
+if (page.blocks && page.blocks.length > 0) {
+  text = page.blocks.map((block: any) => block.text || '').join(' ');  // ← Joins with spaces
+}
+// Fallback #2: Try lines array
+else if ((page as any).lines && Array.isArray((page as any).lines)) {
+  text = (page as any).lines.map((line: any) => line.text).join(' ');
+}
+// Fallback #3: Try spatially_sorted_text ← NEVER REACHED
+else if ((page as any).spatially_sorted_text) {
+  text = (page as any).spatially_sorted_text;
 }
 ```
 
 **The Problem:**
-- `page.lines` exists, so code uses fallback #2
-- `page.lines` is array of individual WORDS from `spatial_mapping`
-- Words are joined with single spaces, losing paragraph structure
-- `spatially_sorted_text` (fallback #3) contains properly sorted paragraphs but is never used
+- worker.ts constructed fullTextAnnotation.text by joining `p.lines` with spaces
+- worker.ts didn't pass `spatially_sorted_text` field to page structure
+- chunk-processor.ts checked `page.blocks` first (which joins with spaces)
+- `spatially_sorted_text` was never used despite existing in the OCR data
 
 **Example Impact - Vital Signs Table:**
 ```
@@ -167,42 +194,75 @@ const ocrPage = {
 - `spatially_sorted_text`: Properly formatted text with paragraph structure (SHOULD be used for AI)
 - `original_gcv_text`: Raw OCR output (fallback)
 
-### Desired State
+### Fixed State (AFTER COMMIT a4177e9)
 
-**Use `spatially_sorted_text` field instead of `page.lines`**
+**Changes Applied (Nov 23, 2025):**
 
-**Proposed Change to chunk-processor.ts:610-648:**
-
+**Fix #1: `apps/render-worker/src/worker.ts:1189`**
 ```typescript
-function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): string {
-  return pages.map((page, idx) => {
-    let text = '';
-
-    // Fallback #1: Try spatially_sorted_text FIRST (BEST QUALITY)
-    if ((page as any).spatially_sorted_text) {
-      text = (page as any).spatially_sorted_text;
-    }
-    // Fallback #2: Try lines array (only if spatially_sorted_text missing)
-    else if ((page as any).lines && Array.isArray((page as any).lines)) {
-      text = (page as any).lines
-        .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
-        .map((line: any) => line.text)
-        .join(' ');
-    }
-    // Fallback #3: Original GCV text (last resort)
-    else if ((page as any).original_gcv_text) {
-      text = (page as any).original_gcv_text;
-    }
-    // Fallback #4: Empty page
-    else {
-      text = '[No text content found]';
-    }
-
-    const actualPageNum = startPageNum + idx + 1;
-    return `--- PAGE ${actualPageNum} START ---\n${text}\n--- PAGE ${actualPageNum} END ---`;
-  }).join('\n\n');
-}
+// AFTER (FIXED):
+text: ocrResult.pages.map((p: any, idx: number) =>
+  `--- PAGE ${idx + 1} START ---\n` +
+  (p.spatially_sorted_text || p.lines.map((l: any) => l.text).join(' ')) +  // ← Use spatial sorting!
+  `\n--- PAGE ${idx + 1} END ---`
+).join('\n\n'),
 ```
+
+**Fix #2: `apps/render-worker/src/worker.ts:1196-1197`**
+```typescript
+pages: ocrResult.pages.map((page: any) => ({
+  width: page.size.width_px || 1000,
+  height: page.size.height_px || 1400,
+  confidence: page.lines.reduce((sum: number, l: any) => sum + l.confidence, 0) / (page.lines.length || 1),
+  spatially_sorted_text: page.spatially_sorted_text,  // ← NEW: Pass to chunk processor
+  original_gcv_text: page.original_gcv_text,          // ← NEW: Include fallback
+  blocks: page.lines.map((line: any) => ({
+    // ... bbox data for coordinate extraction
+  }))
+}))
+```
+
+**Fix #3: `apps/render-worker/src/pass05/progressive/chunk-processor.ts:622`**
+```typescript
+// AFTER (FIXED):
+return pages.map((page, idx) => {
+  let text = '';
+
+  // PRIORITY 1: Use spatially sorted text (proper paragraph structure, table alignment)
+  if ((page as any).spatially_sorted_text) {
+    text = (page as any).spatially_sorted_text;
+  }
+  // FALLBACK 2: Extract text from blocks (worker.ts maps lines to blocks)
+  else if (page.blocks && page.blocks.length > 0) {
+    text = page.blocks.map((block: any) => block.text || '').join(' ');
+  }
+  // FALLBACK 3: Try lines array
+  else if ((page as any).lines && Array.isArray((page as any).lines)) {
+    text = (page as any).lines.map((line: any) => line.text).join(' ');
+  }
+  // FALLBACK 4: Try original GCV text
+  else if ((page as any).original_gcv_text) {
+    text = (page as any).original_gcv_text;
+  }
+  // FALLBACK 5: Last resort page.text
+  else if (page.text) {
+    text = page.text;
+  }
+
+  const actualPageNum = startPageNum + idx + 1;
+  return `--- PAGE ${actualPageNum} START ---\n${text}\n--- PAGE ${actualPageNum} END ---`;
+}).join('\n\n');
+```
+
+**Summary of Fixes:**
+1. **worker.ts:1189** - Use `spatially_sorted_text` when constructing fullTextAnnotation.text
+2. **worker.ts:1196-1197** - Pass `spatially_sorted_text` and `original_gcv_text` to page structure
+3. **chunk-processor.ts:622** - Prioritize `spatially_sorted_text` as fallback #1 (before blocks)
+
+**Result:**
+- AI now receives spatially-sorted text with proper paragraph breaks and table column alignment
+- Two-layer safety: worker.ts uses it AND chunk-processor.ts prioritizes it
+- Graceful fallbacks if `spatially_sorted_text` is missing (blocks → lines → original_gcv_text → page.text)
 
 ### Impact Analysis
 
@@ -920,3 +980,69 @@ This v2 design documents the complete OCR integration for Pass 0.5, covering bot
 4. Move on to more important features
 
 **No A/B testing, no feature flags, no monitoring infrastructure - just ship and iterate.**
+
+---
+
+## DEPLOYMENT & TESTING STATUS
+
+### Deployment Timeline (Nov 23, 2025)
+
+**Commit:** `a4177e9` - "fix(pass05): Use spatially-sorted OCR text for better table alignment"
+
+**Files Changed:**
+1. `apps/render-worker/src/worker.ts` (+4 lines, -1 line)
+2. `apps/render-worker/src/pass05/progressive/chunk-processor.ts` (+10 lines, -6 lines)
+3. `shared/docs/.../07-OCR-INTEGRATION-DESIGN-v2.md` (+937 lines, new file)
+
+**Deployment Method:**
+- Pushed to GitHub `main` branch
+- Render.com auto-deploy triggered (Exora Health worker service)
+- Expected deployment time: 2-3 minutes
+
+**Rollback Plan:**
+```bash
+git revert a4177e9
+git push
+# Render.com auto-deploys reverted code in ~2-3 minutes
+```
+
+### Testing Status
+
+**Test Documents (Pending):**
+- [ ] Simple GP letter (baseline - should be identical)
+- [ ] Discharge summary with vital signs table (should improve)
+- [ ] Complex 142-page hospital admission (should work same or better)
+- [ ] 2 random documents from test set
+
+**Success Criteria:**
+- Encounter detection looks same or better than before
+- No obvious regressions in encounter count or accuracy
+- Table columns appear aligned in AI interpretation (if inspectable)
+
+**Test Results:** _TBD - User testing in progress_
+
+### Production Observations
+
+**Expected Improvements:**
+- Better encounter boundary detection for documents with tables
+- More accurate coordinate extraction for intra-page boundaries
+- Improved handling of multi-column layouts
+
+**Potential Regressions to Watch:**
+- Header/footer text grouping issues (spatial sorting might group incorrectly)
+- Poor OCR quality documents (spatial data unreliable)
+- AI confusion from new format (temporary, should adapt quickly)
+
+**Monitoring:**
+- Manual inspection of encounter detection results
+- Check for increase in coordinate extraction failures
+- Watch for unexpected encounter count changes
+
+### Final Decision
+
+**Status:** DEPLOYED, AWAITING TEST RESULTS
+
+**Next Action:**
+- If tests pass → Document as complete, move on
+- If tests fail → Revert commit a4177e9, investigate root cause
+- If mixed results → Investigate specific document types causing issues
