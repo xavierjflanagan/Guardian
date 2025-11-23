@@ -566,6 +566,7 @@ function parseV11Response(
       date_source: enc.date_source || null,  // Migration 65: Track date provenance from AI
       provider_name: enc.provider_name,
       facility_name: enc.facility_name,
+      facility_address: enc.facility_address,  // Migration 66: Facility address
       confidence: enc.confidence || 0.5,
       summary: enc.summary,
 

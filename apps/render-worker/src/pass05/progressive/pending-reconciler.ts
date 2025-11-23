@@ -581,6 +581,7 @@ export async function reconcilePendingEncounters(
         date_source: finalDateSource,  // Migration 64: Accurate provenance tracking
         provider_name: firstPending.provider_name,                // Top-level column
         facility_name: firstPending.facility_name,                // Top-level column
+        facility_address: firstPending.facility_address,          // Migration 66: Facility address
 
         // Position data (17 fields from mergePositionData)
         start_page: mergedPosition.start_page,

@@ -1843,9 +1843,10 @@ CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
   patient_address text,                    -- Patient address if present
   patient_phone varchar(50),               -- Patient phone if present
 
-  -- Provider/facility markers - Files 10/11 (Migration 48/52)
+  -- Provider/facility markers - Files 10/11 (Migration 48/52/66)
   provider_name text,                      -- Healthcare provider name
   facility_name text,                      -- Hospital/clinic name
+  facility_address text,                   -- Migration 66: Facility address
   encounter_start_date text,               -- Visit date (raw format)
   encounter_end_date text,                 -- End date for multi-day encounters (nullable)
   encounter_type text,                     -- Migration 52: outpatient/inpatient/emergency/etc
