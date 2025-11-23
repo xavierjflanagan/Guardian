@@ -10,22 +10,13 @@ import { createClient } from "@/lib/supabaseClientSSR";
  * @throws Error if upload fails
  */
 export async function uploadFile(file: File, patientId: string): Promise<string> {
-  console.log('[uploadFile] Starting upload for:', file.name);
-  console.log('[uploadFile] Patient ID:', patientId);
-
   const supabase = createClient();
-  console.log('[uploadFile] Supabase client created');
-
   const filePath = `${patientId}/${Date.now()}_${file.name}`;
-  console.log('[uploadFile] File path:', filePath);
 
   // 1. Upload file to storage
-  console.log('[uploadFile] Uploading to storage...');
   const { error: uploadError } = await supabase.storage
     .from("medical-docs")
     .upload(filePath, file, { contentType: file.type });
-
-  console.log('[uploadFile] Upload result:', uploadError ? 'ERROR' : 'SUCCESS');
 
   if (uploadError) throw uploadError;
 

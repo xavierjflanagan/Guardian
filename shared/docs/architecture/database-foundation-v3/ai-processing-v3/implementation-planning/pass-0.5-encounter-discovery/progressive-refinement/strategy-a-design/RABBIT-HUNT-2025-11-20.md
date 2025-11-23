@@ -1201,7 +1201,7 @@ issuing_organization: NULL
 
 ---
 
-### Rabbit #26: Provider/Facility Names Missing in Final Encounter - 🔴 MEDIUM
+### Rabbit #26: multiple provider names within single encounter - 🔴 MEDIUM
 
 **Table:** `healthcare_encounters`
 **Status:** 🔴 PARTIALLY WORKING - 142p file works, 3p file doesn't
@@ -1209,18 +1209,8 @@ issuing_organization: NULL
 
 #### Issue
 
-Provider and facility names are reconciling inconsistently between files.
-
-**3-Page File (Vincent Cheers):**
-```sql
--- Pending encounter:
-provider_name: NULL
-facility_name: "South Coast Medical 2841 Pt Nepean Rd Blairgowrie 3942"
-
--- Final encounter:
-provider_name: NULL  ✅ (No provider in source, expected NULL)
-facility_name: "South Coast Medical 2841 Pt Nepean Rd Blairgowrie 3942"  ✅
-```
+An encounter may have zero, one or multiple providers within the same encounter such as a hospital admission. Should we do an array? How about for when cascading pendings are reconiled - how do we reconcile multiple provider names? I think we should just include all and make a string of them, throughtout the entire pathway from ai prompt to final encunter.
+Should we have a primary provider column (code logic at reconciliation) as well as a column for all providers? 
 
 **142-Page File (Emma Thompson):**
 ```sql
@@ -1245,46 +1235,6 @@ If all 3 pending encounters are from the SAME hospital admission (cascade chain)
 2. The "primary provider" logic needs to be smarter (e.g., pick the provider with most pages/confidence)
 
 **Status:** This is working but may not be optimal. Not a bug per se, but worth reviewing the reconciliation strategy for multi-provider encounters.
-
----
-
-### Rabbit #27: Patient Address Not Reconciled for 3-Page File - 🔴 MEDIUM
-
-**Table:** `healthcare_encounters`
-**Status:** 🔴 UNFIXED
-**Severity:** MEDIUM - Address data loss for some files
-
-#### Issue
-
-Patient address reconciliation is inconsistent.
-
-**3-Page File:**
-```sql
--- Pending encounter:
-patient_address: "PO Box 96 Mc Crae 3938"
-
--- Final encounter:
-patient_address: "PO Box 96 Mc Crae 3938"  ✅ (Reconciled correctly)
-```
-
-**142-Page File:**
-```sql
--- Pending encounters:
-patient_address: NULL (Pending 1)
-patient_address: NULL (Pending 2)
-patient_address: "123 Collins Street Melbourne Melbourne , VIC 3000 USA" (Pending 3)
-
--- Final encounter:
-patient_address: "123 Collins Street Melbourne Melbourne , VIC 3000 USA"  ✅
-```
-
-#### Analysis
-
-Address reconciliation appears to work when present. The RPC likely uses:
-- First non-NULL address from pending encounters
-- If all NULL, final encounter gets NULL
-
-**Status:** Working as designed, but worth noting that partial address data across pendings is reconciled correctly.
 
 ---
 

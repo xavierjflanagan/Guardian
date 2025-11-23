@@ -86,25 +86,18 @@ export default function DashboardPage() {
 
   // Handle file upload
   const handleDocumentUpload = async (file: File) => {
-    console.log('[handleDocumentUpload] Called with file:', file.name);
-    console.log('[handleDocumentUpload] User:', user?.id);
-
     if (!user) {
-      console.log('[handleDocumentUpload] No user, returning error');
       setUploadError("You must be signed in to upload files.");
       return;
     }
 
-    console.log('[handleDocumentUpload] Setting uploading to true');
     setUploading(true);
     setUploadMessage(null);
     setUploadError(null);
 
     try {
-      console.log('[handleDocumentUpload] Calling uploadFile...');
       // V3: uploadFile now handles everything (storage + shell-file-processor-v3 + job enqueue)
       const _shellFileId = await uploadFile(file, user.id);
-      console.log('[handleDocumentUpload] Upload successful, shell_file_id:', _shellFileId);
 
       setUploadMessage("File uploaded and AI processing started!");
 
