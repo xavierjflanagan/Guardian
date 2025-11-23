@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface FileUploadProps {
@@ -12,6 +12,7 @@ interface FileUploadProps {
 
 export function FileUpload({ onFileUpload, isUploading, error, message }: FileUploadProps) {
   const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -28,48 +29,63 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
     e.stopPropagation();
     setDragActive(false);
 
+    console.log('[FileUpload] File dropped');
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onFileUpload(e.dataTransfer.files[0]);
+      console.log('[FileUpload] Processing dropped file:', e.dataTransfer.files[0].name);
+      onFileUpload(e.dataTransfer.files[0]).catch(err => {
+        console.error('[FileUpload] onFileUpload error (drop):', err);
+      });
     }
   }, [onFileUpload]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('[FileUpload] handleFileSelect called', { hasFiles: !!e.target.files, fileCount: e.target.files?.length });
     if (e.target.files && e.target.files[0]) {
-      console.log('[FileUpload] File selected, calling onFileUpload:', e.target.files[0].name);
-      onFileUpload(e.target.files[0]).catch(err => {
+      const file = e.target.files[0];
+      console.log('[FileUpload] File selected, calling onFileUpload:', file.name);
+      onFileUpload(file).catch(err => {
         console.error('[FileUpload] onFileUpload error:', err);
       });
+      // Reset input so same file can be selected again
+      e.target.value = '';
     }
   }, [onFileUpload]);
 
+  const handleClick = useCallback(() => {
+    console.log('[FileUpload] Click area clicked, isUploading:', isUploading);
+    if (!isUploading && fileInputRef.current) {
+      console.log('[FileUpload] Triggering file input click');
+      fileInputRef.current.click();
+    }
+  }, [isUploading]);
+
   return (
     <div className="space-y-4">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/pdf,image/*"
+        onChange={handleFileSelect}
+        disabled={isUploading}
+        className="hidden"
+        aria-label="Upload medical document"
+        id="file-upload-input"
+      />
+
       {/* Drag and Drop Area */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        onClick={handleClick}
+        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
           dragActive
             ? 'border-blue-400 bg-blue-50'
             : 'border-gray-300 hover:border-gray-400'
-        } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+        } ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <input
-          type="file"
-          accept="application/pdf,image/*"
-          onChange={handleFileSelect}
-          disabled={isUploading}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-          aria-label="Upload medical document"
-          id="file-upload-input"
-        />
-        {/* DEBUG: Show input state */}
-        <div className="absolute top-2 right-2 text-xs bg-yellow-100 px-2 py-1 rounded z-50">
-          Input disabled: {isUploading ? 'YES' : 'NO'}
-        </div>
         
         <div className="space-y-4">
           <div className="flex justify-center">

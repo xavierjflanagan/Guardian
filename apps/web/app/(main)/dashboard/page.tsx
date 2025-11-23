@@ -7,13 +7,18 @@ import { uploadFile } from "@/utils/uploadFile";
 import { Document } from "@/types/guardian";
 import { MedicalDashboard } from "@/components/MedicalDashboard";
 
+console.log('[MODULE LOAD] Dashboard page module is loading...');
+
 // Create a single, stable Supabase client instance
+console.log('[MODULE LOAD] Creating Supabase client...');
 const supabase = createClient();
+console.log('[MODULE LOAD] Supabase client created successfully');
 
 export default function DashboardPage() {
   console.log('=================================================');
-  console.log('DASHBOARD PAGE LOADED - Console logging is working!');
+  console.log('DASHBOARD PAGE RENDER - Console logging is working!');
   console.log('Timestamp:', new Date().toISOString());
+  console.log('Window location:', window.location.href);
   console.log('=================================================');
 
   const [user, setUser] = useState<User | null>(null);
