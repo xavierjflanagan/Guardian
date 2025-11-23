@@ -86,35 +86,50 @@ export default function DashboardPage() {
 
   // Handle file upload
   const handleDocumentUpload = async (file: File) => {
+    console.log('[DEBUG] handleDocumentUpload START', { fileName: file.name, hasUser: !!user });
+
     if (!user) {
+      console.log('[DEBUG] No user, aborting');
       setUploadError("You must be signed in to upload files.");
       return;
     }
 
+    console.log('[DEBUG] Setting uploading=true');
     setUploading(true);
     setUploadMessage(null);
     setUploadError(null);
 
     try {
+      console.log('[DEBUG] Calling uploadFile...');
       // V3: uploadFile now handles everything (storage + shell-file-processor-v3 + job enqueue)
       const _shellFileId = await uploadFile(file, user.id);
+      console.log('[DEBUG] uploadFile SUCCESS', { shellFileId: _shellFileId });
 
+      console.log('[DEBUG] Setting success message');
       setUploadMessage("File uploaded and AI processing started!");
 
+      console.log('[DEBUG] Triggering fetchDocuments (background)');
       // Refresh documents list (don't await - let it run in background)
       fetchDocuments().catch(err => {
         console.error("Error refreshing documents after upload:", err);
       });
+
+      console.log('[DEBUG] About to enter finally block');
     } catch (err) {
+      console.log('[DEBUG] uploadFile FAILED', { error: err });
       if (err instanceof Error) {
         setUploadError(err.message || "Upload failed.");
       } else {
         setUploadError("Upload failed.");
       }
     } finally {
+      console.log('[DEBUG] FINALLY BLOCK - Setting uploading=false');
       // Always reset uploading state, even if fetchDocuments fails
       setUploading(false);
+      console.log('[DEBUG] FINALLY BLOCK COMPLETE');
     }
+
+    console.log('[DEBUG] handleDocumentUpload END');
   };
 
   // Handle sign out
