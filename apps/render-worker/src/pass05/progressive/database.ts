@@ -314,6 +314,9 @@ export async function insertPendingEncounterV3(
       // Confidence
       confidence: pending.confidence,
 
+      // Migration 65: Add is_real_world_visit field
+      is_real_world_visit: pending.is_real_world_visit,
+
       // Status
       status: 'pending'
     })
@@ -426,12 +429,15 @@ export async function batchInsertPendingEncountersV3(
       // Confidence
       confidence: pending.confidence,
 
+      // Migration 65: Add is_real_world_visit field
+      is_real_world_visit: pending.is_real_world_visit,
+
       // Status
       status: 'pending'
     };
   });
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('pass05_pending_encounters')
     .insert(rows)
     .select('pending_id');
