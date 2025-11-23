@@ -1085,134 +1085,32 @@ Change the "Safe Split Criteria" to explicitly mention **"Semantic Continuity"**
 
 ---
 
-### Rabbit #25: Missing Date Waterfall Hierarchy for Pseudo Encounters - 🔴 HIGH
+### Rabbit #25: Missing Date Waterfall Hierarchy for Pseudo Encounters - ✅ FIXED
 
 **Component:** `pending-reconciler.ts`, `session-manager.ts`
-**Status:** 🔴 UNFIXED - Never ported from Standard Mode to Strategy A
-**Severity:** HIGH - Pseudo encounters have NULL dates instead of file metadata fallback
-**Related:** Rabbit #24 (date normalization), Migration 42 (v2.9 date_source field)
+**Status:** ✅ FIXED - Migration 64 & 65 (2025-11-23)
+**Severity:** HIGH - Pseudo encounters had NULL dates instead of file metadata fallback
 
-#### Issue
+#### Resolution Summary
 
-The **date waterfall hierarchy** for pseudo encounters exists in legacy Standard Mode but was **never ported** to progressive Strategy A reconciler. Pseudo encounters without AI-extracted dates should fall back to file metadata, then upload date.
+**Problem:** Date waterfall hierarchy for pseudo encounters was never ported from Standard Mode to Strategy A. Pseudo encounters without AI dates stored NULL instead of falling back to file metadata.
 
-**Expected Behavior (v2.9 spec):**
-```typescript
-// For pseudo encounters (is_real_world_visit = false):
-if (aiExtractedDate) {
-  date_source = 'ai_extracted';
-} else if (shell_files.created_at) {
-  date_source = 'file_metadata';  // Use file creation timestamp
-} else {
-  date_source = 'upload_date';    // Last resort: current date
-}
-```
+**Solution:** Migrations 64 & 65 implemented complete date system:
+- **Migration 64:** Date waterfall hierarchy (ai_extracted → file_metadata → upload_date)
+- **Migration 65:** Fixed three bugs in date/classification logic
+  - Bug #1: Worker was recalculating `is_real_world_visit` instead of trusting AI
+  - Bug #2: `date_source` field never populated from AI response
+  - Bug #3: No quality hierarchy for multi-chunk date merging
 
-**Current Broken Behavior:**
-```typescript
-// pending-reconciler.ts:488
-date_source: firstPending.encounter_data?.date_source || 'ai_extracted',
-// Always defaults to 'ai_extracted' even when encounter_start_date is NULL!
-```
+**Files Modified:**
+- `session-manager.ts` (lines 142-161): Fetch `shell_files.created_at` for waterfall
+- `pending-reconciler.ts` (lines 53-70, 463-565): Date quality hierarchy + waterfall logic
+- `chunk-processor.ts` (line 566, 582): Trust AI's `date_source` and `is_real_world_visit`
+- `database.ts` (lines 318, 433): Fixed missing `is_real_world_visit` field in inserts
 
-#### Evidence
+**Documentation:** Complete encounter date system documented in `17-ENCOUNTER-DATE-SYSTEM.md`
 
-**Vincent Cheers 3-page Patient Health Summary:**
-- Document type: Patient Health Summary (pseudo encounter, no specific visit date)
-- AI extraction: `encounter_start_date: null` (correct - summary has no encounter date)
-- **BUG:** Final encounter has `encounter_start_date: NULL` ❌
-- **Expected:** Should use `shell_files.created_at` → `'2025-11-23'`
-- **BUG:** `date_source: 'ai_extracted'` ❌
-- **Expected:** `date_source: 'file_metadata'`
-
-#### Root Cause
-
-Standard Mode had this logic (`manifestBuilder.ts:245-258`) but it was never ported to progressive reconciler.
-
-#### Suggested Fix
-
-**Files to modify:**
-
-1. **session-manager.ts:141** - Fetch file metadata and pass to reconciler:
-```typescript
-// Query shell_files.created_at before calling reconciler
-const { data: shellFile } = await supabase
-  .from('shell_files')
-  .select('created_at')
-  .eq('id', shellFileId)
-  .single();
-
-const fileCreatedAt = shellFile?.created_at ? new Date(shellFile.created_at) : null;
-
-const finalEncounterIds = await reconcilePendingEncounters(
-  session.id,
-  shellFileId,
-  patientId,
-  totalPages,
-  fileCreatedAt  // NEW PARAMETER
-);
-```
-
-2. **pending-reconciler.ts:410** - Update function signature:
-```typescript
-export async function reconcilePendingEncounters(
-  sessionId: string,
-  shellFileId: string,
-  patientId: string,
-  totalPages: number,
-  fileCreatedAt: Date | null  // NEW PARAMETER
-): Promise<string[]>
-```
-
-3. **pending-reconciler.ts:478** - Add date waterfall logic AFTER date normalization:
-```typescript
-// Migration 64: Date waterfall hierarchy for pseudo encounters
-let finalStartDate: string | null;
-let finalEndDate: string | null;
-let finalDateSource: 'ai_extracted' | 'file_metadata' | 'upload_date';
-
-if (firstPending.is_real_world_visit) {
-  // Branch A: Real-world encounters - use AI dates
-  finalStartDate = startDateResult.isoDate;
-  finalEndDate = endDateResult.isoDate;
-  finalDateSource = 'ai_extracted';
-} else {
-  // Branch B: Pseudo encounters - waterfall fallback
-  if (startDateResult.isoDate) {
-    finalStartDate = startDateResult.isoDate;
-    finalDateSource = 'ai_extracted';
-  } else if (fileCreatedAt) {
-    finalStartDate = fileCreatedAt.toISOString().split('T')[0];
-    finalDateSource = 'file_metadata';
-  } else {
-    finalStartDate = new Date().toISOString().split('T')[0];
-    finalDateSource = 'upload_date';
-  }
-  finalEndDate = finalStartDate;  // Pseudo: start = end
-}
-```
-
-4. **pending-reconciler.ts:483** - Use waterfall results in encounterData:
-```typescript
-const encounterData = {
-  encounter_type: firstPending.encounter_data?.encounter_type || 'unknown',
-  encounter_start_date: finalStartDate,    // Migration 64
-  encounter_end_date: finalEndDate,        // Migration 64
-  encounter_timeframe_status: firstPending.is_real_world_visit
-    ? (firstPending.encounter_data?.encounter_timeframe_status || 'completed')
-    : 'completed',
-  date_source: finalDateSource,  // Migration 64
-  // ... rest
-```
-
-**Database Impact:** None - `date_source` column already exists with correct check constraint.
-
-**Test Cases:**
-- Pseudo encounter with NULL AI date → use file created_at
-- Pseudo encounter with AI date → use AI date
-- Real-world visit → always use AI date
-
-**Reference:** Legacy implementation in `manifestBuilder.ts:245-258`, v2.9 spec `INTEGRATION_GUIDE_v2.9.md:150-164`
+**Testing:** ✅ Verified working with Vincent Cheers 3-page file and Emma Thompson 142-page file
 
 ---
 
