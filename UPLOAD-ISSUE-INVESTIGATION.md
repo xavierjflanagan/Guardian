@@ -184,7 +184,48 @@ Error: 'shellFileId' is defined but never used. Allowed unused args must match /
 
 ---
 
-**Status:** Workaround implemented with promise chain pattern. Root cause of async/await finally failure remains unknown.
+## RESOLUTION UPDATE - Stale Client State Confirmed
+
+**Critical Discovery (Post-Fix):**
+After deploying the promise chain fix, the upload functionality **worked perfectly in incognito mode** but continued to fail in the regular browser window. After logging out and signing back in with magic link in the regular window, **everything started working there too**.
+
+### Root Cause: Stale Client State
+The infinite spinner was caused by:
+1. **Cached JavaScript bundles** - Browser serving old pre-fix client-side code
+2. **Stale Supabase session state** - Auth cookies/localStorage causing promise settling issues
+3. **Next.js app shell caching** - Service worker or Next.js caching serving outdated components
+
+### Why Incognito Worked
+- Fresh browser profile with no cached assets
+- No old Supabase session cookies
+- Forced to fetch latest deployed bundle from Vercel
+- Clean localStorage/sessionStorage
+
+### Why Logout/Login Fixed It
+- Cleared/rotated Supabase auth cookies and session
+- Forced navigation that reloaded latest Next.js client bundle
+- Reset any stale React state tied to the old session
+
+### Workaround for Future Occurrences
+If infinite spinner appears after code is known to be fixed:
+
+1. **Test in incognito first** - If it works there, it's a cache/session issue
+2. **In the affected window:**
+   - Log out, then log back in (forces session refresh)
+   - Hard reload: `Cmd+Shift+R` (Mac) or `Ctrl+Shift+R` (Windows/Linux)
+   - If still broken: Clear site data for the domain in browser DevTools
+   - Nuclear option: Clear browser cache entirely
+
+### Lessons Learned
+1. **Always test in incognito** when debugging production issues - eliminates cache variables
+2. **Stale state can persist across deployments** - browser caching is aggressive
+3. **Auth session refresh** can trigger client bundle reload in Next.js apps
+4. **The promise chain fix was correct** - the async/await finally block may have been fine, but stale code was being executed
+
+---
+
+**Status:** ✅ RESOLVED - Promise chain pattern working correctly. Issue was stale browser cache, not code defect.
 
 **Date:** 2025-11-23
 **Session:** Claude Code debugging session
+**Resolution:** Confirmed working after cache/session clear

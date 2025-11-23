@@ -1813,7 +1813,7 @@ CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
   start_page integer,                      -- First page of encounter
   start_boundary_type varchar(20),         -- 'inter_page' or 'intra_page'
   start_marker text,                       -- Descriptive text for boundary
-  start_marker_context varchar(100),       -- Migration 52: Additional text context for disambiguation
+  start_marker_context varchar(500),       -- Migration 52/64: Additional text context for disambiguation (expanded for AI variance)
   start_region_hint varchar(20),           -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
   start_text_y_top integer,                -- OCR Y-coordinate (NULL if inter_page)
   start_text_height integer,               -- OCR text height (NULL if inter_page)
@@ -1823,7 +1823,7 @@ CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
   end_page integer,                        -- Last page of encounter
   end_boundary_type varchar(20),           -- 'inter_page' or 'intra_page'
   end_marker text,                         -- Descriptive text for boundary
-  end_marker_context varchar(100),         -- Migration 52: Additional text context for disambiguation
+  end_marker_context varchar(500),         -- Migration 52/64: Additional text context for disambiguation (expanded for AI variance)
   end_region_hint varchar(20),             -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
   end_text_y_top integer,                  -- OCR Y-coordinate (NULL if inter_page)
   end_text_height integer,                 -- OCR text height (NULL if inter_page)
