@@ -40,11 +40,14 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('[FileUpload] handleFileSelect called', { hasFiles: !!e.target.files, fileCount: e.target.files?.length });
+    alert('handleFileSelect called!'); // DEBUG
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       console.log('[FileUpload] File selected, calling onFileUpload:', file.name);
+      alert(`File selected: ${file.name}, about to call onFileUpload`); // DEBUG
       onFileUpload(file).catch(err => {
         console.error('[FileUpload] onFileUpload error:', err);
+        alert(`Upload error: ${err}`); // DEBUG
       });
       // Reset input so same file can be selected again
       e.target.value = '';
@@ -53,9 +56,13 @@ export function FileUpload({ onFileUpload, isUploading, error, message }: FileUp
 
   const handleClick = useCallback(() => {
     console.log('[FileUpload] Click area clicked, isUploading:', isUploading);
+    alert(`FileUpload clicked! isUploading: ${isUploading}`); // DEBUG: Visual confirmation
     if (!isUploading && fileInputRef.current) {
       console.log('[FileUpload] Triggering file input click');
+      alert('About to open file picker'); // DEBUG
       fileInputRef.current.click();
+    } else {
+      alert(`Cannot upload: isUploading=${isUploading}, hasRef=${!!fileInputRef.current}`); // DEBUG
     }
   }, [isUploading]);
 
