@@ -111,6 +111,12 @@ export default function DashboardPage() {
     setUploadMessage(null);
     setUploadError(null);
 
+    // IMMEDIATE TEST: Set back to false after 2 seconds
+    setTimeout(() => {
+      console.log('[DEBUG TIMEOUT] Force setting uploading=false after 2s');
+      setUploading(false);
+    }, 2000);
+
     try {
       console.log('[DEBUG] Calling uploadFile...');
       // V3: uploadFile now handles everything (storage + shell-file-processor-v3 + job enqueue)
