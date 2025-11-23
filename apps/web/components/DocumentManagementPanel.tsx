@@ -7,7 +7,7 @@ import { DocumentList } from './DocumentList';
 
 interface DocumentManagementPanelProps {
   documents: Document[];
-  onDocumentUpload: (file: File) => Promise<void>;
+  onDocumentUpload: (file: File) => void;
   onDocumentSelect: (document: Document | null) => void;
   selectedDocument: Document | null;
   isUploading: boolean;
