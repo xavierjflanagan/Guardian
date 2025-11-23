@@ -279,9 +279,10 @@ Extract comprehensive clinical information:
 - \`encounter_end_date\`: End date (null if ongoing or unknown)
 - \`encounter_timeframe_status\`: "completed" | "ongoing" | "unknown_end_date"
 - \`provider_name\`: Provider's full name (e.g., "Dr. John Smith")
-- \`facility_name\`: Facility name (e.g., "St Vincent's Hospital")
-- \`department\`: Hospital department/unit (e.g., "Cardiac ICU", "Emergency Department", "General Practice")
 - \`provider_role\`: Provider's specialty/role (e.g., "Cardiologist", "Emergency Physician", "GP", "Nurse Practitioner")
+- \`facility_name\`: Facility name (e.g., "St Vincent's Hospital")
+- \`facility_address\`: Facility address (e.g., "123 Main St, Sydney NSW 2000")
+- \`department\`: Hospital department/unit (e.g., "Cardiac ICU", "Emergency Department", "General Practice")
 
 **Clinical Details:**
 - \`chief_complaint\`: Primary presenting complaint (e.g., "Chest pain")
@@ -411,9 +412,10 @@ Return a JSON object with this exact structure:
       "encounter_end_date": null,
       "encounter_timeframe_status": "completed",
       "provider_name": "Dr. Sarah Johnson",
-      "facility_name": "Sydney Medical Centre",
-      "department": "General Practice",
       "provider_role": "GP",
+      "facility_name": "Sydney Medical Centre",
+      "facility_address": "123 Main St, Sydney NSW 2000",
+      "department": "General Practice",
       "chief_complaint": "Routine follow-up",
       "diagnoses": ["Hypertension"],
       "procedures": [],  // None mentioned
@@ -422,27 +424,27 @@ Return a JSON object with this exact structure:
       "confidence": 0.95
     },
     {
-      // EXAMPLE 2: Cascading pseudo-encounter
-      "is_cascading": true,  // Extends beyond chunk
+      // EXAMPLE 2: Cascading Hospital Admission
+      "is_cascading": true,  // Extends beyond chunk (ends at page 5, chunk end)
       "continues_previous": false,
-      "cascade_context": "Hospital admission day 2 of ongoing stay",
+      "cascade_context": "Hospital admission day 1-3",
       "expected_continuation": "discharge_summary",
 
       // Position with region hints
-      "start_page": 3,
+      "start_page": 2,
       "start_boundary_type": "intra_page",
       "start_marker": "ADMISSION NOTE",
-      "start_marker_context": null,  // Unique on page
-      "start_region_hint": "top",
+      "start_marker_context": "Plan discussed. ADMISSION NOTE Date: 2024-03-20",
+      "start_region_hint": "lower_middle",
       "end_page": 5,
       "end_boundary_type": "inter_page",
-      "end_marker": null,  // Ends at page boundary
+      "end_marker": null,  // Ends at page boundary (end of chunk)
       "end_marker_context": null,
       "end_region_hint": null,
       "position_confidence": 0.95,
-      "page_ranges": [[3, 5]],
+      "page_ranges": [[2, 5]],
 
-      "is_real_world_visit": false,  // Medical summary, not actual visit
+      "is_real_world_visit": true,  // It's a primary record of a hospital admission (actual healthcare)
 
       // All identity fields found
       "patient_full_name": "John Smith",
@@ -450,53 +452,57 @@ Return a JSON object with this exact structure:
       "patient_address": "123 Main St, Sydney NSW 2000",
       "patient_phone": "0412345678",
 
-      "medical_identifiers": [],  // None found
+      "medical_identifiers": [],
 
-      // Minimal clinical content for pseudo-encounter
-      "encounter_type": "medical_summary",
-      "encounter_start_date": null,
-      "encounter_end_date": null,
-      "encounter_timeframe_status": "unknown_end_date",
-      "provider_name": null,
-      "facility_name": null,
-      "department": null,
-      "provider_role": null,
-      "chief_complaint": null,
-      "diagnoses": [],
-      "procedures": [],
-      "disposition": null,
-      "summary": "Administrative medical summary",
-      "confidence": 0.88
+      // Clinical content
+      "encounter_type": "hospital_admission",
+      "encounter_start_date": "2024-03-20",
+      "encounter_end_date": null, // Ongoing
+      "encounter_timeframe_status": "ongoing",
+      "provider_name": "Dr. James Wilson",
+      "provider_role": "Cardiologist",
+      "facility_name": "St Vincent's Hospital",
+      "facility_address": "390 Victoria St, Darlinghurst NSW 2010",
+      "department": "Cardiology",
+      "chief_complaint": "Chest pain",
+      "diagnoses": ["NSTEMI"],
+      "procedures": ["Angiography"],
+      "disposition": "Admitted to Ward",
+      "summary": "Admission for chest pain, ongoing workup.",
+      "confidence": 0.98,
+      
+      // Migration 65: Date source tracking
+      "date_source": "header_text"
     }
   ],
 
   "page_assignments": [
     {"page": 1, "encounter_index": 0},  // First encounter (index 0)
-    {"page": 2, "encounter_index": 0},  // Still first encounter
-    {"page": 2, "encounter_index": 1},  // Second encounter begins, ALSO on page 2
+    {"page": 2, "encounter_index": 0},  // Ends mid-page 2
+    {"page": 2, "encounter_index": 1},  // Second encounter begins mid-page 2
     {"page": 3, "encounter_index": 1},  // Second encounter continues
-    {"page": 4, "encounter_index": 1},  // Document metadata/footer/signatures (STILL part of second encounter)
-    {"page": 5, "encounter_index": 2}   // NEW third encounter begins
+    {"page": 4, "encounter_index": 1},  // Second encounter continues
+    {"page": 5, "encounter_index": 1}   // Second encounter ends chunk (cascading)
   ],
 
   "cascade_contexts": [
     {
       "encounter_type": "hospital_admission",
-      "partial_summary": "Day 2 of cardiac admission, post-PCI",
+      "partial_summary": "Hospital admission day 1-3",
       "expected_in_next_chunk": "discharge_summary",
-      "ai_context": "Patient stable post-stent placement"
+      "ai_context": "Patient admitted for chest pain, NSTEMI, Angiography performed. Ongoing care."
     }
   ],
 
   "page_separation_analysis": {
     "safe_split_points": [
       {
-        "page": 4,  // Page AFTER the split (where pathology begins)
-        "split_type": "inter_page",
-        "marker": null,  // Always null for inter_page
-        "marker_context": null,
-        "region_hint": null,
-        "confidence": 1.0
+        "page": 4,
+        "split_type": "intra_page",
+        "marker": "PATHOLOGY RESULTS",
+        "marker_context": "Notes end. PATHOLOGY RESULTS Collection Date: 2024-03-21",
+        "region_hint": "lower_middle",
+        "confidence": 0.95
       }
     ]
   },
@@ -505,7 +511,7 @@ Return a JSON object with this exact structure:
     "total_encounters": 2,     // Number of encounters in array
     "max_index_used": 1,       // Highest index used in page_assignments (0-based)
     "pages_mapped": 5,         // Total unique pages assigned
-    "assignment_count": 6      // Total assignments (can be > pages if multiple per page)
+    "assignment_count": 6      // Total assignments
   }
 }
 \`\`\`

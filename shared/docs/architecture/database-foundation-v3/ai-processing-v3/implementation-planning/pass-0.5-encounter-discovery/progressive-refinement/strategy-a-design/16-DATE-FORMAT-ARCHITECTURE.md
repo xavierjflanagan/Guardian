@@ -854,6 +854,972 @@ Final Result:
 
 ---
 
-**Document Status:** Ready for Review
-**Next Step:** Await clearance to proceed with implementation
-**Implementation ETA:** <2 hours (function replacement + scope expansion + tests)
+## Appendix A: GPT-5.1 Review & Accepted Enhancements
+
+**Review Date:** 2025-11-23
+**Reviewer:** GPT-5.1 (second AI analysis)
+**Status:** Reviewed and integrated
+
+### Changes Accepted from Review
+
+#### 1. Enhanced Fallback Logging (Safety Critical)
+
+**Issue:** Fallback `new Date(trimmed)` could silently accept unexpected formats.
+
+**Solution:** Keep fallback but add distinct logging and metric tracking:
+
+```typescript
+// 4. Fallback: Try JS Date() as last resort WITH EXPLICIT LOGGING
+const fallback = new Date(trimmed);
+if (!isNaN(fallback.getTime())) {
+  console.warn('[Identity] FALLBACK DATE PARSE USED - REVIEW IF FREQUENT:', {
+    original: dateString,
+    parsed: fallback.toISOString(),
+    field: fieldName,  // 'patient_date_of_birth', 'encounter_start_date', etc.
+    context: 'Unexpected format - should match known patterns'
+  });
+  // TODO: Track in metrics: fallback_parse_count by field type
+  const year = fallback.getFullYear();
+  const month = String(fallback.getMonth() + 1).padStart(2, '0');
+  const day = String(fallback.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+```
+
+**Rationale:** Allows graceful handling of edge cases while maintaining visibility into unexpected formats.
+
+#### 2. Ambiguity Flagging for QA Review
+
+**Issue:** Ambiguous dates (e.g., `"01/02/2024"`) silently default to DD/MM/YYYY with no QA signal.
+
+**Solution:** Return metadata object instead of plain string:
+
+```typescript
+interface DateNormalizationResult {
+  isoDate: string | null;           // Normalized ISO 8601 date
+  wasAmbiguous: boolean;             // True if both DD/MM and MM/DD were valid
+  originalFormat: string;            // Raw input for audit trail
+  parseMethod: 'iso_passthrough' | 'text' | 'dd_mm' | 'mm_dd' | 'ambiguous_default' | 'fallback';
+  confidence: 'high' | 'medium' | 'low';
+}
+
+// Example usage:
+const dobResult = normalizeDateToISO('01/02/2024', 'patient_date_of_birth');
+// Returns:
+// {
+//   isoDate: '2024-02-01',
+//   wasAmbiguous: true,
+//   originalFormat: '01/02/2024',
+//   parseMethod: 'ambiguous_default',
+//   confidence: 'low'
+// }
+```
+
+**Storage in Database:**
+
+```typescript
+// In pending-reconciler.ts when preparing encounterData:
+const dobResult = normalizeDateToISO(
+  pickBestValue(groupPendings.map(p => p.patient_date_of_birth)),
+  'patient_date_of_birth'
+);
+
+const encounterData = {
+  patient_date_of_birth: dobResult.isoDate,
+  quality_criteria_met: {
+    ...existingCriteria,
+    date_ambiguity_flags: {
+      patient_date_of_birth: dobResult.wasAmbiguous ? 'ambiguous_dd_mm_assumed' : 'unambiguous',
+      patient_date_of_birth_confidence: dobResult.confidence
+    }
+  }
+};
+```
+
+**UI Impact (Future):**
+- QA dashboard can filter encounters with ambiguous dates
+- Manual review queue can prioritize low-confidence dates
+- User can see "Date format was ambiguous (DD/MM/YYYY assumed)" indicator
+
+#### 3. DOB Year Sanity Checks
+
+**Issue:** OCR errors like "2165-11-14" not caught.
+
+**Solution:** Add field-specific validation:
+
+```typescript
+// After constructing ISO date, add sanity checks
+if (fieldName === 'patient_date_of_birth') {
+  const yearNum = parseInt(year, 10);
+  const currentYear = new Date().getFullYear();
+
+  // DOB must be between 1900 and current year + 1
+  if (yearNum < 1900 || yearNum > currentYear + 1) {
+    console.warn('[Identity] DOB year out of range - likely OCR error:', {
+      year: yearNum,
+      dateString,
+      validRange: `1900-${currentYear + 1}`,
+      suggestion: 'Review source document for OCR misread digits'
+    });
+    return {
+      isoDate: null,
+      wasAmbiguous: false,
+      originalFormat: dateString,
+      parseMethod: 'failed_sanity_check',
+      confidence: 'low',
+      error: 'year_out_of_range'
+    };
+  }
+}
+```
+
+**Rationale:**
+- Common OCR errors: `1` → `l`, `0` → `O`, digit transposition
+- Patient DOB has natural bounds (unlike encounter dates which can be historical or future)
+- Better to flag for review than store obviously wrong data
+
+#### 4. Documentation Correction: FHIR Date Standards
+
+**Issue:** Document incorrectly claimed "HL7 FHIR recommends DD/MM/YYYY for international use"
+
+**Correction:**
+
+**FHIR Actual Standard:**
+- HL7 FHIR mandates **ISO 8601 format** for date storage and interchange
+- Format: `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` (no DD/MM vs MM/DD prescription)
+- FHIR does NOT specify input/display formats (left to implementation)
+
+**Our Policy Justification (Corrected):**
+The decision to default ambiguous dates to DD/MM/YYYY is based on:
+1. **Majority usage:** DD/MM/YYYY used by ~70% of world population
+2. **Primary market:** Australia uses DD/MM/YYYY in medical records
+3. **International standards:** ISO 8601 uses descending significance (YYYY-MM-DD implies day before month)
+4. **Safety:** Explicit policy is safer than inconsistent behavior
+
+This is an **application-layer parsing decision**, not a FHIR requirement.
+
+#### 5. Date Normalization Observability Metrics
+
+**Addition to Future Enhancements:**
+
+Track normalization statistics to detect issues early:
+
+```typescript
+// Store in pass05_progressive_sessions.metadata JSONB or new metrics table
+interface DateNormalizationMetrics {
+  patient_date_of_birth: {
+    total_processed: number;
+    successfully_normalized: number;
+    failed_null: number;
+    ambiguous_defaulted: number;
+    fallback_used: number;
+    format_breakdown: {
+      iso_passthrough: number;
+      text_format: number;
+      dd_mm_unambiguous: number;
+      mm_dd_unambiguous: number;
+      ambiguous_default: number;
+      fallback: number;
+    };
+  };
+  encounter_start_date: { /* same structure */ };
+  encounter_end_date: { /* same structure */ };
+}
+```
+
+**Usage:**
+- Dashboard shows normalization success rate per field
+- Alerts trigger if failure rate exceeds threshold (e.g., >10%)
+- Analysis identifies which formats are most common (inform prompt tuning)
+
+### Changes Rejected from Review
+
+#### AI Contract Tightening (Rejected)
+
+**Suggestion:** Require AI to output ISO 8601 only; treat non-ISO as contract violation.
+
+**Rationale for Rejection:**
+1. **OCR reality:** AI extracts what appears in document; if document says "16/02/1959", AI should preserve that
+2. **Audit trail:** Raw extracted value is critical for healthcare compliance
+3. **Separation of concerns:** AI = faithful extractor, Code = normalizer (testable, deterministic)
+4. **AI date parsing:** Would move disambiguation logic into AI's black box (less debuggable)
+
+**Correct Architecture:**
+- AI outputs EXACTLY what it sees in document
+- Application code normalizes with explicit, testable rules
+- Both raw and normalized values stored for audit
+
+#### Date-fns Library Migration (Deferred)
+
+**Suggestion:** Use `date-fns` library with explicit format whitelist.
+
+**Decision:** Defer to future if custom parser proves insufficient.
+
+**Rationale:**
+- Custom parser covers all known formats with full control
+- No external dependency (20KB savings)
+- Can migrate to `date-fns` if edge cases emerge post-launch
+
+#### Server-Side Parsing with Region Metadata (Deferred)
+
+**Suggestion:** Tag documents with region (AU/US/EU) and use PostgreSQL `to_date()` with region-specific formats.
+
+**Decision:** Defer pending region metadata availability.
+
+**Rationale:**
+- Requires storing region code per document
+- Multi-region documents exist (US doctor treating AU patient)
+- Current heuristic-based approach handles mixed sources gracefully
+
+---
+
+## Appendix B: Context-Based Disambiguation Strategies (Exploratory)
+
+**Status:** Research and design phase
+**Priority:** Medium (post-MVP enhancement)
+**Goal:** Improve ambiguous date resolution beyond simple DD/MM/YYYY default
+
+### Overview
+
+For ambiguous date strings where both DD/MM/YYYY and MM/DD/YYYY are valid (e.g., `"05/06/2023"`), we currently default to DD/MM/YYYY (international standard). This section explores using **contextual signals** from the same document/encounter to make smarter disambiguation decisions.
+
+---
+
+### Strategy 1: Intra-Encounter Date Format Consistency
+
+**Principle:** All dates within a single encounter should use the same format.
+
+**Logic:**
+1. Extract ALL dates from same encounter (DOB, encounter start, encounter end, prescription dates, lab dates, etc.)
+2. Identify unambiguous dates (day > 12 or month > 12)
+3. Infer format from unambiguous dates
+4. Apply same format to ambiguous dates
+
+**Example:**
+
+```typescript
+// Within same encounter:
+const dates = {
+  dob: "05/06/1959",           // AMBIGUOUS
+  encounter_date: "15/06/2023", // UNAMBIGUOUS (day=15, must be DD/MM/YYYY)
+  prescription_date: "03/07/2023" // AMBIGUOUS
+};
+
+// Analysis:
+// - encounter_date is unambiguous → DD/MM/YYYY format detected
+// - Apply DD/MM/YYYY to ALL dates in this encounter
+// - dob: "1959-06-05" (June 5)
+// - prescription_date: "2023-07-03" (July 3)
+```
+
+**Implementation:**
+
+```typescript
+interface DateContext {
+  dates: Array<{
+    fieldName: string;
+    rawValue: string;
+    isAmbiguous: boolean;
+    detectedFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY';
+  }>;
+}
+
+function inferEncounterDateFormat(context: DateContext): 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'unknown' {
+  // Count unambiguous dates by format
+  const formatVotes = {
+    'DD/MM/YYYY': 0,
+    'MM/DD/YYYY': 0
+  };
+
+  for (const date of context.dates) {
+    if (!date.isAmbiguous && date.detectedFormat) {
+      formatVotes[date.detectedFormat]++;
+    }
+  }
+
+  // Require at least 2 unambiguous dates for confidence
+  const totalUnambiguous = formatVotes['DD/MM/YYYY'] + formatVotes['MM/DD/YYYY'];
+  if (totalUnambiguous < 2) {
+    return 'unknown';  // Fall back to default policy
+  }
+
+  // Return majority format
+  return formatVotes['DD/MM/YYYY'] >= formatVotes['MM/DD/YYYY']
+    ? 'DD/MM/YYYY'
+    : 'MM/DD/YYYY';
+}
+```
+
+**Data Sources:**
+- DOB: `pass05_pending_encounters.patient_date_of_birth`
+- Encounter dates: `encounter_start_date`, `encounter_end_date`
+- Future: Lab result dates, prescription dates, procedure dates (Pass 2 data)
+
+**Confidence Levels:**
+```typescript
+const confidence = {
+  '3+ unambiguous dates, unanimous format': 'high',
+  '2 unambiguous dates, same format': 'medium',
+  '1 unambiguous date': 'low',
+  '0 unambiguous dates': 'use_default_policy'
+};
+```
+
+**Database Schema Addition (Future):**
+```sql
+-- Add to pass05_pending_encounters or healthcare_encounters
+ALTER TABLE pass05_pending_encounters
+ADD COLUMN inferred_date_format VARCHAR(20)
+  CHECK (inferred_date_format IN ('DD/MM/YYYY', 'MM/DD/YYYY', 'unknown')),
+ADD COLUMN date_format_confidence VARCHAR(10)
+  CHECK (date_format_confidence IN ('high', 'medium', 'low'));
+```
+
+---
+
+### Strategy 2: Geographic Context from Address
+
+**Principle:** Patient/provider address indicates likely date format convention.
+
+**Logic:**
+1. Extract address from encounter (patient or facility)
+2. Detect country/region from address
+3. Apply region-specific date format
+
+**Regional Date Format Standards:**
+```typescript
+const REGION_DATE_FORMATS = {
+  // DD/MM/YYYY regions
+  'AU': 'DD/MM/YYYY',  // Australia
+  'GB': 'DD/MM/YYYY',  // United Kingdom
+  'NZ': 'DD/MM/YYYY',  // New Zealand
+  'IE': 'DD/MM/YYYY',  // Ireland
+  'ZA': 'DD/MM/YYYY',  // South Africa
+  'IN': 'DD/MM/YYYY',  // India
+  'EU': 'DD/MM/YYYY',  // European Union (most countries)
+
+  // MM/DD/YYYY regions
+  'US': 'MM/DD/YYYY',  // United States
+  'PH': 'MM/DD/YYYY',  // Philippines
+  'CA': 'MM/DD/YYYY',  // Canada (mixed, but MM/DD common)
+
+  // YYYY/MM/DD regions (ISO order)
+  'JP': 'YYYY/MM/DD',  // Japan
+  'KR': 'YYYY/MM/DD',  // South Korea
+  'CN': 'YYYY/MM/DD',  // China
+};
+```
+
+**Example:**
+
+```typescript
+// Encounter data:
+const encounter = {
+  patient_address: "123 Main St, Boston, MA 02101, USA",
+  patient_dob: "05/06/1959"  // AMBIGUOUS
+};
+
+// Address parsing:
+const detectedCountry = extractCountryFromAddress(encounter.patient_address);
+// Returns: "US"
+
+// Format inference:
+const dateFormat = REGION_DATE_FORMATS[detectedCountry];
+// Returns: "MM/DD/YYYY"
+
+// Apply to DOB:
+// "05/06/1959" → "1959-05-06" (May 6) instead of default June 5
+```
+
+**Implementation Challenges:**
+
+1. **Address Parsing Reliability:**
+   - Addresses may be incomplete ("Sydney" without country)
+   - OCR errors in address field
+   - Abbreviated addresses ("NSW, Australia" vs full postal address)
+
+2. **Ambiguous Addresses:**
+   - City names exist in multiple countries (Paris, TX vs Paris, France)
+   - Requires postal code or state/province for disambiguation
+
+3. **Multi-National Documents:**
+   - US doctor treating Australian patient (which address wins?)
+   - Patient moved countries (address on document may not match DOB document)
+
+**Proposed Solution:**
+
+```typescript
+interface AddressContext {
+  patient_address?: string;
+  facility_address?: string;
+  provider_address?: string;
+}
+
+function inferDateFormatFromAddress(context: AddressContext): {
+  format: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'unknown';
+  confidence: 'high' | 'medium' | 'low';
+  source: 'patient' | 'facility' | 'provider' | 'none';
+} {
+  // Priority: facility > patient > provider
+  // Rationale: Facility location is where document was created
+
+  for (const [source, address] of [
+    ['facility', context.facility_address],
+    ['patient', context.patient_address],
+    ['provider', context.provider_address]
+  ]) {
+    if (!address) continue;
+
+    const country = extractCountryFromAddress(address as string);
+    if (country && REGION_DATE_FORMATS[country]) {
+      return {
+        format: REGION_DATE_FORMATS[country],
+        confidence: source === 'facility' ? 'high' : 'medium',
+        source: source as 'patient' | 'facility' | 'provider'
+      };
+    }
+  }
+
+  return { format: 'unknown', confidence: 'low', source: 'none' };
+}
+```
+
+**Data Sources:**
+- `pass05_pending_encounters.patient_address`
+- `pass05_pending_encounters.facility_name` (may need geocoding)
+- Future: `healthcare_encounter_identifiers` table may contain address data
+
+**Database Schema Addition (Future):**
+```sql
+-- Add to pass05_pending_encounters
+ALTER TABLE pass05_pending_encounters
+ADD COLUMN detected_country_code VARCHAR(2),  -- ISO 3166-1 alpha-2
+ADD COLUMN address_confidence VARCHAR(10),
+ADD COLUMN address_source VARCHAR(20) CHECK (address_source IN ('patient', 'facility', 'provider'));
+```
+
+---
+
+### Strategy 3: User Device/Account Timezone (Lower Priority)
+
+**Principle:** User's account timezone or device locale may indicate preferred date format.
+
+**Logic:**
+1. Capture user timezone on upload
+2. Map timezone to likely date format
+3. Use as weak signal (lowest priority)
+
+**Timezone → Format Mapping:**
+```typescript
+const TIMEZONE_DATE_FORMATS = {
+  // US timezones → MM/DD/YYYY
+  'America/New_York': 'MM/DD/YYYY',
+  'America/Chicago': 'MM/DD/YYYY',
+  'America/Los_Angeles': 'MM/DD/YYYY',
+
+  // AU/NZ timezones → DD/MM/YYYY
+  'Australia/Sydney': 'DD/MM/YYYY',
+  'Australia/Melbourne': 'DD/MM/YYYY',
+  'Pacific/Auckland': 'DD/MM/YYYY',
+
+  // UK/EU timezones → DD/MM/YYYY
+  'Europe/London': 'DD/MM/YYYY',
+  'Europe/Paris': 'DD/MM/YYYY',
+};
+```
+
+**Challenges:**
+
+1. **User Mobility:**
+   - Australian user traveling in US (which timezone to trust?)
+   - Uploaded old documents from different country
+
+2. **VPN/Proxy:**
+   - Timezone may not reflect actual location
+
+3. **Multi-User Accounts:**
+   - Healthcare proxy uploading for parent (different timezones)
+
+**Recommendation:**
+- Use as **tie-breaker only** when all other signals are ambiguous
+- Never override stronger signals (intra-encounter consistency, address)
+
+**Implementation:**
+
+```typescript
+// Capture on upload (already available in user_profiles or session)
+const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+// e.g., "Australia/Sydney"
+
+// Use as lowest-priority signal
+function inferDateFormatFromTimezone(timezone: string): 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'unknown' {
+  return TIMEZONE_DATE_FORMATS[timezone] || 'unknown';
+}
+```
+
+**Priority Order:**
+1. Intra-encounter date consistency (Strategy 1) - **HIGH**
+2. Address geographic context (Strategy 2) - **MEDIUM**
+3. User timezone (Strategy 3) - **LOW** (tie-breaker only)
+
+---
+
+### Strategy 4: Medical Record Number (MRN) Pattern Analysis
+
+**Principle:** MRN format may contain embedded geographic or system identifiers.
+
+**Examples of MRN Patterns:**
+
+```typescript
+// US Healthcare Systems
+const US_MRN_PATTERNS = {
+  Epic: /^[E]\d{7}$/,           // Epic EMR: E1234567
+  Cerner: /^[C]\d{8}$/,         // Cerner: C12345678
+  Medicare: /^\d{10}[A-Z]$/,    // Medicare number: 1234567890A
+};
+
+// Australian Healthcare Systems
+const AU_MRN_PATTERNS = {
+  Medicare: /^\d{10}$/,         // Medicare: 1234567890 (10 digits)
+  IHI: /^\d{16}$/,              // Individual Healthcare Identifier: 16 digits
+  Hospital: /^[A-Z]{2}\d{6}$/,  // Hospital MRN: AB123456
+};
+
+// UK Healthcare Systems
+const UK_MRN_PATTERNS = {
+  NHS: /^\d{3}\s?\d{3}\s?\d{4}$/, // NHS number: 123 456 7890
+};
+```
+
+**Detection Logic:**
+
+```typescript
+interface MRNContext {
+  identifiers: Array<{
+    identifier_type: string;      // 'MRN', 'Medicare', 'NHS', 'IHI'
+    identifier_value: string;
+    identifier_system?: string;   // 'Epic', 'Cerner', 'AU_Medicare', etc.
+  }>;
+}
+
+function inferDateFormatFromMRN(context: MRNContext): {
+  format: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'unknown';
+  confidence: 'medium' | 'low';
+  detectedSystem?: string;
+} {
+  for (const identifier of context.identifiers) {
+    // Check Australian patterns
+    if (/^\d{10}$/.test(identifier.identifier_value)) {
+      return {
+        format: 'DD/MM/YYYY',
+        confidence: 'medium',
+        detectedSystem: 'AU_Medicare'
+      };
+    }
+
+    if (/^\d{16}$/.test(identifier.identifier_value)) {
+      return {
+        format: 'DD/MM/YYYY',
+        confidence: 'medium',
+        detectedSystem: 'AU_IHI'
+      };
+    }
+
+    // Check US patterns
+    if (/^[E]\d{7}$/.test(identifier.identifier_value)) {
+      return {
+        format: 'MM/DD/YYYY',
+        confidence: 'medium',
+        detectedSystem: 'US_Epic'
+      };
+    }
+
+    if (/^\d{10}[A-Z]$/.test(identifier.identifier_value)) {
+      return {
+        format: 'MM/DD/YYYY',
+        confidence: 'medium',
+        detectedSystem: 'US_Medicare'
+      };
+    }
+
+    // Check UK patterns
+    if (/^\d{3}\s?\d{3}\s?\d{4}$/.test(identifier.identifier_value)) {
+      return {
+        format: 'DD/MM/YYYY',
+        confidence: 'medium',
+        detectedSystem: 'UK_NHS'
+      };
+    }
+  }
+
+  return { format: 'unknown', confidence: 'low' };
+}
+```
+
+**Data Sources:**
+
+Currently planned tables (see Rabbit #25):
+- `pass05_pending_encounter_identifiers` (pending encounters)
+- `healthcare_encounter_identifiers` (final encounters)
+
+**Schema (from current_schema/04_ai_processing.sql lines 1947-1970):**
+```sql
+CREATE TABLE IF NOT EXISTS pass05_pending_encounter_identifiers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL,
+  pending_id text NOT NULL,
+  FOREIGN KEY (session_id, pending_id)
+    REFERENCES pass05_pending_encounters(session_id, pending_id) ON DELETE CASCADE,
+
+  identifier_type varchar(50) NOT NULL,     -- 'MRN', 'Medicare', 'patient_id', 'visit_id'
+  identifier_value text NOT NULL,
+  identifier_system text,                   -- 'Epic', 'Cerner', 'AU_Medicare', etc.
+  assigner_organization text,
+
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Note:** As of Rabbit #25, these tables are currently empty (bug to be fixed). Once identifiers are being extracted and stored, MRN pattern analysis becomes viable.
+
+**Limitations:**
+
+1. **OCR Errors in MRN:**
+   - MRN may be misread (digit confusion: 0/O, 1/I, 8/B)
+   - Pattern matching becomes unreliable
+
+2. **International Healthcare:**
+   - Multi-national hospital systems (Cleveland Clinic, Mayo Clinic have international branches)
+   - MRN pattern may not match document location
+
+3. **Generic MRN Formats:**
+   - Many hospitals use simple numeric MRNs (e.g., `123456`) with no geographic signal
+
+**Recommendation:**
+- Use as **supplementary signal** when MRN clearly matches known pattern
+- Combine with other strategies (don't rely solely on MRN)
+- Priority: MEDIUM (behind intra-encounter consistency, on par with address)
+
+---
+
+### Strategy 5: Cross-Document Consistency (Shell File Level)
+
+**Principle:** Multiple encounters within same shell_file (document upload) should use consistent date format.
+
+**Scope Difference from Strategy 1:**
+- Strategy 1: Dates within **single encounter**
+- Strategy 5: Dates across **multiple encounters** in same document
+
+**Example:**
+
+```typescript
+// Single 50-page document contains 3 encounters:
+const shellFile = {
+  encounters: [
+    {
+      encounter_type: 'outpatient',
+      encounter_date: '15/06/2023',  // UNAMBIGUOUS (day=15)
+      patient_dob: '05/06/1959'      // AMBIGUOUS
+    },
+    {
+      encounter_type: 'specialist',
+      encounter_date: '22/07/2023',  // UNAMBIGUOUS (day=22)
+      patient_dob: '05/06/1959'      // AMBIGUOUS (same patient)
+    },
+    {
+      encounter_type: 'diagnostic',
+      encounter_date: '03/08/2023',  // AMBIGUOUS
+      patient_dob: '05/06/1959'      // AMBIGUOUS (same patient)
+    }
+  ]
+};
+
+// Analysis:
+// - 2 out of 3 encounters have unambiguous dates → DD/MM/YYYY detected
+// - Apply DD/MM/YYYY to ALL dates in this shell_file
+// - High confidence: Same document, same medical system, same format convention
+```
+
+**Implementation:**
+
+```typescript
+interface ShellFileContext {
+  shell_file_id: string;
+  encounters: Array<{
+    pending_id: string;
+    dates: Array<{
+      fieldName: string;
+      rawValue: string;
+      isAmbiguous: boolean;
+      detectedFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY';
+    }>;
+  }>;
+}
+
+function inferShellFileDateFormat(context: ShellFileContext): {
+  format: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'unknown';
+  confidence: 'high' | 'medium' | 'low';
+  unambiguousCount: number;
+} {
+  const formatVotes = { 'DD/MM/YYYY': 0, 'MM/DD/YYYY': 0 };
+
+  // Count unambiguous dates across ALL encounters in this shell file
+  for (const encounter of context.encounters) {
+    for (const date of encounter.dates) {
+      if (!date.isAmbiguous && date.detectedFormat) {
+        formatVotes[date.detectedFormat]++;
+      }
+    }
+  }
+
+  const totalUnambiguous = formatVotes['DD/MM/YYYY'] + formatVotes['MM/DD/YYYY'];
+
+  // Confidence based on sample size
+  let confidence: 'high' | 'medium' | 'low';
+  if (totalUnambiguous >= 5) {
+    confidence = 'high';
+  } else if (totalUnambiguous >= 3) {
+    confidence = 'medium';
+  } else if (totalUnambiguous >= 1) {
+    confidence = 'low';
+  } else {
+    return { format: 'unknown', confidence: 'low', unambiguousCount: 0 };
+  }
+
+  // Require >75% agreement for high confidence
+  const majority = Math.max(formatVotes['DD/MM/YYYY'], formatVotes['MM/DD/YYYY']);
+  if (majority / totalUnambiguous < 0.75) {
+    confidence = 'low';  // Mixed formats detected - unusual
+  }
+
+  return {
+    format: formatVotes['DD/MM/YYYY'] >= formatVotes['MM/DD/YYYY']
+      ? 'DD/MM/YYYY'
+      : 'MM/DD/YYYY',
+    confidence,
+    unambiguousCount: totalUnambiguous
+  };
+}
+```
+
+**Data Sources:**
+```sql
+-- Query all encounters from same shell_file
+SELECT
+  pe.pending_id,
+  pe.patient_date_of_birth,
+  pe.encounter_start_date,
+  pe.encounter_end_date
+FROM pass05_pending_encounters pe
+WHERE pe.session_id = (
+  SELECT id FROM pass05_progressive_sessions
+  WHERE shell_file_id = :shell_file_id
+)
+```
+
+**Database Schema Addition (Future):**
+```sql
+-- Add to pass05_progressive_sessions (shell file level metadata)
+ALTER TABLE pass05_progressive_sessions
+ADD COLUMN inferred_date_format VARCHAR(20),
+ADD COLUMN date_format_confidence VARCHAR(10),
+ADD COLUMN date_format_unambiguous_count INTEGER;
+```
+
+**Benefits:**
+- Leverages multiple data points across entire document
+- Same document = same healthcare system = consistent format
+- Higher confidence than single-encounter analysis
+
+**Priority:** **HIGH** (equal to Strategy 1, should be combined)
+
+---
+
+### Combined Disambiguation Strategy
+
+**Recommended Priority Order:**
+
+```typescript
+function disambiguateDateFormat(context: {
+  encounterDates: DateContext;           // Strategy 1: Intra-encounter
+  shellFileDates: ShellFileContext;      // Strategy 5: Cross-document
+  addresses: AddressContext;             // Strategy 2: Geographic
+  identifiers: MRNContext;               // Strategy 4: MRN patterns
+  userTimezone: string;                  // Strategy 3: User locale
+}): {
+  format: 'DD/MM/YYYY' | 'MM/DD/YYYY';
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+} {
+
+  // PRIORITY 1: Cross-document consistency (shell file level)
+  // Rationale: Most data points, same healthcare system
+  const shellFileInference = inferShellFileDateFormat(context.shellFileDates);
+  if (shellFileInference.confidence === 'high' && shellFileInference.unambiguousCount >= 5) {
+    return {
+      format: shellFileInference.format,
+      confidence: 'high',
+      reason: `shell_file_consistency_${shellFileInference.unambiguousCount}_unambiguous_dates`
+    };
+  }
+
+  // PRIORITY 2: Intra-encounter consistency
+  // Rationale: Same encounter = same date format
+  const encounterInference = inferEncounterDateFormat(context.encounterDates);
+  if (encounterInference !== 'unknown') {
+    return {
+      format: encounterInference,
+      confidence: 'medium',
+      reason: 'intra_encounter_consistency'
+    };
+  }
+
+  // PRIORITY 3: Geographic context (address)
+  // Rationale: Document location indicates date convention
+  const addressInference = inferDateFormatFromAddress(context.addresses);
+  if (addressInference.confidence !== 'low') {
+    return {
+      format: addressInference.format,
+      confidence: addressInference.confidence,
+      reason: `address_${addressInference.source}_${addressInference.format}`
+    };
+  }
+
+  // PRIORITY 4: MRN pattern analysis
+  // Rationale: Healthcare system identifier may indicate region
+  const mrnInference = inferDateFormatFromMRN(context.identifiers);
+  if (mrnInference.format !== 'unknown') {
+    return {
+      format: mrnInference.format,
+      confidence: mrnInference.confidence,
+      reason: `mrn_pattern_${mrnInference.detectedSystem}`
+    };
+  }
+
+  // PRIORITY 5: User timezone (tie-breaker only)
+  // Rationale: Weakest signal, user may be traveling or using VPN
+  const timezoneInference = inferDateFormatFromTimezone(context.userTimezone);
+  if (timezoneInference !== 'unknown') {
+    return {
+      format: timezoneInference,
+      confidence: 'low',
+      reason: `user_timezone_${context.userTimezone}`
+    };
+  }
+
+  // FALLBACK: Default policy (DD/MM/YYYY for international majority)
+  return {
+    format: 'DD/MM/YYYY',
+    confidence: 'low',
+    reason: 'default_international_policy'
+  };
+}
+```
+
+**Database Storage:**
+
+```sql
+-- Add to pass05_pending_encounters or healthcare_encounters
+ALTER TABLE pass05_pending_encounters
+ADD COLUMN date_format_inference JSONB;
+
+-- Example value:
+{
+  "format": "DD/MM/YYYY",
+  "confidence": "high",
+  "reason": "shell_file_consistency_7_unambiguous_dates",
+  "strategies_applied": [
+    {
+      "strategy": "cross_document_consistency",
+      "result": "DD/MM/YYYY",
+      "confidence": "high",
+      "unambiguous_count": 7
+    },
+    {
+      "strategy": "intra_encounter_consistency",
+      "result": "DD/MM/YYYY",
+      "confidence": "medium",
+      "unambiguous_count": 2
+    },
+    {
+      "strategy": "address_geographic",
+      "result": "DD/MM/YYYY",
+      "confidence": "medium",
+      "detected_country": "AU"
+    }
+  ],
+  "all_agree": true  // All strategies returned same format (high confidence)
+}
+```
+
+**Testing Strategy:**
+
+Create test cases for each scenario:
+```typescript
+describe('Combined disambiguation', () => {
+  it('should use shell-file consistency when 5+ unambiguous dates', () => {
+    // Test with 7 DD/MM dates across 3 encounters
+  });
+
+  it('should fall back to intra-encounter when shell-file inconclusive', () => {
+    // Test with 1 encounter, 2 unambiguous DD/MM dates
+  });
+
+  it('should use address when dates all ambiguous', () => {
+    // Test with US address, all dates like 01/02/2024
+  });
+
+  it('should use MRN when address missing', () => {
+    // Test with Epic MRN pattern (US system)
+  });
+
+  it('should use timezone as tie-breaker', () => {
+    // Test with all other signals inconclusive
+  });
+
+  it('should flag conflicts when strategies disagree', () => {
+    // Test: shell-file says DD/MM, but address says US
+    // Should return low confidence + flag for review
+  });
+});
+```
+
+---
+
+## Implementation Roadmap
+
+### Phase 1: Immediate Fix (Current Sprint)
+- ✅ Implement basic `normalizeDateToISO()` with DD/MM/YYYY heuristics
+- ✅ Add ambiguity flagging and metadata return
+- ✅ Add DOB year sanity checks
+- ✅ Enhanced fallback logging
+
+### Phase 2: Intra-Encounter Consistency (Next Sprint)
+- Implement Strategy 1 (intra-encounter date consistency)
+- Store inferred format in database
+- Update reconciliation logic to use inferred format
+
+### Phase 3: Cross-Document Analysis (Future)
+- Implement Strategy 5 (shell-file level consistency)
+- Combine with Strategy 1 for higher confidence
+- Add metrics dashboard for format detection success rate
+
+### Phase 4: Geographic & MRN Context (Future)
+- Implement Strategy 2 (address-based inference)
+- Implement Strategy 4 (MRN pattern analysis)
+- Requires fixing Rabbit #25 (identifier extraction bug) first
+
+### Phase 5: User Timezone (Low Priority)
+- Implement Strategy 3 (timezone as tie-breaker)
+- Capture timezone on upload
+- Use only when all other signals fail
+
+---
+
+**Document Status:** Updated with GPT-5.1 review feedback and exploratory disambiguation strategies
+**Next Step:** Await clearance to proceed with Phase 1 implementation
+**Implementation ETA:**
+- Phase 1: ~3 hours (function replacement + metadata + tests)
+- Phase 2: ~5 hours (intra-encounter logic + integration)
+- Phases 3-5: TBD (post-MVP enhancements)
+
