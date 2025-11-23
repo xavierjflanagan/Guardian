@@ -1043,239 +1043,45 @@ Change the "Safe Split Criteria" to explicitly mention **"Semantic Continuity"**
 
 ---
 
-### Rabbit #24: DOB Reconciliation Failure (DD/MM/YYYY Format) - 🔴 HIGH
+### Rabbit #24: Date Format Architecture (DD/MM/YYYY vs MM/DD/YYYY) - 🔴 HIGH
 
-**Component:** TypeScript `normalizeDateToISO()` function in `pending-reconciler.ts`
-**Status:** 🔴 UNFIXED
+**Component:** TypeScript `normalizeDateToISO()` function + date handling architecture
+**Status:** 🔴 UNFIXED - Comprehensive fix designed, awaiting implementation
 **Severity:** HIGH - Patient identity data loss for international date formats
-**Evidence:**
-- 3-page file (Vincent Cheers): DOB lost during reconciliation
-- 142-page file (Emma Thompson): DOB reconciled successfully
+**Full Documentation:** See `16-DATE-FORMAT-ARCHITECTURE.md` for complete analysis
 
-#### Issue
-
-DOB reconciler only supports US date format (MM/DD/YYYY) and written format ("Month DD, YYYY"), but fails on Australian/European format (DD/MM/YYYY).
-
-**3-Page File (FAILED):**
-```sql
--- Pending encounter:
-patient_date_of_birth: "16/02/1959"  -- Australian format (DD/MM/YYYY)
-
--- Final encounter:
-patient_date_of_birth: NULL  ❌ -- Lost during reconciliation
-```
-
-**142-Page File (SUCCESS):**
-```sql
--- Pending encounters (3 different formats):
-patient_date_of_birth: "November 14, 1965"   -- Written format
-patient_date_of_birth: "11/14/1965"          -- US format (MM/DD/YYYY)
-patient_date_of_birth: "November 14 , 1965"  -- Written with extra space
-
--- Final encounter:
-patient_date_of_birth: "1965-11-14"  ✅ -- All variants parsed correctly
-```
-
-#### Root Cause Analysis (Investigation Complete)
-
-**Location:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts` lines 56-72
+#### Quick Summary
 
 **The Problem:**
-```typescript
-function normalizeDateToISO(dateString: string | null): string | null {
-  if (!dateString) return null;
+- JavaScript `new Date()` assumes MM/DD/YYYY for slash-separated dates
+- Australian/international dates (DD/MM/YYYY) fail when day > 12
+- Example: `"16/02/1959"` → tries month 16 → NaN → NULL in database
 
-  try {
-    const parsed = new Date(dateString);  // ← BUG: JavaScript Date() assumes MM/DD/YYYY
-    if (isNaN(parsed.getTime())) return null;
+**Affected Fields:**
+- `patient_date_of_birth` (currently broken for DD/MM/YYYY)
+- `encounter_start_date` (not normalized, potential future failure)
+- `encounter_end_date` (not normalized, potential future failure)
 
-    const year = parsed.getFullYear();
-    const month = String(parsed.getMonth() + 1).padStart(2, '0');
-    const day = String(parsed.getDate()).padStart(2, '0');
+**Evidence:**
+- Vincent Cheers (3-page): `"16/02/1959"` → NULL ❌
+- Emma Thompson (142-page): `"11/14/1965"` → `"1965-11-14"` ✅
 
-    return `${year}-${month}-${day}`;
-  } catch (error) {
-    console.warn('[Identity] Failed to parse date:', dateString, error);
-    return null;
-  }
-}
-```
+**Industry Research Complete:**
+- Database schema already correct (TIMESTAMPTZ, DATE types align with ISO 8601)
+- Best practice confirmed: Store ISO 8601, display in user locale
+- Fix required in application layer only (no schema changes)
 
-**Why "16/02/1959" Fails:**
-1. JavaScript `new Date("16/02/1959")` interprets slash-separated dates as **MM/DD/YYYY**
-2. Attempts to parse as **16th month**, 2nd day, 1959
-3. Month 16 is invalid → `NaN` → Returns `null`
+**Immediate Actions (Designed, Ready for Implementation):**
+1. Replace `normalizeDateToISO()` with 115-line smart parser
+2. Expand normalization to encounter dates
+3. Test with both date formats
+4. Deploy to Render.com worker
 
-**Why "11/14/1965" Works:**
-1. Parsed as **11th month** (November), 14th day, 1965
-2. Valid date → `1965-11-14` ✅
-
-**Why Written Format Works:**
-1. `new Date("November 14, 1965")` uses text parsing (month name first)
-2. Not ambiguous → Parses correctly ✅
-
-**Database Side (NOT the problem):**
-The RPC at line 643 of `08_job_coordination.sql` uses:
-```sql
-(p_encounter_data->>'patient_date_of_birth')::DATE
-```
-This PostgreSQL `::DATE` cast **expects ISO format** (YYYY-MM-DD), which is what `normalizeDateToISO()` should provide. The bug is in the TypeScript normalization, not the database.
-
-#### Required Fix
-
-**Replace `normalizeDateToISO()` with smart date parser:**
-
-```typescript
-/**
- * Normalize date string to ISO format (YYYY-MM-DD)
- * Migration 63: Enhanced to support international date formats (DD/MM/YYYY)
- *
- * Handles formats:
- * - Written: "November 14, 1965", "14 Nov 1965", "Nov 14, 1965"
- * - US slash: "11/14/1965" (MM/DD/YYYY)
- * - European slash: "14/11/1965" (DD/MM/YYYY)
- * - ISO: "1965-11-14" (YYYY-MM-DD)
- * - European dots: "14.11.1965" (DD.MM.YYYY)
- * - European dash: "14-11-1965" (DD-MM-YYYY)
- *
- * Disambiguation logic for ambiguous dates (e.g., "05/06/1959"):
- * - If first number > 12: Must be DD/MM/YYYY
- * - If second number > 12: Must be MM/DD/YYYY
- * - If both ≤ 12: Assume DD/MM/YYYY (international default)
- *
- * @param dateString - Date string in any parseable format
- * @returns ISO date string (YYYY-MM-DD) or null if unparseable
- */
-function normalizeDateToISO(dateString: string | null): string | null {
-  if (!dateString || dateString.trim() === '') return null;
-
-  const trimmed = dateString.trim();
-
-  try {
-    // 1. ISO format (YYYY-MM-DD) - pass through
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      const date = new Date(trimmed);
-      if (!isNaN(date.getTime())) return trimmed;
-    }
-
-    // 2. Written format (let JS Date handle)
-    if (/[a-zA-Z]/.test(trimmed)) {
-      const parsed = new Date(trimmed);
-      if (!isNaN(parsed.getTime())) {
-        const year = parsed.getFullYear();
-        const month = String(parsed.getMonth() + 1).padStart(2, '0');
-        const day = String(parsed.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-    }
-
-    // 3. Numeric formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY, DD-MM-YYYY)
-    const numericMatch = trimmed.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{2,4})$/);
-    if (numericMatch) {
-      let [_, first, second, year] = numericMatch;
-
-      // Normalize 2-digit year to 4-digit
-      if (year.length === 2) {
-        const yearNum = parseInt(year, 10);
-        year = yearNum < 50 ? `20${year}` : `19${year}`;
-      }
-
-      const firstNum = parseInt(first, 10);
-      const secondNum = parseInt(second, 10);
-
-      let day: number, month: number;
-
-      // Disambiguation logic
-      if (firstNum > 12) {
-        // First number > 12 → Must be DD/MM/YYYY
-        day = firstNum;
-        month = secondNum;
-      } else if (secondNum > 12) {
-        // Second number > 12 → Must be MM/DD/YYYY
-        month = firstNum;
-        day = secondNum;
-      } else {
-        // Ambiguous (both ≤ 12) → Default to DD/MM/YYYY (international)
-        day = firstNum;
-        month = secondNum;
-      }
-
-      // Validate day and month ranges
-      if (day < 1 || day > 31 || month < 1 || month > 12) {
-        console.warn('[Identity] Invalid day/month values:', { day, month, dateString });
-        return null;
-      }
-
-      // Format as ISO
-      const monthStr = String(month).padStart(2, '0');
-      const dayStr = String(day).padStart(2, '0');
-
-      // Validate the constructed date is valid
-      const testDate = new Date(`${year}-${monthStr}-${dayStr}`);
-      if (isNaN(testDate.getTime())) {
-        console.warn('[Identity] Constructed invalid date:', `${year}-${monthStr}-${dayStr}`);
-        return null;
-      }
-
-      return `${year}-${monthStr}-${dayStr}`;
-    }
-
-    // 4. Fallback: Try JS Date() as last resort
-    const fallback = new Date(trimmed);
-    if (!isNaN(fallback.getTime())) {
-      const year = fallback.getFullYear();
-      const month = String(fallback.getMonth() + 1).padStart(2, '0');
-      const day = String(fallback.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    console.warn('[Identity] No matching date format:', trimmed);
-    return null;
-
-  } catch (error) {
-    console.warn('[Identity] Failed to parse date:', dateString, error);
-    return null;
-  }
-}
-```
-
-**Test Cases:**
-```typescript
-// Should all return valid ISO dates:
-normalizeDateToISO("16/02/1959")         // "1959-02-16" (DD/MM/YYYY)
-normalizeDateToISO("11/14/1965")         // "1965-11-14" (MM/DD/YYYY - month 11)
-normalizeDateToISO("14/11/1965")         // "1965-11-14" (DD/MM/YYYY - day 14)
-normalizeDateToISO("31/12/1959")         // "1959-12-31" (DD/MM/YYYY - day 31)
-normalizeDateToISO("12/31/1959")         // "1959-12-31" (MM/DD/YYYY - day 31)
-normalizeDateToISO("05/06/1959")         // "1959-06-05" (DD/MM/YYYY - ambiguous default)
-normalizeDateToISO("November 14, 1965")  // "1965-11-14" (Written)
-normalizeDateToISO("1965-11-14")         // "1965-11-14" (ISO passthrough)
-normalizeDateToISO("14.11.1965")         // "1965-11-14" (DD.MM.YYYY)
-normalizeDateToISO("14-11-1965")         // "1965-11-14" (DD-MM-YYYY)
-normalizeDateToISO("59")                 // null (2-digit year alone)
-```
-
-#### Scope Expansion
-
-The `normalizeDateToISO()` function is currently ONLY used for `patient_date_of_birth` (line 191).
-
-**Other date fields in reconciler:**
-- `encounter_start_date` (line 596 in RPC) - Uses `::TIMESTAMPTZ` cast
-- `encounter_end_date` (line 597 in RPC) - Uses `::TIMESTAMPTZ` cast
-
-**These fields are NOT normalized** - they're passed directly to PostgreSQL as-is. The `::TIMESTAMPTZ` cast may be more forgiving than `::DATE`, but this should be verified.
-
-**Recommendation:**
-1. Fix `normalizeDateToISO()` immediately for patient DOB
-2. Test encounter date fields with international formats
-3. If encounter dates also fail, apply similar normalization
-
-#### Implementation Notes
-
-**File to modify:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts`
-**Lines:** 56-72 (replace `normalizeDateToISO` function)
-**Testing:** Process both test files again and verify DOB reconciles correctly
-**Deployment:** Requires Render.com worker re-deploy after code change
+**Implementation Specification:**
+- Complete function replacement code in `16-DATE-FORMAT-ARCHITECTURE.md`
+- Test cases provided
+- Testing strategy defined
+- Future enhancements documented (user locale preferences)
 
 ---
 

@@ -298,6 +298,8 @@ Extract comprehensive clinical information:
 In addition to encounter detection, identify safe split points WITHIN encounters for downstream batching.
 Your task for this section is to scan every page within each encounter to identify safe split points whereby the encounter can be safely split into two or more smaller batches for parallel AI processing.
 A safe split point is a point where the content immediately after the split point can be understood without the context that existed before the split point.
+If you do NOT find any safe split points, return an empty array for the \`safe_split_points\` array (i.e. \`\"safe_split_points\": []\`).
+Prefer a small number of clear, high-confidence split points over many uncertain ones.
 
 **Critical Rules:**
 1. DO NOT mark encounter boundaries as split points (those are handled separately)
@@ -318,7 +320,10 @@ Natural page boundaries WITHIN same encounter where content naturally separates.
 **Intra-Page Splits:**
 Safe split points within a single page.
 - You MUST scan every page for safe intra-page transitions (safe split points)
-- Mark an intra-page split IMMEDIATELY BEFORE: A new Date Header, a new Clinical Section Title, or when a horizontal separator or "End of Report" footer is followed by new content.
+- Mark an intra-page split IMMEDIATELY BEFORE any of the following when they occur mid-page:
+  - A new Date Header (e.g., "Progress Note - 2024/05/12")
+  - A new Clinical Section Title (e.g., "PATHOLOGY RESULTS", "DISCHARGE SUMMARY")
+  - A horizontal separator or "End of Report" footer that is followed by clearly new content
 - Example: Page 23 has consultation ending mid-page, pathology report beginning below
 
 **Output Structure (follows same pattern as encounter boundaries):**
@@ -509,7 +514,7 @@ Return a JSON object with this exact structure:
 - \`page_assignments\`: Maps pages to encounters using 0-based array index
 - \`validation\`: REQUIRED - Helps verify correct indexing
 - \`cascade_contexts\`: Only populate for cascading encounters
-- \`page_separation_analysis\`: Omit entirely if no safe splits found
+- \`page_separation_analysis\`: Always include; safe_split_points may be an empty array if none found.
 - Use \`null\` for missing single values, \`[]\` for empty arrays
 
 **Validation Requirements:**
