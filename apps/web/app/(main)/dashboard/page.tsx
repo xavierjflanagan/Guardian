@@ -109,7 +109,7 @@ export default function DashboardPage() {
 
     // Fire and forget - don't block UI on upload
     uploadFile(file, user.id)
-      .then((shellFileId) => {
+      .then((_shellFileId) => {
         setUploadMessage("File uploaded and AI processing started!");
         fetchDocuments(); // Refresh list
       })
