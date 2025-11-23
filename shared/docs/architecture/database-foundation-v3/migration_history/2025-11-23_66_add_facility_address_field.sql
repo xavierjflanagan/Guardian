@@ -262,6 +262,7 @@ $$ LANGUAGE plpgsql;
 -- MIGRATION STATUS
 -- ============================================================================
 -- Date Started: 2025-11-23
+-- Date Completed: 2025-11-23
 --
 -- PART 1 - COMPLETED:
 --   [x] Table column added (user executed DDL manually)
@@ -269,11 +270,10 @@ $$ LANGUAGE plpgsql;
 --   [x] Source of truth schemas updated (2 files)
 --   [x] Worker deployed to Render.com
 --
--- PART 2 - PENDING USER REVIEW:
---   [ ] RPC function update (requires MCP execution)
---   [ ] Final testing with document upload
+-- PART 2 - COMPLETED:
+--   [x] RPC function updated (executed via mcp__supabase__apply_migration)
+--   [x] Migration 66 fully deployed
 --
--- POST-EXECUTION CHECKLIST (after RPC update):
---   [ ] Verify facility_address transfers to healthcare_encounters
---   [ ] Update this file with execution timestamp
---   [ ] Mark migration as complete
+-- VERIFICATION NEEDED:
+--   [ ] Test with next document upload
+--   [ ] Verify facility_address appears in healthcare_encounters table
