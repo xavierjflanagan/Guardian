@@ -550,6 +550,7 @@ BEGIN
     date_source,
     provider_name,
     facility_name,
+    facility_address,              -- Migration 66: Facility address
     start_page,
     start_boundary_type,
     start_marker,              -- Migration 53: Fixed from start_text_marker
@@ -599,6 +600,7 @@ BEGIN
     (p_encounter_data->>'date_source')::VARCHAR,
     (p_encounter_data->>'provider_name')::VARCHAR,
     (p_encounter_data->>'facility_name')::VARCHAR,
+    (p_encounter_data->>'facility_address')::VARCHAR,  -- Migration 66: Facility address
     (p_encounter_data->>'start_page')::INTEGER,
     (p_encounter_data->>'start_boundary_type')::VARCHAR,
     (p_encounter_data->>'start_text_marker')::VARCHAR,
