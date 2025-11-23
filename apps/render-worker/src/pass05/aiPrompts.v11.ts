@@ -159,14 +159,14 @@ For EVERY encounter, identify position using text markers and region hints:
 - \`start_page\`: Page where encounter starts (document page number, 1-indexed)
 - \`start_boundary_type\`: "inter_page" (starts at page boundary) or "intra_page" (starts mid-page)
 - \`start_marker\`: Exact text that marks the encounter start (e.g., "ADMISSION NOTE") - null for inter_page
-- \`start_marker_context\`: Optional - 10-20 chars before/after if marker appears multiple times - null for inter_page
+- \`start_marker_context\`: MAXIMUM 80 characters total - Brief snippet of surrounding text (10-20 chars before marker + marker + 10-20 chars after) ONLY if marker appears multiple times on same page - null for inter_page or unique markers
 - \`start_region_hint\`: For intra_page: "top" | "upper_middle" | "lower_middle" | "bottom" - null for inter_page
 
 **End Position:**
 - \`end_page\`: Page where encounter ends (document page number, 1-indexed)
 - \`end_boundary_type\`: "inter_page" or "intra_page"
 - \`end_marker\`: Exact text that marks the encounter end - null for inter_page
-- \`end_marker_context\`: Optional - 10-20 chars before/after if marker appears multiple times - null for inter_page
+- \`end_marker_context\`: MAXIMUM 80 characters total - Brief snippet of surrounding text (10-20 chars before marker + marker + 10-20 chars after) ONLY if marker appears multiple times on same page - null for inter_page or unique markers
 - \`end_region_hint\`: For intra_page: "top" | "upper_middle" | "lower_middle" | "bottom" - null for inter_page
 
 **Position Confidence (1 field):**
@@ -343,7 +343,7 @@ Safe split points within a single page.
       "page": 23,
       "split_type": "intra_page",
       "marker": "PATHOLOGY RESULTS",
-      "marker_context": "consultation notes end. PATHOLOGY RESULTS Date:",
+      "marker_context": "notes end. PATHOLOGY RESULTS Da",
       "region_hint": "lower_middle",
       "confidence": 0.92
     }
@@ -434,7 +434,7 @@ Return a JSON object with this exact structure:
       "start_page": 2,
       "start_boundary_type": "intra_page",
       "start_marker": "ADMISSION NOTE",
-      "start_marker_context": "Plan discussed. ADMISSION NOTE Date: 2024-03-20",
+      "start_marker_context": "discussed. ADMISSION NOTE Dat",
       "start_region_hint": "lower_middle",
       "end_page": 5,
       "end_boundary_type": "inter_page",
@@ -553,7 +553,8 @@ ${fullText}
 5. Mark cascading encounters if they extend beyond chunk ${chunkNumber}
 6. Verify validation counts: total_encounters, max_index_used, pages_mapped
 7. Pages can have multiple encounters (multiple assignments in page_assignments array)
-8. Return valid JSON with exact schema structure
+8. **marker_context MUST be under 80 characters total** - truncate or use null if marker is unique
+9. Return valid JSON with exact schema structure
 
 Return ONLY the JSON object. No explanatory text.`;
 }
