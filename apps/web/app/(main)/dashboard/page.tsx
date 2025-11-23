@@ -11,6 +11,11 @@ import { MedicalDashboard } from "@/components/MedicalDashboard";
 const supabase = createClient();
 
 export default function DashboardPage() {
+  console.log('=================================================');
+  console.log('DASHBOARD PAGE LOADED - Console logging is working!');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('=================================================');
+
   const [user, setUser] = useState<User | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -18,6 +23,8 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  console.log('[DASHBOARD] Current state:', { uploading, hasUploadMessage: !!uploadMessage, hasUploadError: !!uploadError });
 
   // Effect for handling authentication state
   useEffect(() => {
