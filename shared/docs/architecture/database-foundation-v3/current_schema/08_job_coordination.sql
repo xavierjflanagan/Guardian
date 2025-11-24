@@ -339,8 +339,8 @@ CREATE TABLE IF NOT EXISTS pass05_chunk_results (
   session_id UUID NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
 
   chunk_number INTEGER NOT NULL CHECK (chunk_number > 0),
-  page_start INTEGER NOT NULL CHECK (page_start >= 0), -- 0-based inclusive
-  page_end INTEGER NOT NULL CHECK (page_end > page_start), -- 0-based exclusive
+  page_start INTEGER NOT NULL CHECK (page_start >= 1), -- Migration 66: 1-based inclusive
+  page_end INTEGER NOT NULL CHECK (page_end >= page_start), -- Migration 66: 1-based inclusive (allows single-page)
 
   processing_status TEXT NOT NULL
     CHECK (processing_status IN ('pending', 'processing', 'completed', 'failed')),

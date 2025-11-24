@@ -1712,6 +1712,11 @@ COMMENT ON TABLE pass05_progressive_sessions IS
 --   - Renamed: handoff_received → cascade_context_received, handoff_generated → cascade_package_sent
 --   - Added: pendings_created, cascading_count, cascade_ids, continues_count, page_separation_analysis
 -- -----------------------------------------------------------------------------
+-- DUPLICATE SCHEMA WARNING (Migration 66):
+-- This table definition is duplicated in current_schema/08_job_coordination.sql
+-- The canonical definition is in 08_job_coordination.sql (has more columns)
+-- This definition is kept for historical reference only
+-- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS pass05_chunk_results (
   -- Identity
