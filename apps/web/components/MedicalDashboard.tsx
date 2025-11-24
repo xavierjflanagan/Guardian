@@ -7,7 +7,7 @@ import { ExtractedInfoPanel } from './ExtractedInfoPanel';
 
 interface MedicalDashboardProps {
   documents: Document[];
-  onDocumentUpload: (file: File) => Promise<void>;
+  onDocumentUpload: (file: File) => void;
   onRefreshDocuments: () => void;
   isUploading: boolean;
   uploadError: string | null;

@@ -15,6 +15,7 @@ import {
   supabase
 } from './database';
 import { getSelectedModel } from '../models/model-selector';
+import { getModelById } from '../models/model-registry';
 import { AIProviderFactory } from '../providers/provider-factory';
 import { buildEncounterDiscoveryPromptV11 } from '../aiPrompts.v11';
 import { extractCoordinatesForMarker } from './coordinate-extractor';
@@ -562,8 +563,10 @@ function parseV11Response(
       encounter_start_date: enc.encounter_start_date,
       encounter_end_date: enc.encounter_end_date,
       encounter_timeframe_status: enc.encounter_timeframe_status,
+      date_source: enc.date_source || null,  // Migration 65: Track date provenance from AI
       provider_name: enc.provider_name,
       facility_name: enc.facility_name,
+      facility_address: enc.facility_address,  // Migration 66: Facility address
       confidence: enc.confidence || 0.5,
       summary: enc.summary,
 
@@ -575,11 +578,9 @@ function parseV11Response(
       provider_role: enc.provider_role,
       disposition: enc.disposition,
 
-      // Timeline Test (computed)
-      is_real_world_visit: !!(
-        (enc.encounter_start_date || enc.encounter_end_date) &&
-        (enc.provider_name || enc.facility_name)
-      )
+      // Migration 65: Trust AI's is_real_world_visit decision
+      // Reconciler will merge using "any true = all true" logic for multi-chunk encounters
+      is_real_world_visit: enc.is_real_world_visit
     };
   });
 
@@ -617,27 +618,31 @@ function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): strin
   return pages.map((page, idx) => {
     let text = '';
 
-    // CORRECT: Extract text from blocks (worker.ts maps lines to blocks with text field)
-    if (page.blocks && page.blocks.length > 0) {
+    // PRIORITY 1: Use spatially sorted text (proper paragraph structure, table alignment)
+    if ((page as any).spatially_sorted_text) {
+      text = (page as any).spatially_sorted_text;
+    }
+    // FALLBACK 2: Extract text from blocks (worker.ts maps lines to blocks with text field)
+    else if (page.blocks && page.blocks.length > 0) {
       // Each block represents a line of text (worker.ts:1196-1208)
       text = page.blocks
         .map((block: any) => block.text || '')
         .filter((t: string) => t.length > 0)
         .join(' ');
     }
-    // FALLBACK: Try lines array (if not transformed by worker)
+    // FALLBACK 3: Try lines array (if not transformed by worker)
     else if ((page as any).lines && Array.isArray((page as any).lines)) {
       text = (page as any).lines
         .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
         .map((line: any) => line.text)
         .join(' ');
     }
-    // LAST RESORT: Try direct text fields
-    else if ((page as any).spatially_sorted_text) {
-      text = (page as any).spatially_sorted_text;
-    } else if ((page as any).original_gcv_text) {
+    // FALLBACK 4: Try original GCV text
+    else if ((page as any).original_gcv_text) {
       text = (page as any).original_gcv_text;
-    } else if (page.text) {
+    }
+    // FALLBACK 5: Last resort page.text
+    else if (page.text) {
       text = page.text;
     }
 
@@ -649,16 +654,27 @@ function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): strin
 
 /**
  * Calculate AI cost based on model and token usage
- * TODO: Read pricing from model configuration
+ * Uses model registry for pricing, with hardcoded fallbacks
  */
 function calculateCost(modelName: string, inputTokens: number, outputTokens: number): number {
-  // Gemini 2.5 Flash pricing (as of 2025-01)
-  // Input: $0.075 per 1M tokens, Output: $0.30 per 1M tokens
-  if (modelName.includes('gemini')) {
-    return (inputTokens * 0.075 / 1_000_000) + (outputTokens * 0.30 / 1_000_000);
+  // Try to get pricing from registry
+  const modelDef = getModelById(modelName);
+  if (modelDef) {
+    return (inputTokens * modelDef.inputCostPer1M / 1_000_000) + 
+           (outputTokens * modelDef.outputCostPer1M / 1_000_000);
   }
 
-  // OpenAI GPT-4o pricing (fallback)
+  // Fallback: Gemini 2.5 Flash-Lite pricing (lowest tier)
+  // Input: $0.10 per 1M tokens, Output: $0.40 per 1M tokens
+  if (modelName.includes('gemini')) {
+    return (inputTokens * 0.10 / 1_000_000) + (outputTokens * 0.40 / 1_000_000);
+  }
+
+  // Fallback: OpenAI GPT-4o pricing
   // Input: $2.50 per 1M tokens, Output: $10.00 per 1M tokens
+  if (modelName.includes('gpt-5')) {
+    // Default to GPT-5 pricing if exact model not found in registry
+    return (inputTokens * 1.25 / 1_000_000) + (outputTokens * 10.00 / 1_000_000);
+  }
   return (inputTokens * 2.50 / 1_000_000) + (outputTokens * 10.00 / 1_000_000);
 }

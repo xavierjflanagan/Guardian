@@ -83,7 +83,7 @@ An encounter is ANY medical content that stems from a healthcare source or event
 - Test results (labs, imaging reports, pathology)
 - Healthcare communications (discharge summaries, treatment plans, consultant letters)
 
-**If medical content exists, create an encounter for it.** This ensures all data remains attached to its source.
+**If healthcare-related content exists, create an encounter for it.** Include the ENTIRE official document structure (clinical pages + administrative pages + structural pages). This ensures all data remains attached to its source.
 
 **Stage 2: Is this a real-world visit?** (Three-Part Test)
 After identifying an encounter, determine if it represents an ACTUAL healthcare interaction:
@@ -125,10 +125,10 @@ Examples:
 
 **Critical Cascade Rules:**
 
-An encounter is **cascading** if it reaches or extends past the LAST page of this chunk:
+An encounter is **cascading** if its OFFICIAL DOCUMENT STRUCTURE reaches or extends past the LAST page of this chunk:
 - **This chunk contains pages ${pageRange[0]} to ${pageRange[1]}**
 - **If encounter ends at page ${pageRange[1]} (last page) OR LATER → Set \`is_cascading: true\`**
-- Set \`expected_continuation\`: What you expect in next chunk (e.g., "discharge_summary", "lab_results")
+- Set \`expected_continuation\`: What you expect in next chunk (e.g., "discharge_summary", "lab_results", "document metadata")
 - Set \`cascade_context\`: Brief note about continuation state
 
 **Why:** An encounter ending at the chunk's last page likely continues into the next chunk. Mark it as cascading so the system can link it with continuation data from the next chunk.
@@ -159,14 +159,14 @@ For EVERY encounter, identify position using text markers and region hints:
 - \`start_page\`: Page where encounter starts (document page number, 1-indexed)
 - \`start_boundary_type\`: "inter_page" (starts at page boundary) or "intra_page" (starts mid-page)
 - \`start_marker\`: Exact text that marks the encounter start (e.g., "ADMISSION NOTE") - null for inter_page
-- \`start_marker_context\`: Optional - 10-20 chars before/after if marker appears multiple times - null for inter_page
+- \`start_marker_context\`: MAXIMUM 80 characters total - Brief snippet of surrounding text (10-20 chars before marker + marker + 10-20 chars after) ONLY if marker appears multiple times on same page - null for inter_page or unique markers
 - \`start_region_hint\`: For intra_page: "top" | "upper_middle" | "lower_middle" | "bottom" - null for inter_page
 
 **End Position:**
 - \`end_page\`: Page where encounter ends (document page number, 1-indexed)
 - \`end_boundary_type\`: "inter_page" or "intra_page"
 - \`end_marker\`: Exact text that marks the encounter end - null for inter_page
-- \`end_marker_context\`: Optional - 10-20 chars before/after if marker appears multiple times - null for inter_page
+- \`end_marker_context\`: MAXIMUM 80 characters total - Brief snippet of surrounding text (10-20 chars before marker + marker + 10-20 chars after) ONLY if marker appears multiple times on same page - null for inter_page or unique markers
 - \`end_region_hint\`: For intra_page: "top" | "upper_middle" | "lower_middle" | "bottom" - null for inter_page
 
 **Position Confidence (1 field):**
@@ -279,9 +279,10 @@ Extract comprehensive clinical information:
 - \`encounter_end_date\`: End date (null if ongoing or unknown)
 - \`encounter_timeframe_status\`: "completed" | "ongoing" | "unknown_end_date"
 - \`provider_name\`: Provider's full name (e.g., "Dr. John Smith")
-- \`facility_name\`: Facility name (e.g., "St Vincent's Hospital")
-- \`department\`: Hospital department/unit (e.g., "Cardiac ICU", "Emergency Department", "General Practice")
 - \`provider_role\`: Provider's specialty/role (e.g., "Cardiologist", "Emergency Physician", "GP", "Nurse Practitioner")
+- \`facility_name\`: Facility name (e.g., "St Vincent's Hospital")
+- \`facility_address\`: Facility address (e.g., "123 Main St, Sydney NSW 2000")
+- \`department\`: Hospital department/unit (e.g., "Cardiac ICU", "Emergency Department", "General Practice")
 
 **Clinical Details:**
 - \`chief_complaint\`: Primary presenting complaint (e.g., "Chest pain")
@@ -296,11 +297,19 @@ Extract comprehensive clinical information:
 ## 7. PAGE SEPARATION ANALYSIS
 
 In addition to encounter detection, identify safe split points WITHIN encounters for downstream batching.
+Your task for this section is to scan every page within each encounter to identify safe split points whereby the encounter can be safely split into two or more smaller batches for parallel AI processing.
+A safe split point is a point where the content immediately after the split point can be understood without the context that existed before the split point.
+If you do NOT find any safe split points, return an empty array for the \`safe_split_points\` array (i.e. \`\"safe_split_points\": []\`).
+Prefer a small number of clear, high-confidence split points over many uncertain ones.
 
 **Critical Rules:**
 1. DO NOT mark encounter boundaries as split points (those are handled separately)
 2. ONLY identify splits WITHIN encounters - places where parallel processing is safe
 3. For intra-page splits, provide text marker and region hint (coordinates extracted later)
+4. NEVER mark a split point if:
+  - A sentence or paragraph continues from the previous page.
+  - A **list or table** continues from the previous page (unless the new page repeats the header and/or column headers).
+  - The content immediately after the split point depends on a section header from the previous page to be understood.
 
 **Two Types of Split Points:**
 
@@ -311,6 +320,11 @@ Natural page boundaries WITHIN same encounter where content naturally separates.
 
 **Intra-Page Splits:**
 Safe split points within a single page.
+- You MUST scan every page for safe intra-page transitions (safe split points)
+- Mark an intra-page split IMMEDIATELY BEFORE any of the following when they occur mid-page:
+  - A new Date Header (e.g., "Progress Note - 2024/05/12")
+  - A new Clinical Section Title (e.g., "PATHOLOGY RESULTS", "DISCHARGE SUMMARY")
+  - A horizontal separator or "End of Report" footer that is followed by clearly new content
 - Example: Page 23 has consultation ending mid-page, pathology report beginning below
 
 **Output Structure (follows same pattern as encounter boundaries):**
@@ -329,7 +343,7 @@ Safe split points within a single page.
       "page": 23,
       "split_type": "intra_page",
       "marker": "PATHOLOGY RESULTS",
-      "marker_context": "consultation notes end. PATHOLOGY RESULTS Date:",
+      "marker_context": "notes end. PATHOLOGY RESULTS Da",
       "region_hint": "lower_middle",
       "confidence": 0.92
     }
@@ -337,12 +351,13 @@ Safe split points within a single page.
 }
 \`\`\`
 
-**Safe Split Criteria:**
-Mark as SAFE when content after split can be understood with just encounter context:
+**Examples of Safe Split Points:**
 - Clear section headers WITHIN encounter ("PATHOLOGY REPORT", "DAY 2 NOTES")
 - New document type starts within same encounter
 - Complete clinical narrative ends, new one begins
-- Successive progress notes within same admission
+- The gaps between successive progress notes within same admission (same encounter)
+- When a progress note ends and a pathology report begins
+- When a medication list ends and a discharge summary begins
 
 # OUTPUT SCHEMA
 
@@ -397,9 +412,10 @@ Return a JSON object with this exact structure:
       "encounter_end_date": null,
       "encounter_timeframe_status": "completed",
       "provider_name": "Dr. Sarah Johnson",
-      "facility_name": "Sydney Medical Centre",
-      "department": "General Practice",
       "provider_role": "GP",
+      "facility_name": "Sydney Medical Centre",
+      "facility_address": "123 Main St, Sydney NSW 2000",
+      "department": "General Practice",
       "chief_complaint": "Routine follow-up",
       "diagnoses": ["Hypertension"],
       "procedures": [],  // None mentioned
@@ -408,27 +424,27 @@ Return a JSON object with this exact structure:
       "confidence": 0.95
     },
     {
-      // EXAMPLE 2: Cascading pseudo-encounter
-      "is_cascading": true,  // Extends beyond chunk
+      // EXAMPLE 2: Cascading Hospital Admission
+      "is_cascading": true,  // Extends beyond chunk (ends at page 5, chunk end)
       "continues_previous": false,
-      "cascade_context": "Hospital admission day 2 of ongoing stay",
+      "cascade_context": "Hospital admission day 1-3",
       "expected_continuation": "discharge_summary",
 
       // Position with region hints
-      "start_page": 3,
+      "start_page": 2,
       "start_boundary_type": "intra_page",
       "start_marker": "ADMISSION NOTE",
-      "start_marker_context": null,  // Unique on page
-      "start_region_hint": "top",
+      "start_marker_context": "discussed. ADMISSION NOTE Dat",
+      "start_region_hint": "lower_middle",
       "end_page": 5,
       "end_boundary_type": "inter_page",
-      "end_marker": null,  // Ends at page boundary
+      "end_marker": null,  // Ends at page boundary (end of chunk)
       "end_marker_context": null,
       "end_region_hint": null,
       "position_confidence": 0.95,
-      "page_ranges": [[3, 5]],
+      "page_ranges": [[2, 5]],
 
-      "is_real_world_visit": false,  // Medical summary, not actual visit
+      "is_real_world_visit": true,  // It's a primary record of a hospital admission (actual healthcare)
 
       // All identity fields found
       "patient_full_name": "John Smith",
@@ -436,53 +452,57 @@ Return a JSON object with this exact structure:
       "patient_address": "123 Main St, Sydney NSW 2000",
       "patient_phone": "0412345678",
 
-      "medical_identifiers": [],  // None found
+      "medical_identifiers": [],
 
-      // Minimal clinical content for pseudo-encounter
-      "encounter_type": "medical_summary",
-      "encounter_start_date": null,
-      "encounter_end_date": null,
-      "encounter_timeframe_status": "unknown_end_date",
-      "provider_name": null,
-      "facility_name": null,
-      "department": null,
-      "provider_role": null,
-      "chief_complaint": null,
-      "diagnoses": [],
-      "procedures": [],
-      "disposition": null,
-      "summary": "Administrative medical summary",
-      "confidence": 0.88
+      // Clinical content
+      "encounter_type": "hospital_admission",
+      "encounter_start_date": "2024-03-20",
+      "encounter_end_date": null, // Ongoing
+      "encounter_timeframe_status": "ongoing",
+      "provider_name": "Dr. James Wilson",
+      "provider_role": "Cardiologist",
+      "facility_name": "St Vincent's Hospital",
+      "facility_address": "390 Victoria St, Darlinghurst NSW 2010",
+      "department": "Cardiology",
+      "chief_complaint": "Chest pain",
+      "diagnoses": ["NSTEMI"],
+      "procedures": ["Angiography"],
+      "disposition": "Admitted to Ward",
+      "summary": "Admission for chest pain, ongoing workup.",
+      "confidence": 0.98,
+      
+      // Migration 65: Date source tracking
+      "date_source": "header_text"
     }
   ],
 
   "page_assignments": [
     {"page": 1, "encounter_index": 0},  // First encounter (index 0)
-    {"page": 2, "encounter_index": 0},  // Still first encounter
-    {"page": 2, "encounter_index": 1},  // Second encounter ALSO on page 2
+    {"page": 2, "encounter_index": 0},  // Ends mid-page 2
+    {"page": 2, "encounter_index": 1},  // Second encounter begins mid-page 2
     {"page": 3, "encounter_index": 1},  // Second encounter continues
-    {"page": 4, "encounter_index": 1},
-    {"page": 5, "encounter_index": 1}
+    {"page": 4, "encounter_index": 1},  // Second encounter continues
+    {"page": 5, "encounter_index": 1}   // Second encounter ends chunk (cascading)
   ],
 
   "cascade_contexts": [
     {
       "encounter_type": "hospital_admission",
-      "partial_summary": "Day 2 of cardiac admission, post-PCI",
+      "partial_summary": "Hospital admission day 1-3",
       "expected_in_next_chunk": "discharge_summary",
-      "ai_context": "Patient stable post-stent placement"
+      "ai_context": "Patient admitted for chest pain, NSTEMI, Angiography performed. Ongoing care."
     }
   ],
 
   "page_separation_analysis": {
     "safe_split_points": [
       {
-        "page": 4,  // Page AFTER the split (where pathology begins)
-        "split_type": "inter_page",
-        "marker": null,  // Always null for inter_page
-        "marker_context": null,
-        "region_hint": null,
-        "confidence": 1.0
+        "page": 4,
+        "split_type": "intra_page",
+        "marker": "PATHOLOGY RESULTS",
+        "marker_context": "Notes end. PATHOLOGY RESULTS Collection Date: 2024-03-21",
+        "region_hint": "lower_middle",
+        "confidence": 0.95
       }
     ]
   },
@@ -491,7 +511,7 @@ Return a JSON object with this exact structure:
     "total_encounters": 2,     // Number of encounters in array
     "max_index_used": 1,       // Highest index used in page_assignments (0-based)
     "pages_mapped": 5,         // Total unique pages assigned
-    "assignment_count": 6      // Total assignments (can be > pages if multiple per page)
+    "assignment_count": 6      // Total assignments
   }
 }
 \`\`\`
@@ -500,7 +520,7 @@ Return a JSON object with this exact structure:
 - \`page_assignments\`: Maps pages to encounters using 0-based array index
 - \`validation\`: REQUIRED - Helps verify correct indexing
 - \`cascade_contexts\`: Only populate for cascading encounters
-- \`page_separation_analysis\`: Omit entirely if no safe splits found
+- \`page_separation_analysis\`: Always include; safe_split_points may be an empty array if none found.
 - Use \`null\` for missing single values, \`[]\` for empty arrays
 
 **Validation Requirements:**
@@ -533,7 +553,8 @@ ${fullText}
 5. Mark cascading encounters if they extend beyond chunk ${chunkNumber}
 6. Verify validation counts: total_encounters, max_index_used, pages_mapped
 7. Pages can have multiple encounters (multiple assignments in page_assignments array)
-8. Return valid JSON with exact schema structure
+8. **marker_context MUST be under 80 characters total** - truncate or use null if marker is unique
+9. Return valid JSON with exact schema structure
 
 Return ONLY the JSON object. No explanatory text.`;
 }

@@ -650,7 +650,8 @@ CREATE TABLE IF NOT EXISTS manual_review_queue (
     -- Review context
     review_type TEXT NOT NULL CHECK (review_type IN (
         'entity_validation', 'profile_classification', 'clinical_accuracy',
-        'safety_concern', 'low_confidence', 'contamination_risk'
+        'safety_concern', 'low_confidence', 'contamination_risk',
+        'data_quality_issue'  -- Migration 65: DOB sanity check failures and data validation issues
     )),
     priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN (
         'low', 'normal', 'high', 'urgent', 'critical'
@@ -1711,6 +1712,11 @@ COMMENT ON TABLE pass05_progressive_sessions IS
 --   - Renamed: handoff_received → cascade_context_received, handoff_generated → cascade_package_sent
 --   - Added: pendings_created, cascading_count, cascade_ids, continues_count, page_separation_analysis
 -- -----------------------------------------------------------------------------
+-- DUPLICATE SCHEMA WARNING (Migration 66):
+-- This table definition is duplicated in current_schema/08_job_coordination.sql
+-- The canonical definition is in 08_job_coordination.sql (has more columns)
+-- This definition is kept for historical reference only
+-- -----------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS pass05_chunk_results (
   -- Identity
@@ -1813,7 +1819,7 @@ CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
   start_page integer,                      -- First page of encounter
   start_boundary_type varchar(20),         -- 'inter_page' or 'intra_page'
   start_marker text,                       -- Descriptive text for boundary
-  start_marker_context varchar(100),       -- Migration 52: Additional text context for disambiguation
+  start_marker_context varchar(500),       -- Migration 52/64: Additional text context for disambiguation (expanded for AI variance)
   start_region_hint varchar(20),           -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
   start_text_y_top integer,                -- OCR Y-coordinate (NULL if inter_page)
   start_text_height integer,               -- OCR text height (NULL if inter_page)
@@ -1823,7 +1829,7 @@ CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
   end_page integer,                        -- Last page of encounter
   end_boundary_type varchar(20),           -- 'inter_page' or 'intra_page'
   end_marker text,                         -- Descriptive text for boundary
-  end_marker_context varchar(100),         -- Migration 52: Additional text context for disambiguation
+  end_marker_context varchar(500),         -- Migration 52/64: Additional text context for disambiguation (expanded for AI variance)
   end_region_hint varchar(20),             -- Migration 52: Approximate region (top/upper_middle/lower_middle/bottom)
   end_text_y_top integer,                  -- OCR Y-coordinate (NULL if inter_page)
   end_text_height integer,                 -- OCR text height (NULL if inter_page)
@@ -1843,9 +1849,10 @@ CREATE TABLE IF NOT EXISTS pass05_pending_encounters (
   patient_address text,                    -- Patient address if present
   patient_phone varchar(50),               -- Patient phone if present
 
-  -- Provider/facility markers - Files 10/11 (Migration 48/52)
+  -- Provider/facility markers - Files 10/11 (Migration 48/52/66)
   provider_name text,                      -- Healthcare provider name
   facility_name text,                      -- Hospital/clinic name
+  facility_address text,                   -- Migration 66: Facility address
   encounter_start_date text,               -- Visit date (raw format)
   encounter_end_date text,                 -- End date for multi-day encounters (nullable)
   encounter_type text,                     -- Migration 52: outpatient/inpatient/emergency/etc

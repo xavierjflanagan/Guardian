@@ -7,10 +7,20 @@ import { uploadFile } from "@/utils/uploadFile";
 import { Document } from "@/types/guardian";
 import { MedicalDashboard } from "@/components/MedicalDashboard";
 
+console.log('[MODULE LOAD] Dashboard page module is loading...');
+
 // Create a single, stable Supabase client instance
+console.log('[MODULE LOAD] Creating Supabase client...');
 const supabase = createClient();
+console.log('[MODULE LOAD] Supabase client created successfully');
 
 export default function DashboardPage() {
+  console.log('=================================================');
+  console.log('DASHBOARD PAGE RENDER - Console logging is working!');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Window location:', window.location.href);
+  console.log('=================================================');
+
   const [user, setUser] = useState<User | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -18,6 +28,8 @@ export default function DashboardPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  console.log('[DASHBOARD] Current state:', { uploading, hasUploadMessage: !!uploadMessage, hasUploadError: !!uploadError });
 
   // Effect for handling authentication state
   useEffect(() => {
@@ -85,7 +97,7 @@ export default function DashboardPage() {
   }, [fetchDocuments]);
 
   // Handle file upload
-  const handleDocumentUpload = async (file: File) => {
+  const handleDocumentUpload = (file: File) => {
     if (!user) {
       setUploadError("You must be signed in to upload files.");
       return;
@@ -95,23 +107,23 @@ export default function DashboardPage() {
     setUploadMessage(null);
     setUploadError(null);
 
-    try {
-      // V3: uploadFile now handles everything (storage + shell-file-processor-v3 + job enqueue)
-      const _shellFileId = await uploadFile(file, user.id);
-
-      setUploadMessage("File uploaded and AI processing started!");
-
-      // Refresh documents list
-      await fetchDocuments();
-    } catch (err) {
-      if (err instanceof Error) {
-        setUploadError(err.message || "Upload failed.");
-      } else {
-        setUploadError("Upload failed.");
-      }
-    } finally {
-      setUploading(false);
-    }
+    // Fire and forget - don't block UI on upload
+    uploadFile(file, user.id)
+      .then((_shellFileId) => {
+        setUploadMessage("File uploaded and AI processing started!");
+        fetchDocuments(); // Refresh list
+      })
+      .catch((err) => {
+        if (err instanceof Error) {
+          setUploadError(err.message || "Upload failed.");
+        } else {
+          setUploadError("Upload failed.");
+        }
+      })
+      .finally(() => {
+        console.log('[DASHBOARD] Upload flow complete, clearing uploading state');
+        setUploading(false);
+      });
   };
 
   // Handle sign out

@@ -54,11 +54,11 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     vendor: 'openai',
     modelId: 'gpt-5',
     displayName: 'GPT-5',
-    contextWindow: 272_000,
+    contextWindow: 400_000,
     maxOutput: 128_000,
-    inputCostPer1M: 0.25,
-    outputCostPer1M: 2.00,
-    temperatureSupported: true,  // Provider sets temperature to 0.1 for consistent output
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 10.00,
+    temperatureSupported: false,  // GPT-5 is a reasoning model - only supports default temperature (1.0)
     maxTokensParam: 'max_completion_tokens'  // GPT-5 uses newer parameter
   },
   {
@@ -66,12 +66,24 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     vendor: 'openai',
     modelId: 'gpt-5-mini',
     displayName: 'GPT-5-mini',
-    contextWindow: 128_000,
+    contextWindow: 400_000,
     maxOutput: 128_000,
-    inputCostPer1M: 0.15,
-    outputCostPer1M: 0.60,
-    temperatureSupported: true,  // Provider sets temperature to 0.1 for consistent output
+    inputCostPer1M: 0.25,
+    outputCostPer1M: 2.00,
+    temperatureSupported: false,  // GPT-5-mini is a reasoning model - only supports default temperature (1.0)
     maxTokensParam: 'max_completion_tokens'  // GPT-5-mini uses newer parameter
+  },
+  {
+    envVar: 'PASS_05_USE_GPT5_NANO',
+    vendor: 'openai',
+    modelId: 'gpt-5-nano',
+    displayName: 'GPT-5-nano',
+    contextWindow: 400_000, // Assuming same window as mini unless specified otherwise
+    maxOutput: 128_000,
+    inputCostPer1M: 0.05,
+    outputCostPer1M: 0.40,
+    temperatureSupported: false,  // Assuming same behavior as other GPT-5 variants
+    maxTokensParam: 'max_completion_tokens'
   },
 
   // Google Gemini Models
@@ -82,8 +94,8 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     displayName: 'Gemini 2.5 Pro',
     contextWindow: 1_048_576,  // 1M tokens
     maxOutput: 65_536,
-    inputCostPer1M: 0.15,
-    outputCostPer1M: 0.60,
+    inputCostPer1M: 1.25, // Tier 1 (<= 200k tokens)
+    outputCostPer1M: 10.00, // Tier 1 (<= 200k tokens)
     temperatureSupported: true,
     maxTokensParam: 'maxOutputTokens'
   },
@@ -94,8 +106,20 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     displayName: 'Gemini 2.5 Flash',
     contextWindow: 1_048_576,  // 1M tokens
     maxOutput: 65_536,
-    inputCostPer1M: 0.075,
-    outputCostPer1M: 0.30,
+    inputCostPer1M: 0.30,
+    outputCostPer1M: 2.50,
+    temperatureSupported: true,
+    maxTokensParam: 'maxOutputTokens'
+  },
+  {
+    envVar: 'PASS_05_USE_GEMINI_2_5_FLASH_LITE',
+    vendor: 'google',
+    modelId: 'gemini-2.5-flash-lite',
+    displayName: 'Gemini 2.5 Flash-Lite',
+    contextWindow: 1_048_576,  // 1M tokens
+    maxOutput: 65_536,
+    inputCostPer1M: 0.10,
+    outputCostPer1M: 0.40,
     temperatureSupported: true,
     maxTokensParam: 'maxOutputTokens'
   }

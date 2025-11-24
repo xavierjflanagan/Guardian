@@ -295,6 +295,7 @@ export async function insertPendingEncounterV3(
       // Provider/facility (separate columns for querying)
       provider_name: pending.provider_name,
       facility_name: pending.facility_name,
+      facility_address: pending.facility_address,  // Migration 66: Facility address
       encounter_start_date: pending.encounter_start_date,
       encounter_end_date: pending.encounter_end_date,
 
@@ -313,6 +314,9 @@ export async function insertPendingEncounterV3(
 
       // Confidence
       confidence: pending.confidence,
+
+      // Migration 65: Add is_real_world_visit field
+      is_real_world_visit: pending.is_real_world_visit,
 
       // Status
       status: 'pending'
@@ -407,6 +411,7 @@ export async function batchInsertPendingEncountersV3(
       // Provider/facility
       provider_name: pending.provider_name,
       facility_name: pending.facility_name,
+      facility_address: pending.facility_address,  // Migration 66: Facility address
       encounter_start_date: pending.encounter_start_date,
       encounter_end_date: pending.encounter_end_date,
 
@@ -426,12 +431,15 @@ export async function batchInsertPendingEncountersV3(
       // Confidence
       confidence: pending.confidence,
 
+      // Migration 65: Add is_real_world_visit field
+      is_real_world_visit: pending.is_real_world_visit,
+
       // Status
       status: 'pending'
     };
   });
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('pass05_pending_encounters')
     .insert(rows)
     .select('pending_id');

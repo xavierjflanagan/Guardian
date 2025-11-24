@@ -229,7 +229,7 @@ CREATE TABLE IF NOT EXISTS pass05_encounter_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
-    processing_session_id UUID NOT NULL REFERENCES ai_processing_sessions(id) ON DELETE CASCADE,
+    processing_session_id UUID,  -- Migration 60: Made nullable, FK removed (Pass 0.5 metrics now self-contained)
 
     -- Pass 0.5 metrics
     encounters_detected INTEGER NOT NULL,
@@ -276,7 +276,7 @@ CREATE INDEX idx_pass05_metrics_shell_file ON pass05_encounter_metrics(shell_fil
 CREATE INDEX idx_pass05_metrics_session ON pass05_encounter_metrics(processing_session_id);
 CREATE INDEX idx_pass05_metrics_created ON pass05_encounter_metrics(created_at);
 
-COMMENT ON TABLE pass05_encounter_metrics IS 'Pass 0.5 session-level performance and cost tracking';
+COMMENT ON TABLE pass05_encounter_metrics IS 'Pass 0.5 session-level performance and cost tracking. Migration 60: Decoupled from ai_processing_sessions (processing_session_id now nullable, no FK constraint).';
 
 -- Pass 0.5 Progressive Refinement Infrastructure (Migration 44 - 2025-11-10)
 -- For handling large documents (200+ pages) that exceed AI output token limits
@@ -339,8 +339,8 @@ CREATE TABLE IF NOT EXISTS pass05_chunk_results (
   session_id UUID NOT NULL REFERENCES pass05_progressive_sessions(id) ON DELETE CASCADE,
 
   chunk_number INTEGER NOT NULL CHECK (chunk_number > 0),
-  page_start INTEGER NOT NULL CHECK (page_start >= 0), -- 0-based inclusive
-  page_end INTEGER NOT NULL CHECK (page_end > page_start), -- 0-based exclusive
+  page_start INTEGER NOT NULL CHECK (page_start >= 1), -- Migration 66: 1-based inclusive
+  page_end INTEGER NOT NULL CHECK (page_end >= page_start), -- Migration 66: 1-based inclusive (allows single-page)
 
   processing_status TEXT NOT NULL
     CHECK (processing_status IN ('pending', 'processing', 'completed', 'failed')),
@@ -550,6 +550,7 @@ BEGIN
     date_source,
     provider_name,
     facility_name,
+    facility_address,              -- Migration 66: Facility address
     start_page,
     start_boundary_type,
     start_marker,              -- Migration 53: Fixed from start_text_marker
@@ -599,6 +600,7 @@ BEGIN
     (p_encounter_data->>'date_source')::VARCHAR,
     (p_encounter_data->>'provider_name')::VARCHAR,
     (p_encounter_data->>'facility_name')::VARCHAR,
+    (p_encounter_data->>'facility_address')::VARCHAR,  -- Migration 66: Facility address
     (p_encounter_data->>'start_page')::INTEGER,
     (p_encounter_data->>'start_boundary_type')::VARCHAR,
     (p_encounter_data->>'start_text_marker')::VARCHAR,
@@ -683,6 +685,68 @@ COMMENT ON FUNCTION reconcile_pending_to_final IS
    Migration 56: pending_id type mismatch fix, Migration 57: audit trail and tracking fields)';
 
 
+-- RPC #1.5: Manual Review Queue Entry Creation (Migration 65)
+CREATE OR REPLACE FUNCTION enqueue_manual_review(
+  p_patient_id UUID,
+  p_processing_session_id UUID,
+  p_shell_file_id UUID,
+  p_review_type TEXT,
+  p_priority TEXT,
+  p_review_title TEXT,
+  p_review_description TEXT,
+  p_flagged_issues TEXT[],
+  p_clinical_context JSONB
+) RETURNS UUID AS $$
+DECLARE
+  v_review_id UUID;
+BEGIN
+  -- Insert manual review entry
+  INSERT INTO manual_review_queue (
+    patient_id,
+    processing_session_id,
+    shell_file_id,
+    review_type,
+    priority,
+    review_title,
+    review_description,
+    flagged_issues,
+    clinical_context,
+    review_status,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_patient_id,
+    p_processing_session_id,
+    p_shell_file_id,
+    p_review_type,
+    p_priority,
+    p_review_title,
+    p_review_description,
+    p_flagged_issues,
+    p_clinical_context,
+    'pending',
+    NOW(),
+    NOW()
+  )
+  RETURNING id INTO v_review_id;
+
+  -- Log the manual review creation for debugging
+  RAISE NOTICE 'Manual review entry created: % (type: %, priority: %)',
+    v_review_id, p_review_type, p_priority;
+
+  RETURN v_review_id;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+COMMENT ON FUNCTION enqueue_manual_review IS
+  'Migration 65: Worker-initiated manual review queue entry creation for data quality issues.
+   Called by Pass 0.5 reconciliation when DOB sanity check fails (year < 1900 or > currentYear+1).
+   Stores original extracted values, page ranges, and encounter context for human review.
+   Requires service_role permissions (see grants section).';
+
+
 -- RPC #2: Atomic Cascade Pending Count Increment (Migration 52)
 CREATE OR REPLACE FUNCTION increment_cascade_pending_count(
   p_cascade_id VARCHAR
@@ -706,11 +770,12 @@ COMMENT ON FUNCTION increment_cascade_pending_count IS
 -- RPC #2.5: Update Strategy A Metrics After Reconciliation (Migration 57)
 CREATE OR REPLACE FUNCTION update_strategy_a_metrics(
   p_shell_file_id UUID,
-  p_session_id UUID
+  p_session_id UUID DEFAULT NULL  -- Migration 60: Kept for backward compatibility but ignored
 ) RETURNS VOID AS $$
 DECLARE
   v_metrics_id UUID;
   v_strategy_a_session_id UUID;
+  v_patient_id UUID;
 
   -- Existing metrics (Migration 57)
   v_pendings_total INTEGER;
@@ -721,37 +786,74 @@ DECLARE
   v_real_world_count INTEGER;
   v_pseudo_count INTEGER;
 
-  -- NEW: Token and cost metrics (Migration 58)
+  -- Migration 58: Token and cost metrics
   v_total_input_tokens INTEGER;
   v_total_output_tokens INTEGER;
   v_total_tokens INTEGER;
   v_total_cost_usd NUMERIC(10,6);
 
-  -- NEW: Quality metrics (Migration 58)
+  -- Migration 58: Quality metrics
   v_ocr_avg_confidence NUMERIC(3,2);
   v_encounter_confidence_avg NUMERIC(3,2);
   v_encounter_types TEXT[];
 
-  -- NEW: Performance metrics (Migration 58)
+  -- Migration 58: Performance metrics
   v_processing_time_ms INTEGER;
   v_ai_model_used TEXT;
   v_total_pages INTEGER;
-  v_batching_required BOOLEAN;
 BEGIN
-  -- Get metrics record
+  -- Get Strategy A session ID (pass05_progressive_sessions.id)
+  -- Use LIMIT 1 for safety against duplicate records
+  SELECT id, patient_id INTO v_strategy_a_session_id, v_patient_id
+  FROM pass05_progressive_sessions
+  WHERE shell_file_id = p_shell_file_id
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_strategy_a_session_id IS NULL THEN
+    RAISE EXCEPTION 'No pass05_progressive_sessions record found for shell_file_id: %', p_shell_file_id;
+  END IF;
+
+  -- Get or create metrics record (self-healing)
   SELECT id INTO v_metrics_id
   FROM pass05_encounter_metrics
   WHERE shell_file_id = p_shell_file_id
-    AND processing_session_id = p_session_id;
+  ORDER BY created_at DESC
+  LIMIT 1;
 
+  -- Migration 60: If no metrics record exists, create it (Strategy A never creates it)
   IF v_metrics_id IS NULL THEN
-    RAISE EXCEPTION 'No metrics record found for shell_file_id: %', p_shell_file_id;
-  END IF;
+    INSERT INTO pass05_encounter_metrics (
+      shell_file_id,
+      patient_id,
+      processing_session_id,  -- Left NULL (decoupled from ai_processing_sessions)
+      encounters_detected,
+      real_world_encounters,
+      pseudo_encounters,
+      processing_time_ms,
+      ai_model_used,
+      input_tokens,
+      output_tokens,
+      total_tokens,
+      total_pages
+    ) VALUES (
+      p_shell_file_id,
+      v_patient_id,
+      NULL,  -- No longer requires ai_processing_sessions FK
+      0,     -- Will be updated below
+      0,     -- Will be updated below
+      0,     -- Will be updated below
+      0,     -- Will be updated below
+      'unknown',  -- Will be updated below
+      0,     -- Will be updated below
+      0,     -- Will be updated below
+      0,     -- Will be updated below
+      0      -- Will be updated below
+    )
+    RETURNING id INTO v_metrics_id;
 
-  -- Get Strategy A session ID (pass05_progressive_sessions.id)
-  SELECT id INTO v_strategy_a_session_id
-  FROM pass05_progressive_sessions
-  WHERE shell_file_id = p_shell_file_id;
+    RAISE NOTICE 'Created new metrics record for shell_file_id: %', p_shell_file_id;
+  END IF;
 
   -- EXISTING QUERY: Pendings, cascades, orphans, chunks
   SELECT
@@ -773,19 +875,20 @@ BEGIN
   WHERE source_shell_file_id = p_shell_file_id
     AND identified_in_pass = 'pass_0_5';
 
-  -- NEW QUERY 1: Token and cost metrics from progressive session
+  -- Migration 62 FIX #3: Aggregate tokens/cost from chunk results (Race Condition Fix)
+  -- Do NOT query pass05_progressive_sessions because it is updated AFTER reconciliation
   SELECT
-    total_input_tokens,
-    total_output_tokens,
-    total_cost_usd
+    COALESCE(SUM(input_tokens), 0),
+    COALESCE(SUM(output_tokens), 0),
+    COALESCE(SUM(ai_cost_usd), 0)
   INTO v_total_input_tokens, v_total_output_tokens, v_total_cost_usd
-  FROM pass05_progressive_sessions
-  WHERE id = v_strategy_a_session_id;
+  FROM pass05_chunk_results
+  WHERE session_id = v_strategy_a_session_id;
 
   -- Calculate total tokens
   v_total_tokens := COALESCE(v_total_input_tokens, 0) + COALESCE(v_total_output_tokens, 0);
 
-  -- NEW QUERY 2: Quality metrics from final encounters
+  -- Migration 58: Quality metrics from final encounters
   SELECT
     AVG(pass_0_5_confidence),
     ARRAY_AGG(DISTINCT encounter_type) FILTER (WHERE encounter_type IS NOT NULL)
@@ -794,26 +897,28 @@ BEGIN
   WHERE source_shell_file_id = p_shell_file_id
     AND identified_in_pass = 'pass_0_5';
 
-  -- NEW QUERY 3: OCR confidence from chunk results
-  SELECT AVG(ocr_confidence)
+  -- Migration 62 FIX #1: Correct column name from ocr_confidence to ocr_average_confidence
+  SELECT AVG(ocr_average_confidence)
   INTO v_ocr_avg_confidence
   FROM pass05_chunk_results
   WHERE session_id = v_strategy_a_session_id;
 
-  -- NEW QUERY 4: Performance metrics from progressive session
-  SELECT
-    ai_model_used,
-    total_pages,
-    strategy_version
-  INTO v_ai_model_used, v_total_pages, v_batching_required
+  -- Migration 62 FIX #2: Query ai_model_used from pass05_chunk_results (not pass05_progressive_sessions)
+  -- Note: All chunks use same model, so LIMIT 1 is safe
+  SELECT ai_model_used
+  INTO v_ai_model_used
+  FROM pass05_chunk_results
+  WHERE session_id = v_strategy_a_session_id
+  ORDER BY chunk_number
+  LIMIT 1;
+
+  -- Query total_pages from pass05_progressive_sessions (this was CORRECT in Migration 60)
+  SELECT total_pages
+  INTO v_total_pages
   FROM pass05_progressive_sessions
   WHERE id = v_strategy_a_session_id;
 
-  -- Convert strategy_version to batching_required boolean
-  -- Strategy A = TRUE (universal progressive), Strategy B = FALSE (direct processing)
-  v_batching_required := (v_batching_required = 'strategy_a');
-
-  -- NEW QUERY 5: Processing time from chunk results (total duration)
+  -- Migration 58: Processing time from chunk results (total duration)
   SELECT
     EXTRACT(EPOCH FROM (MAX(completed_at) - MIN(started_at))) * 1000
   INTO v_processing_time_ms
@@ -827,23 +932,26 @@ BEGIN
     encounters_detected = v_final_encounters_count,
     real_world_encounters = v_real_world_count,
     pseudo_encounters = v_pseudo_count,
+    pendings_total = v_pendings_total,
+    cascades_total = v_cascades_total,
+    orphans_total = v_orphans_total,
+    chunk_count = v_chunk_count,
 
-    -- NEW: Token and cost metrics (Migration 58)
+    -- Migration 58: Token and cost metrics
     input_tokens = COALESCE(v_total_input_tokens, 0),
     output_tokens = COALESCE(v_total_output_tokens, 0),
     total_tokens = COALESCE(v_total_tokens, 0),
     ai_cost_usd = v_total_cost_usd,
 
-    -- NEW: Quality metrics (Migration 58)
+    -- Migration 58: Quality metrics
     ocr_average_confidence = v_ocr_avg_confidence,
     encounter_confidence_average = v_encounter_confidence_avg,
     encounter_types_found = v_encounter_types,
 
-    -- NEW: Performance metrics (Migration 58)
+    -- Migration 58: Performance metrics
     processing_time_ms = COALESCE(v_processing_time_ms::INTEGER, 0),
     ai_model_used = COALESCE(v_ai_model_used, 'unknown'),
-    total_pages = COALESCE(v_total_pages, 0),
-    batching_required = COALESCE(v_batching_required, FALSE)
+    total_pages = COALESCE(v_total_pages, 0)
   WHERE id = v_metrics_id;
 
   RAISE NOTICE 'Updated metrics: % encounters (% real-world, % pseudo) from % pendings, % cascades, % chunks, % tokens (% in, % out), cost $%, OCR conf %, enc conf %',
@@ -855,14 +963,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION update_strategy_a_metrics IS
-  'Migration 58: Extended update_strategy_a_metrics to populate all ~23 fields in pass05_encounter_metrics.
-   Previously only populated 7 fields (encounters_detected, real_world_encounters, pseudo_encounters,
-   pendings_total, cascades_total, orphans_total, chunk_count). Now also populates:
-   - Token metrics (input_tokens, output_tokens, total_tokens)
-   - Cost metrics (ai_cost_usd)
-   - Quality metrics (ocr_average_confidence, encounter_confidence_average, encounter_types_found)
-   - Performance metrics (processing_time_ms, ai_model_used, total_pages, batching_required)
-   See STRATEGY-A-DATA-QUALITY-AUDIT.md Issue #10 for details.';
+  'Migration 62: Fixed THREE bugs from Migration 60:
+   1. Column name typo: ocr_confidence → ocr_average_confidence
+   2. Wrong table query: ai_model_used now queried from pass05_chunk_results
+   3. Race condition: tokens/cost now aggregated from pass05_chunk_results (not progressive_sessions)
+   Migration 60: Made p_session_id parameter optional (backward compatibility - ignored in function body).
+   Pass 0.5 metrics now self-contained and self-healing (creates record if missing).
+   Function looks up metrics by shell_file_id, queries pass05_progressive_sessions for session data.
+   No longer depends on ai_processing_sessions FK (multi-pass tracker).';
 
 
 -- RPC #2.6: Atomic Cascade Counter Increment (Migration 59)
@@ -2189,6 +2297,7 @@ REVOKE EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION enqueue_manual_review(uuid, uuid, uuid, text, text, text, text, text[], jsonb) FROM PUBLIC;
 -- Analytics functions security
 REVOKE EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION track_ai_processing_usage(uuid, uuid, integer, integer) FROM PUBLIC;
@@ -2201,6 +2310,7 @@ GRANT EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) TO service_rol
 GRANT EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) TO service_role;
 GRANT EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION enqueue_manual_review(uuid, uuid, uuid, text, text, text, text, text[], jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION write_pass05_manifest_atomic(uuid, uuid, integer, integer, numeric, boolean, integer, jsonb, text, numeric, integer, uuid, integer, integer, integer, integer, integer, integer, numeric, text[]) TO service_role;
 -- Analytics functions permissions - accessible to authenticated users
 GRANT EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) TO authenticated;

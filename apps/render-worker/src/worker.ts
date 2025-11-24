@@ -1186,13 +1186,15 @@ class V3Worker {
         fullTextAnnotation: {
           text: ocrResult.pages.map((p: any, idx: number) =>
             `--- PAGE ${idx + 1} START ---\n` +
-            p.lines.map((l: any) => l.text).join(' ') +
+            (p.spatially_sorted_text || p.lines.map((l: any) => l.text).join(' ')) +
             `\n--- PAGE ${idx + 1} END ---`
           ).join('\n\n'),
           pages: ocrResult.pages.map((page: any) => ({
             width: page.size.width_px || 1000,
             height: page.size.height_px || 1400,
             confidence: page.lines.reduce((sum: number, l: any) => sum + l.confidence, 0) / (page.lines.length || 1),
+            spatially_sorted_text: page.spatially_sorted_text,  // Include spatially sorted text for chunk processor
+            original_gcv_text: page.original_gcv_text,  // Include original text as fallback
             blocks: page.lines.map((line: any) => ({
               boundingBox: {
                 vertices: [

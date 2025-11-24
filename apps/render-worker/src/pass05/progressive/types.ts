@@ -180,6 +180,7 @@ export interface PendingEncounter extends PositionFields {
   date_source?: 'ai_extracted' | 'file_metadata' | 'upload_date';  // How the date was determined
   provider_name?: string;
   facility_name?: string;
+  facility_address?: string;                 // Migration 66: Facility address
   confidence: number;
   summary?: string;
 
