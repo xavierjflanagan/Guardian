@@ -79,3 +79,4 @@ session-*.txt
 # Archive directory (old/backup files)
 .archive/
 
+migration-log.txt
