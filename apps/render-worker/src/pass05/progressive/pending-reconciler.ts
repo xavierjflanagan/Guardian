@@ -44,6 +44,49 @@ function pickBestValue(values: (string | null)[]): string | null {
 }
 
 /**
+ * Pick best DOB by filtering out invalid years before selection
+ * Migration 65: Prevents invalid DOB years (< 1900 or > currentYear+1) from being selected
+ *
+ * @param values - Array of DOB strings from multiple pending encounters
+ * @returns Best valid DOB, or null if no valid candidates
+ */
+function pickBestDOB(values: (string | null)[]): string | null {
+  const nonNull = values.filter((v): v is string => v !== null && v.trim() !== '');
+  if (nonNull.length === 0) return null;
+  if (nonNull.length === 1) return nonNull[0];
+
+  const currentYear = new Date().getFullYear();
+
+  // Filter out DOBs with invalid years
+  const validDOBs = nonNull.filter(dob => {
+    const yearMatch = dob.match(/\b(19|20)\d{2}\b/);
+    if (!yearMatch) {
+      console.log(`[pickBestDOB] Cannot extract year from "${dob}" - keeping for normalization`);
+      return true; // Let normalizeDateToISO handle it
+    }
+    const year = parseInt(yearMatch[0], 10);
+    const isValid = year >= 1900 && year <= currentYear + 1;
+    if (!isValid) {
+      console.warn(`[pickBestDOB] Filtering out invalid year: "${dob}" (year=${year}, valid range: 1900-${currentYear + 1})`);
+    }
+    return isValid;
+  });
+
+  // Use valid DOBs if available, otherwise fall back to original list
+  const candidates = validDOBs.length > 0 ? validDOBs : nonNull;
+  if (validDOBs.length === 0 && nonNull.length > 0) {
+    console.warn(`[pickBestDOB] All DOB values have invalid years - using original values for normalization failure`);
+  }
+
+  // Pick longest value from candidates
+  const best = candidates.reduce((best, current) =>
+    current.length > best.length ? current : best
+  );
+  console.log(`[pickBestDOB] Selected "${best}" from ${nonNull.length} candidate(s)`);
+  return best;
+}
+
+/**
  * Pick best date based on quality hierarchy
  * Migration 65: For multi-chunk encounters, prefer ai_extracted > file_metadata > upload_date
  *
@@ -499,8 +542,9 @@ export async function reconcilePendingEncounters(
       const qualityData = calculateQualityTier(firstPending);
 
       // Migration 63: Normalize all date fields with metadata
+      // Migration 65: Use pickBestDOB() to filter invalid years before normalization
       const dobResult = normalizeDateToISO(
-        pickBestValue(groupPendings.map(p => p.patient_date_of_birth)),
+        pickBestDOB(groupPendings.map(p => p.patient_date_of_birth)),
         'patient_date_of_birth'
       );
 
@@ -665,6 +709,53 @@ export async function reconcilePendingEncounters(
       );
 
       console.log(`[Reconcile] Created final encounter ${finalEncounterId} from ${pendingIds.length} pendings`);
+
+      // Migration 65: Check for DOB sanity check failure and enqueue manual review
+      if (dobResult.parseMethod === 'failed_sanity_check') {
+        console.warn(`[Reconcile] DOB sanity check failed - enqueueing manual review`, {
+          encounterId: finalEncounterId,
+          originalDOB: dobResult.originalFormat,
+          error: dobResult.error
+        });
+
+        // Collect all DOB values from chunks for review context
+        const allDOBs = groupPendings
+          .map((p) => ({
+            chunk: p.chunk_number,
+            dob: p.patient_date_of_birth,
+            cascade_id: p.cascade_id
+          }))
+          .filter(d => d.dob !== null);
+
+        const currentYear = new Date().getFullYear();
+
+        const { data: reviewId, error: reviewError } = await supabase.rpc('enqueue_manual_review', {
+          p_patient_id: patientId,
+          p_processing_session_id: sessionId,
+          p_shell_file_id: firstPending.shell_file_id,
+          p_review_type: 'data_quality_issue',
+          p_priority: 'normal',
+          p_review_title: 'Invalid Date of Birth Year Detected',
+          p_review_description: `The extracted DOB "${dobResult.originalFormat}" has an implausible year (valid range: 1900-${currentYear + 1}). This is likely an OCR misread digit (e.g., 1850 → 1950). Please review the source document on pages ${mergedPageRanges.map(r => r.join('-')).join(', ')} and correct if needed.`,
+          p_flagged_issues: ['invalid_dob_year', 'ocr_likely_misread'],
+          p_clinical_context: {
+            extracted_dob: dobResult.originalFormat,
+            error_type: dobResult.error,
+            parse_method: dobResult.parseMethod,
+            all_dob_values_from_chunks: allDOBs,
+            page_ranges: mergedPageRanges,
+            encounter_id: finalEncounterId,
+            cascade_id: cascadeId,
+            suggestion: 'Check if first digit was OCR misread (1→8, 9→8, etc.)'
+          }
+        });
+
+        if (reviewError) {
+          console.error(`[Reconcile] Failed to create manual review entry:`, reviewError);
+        } else {
+          console.log(`[Reconcile] Manual review entry created: ${reviewId}`);
+        }
+      }
 
       // Complete cascade chain tracking (if cascading encounter)
       if (cascadeId) {

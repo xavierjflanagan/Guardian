@@ -650,7 +650,8 @@ CREATE TABLE IF NOT EXISTS manual_review_queue (
     -- Review context
     review_type TEXT NOT NULL CHECK (review_type IN (
         'entity_validation', 'profile_classification', 'clinical_accuracy',
-        'safety_concern', 'low_confidence', 'contamination_risk'
+        'safety_concern', 'low_confidence', 'contamination_risk',
+        'data_quality_issue'  -- Migration 65: DOB sanity check failures and data validation issues
     )),
     priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN (
         'low', 'normal', 'high', 'urgent', 'critical'

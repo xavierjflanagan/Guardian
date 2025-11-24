@@ -685,6 +685,68 @@ COMMENT ON FUNCTION reconcile_pending_to_final IS
    Migration 56: pending_id type mismatch fix, Migration 57: audit trail and tracking fields)';
 
 
+-- RPC #1.5: Manual Review Queue Entry Creation (Migration 65)
+CREATE OR REPLACE FUNCTION enqueue_manual_review(
+  p_patient_id UUID,
+  p_processing_session_id UUID,
+  p_shell_file_id UUID,
+  p_review_type TEXT,
+  p_priority TEXT,
+  p_review_title TEXT,
+  p_review_description TEXT,
+  p_flagged_issues TEXT[],
+  p_clinical_context JSONB
+) RETURNS UUID AS $$
+DECLARE
+  v_review_id UUID;
+BEGIN
+  -- Insert manual review entry
+  INSERT INTO manual_review_queue (
+    patient_id,
+    processing_session_id,
+    shell_file_id,
+    review_type,
+    priority,
+    review_title,
+    review_description,
+    flagged_issues,
+    clinical_context,
+    review_status,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_patient_id,
+    p_processing_session_id,
+    p_shell_file_id,
+    p_review_type,
+    p_priority,
+    p_review_title,
+    p_review_description,
+    p_flagged_issues,
+    p_clinical_context,
+    'pending',
+    NOW(),
+    NOW()
+  )
+  RETURNING id INTO v_review_id;
+
+  -- Log the manual review creation for debugging
+  RAISE NOTICE 'Manual review entry created: % (type: %, priority: %)',
+    v_review_id, p_review_type, p_priority;
+
+  RETURN v_review_id;
+END;
+$$ LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp;
+
+COMMENT ON FUNCTION enqueue_manual_review IS
+  'Migration 65: Worker-initiated manual review queue entry creation for data quality issues.
+   Called by Pass 0.5 reconciliation when DOB sanity check fails (year < 1900 or > currentYear+1).
+   Stores original extracted values, page ranges, and encounter context for human review.
+   Requires service_role permissions (see grants section).';
+
+
 -- RPC #2: Atomic Cascade Pending Count Increment (Migration 52)
 CREATE OR REPLACE FUNCTION increment_cascade_pending_count(
   p_cascade_id VARCHAR
@@ -2235,6 +2297,7 @@ REVOKE EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION enqueue_manual_review(uuid, uuid, uuid, text, text, text, text, text[], jsonb) FROM PUBLIC;
 -- Analytics functions security
 REVOKE EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION track_ai_processing_usage(uuid, uuid, integer, integer) FROM PUBLIC;
@@ -2247,6 +2310,7 @@ GRANT EXECUTE ON FUNCTION claim_next_job_v3(text, text[], text[]) TO service_rol
 GRANT EXECUTE ON FUNCTION update_job_heartbeat(uuid, text) TO service_role;
 GRANT EXECUTE ON FUNCTION reschedule_job(uuid, integer, text, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION complete_job(uuid, text, jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION enqueue_manual_review(uuid, uuid, uuid, text, text, text, text, text[], jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION write_pass05_manifest_atomic(uuid, uuid, integer, integer, numeric, boolean, integer, jsonb, text, numeric, integer, uuid, integer, integer, integer, integer, integer, integer, numeric, text[]) TO service_role;
 -- Analytics functions permissions - accessible to authenticated users
 GRANT EXECUTE ON FUNCTION track_shell_file_upload_usage(uuid, uuid, bigint, integer) TO authenticated;
