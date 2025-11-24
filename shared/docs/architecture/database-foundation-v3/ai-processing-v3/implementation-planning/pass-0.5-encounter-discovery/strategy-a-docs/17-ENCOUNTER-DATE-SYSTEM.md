@@ -7,7 +7,28 @@
 
 ## Core Principle
 
-**AI extracts dates → Reconciler applies quality hierarchy → Database stores with provenance**
+**AI extracts dates → Reconciler applies quality hierarchy → Format normalization → Database stores with provenance**
+
+---
+
+## Order of Operations
+
+For each encounter date field, the system processes in this sequence:
+
+1. **Provenance Selection** (this document)
+   - Multi-chunk merging: Pick best date by quality (ai_extracted > file_metadata > upload_date)
+   - Waterfall fallback: For pseudo encounters only (real visits always use AI dates)
+
+2. **Format Normalization** (`16-DATE-FORMAT-ARCHITECTURE.md`)
+   - Convert DD/MM/YYYY, MM/DD/YYYY, or text dates to ISO 8601 (YYYY-MM-DD)
+   - Apply disambiguation logic for ambiguous formats
+   - Store normalization metadata (method, confidence, ambiguity flags)
+
+3. **Database Storage**
+   - Final encounter stored in `healthcare_encounters` table
+   - Normalized dates in DATE/TIMESTAMPTZ columns
+   - Provenance tracked in `date_source` column
+   - Original format preserved in `pass05_pending_encounters` (audit trail)
 
 ---
 
@@ -70,6 +91,8 @@ encounter_end_date = encounter_start_date
 - AI-extracted = best (date is actually in the document)
 - File metadata = good fallback (when document was created)
 - Upload date = last resort (when file was imported to system)
+
+**IMPORTANT:** After the waterfall selects the best date, format normalization happens next (see below).
 
 ---
 
@@ -141,10 +164,13 @@ const isRealWorldVisit = groupPendings.some(p => p.is_real_world_visit)
   - Lines 142-154: Fetch `shell_files.created_at` for waterfall fallback
   - Line 161: Pass `fileCreatedAt` to reconciler
 
-### Date Normalization
+### Date Format Normalization
 - **Format Handler:** `apps/render-worker/src/pass05/progressive/pending-reconciler.ts`
-  - Lines 76-394: `normalizeDateToISO()` - handles DD/MM/YYYY vs MM/DD/YYYY
+  - Lines 106-340: `normalizeDateToISO()` - handles DD/MM/YYYY vs MM/DD/YYYY
   - Converts all date formats to ISO 8601 (YYYY-MM-DD)
+  - **Called AFTER waterfall hierarchy selects best date**
+  - Normalizes all 3 date fields: DOB, encounter_start_date, encounter_end_date
+  - See `16-DATE-FORMAT-ARCHITECTURE.md` for complete normalization logic
 
 ---
 

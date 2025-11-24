@@ -20,7 +20,7 @@ This is an **iteration of v1** created after successful implementation and produ
 **Related Documentation:**
 - [17-ENCOUNTER-DATE-SYSTEM.md](./17-ENCOUNTER-DATE-SYSTEM.md) - Date provenance and waterfall hierarchy
 - [16-DATE-FORMAT-ARCHITECTURE-v1.md](./16-DATE-FORMAT-ARCHITECTURE-v1.md) - Original analysis and implementation spec
-
+- [16b-DOB-SANITY-CHECK-MANUAL-REVIEW-PROPOSAL.md](./16b-DOB-SANITY-CHECK-MANUAL-REVIEW-PROPOSAL.md) - DOB sanity check, data quality escalation, and manual review design
 ---
 
 ## Current State Summary

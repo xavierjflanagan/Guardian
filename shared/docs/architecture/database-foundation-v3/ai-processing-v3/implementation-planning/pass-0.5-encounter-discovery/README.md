@@ -1,193 +1,280 @@
-# Pass 0.5 Encounter Discovery - Documentation Map
+# Pass 0.5 Encounter Discovery
 
-**Last Updated:** October 30, 2025
-**Status:** ✅ OPERATIONAL
-**Source Code:** `apps/render-worker/src/pass05/` (~600 lines TypeScript, 5 files)
-
----
-
-## Purpose of This Folder
-
-This folder contains documentation for **Pass 0.5 Encounter Discovery**, the first stage of Exora's five-pass AI processing pipeline that discovers healthcare encounters and creates manifests for downstream consumption.
-
-**This folder provides:**
-- Architectural overview for understanding Pass 0.5 in context
-- Implementation plan and technical details
-- Testing and validation results
-- Audit findings and improvements
+**Last Updated:** 2025-11-24
+**Status:** ✅ PRODUCTION-READY (Strategy A)
+**Source Code:** `apps/render-worker/src/pass05/` (~2000 lines TypeScript across multiple files)
 
 ---
 
-## Folder Structure
+## Start Here
 
-### Core Documentation
+**👉 For current documentation:** See [`strategy-a-docs/00-START-HERE.md`](./strategy-a-docs/00-START-HERE.md)
 
-#### PASS-0.5-OVERVIEW.md (Start Here)
-Concise architectural overview of Pass 0.5 encounter discovery system.
-
-**When to read:** Need to understand what Pass 0.5 does, how it works, or load context for AI assistants
-
-**What it contains:**
-- What is Pass 0.5 and its role in the 5-pass pipeline
-- Encounter types (real-world, planned, pseudo)
-- Processing flow (OCR → AI discovery → manifest build → atomic database writes)
-- Shell file manifest structure (JSONB)
-- Integration points (how Pass 1/2 consume manifests)
-- Production metrics and performance
+**For historical context:** Keep reading below
 
 ---
 
-#### IMPLEMENTATION_PLAN.md
-Complete technical implementation plan with database schema, worker code design, and phase planning.
+## What is Pass 0.5?
 
-**When to read:** Need deep technical details about implementation decisions
+Pass 0.5 is the **first stage** of Exora's five-pass AI processing pipeline. It discovers healthcare encounters within uploaded medical documents and creates structured manifests for downstream processing by Pass 1 (Entity Detection) and Pass 2 (Clinical Extraction).
 
-**What it contains:**
-- Phase 1 MVP design (encounter discovery only, <18 pages)
-- Phase 2 planning (batching for large files)
-- Database schema (healthcare_encounters, shell_file_manifests, metrics)
-- Worker architecture (5 TypeScript files)
-- Timeline Test prompt methodology
-- Code references and file locations
+**Core Capabilities:**
+- Handles documents of any size (tested up to 219 pages, no theoretical limit)
+- Discovers real-world encounters (hospital visits, procedures) and pseudo encounters (lab reports, letters)
+- Creates cascade chains for encounters spanning multiple document pages/chunks
+- Reconciles multi-chunk encounters into single final healthcare_encounter records
+- Provides complete audit trail and confidence scoring
 
 ---
 
-### Testing and Validation
+## The Iterative Journey to Strategy A
 
-#### pass05-hypothesis-tests-results/
-Production validation tests for Pass 0.5 system.
+Pass 0.5 went through **three major iterations** over 4-5 weeks before reaching production-ready state. This section explains the evolution and why each pivot was necessary.
 
-**When to read:** Need to see test results, validation queries, or cost data
+### Iteration 1: Initial Approach (Weeks 1-2)
 
-**What it contains:**
-- Test plans with hypothesis and expected outcomes
-- Validation queries for database integrity
-- Cost reports and performance metrics
-- Success/failure criteria and results
+**Goal:** Basic encounter discovery for simple medical documents
 
-**Status:** Test suite created, first test pending execution
+**Design:**
+- Single-pass processing (no chunking)
+- AI analyzes entire document at once
+- Creates final `healthcare_encounters` records directly
+- Simple, straightforward architecture
 
----
+**Limitations:**
+- **File size:** Only worked for documents <18 pages
+- **Why:** GPT-4o Vision context window limits, processing time, cost
+- **Result:** Worked great for discharge summaries and single-page letters, failed for complex hospital admissions
 
-### Audit & Improvement Tracking
+**Outcome:** ✅ Proved concept, ❌ couldn't handle real-world complexity
 
-#### pass05-audits/
-Database audits identifying optimization opportunities post-implementation.
-
-**When to read:** Need to see what database improvements have been made
-
-**What it contains:**
-- Column-by-column audit findings
-- Performance optimization recommendations
-- Data quality improvements
-
-**Status:** Placeholder for post-testing audits
+**Documentation:** See `archive-pre-strategy-a/IMPLEMENTATION_PLAN.md` and `PASS-0.5-OVERVIEW.md`
 
 ---
 
-### Historical Archive
+### Iteration 2: Progressive Refinement (Week 3)
 
-#### archive/
-Pointers to original implementation planning documents.
+**Trigger:** User uploaded 142-page hospital admission document → system crashed
 
-**What it contains:**
-- Link to V3_Features_and_Concepts/shell-file-batching-and-encounter-discovery/ (original planning location)
-- Historical issue analysis and worker fixes
+**Realization:** Need chunking/batching for large documents
 
----
+**Design Pivot:**
+- **Progressive chunking:** Split large documents into 50-page chunks
+- **Handoff packages:** Pass context between chunks for cascading encounters
+- **Challenge:** How to reconcile encounters that span chunk boundaries?
 
-## Quick Start Paths
+**Implementation:**
+- Created `pass05_progressive_sessions` table
+- Added `pass05_chunk_results` tracking
+- Implemented handoff context passing between chunks
+- Attempted reconciliation DURING chunk processing
 
-### Path 1: Understand Pass 0.5 Quickly
-**Goal:** Load context about Pass 0.5 architecture
+**Problems Encountered:**
+- Reconciliation logic too complex when interleaved with processing
+- Cascade detection inconsistent (AI sometimes said "cascading", sometimes didn't)
+- Multi-chunk encounters created duplicate final records
+- Audit trail gaps (timestamps missing, metrics incomplete)
 
-1. Read [PASS-0.5-OVERVIEW.md](./PASS-0.5-OVERVIEW.md)
-2. Browse key files in `apps/render-worker/src/pass05/`:
-   - `index.ts` - Main entry point
-   - `encounterDiscovery.ts` - AI call
-   - `manifestBuilder.ts` - Validation and enrichment
+**Outcome:** ✅ Chunking worked, ❌ reconciliation approach too fragile
 
----
-
-### Path 2: Implement Integration with Pass 1/2
-**Goal:** Understand how to load and consume manifests
-
-1. Read [PASS-0.5-OVERVIEW.md](./PASS-0.5-OVERVIEW.md) Integration Points section
-2. Review manifest structure and encounter metadata
-3. Use sample query to load manifest in your worker code
+**Documentation:** See `archive-pre-strategy-a/progressive-refinement/` folder
 
 ---
 
-### Path 3: Run Tests
-**Goal:** Validate Pass 0.5 functionality
+### Iteration 3: Strategy A Design (Weeks 4-5)
 
-1. Review [pass05-hypothesis-tests-results/README.md](./pass05-hypothesis-tests-results/README.md)
-2. Execute test plans
-3. Run validation queries
-4. Document results
+**Trigger:** Progressive Refinement reconciliation failures, complexity spiraling
+
+**Key Insight:** "Don't try to reconcile DURING processing - do it AFTER all chunks complete"
+
+**Design Pivot:**
+- **Pending-to-final workflow:** All chunks create `pass05_pending_encounters`, reconciliation happens at the end
+- **Cascade chains:** Smart cascade_id assignment based on boundary detection (not just AI flag)
+- **Atomic reconciliation:** Single RPC function (`reconcile_pending_to_final`) groups pendings by cascade_id
+- **Complete audit:** Every timestamp, every metric, every tracking field populated
+
+**Architecture:**
+```
+Document Upload
+  ↓
+Progressive Session Created (determines chunk count)
+  ↓
+FOR EACH CHUNK:
+  - Process 50 pages
+  - Create pass05_pending_encounters (NOT final encounters)
+  - Assign cascade_ids if encounter reaches chunk boundary
+  - Pass handoff context to next chunk
+  ↓
+AFTER ALL CHUNKS COMPLETE:
+  - Reconcile all pendings grouped by cascade_id
+  - Merge dates, positions, confidence scores
+  - Create single healthcare_encounter per cascade chain
+  - Populate complete metrics and audit trail
+  ↓
+Session Complete
+```
+
+**Tables (Strategy A):**
+- `pass05_progressive_sessions` - Session tracking
+- `pass05_chunk_results` - Per-chunk metrics
+- `pass05_pending_encounters` - Temporary encounter records
+- `pass05_cascade_chains` - Cascade linkage tracking
+- `pass05_page_assignments` - Page→encounter mapping
+- `healthcare_encounters` - Final reconciled encounters
+- `pass05_encounter_metrics` - Comprehensive metrics
+- Plus: reconciliation logs, identifiers, coordinates
+
+**Hardening (Rabbit Hunt & Technical Debt):**
+After initial Strategy A implementation, systematic verification found 26 issues:
+- 22 fixed via Migrations 58-66
+- 4 remaining (extracted to OPEN-ISSUES-AND-FUTURE-WORK.md)
+
+**Production Status:** ✅ **FULLY OPERATIONAL**
+- 142-page documents: ✅ Tested and working
+- 219-page documents: ✅ Tested and working
+- Single-page images: ✅ Working (Migration 66)
+- DD/MM/YYYY dates: ✅ Working (Migration 63-65)
+- Cascade reconciliation: ✅ Verified correct
+- Audit trails: ✅ Complete
+
+**Documentation:** See `strategy-a-docs/` folder (current/active)
 
 ---
 
-### Path 4: Deep Dive into Implementation
-**Goal:** Understand technical details
+## Current Folder Structure
 
-1. Read [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
-2. Review database schema in `current_schema/08_job_coordination.sql`
-3. Examine worker code in `apps/render-worker/src/pass05/`
+```
+pass-0.5-encounter-discovery/
+├── README.md (this file)
+│
+├── strategy-a-docs/  ← PRIMARY DOCUMENTATION (start here!)
+│   ├── 00-START-HERE.md (navigation guide)
+│   ├── 01-SYSTEM-OVERVIEW.md
+│   ├── 02-SCRIPT-ANALYSIS-V3.md
+│   ├── 03-TABLE-DESIGN-V3.md
+│   ├── 04-PROMPT-V11-SPEC.md
+│   ├── 05-CASCADE-IMPLEMENTATION.md
+│   ├── 06-BATCHING-TASK-DESIGN-V2.md
+│   ├── 07-OCR-INTEGRATION-DESIGN-v2.md
+│   ├── 08-RECONCILIATION-STRATEGY-V2.md
+│   ├── 10-17... (additional design docs)
+│   ├── OPEN-ISSUES-AND-FUTURE-WORK.md (active issue tracking)
+│   └── archive-strategy-a/ (completed rabbit hunt, tech debt)
+│
+└── archive-pre-strategy-a/  ← HISTORICAL REFERENCE
+    ├── README.md (explains pre-Strategy A journey)
+    ├── progressive-refinement/ (Week 3 iteration)
+    ├── pass05-hypothesis-tests-results/ (v2.7-v2.11 tests)
+    ├── pass05-audits/ (early table audits)
+    ├── ai-model-switching/ (deferred to post-launch)
+    └── [original planning docs]
+```
 
 ---
 
-## Integration with 5-Pass AI Pipeline
+## Why the Reorganization? (2025-11-24)
 
-### Pass 0.5: Encounter Discovery (Operational - This Folder)
+After 4-5 weeks of iteration, we had nested folders 3 levels deep:
+```
+pass-0.5-encounter-discovery/
+  progressive-refinement/
+    strategy-a-design/  ← Only folder we cared about
+```
+
+**Problem:** Current docs buried, navigation confusing
+
+**Solution:**
+1. Promote `strategy-a-design/` → `strategy-a-docs/` to top level
+2. Archive everything from Iterations 1-2 to `archive-pre-strategy-a/`
+3. Close out completed work (Rabbit Hunt, Technical Debt)
+4. Create clear navigation guides
+
+**Benefit:** New developers see current state immediately, can explore history if needed
+
+---
+
+## Quick Start
+
+### I'm new to Pass 0.5
+→ Read [`strategy-a-docs/00-START-HERE.md`](./strategy-a-docs/00-START-HERE.md)
+→ Then [`strategy-a-docs/01-SYSTEM-OVERVIEW.md`](./strategy-a-docs/01-SYSTEM-OVERVIEW.md)
+
+### I need to fix a bug
+→ Check [`strategy-a-docs/OPEN-ISSUES-AND-FUTURE-WORK.md`](./strategy-a-docs/OPEN-ISSUES-AND-FUTURE-WORK.md)
+→ Review issue priority and status
+
+### I'm planning Pass 2 development
+→ Review open issues (especially ISSUE-002: medical identifiers pipeline)
+→ Read [`strategy-a-docs/06-BATCHING-TASK-DESIGN-V2.md`](./strategy-a-docs/06-BATCHING-TASK-DESIGN-V2.md) for batching strategy
+→ Understand page separation analysis for safe split points
+
+### I want to understand the evolution
+→ Read [`archive-pre-strategy-a/README.md`](./archive-pre-strategy-a/README.md)
+→ Review progressive-refinement test results (especially TEST_04_142_pages)
+
+---
+
+## Integration with 5-Pass Pipeline
+
+### Pass 0.5: Encounter Discovery ✅ OPERATIONAL
 - **Purpose:** Discover healthcare encounters, create manifest
-- **Output:** shell_file_manifest + pre-created healthcare_encounters records
-- **Status:** ✅ Operational since October 2025
+- **Output:** `healthcare_encounters` records + metadata
+- **Status:** Production-ready (Strategy A)
 
-### Pass 1: Entity Detection (Operational)
-- **Purpose:** Detect and classify entities
-- **Input:** Manifest from Pass 0.5 (encounter context)
-- **Status:** ✅ Operational
-- **Location:** `../pass-1-entity-detection/`
+### Pass 1: Entity Detection ✅ OPERATIONAL
+- **Purpose:** Detect and classify medical entities
+- **Input:** Encounter context from Pass 0.5
+- **Status:** Operational since October 2025
 
-### Pass 1.5: Medical Code Resolution (In Design)
-- **Purpose:** Vector embedding code candidates
-- **Status:** Design phase
-
-### Pass 2: Clinical Extraction (Designed)
+### Pass 2: Clinical Extraction (Designed, Not Built)
 - **Purpose:** Extract structured clinical data
-- **Input:** Entities from Pass 1 + manifest from Pass 0.5
-- **Status:** Schema complete
+- **Input:** Entities from Pass 1 + encounters from Pass 0.5
+- **Status:** Schema complete, implementation pending
 
 ### Pass 3: Narrative Generation (Planned)
 - **Purpose:** Generate patient summaries
-- **Status:** Planning phase
+- **Status:** Design phase
 
 ---
 
-## Key Metrics (Production Target)
+## Key Learnings from the Journey
 
-**Cost:** ~$0.01-0.03 per document (GPT-4o Vision)
-**Processing Time:** 3-6 seconds total (AI + database)
-**Phase 1 Limitation:** Files ≥18 pages not supported (batching pending)
-**Quality:** 90-95% confidence on encounter detection
+1. **Iterate Based on Real Data:** The 142-page document exposed fundamental design flaws that testing with small files never revealed
+
+2. **Simpler is Better:** Pending-to-final workflow is cleaner than trying to reconcile during processing
+
+3. **Cascade Detection:** Don't rely solely on AI flags - use position/boundary logic to definitively detect cascades
+
+4. **Audit Everything:** Timestamps, metrics, and tracking fields seem optional but are critical for debugging
+
+5. **Test at Scale:** System that works for 3-page file may completely fail for 142-page file - test large documents early
+
+6. **Systematic Verification:** Rabbit Hunt approach (systematic schema vs code verification) found 26 issues that would have caused production failures
+
+---
+
+## Production Metrics
+
+**Cost:** ~$0.03-0.08 per document (varies by page count, GPT-4o Vision pricing)
+**Processing Time:** 5-15 seconds per 50-page chunk + reconciliation overhead
+**File Size:** No theoretical limit (tested up to 219 pages, 50 pages per chunk)
+**Quality:** 90-95% confidence on encounter detection and classification
 
 ---
 
 ## Related Documentation
 
-**V3 Architecture:**
-- [V3 Architecture Master Guide](../../../V3_ARCHITECTURE_MASTER_GUIDE.md)
-- [Migration History](../../../migration_history/)
-- [Current Schema](../../../current_schema/08_job_coordination.sql)
+**Database Schema:** `shared/docs/architecture/database-foundation-v3/current_schema/`
+- `04_ai_processing.sql` - Pass 0.5 tables
+- `08_job_coordination.sql` - Progressive session tables, RPCs, metrics
 
-**Pass 1 Reference:**
-- [Pass 1 Entity Detection](../pass-1-entity-detection/)
+**Migration History:** `shared/docs/architecture/database-foundation-v3/migration_history/`
+- Migrations 58-66: Strategy A hardening (audit trails, fixes, constraints)
 
-**Original Planning Location:**
-- [V3 Features and Concepts](../../../V3_Features_and_Concepts/shell-file-batching-and-encounter-discovery/)
+**V3 Architecture:** `shared/docs/architecture/database-foundation-v3/V3_ARCHITECTURE_MASTER_GUIDE.md`
 
 ---
 
-**Last Updated:** October 30, 2025
+**Last Updated:** 2025-11-24
+**Reorganized:** 2025-11-24 (promoted Strategy A to top level, archived Iterations 1-2)
 **Maintained By:** Exora Health Development Team
