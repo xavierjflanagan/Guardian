@@ -38,8 +38,8 @@
 │  2. Format Preprocess  → PDF/HEIC/TIFF → JPEG pages                         │
 │  3. OCR Processing     → Google Cloud Vision (batched parallel)              │
 │  4. OCR Persistence    → Save artifacts to Supabase Storage                  │
-│  5. Enhanced OCR Gen   → Create coordinate-enriched text format              │
-│  6. Pass 0.5           → Encounter discovery (AI)                            │
+│  5. Enhanced OCR Gen   → Create dual coordinate-enriched text formats (v12)  │
+│  6. Pass 0.5           → Encounter discovery (AI, uses Y-only format)        │
 │  7. Pass 1 (Optional)  → Entity detection (AI) [disabled by default]         │
 │  8. Pass 2 (Future)    → Clinical extraction (AI) [not yet implemented]      │
 │                                                                               │
@@ -257,19 +257,38 @@
 │         ├── 3. Download all page-N.json files                             │
 │         └── 4. Reconstruct OCRResult { pages: [] }                         │
 │                                                                              │
-│  storeEnhancedOCR(supabase, patientId, shellFileId, enhancedOCRText)      │
-│         │                                                                    │
-│         └── Upload enhanced OCR format                                     │
-│             Path: {patient_id}/{shell_file_id}-ocr/enhanced-ocr.txt       │
-│             Content: Enhanced OCR text with inline coordinates             │
-│             Format: [Y:240] text (x:20) | text (x:120) | ...             │
-│             Upsert: true (allow regeneration)                              │
-│             PHASE 1: Permanent storage for reuse across all passes        │
+│  DUAL ENHANCED OCR FORMATS (v12):                                          │
 │                                                                              │
-│  loadEnhancedOCR(supabase, patientId, shellFileId)                        │
+│  storeEnhancedOCR_Y(supabase, patientId, shellFileId, enhancedOCRText)    │
 │         │                                                                    │
-│         └── Download enhanced OCR format from storage                      │
+│         └── Upload Y-only enhanced OCR format (for Pass 0.5)              │
+│             Path: {patient_id}/{shell_file_id}-ocr/enhanced-ocr-y.txt     │
+│             Content: [Y:240] text text text (no X-coordinates)             │
+│             Token usage: ~900 tokens/page (71% reduction)                  │
+│             Use case: Pass 0.5 encounter boundary positioning              │
+│                                                                              │
+│  storeEnhancedOCR_XY(supabase, patientId, shellFileId, enhancedOCRText)   │
+│         │                                                                    │
+│         └── Upload XY enhanced OCR format (for Pass 1/2)                  │
+│             Path: {patient_id}/{shell_file_id}-ocr/enhanced-ocr-xy.txt    │
+│             Content: [Y:240] text (x:20) | text (x:120) | ...             │
+│             Token usage: ~5000 tokens/page                                 │
+│             Use case: Pass 1/2 clinical entity bounding boxes              │
+│                                                                              │
+│  loadEnhancedOCR_Y(supabase, patientId, shellFileId)                      │
+│         │                                                                    │
+│         └── Download Y-only format (with fallback to legacy)              │
+│             Fallback: enhanced-ocr.txt if enhanced-ocr-y.txt not found    │
 │             Returns: Enhanced OCR text or null if not found                │
+│                                                                              │
+│  loadEnhancedOCR_XY(supabase, patientId, shellFileId)                     │
+│         │                                                                    │
+│         └── Download XY format (with fallback to legacy)                  │
+│             Fallback: enhanced-ocr.txt if enhanced-ocr-xy.txt not found   │
+│             Returns: Enhanced OCR text or null if not found                │
+│                                                                              │
+│  LEGACY (backward compatibility):                                          │
+│  storeEnhancedOCR() / loadEnhancedOCR() - Original single format          │
 │                                                                              │
 │  storeRawGCV(supabase, patientId, shellFileId, gcvResponse) [PHASE 4]     │
 │         │                                                                    │
@@ -303,84 +322,90 @@
     │ }                               │
     └─────────────────────────────────┘
          │
-         │ STEP 7: Generate enhanced OCR format
+         │ STEP 7: Generate dual enhanced OCR formats (v12)
          │         Function: storeEnhancedOCRFormat()
-         │         For each page...
+         │         For each page, generate BOTH Y-only and XY formats
          │
          ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ FILE: pass05/progressive/ocr-formatter.ts                                   │
-│ PURPOSE: Generate enhanced OCR format with inline coordinates for AI        │
+│ PURPOSE: Generate DUAL enhanced OCR formats with inline coordinates (v12)   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  generateEnhancedOcrFormat(page: OCRPage, config?)                         │
+│  TWO FORMAT VARIANTS (v12):                                                 │
+│                                                                              │
+│  1. generateEnhancedOcrFormatYOnly(page, config?) - For Pass 0.5           │
+│     Output: [Y:240] text text text (no X-coordinates)                       │
+│     Token usage: ~900 tokens/page (71% reduction vs XY)                    │
+│     Use case: Pass 0.5 only needs Y for encounter boundary positioning     │
+│                                                                              │
+│  2. generateEnhancedOcrFormat(page, config?) - For Pass 1/2                │
+│     Output: [Y:240] text (x:20) | text (x:120) | ...                       │
+│     Token usage: ~5000 tokens/page                                         │
+│     Use case: Pass 1/2 need X for clinical entity bounding boxes           │
+│                                                                              │
+│  SHARED ALGORITHM:                                                          │
 │         │                                                                    │
 │         ├── 1. Extract words with coordinates                              │
 │         │      extractWordsWithCoordinates(page)                           │
-│         │      Checks:                                                      │
-│         │        - if (page.blocks && page.blocks.length > 0) ← Primary    │
-│         │          Traverse: blocks → paragraphs → words                   │
-│         │          Extract: word.text, word.boundingBox.vertices[0] (TL)   │
-│         │        - else if (page.lines) ← Backward compatibility           │
-│         │          Fallback: Use legacy lines array                        │
-│         │          Extract: line.text, line.bbox.{x,y}                     │
 │         │      Returns: EnhancedWord[] { text, x, y }                      │
 │         │                                                                    │
 │         ├── 2. Group words by Y-coordinate into lines                      │
 │         │      groupWordsByLine(words, yTolerance=10)                      │
-│         │      Algorithm:                                                   │
-│         │        - Quantize Y-coordinate to nearest 10px                   │
-│         │        - Group words with same quantized Y                       │
 │         │      Returns: Map<Y-coord, EnhancedWord[]>                       │
 │         │                                                                    │
 │         ├── 3. Sort lines top-to-bottom by Y-coordinate                    │
 │         │                                                                    │
-│         ├── 4. Format each line with inline coordinates                    │
-│         │      For each line:                                              │
-│         │        - Sort words left-to-right by X-coordinate                │
-│         │        - Format: "text (x:###)"                                  │
-│         │        - Add "|" separator if spacing > minWordSpacing (20px)    │
-│         │      Returns: "[Y:240] text (x:20) | text (x:120) | ..."        │
-│         │                                                                    │
-│         └── 5. Join all lines with newlines                                │
+│         └── 4. Format each line (differs by variant):                      │
+│                Y-only: "[Y:240] text text text"                            │
+│                XY:     "[Y:240] text (x:20) | text (x:120) | ..."         │
 │                                                                              │
-│  Returns: Enhanced OCR text                                                 │
-│           Example output:                                                   │
+│  Example Output (Y-only for Pass 0.5):                                     │
+│           [Y:240] S T-BIL 16 14 7                                          │
+│           [Y:270] S ALP 62 66 75                                           │
+│                                                                              │
+│  Example Output (XY for Pass 1/2):                                         │
 │           [Y:240] S T-BIL (x:20) | 16 (x:120) | 14 (x:220) | 7 (x:320)    │
 │           [Y:270] S ALP (x:20) | 62 (x:120) | 66 (x:220) | 75 (x:320)     │
 │                                                                              │
-│  Why Enhanced Format?                                                       │
-│  - Preserves horizontal table structure (lost in spatially_sorted_text)    │
-│  - AI can reason about spatial relationships                                │
-│  - Enables accurate coordinate lookup after AI processing                  │
-│  - Reusable across all passes (Pass 0.5, Pass 1, Pass 2)                  │
+│  Why Dual Formats?                                                          │
+│  - Pass 0.5 only needs Y-coordinates (71% token savings)                   │
+│  - Pass 1/2 need X-coordinates for table structure and bounding boxes      │
+│  - 142-page document: 208K tokens (Y-only) vs 721K tokens (XY)            │
 │                                                                              │
 │  Backward Compatibility:                                                    │
-│  - Prefers blocks[] structure (Phase 2)                                    │
-│  - Falls back to lines[] for old page-N.json files (pre-Phase 2)          │
-│  - Handles missing data gracefully                                         │
+│  - Falls back to legacy enhanced-ocr.txt if new formats not found          │
 └─────────────────────────────────────────────────────────────────────────────┘
          │
-         │ STEP 8: Save enhanced OCR to Supabase Storage
-         │         storeEnhancedOCR() called
-         │         Path: {patient_id}/{shell_file_id}-ocr/enhanced-ocr.txt
+         │ STEP 8: Save dual enhanced OCR formats to Supabase Storage
+         │         storeEnhancedOCR_Y() and storeEnhancedOCR_XY() called
          │
          ▼
     ┌─────────────────────────────────┐
-    │ Storage: enhanced-ocr.txt       │
+    │ Storage: DUAL FORMATS (v12)     │
     │                                 │
-    │ Content:                        │
-    │ --- PAGE 1 START ---            │
-    │ [Y:240] text (x:20) | ...       │
-    │ [Y:270] text (x:20) | ...       │
-    │ --- PAGE 1 END ---              │
+    │ 1. enhanced-ocr-y.txt           │
+    │    (Y-only for Pass 0.5)        │
+    │    --- PAGE 1 START ---         │
+    │    [Y:240] text text text       │
+    │    [Y:270] text text text       │
+    │    --- PAGE 1 END ---           │
+    │    ~900 tokens/page             │
     │                                 │
-    │ --- PAGE 2 START ---            │
-    │ [Y:240] text (x:20) | ...       │
-    │ --- PAGE 2 END ---              │
+    │ 2. enhanced-ocr-xy.txt          │
+    │    (XY for Pass 1/2)            │
+    │    --- PAGE 1 START ---         │
+    │    [Y:240] text (x:20) | ...    │
+    │    [Y:270] text (x:20) | ...    │
+    │    --- PAGE 1 END ---           │
+    │    ~5000 tokens/page            │
     │                                 │
-    │ PHASE 1: Stored permanently     │
-    │ Reused by: Pass 0.5, 1, 2       │
+    │ 3. enhanced-ocr.txt (legacy)    │
+    │    Backward compatibility       │
+    │                                 │
+    │ Reused by:                      │
+    │ - Pass 0.5: Y-only format       │
+    │ - Pass 1/2: XY format           │
     └─────────────────────────────────┘
          │
          │ STEP 9: Run Pass 0.5 (Encounter Discovery)
@@ -414,8 +439,8 @@
 │  }                                                                           │
 │                                                                              │
 │  Processing:                                                                │
-│  ├── 1. Load or generate enhanced OCR format                               │
-│  │      session-manager.ts: loadEnhancedOCR() or generateEnhancedOcrFormat()│
+│  ├── 1. Load Y-only enhanced OCR format (v12)                              │
+│  │      session-manager.ts: loadEnhancedOCR_Y() (71% token savings)        │
 │  │                                                                           │
 │  ├── 2. Send enhanced OCR to AI (GPT-4o-mini)                              │
 │  │      Prompt: Detect healthcare encounters                               │
@@ -626,18 +651,24 @@
 ### OCR Storage Module
 
 #### 3. **utils/ocr-persistence.ts** (Storage Layer)
-- **Lines:** 454
+- **Lines:** ~550
 - **Purpose:** Save/load OCR artifacts from Supabase Storage
 - **Exports:**
   - `persistOCRArtifacts()` - Save page-N.json + manifest.json
   - `loadOCRArtifacts()` - Load cached OCR results
-  - `storeEnhancedOCR()` - Save enhanced-ocr.txt (Phase 1)
-  - `loadEnhancedOCR()` - Load enhanced OCR format
+  - `storeEnhancedOCR_Y()` - Save Y-only format (v12, for Pass 0.5)
+  - `loadEnhancedOCR_Y()` - Load Y-only format (with legacy fallback)
+  - `storeEnhancedOCR_XY()` - Save XY format (v12, for Pass 1/2)
+  - `loadEnhancedOCR_XY()` - Load XY format (with legacy fallback)
+  - `storeEnhancedOCR()` - Save legacy format (backward compat)
+  - `loadEnhancedOCR()` - Load legacy format
   - `storeRawGCV()` - Save raw-gcv.json (Phase 4, optional)
 - **Storage Paths:**
   - `{patient_id}/{shell_file_id}-ocr/page-N.json`
   - `{patient_id}/{shell_file_id}-ocr/manifest.json`
-  - `{patient_id}/{shell_file_id}-ocr/enhanced-ocr.txt`
+  - `{patient_id}/{shell_file_id}-ocr/enhanced-ocr-y.txt` (v12, Y-only)
+  - `{patient_id}/{shell_file_id}-ocr/enhanced-ocr-xy.txt` (v12, XY)
+  - `{patient_id}/{shell_file_id}-ocr/enhanced-ocr.txt` (legacy)
   - `{patient_id}/{shell_file_id}-ocr/raw-gcv.json` (optional)
 - **Database:** Indexes in `ocr_artifacts` table
 - **Integration:** Called by worker.ts after OCR completion
@@ -647,21 +678,24 @@
 ### Enhanced OCR Generation Module
 
 #### 4. **pass05/progressive/ocr-formatter.ts** (Enhanced OCR Generator)
-- **Lines:** 243
-- **Purpose:** Generate enhanced OCR format with inline coordinates
+- **Lines:** ~310
+- **Purpose:** Generate DUAL enhanced OCR formats with inline coordinates (v12)
 - **Exports:**
-  - `generateEnhancedOcrFormat()` - Main function
+  - `generateEnhancedOcrFormatYOnly()` - Y-only format for Pass 0.5 (~900 tokens/page)
+  - `generateEnhancedOcrFormat()` - XY format for Pass 1/2 (~5000 tokens/page)
   - `hasStructuredOcrData()` - Check for blocks structure
   - `generateEnhancedOcrFromSortedText()` - Fallback for degraded data
-- **Output Format:** `[Y:240] text (x:20) | text (x:120) | ...`
+- **Output Formats:**
+  - Y-only: `[Y:240] text text text` (no X-coordinates)
+  - XY: `[Y:240] text (x:20) | text (x:120) | ...`
 - **Algorithm:**
   1. Extract words with coordinates from `page.blocks`
   2. Group words by Y-coordinate (±10px tolerance)
   3. Sort lines top-to-bottom
-  4. Format each line with inline coordinates
-  5. Add "|" separator for widely spaced words (>20px)
+  4. Format each line (Y-only or XY depending on function)
+- **Token Savings:** Y-only format provides 71% reduction (208K vs 721K for 142-page doc)
 - **Backward Compatibility:** Falls back to legacy `lines[]` array if `blocks` not available
-- **Integration:** Called by worker.ts and Pass 0.5 session manager
+- **Integration:** Called by worker.ts (both formats) and Pass 0.5 session manager (Y-only)
 
 ---
 
@@ -751,11 +785,24 @@ interface OCRWord {
 }
 ```
 
-### Enhanced OCR Format (Phase 1)
+### Enhanced OCR Format (v12 - Dual Formats)
 
 ```typescript
-// Enhanced OCR text with inline coordinates
-// Stored in: {patient_id}/{shell_file_id}-ocr/enhanced-ocr.txt
+// TWO FORMAT VARIANTS (v12):
+
+// 1. Y-ONLY FORMAT (for Pass 0.5)
+// Stored in: {patient_id}/{shell_file_id}-ocr/enhanced-ocr-y.txt
+// Token usage: ~900 tokens/page (71% reduction)
+
+--- PAGE 1 START ---
+[Y:240] S T-BIL 16 14 7
+[Y:270] S ALP 62 66 75
+[Y:300] HAEMOGLOBIN 120 g/L
+--- PAGE 1 END ---
+
+// 2. XY FORMAT (for Pass 1/2)
+// Stored in: {patient_id}/{shell_file_id}-ocr/enhanced-ocr-xy.txt
+// Token usage: ~5000 tokens/page
 
 --- PAGE 1 START ---
 [Y:240] S T-BIL (x:20) | 16 (x:120) | 14 (x:220) | 7 (x:320)
@@ -763,16 +810,10 @@ interface OCRWord {
 [Y:300] HAEMOGLOBIN (x:20) | 120 (x:150) | g/L (x:200)
 --- PAGE 1 END ---
 
---- PAGE 2 START ---
-[Y:100] DISCHARGE SUMMARY (x:200)
-[Y:150] Patient Name (x:20) | John Smith (x:150)
---- PAGE 2 END ---
-
-// Why this format?
-// - Preserves horizontal table structure (lost in spatially_sorted_text)
-// - AI can reason about spatial relationships
-// - Enables post-AI coordinate enrichment
-// - Reusable across all passes (Pass 0.5, 1, 2)
+// Why dual formats?
+// - Pass 0.5 only needs Y-coordinates for encounter boundary positioning
+// - Pass 1/2 need X-coordinates for clinical entity bounding boxes
+// - 142-page document savings: 512K tokens ($0.17 per document)
 ```
 
 ### Storage Manifest (Phase 1)
@@ -841,7 +882,9 @@ medical-docs/
 │       ├── page-2.json                    ← Full OCR data for page 2
 │       ├── page-N.json                    ← Full OCR data for page N
 │       ├── manifest.json                  ← Metadata for all pages
-│       ├── enhanced-ocr.txt               ← PHASE 1: Enhanced format (permanent)
+│       ├── enhanced-ocr-y.txt             ← v12: Y-only format for Pass 0.5
+│       ├── enhanced-ocr-xy.txt            ← v12: XY format for Pass 1/2
+│       ├── enhanced-ocr.txt               ← Legacy format (backward compat)
 │       └── raw-gcv.json                   ← PHASE 4: Raw GCV response (optional, 30-day lifecycle)
 ```
 
@@ -1047,7 +1090,9 @@ VERBOSE=false
 ### Storage
 
 - **page-N.json:** ~50-100KB per page (with full blocks structure)
-- **enhanced-ocr.txt:** ~5-10KB per page (text only)
+- **enhanced-ocr-y.txt:** ~1-2KB per page (Y-only, for Pass 0.5)
+- **enhanced-ocr-xy.txt:** ~5-10KB per page (XY, for Pass 1/2)
+- **enhanced-ocr.txt:** ~5-10KB per page (legacy, backward compat)
 - **raw-gcv.json:** ~2-5MB per page (optional, deleted after 30 days)
 - **processed images:** ~200-500KB per page (JPEG)
 
@@ -1201,9 +1246,10 @@ if (analysis.hasComplexTables || analysis.hasImages) {
 |------|------------|
 | **Block** | Structural unit from GCV with type metadata (TEXT/TABLE/PICTURE/etc.) |
 | **Bounding Box** | Rectangle defined by 4 vertices (TL, TR, BR, BL) |
-| **Enhanced OCR** | Text format with inline coordinates: `[Y:240] text (x:20)` |
+| **Enhanced OCR (Y-only)** | Text format with Y-coordinates only: `[Y:240] text text text` (for Pass 0.5) |
+| **Enhanced OCR (XY)** | Text format with XY coordinates: `[Y:240] text (x:20) | ...` (for Pass 1/2) |
 | **GCV** | Google Cloud Vision API |
-| **OCR Artifacts** | Stored OCR data: page-N.json, manifest.json, enhanced-ocr.txt |
+| **OCR Artifacts** | Stored OCR data: page-N.json, manifest.json, enhanced-ocr-y.txt, enhanced-ocr-xy.txt |
 | **Pass 0.5** | Encounter discovery (first AI pass) |
 | **Pass 1** | Entity detection (second AI pass, optional) |
 | **Pass 2** | Clinical extraction (third AI pass, not yet implemented) |

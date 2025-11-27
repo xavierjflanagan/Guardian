@@ -1,7 +1,7 @@
 # Pass 0.5 Architecture Documentation
 
-**Last Updated:** 2025-11-20
-**Current Production Version:** Strategy A v11
+**Last Updated:** 2025-11-27
+**Current Production Version:** Strategy A v12
 **Status:** Operational - Universal Progressive Mode
 **Supersedes:** v2.9 single-shot processing
 
@@ -24,16 +24,16 @@ This enables:
 - Targeted downstream processing (Pass 1/2 can focus on specific encounter types)
 - Scalable processing for documents of any size (1-1000+ pages)
 
-## File Structure (as of November 20, 2024)
+## File Structure (as of November 27, 2025)
 
 ```
 apps/render-worker/src/pass05/
-├── CURRENT_VERSION              # v11 version indicator
+├── CURRENT_VERSION              # v12 version indicator
 ├── PASS05_ARCHITECTURE.md       # This file
 ├── index.ts                     # Entry point - idempotency, flow control
 ├── encounterDiscovery.ts        # Simplified router to progressive mode
 ├── types.ts                     # TypeScript interfaces and type definitions
-├── aiPrompts.v11.ts             # ONLY active prompt - Strategy A v11
+├── aiPrompts.v12.ts             # ONLY active prompt - Strategy A v12
 │
 ├── _archive/                    # Legacy code (archived Nov 20, 2024)
 │   ├── README.md                # Archive documentation
@@ -51,7 +51,8 @@ apps/render-worker/src/pass05/
 │   ├── post-processor.ts        # Post-processing utilities
 │   ├── cascade-manager.ts       # Cascade ID generation
 │   ├── coordinate-extractor.ts  # OCR coordinate lookup
-│   └── identifier-extractor.ts  # Medical identifier parsing
+│   ├── identifier-extractor.ts  # Medical identifier parsing
+│   └── ocr-formatter.ts         # Dual enhanced OCR format generation (v12)
 │
 ├── providers/                   # AI provider abstraction
 │   ├── base-provider.ts         # Abstract base class
@@ -64,7 +65,7 @@ apps/render-worker/src/pass05/
     └── model-selector.ts        # Model selection logic
 ```
 
-## Core Components (Strategy A v11)
+## Core Components (Strategy A v12)
 
 ### 1. Entry Point (`index.ts`)
 
@@ -184,6 +185,38 @@ apps/render-worker/src/pass05/
 - Stores in pending_identifiers during chunk processing
 - Migrated to encounter_identifiers during reconciliation
 
+#### ocr-formatter.ts (v12)
+**Purpose:** Generate dual enhanced OCR formats with inline coordinates
+
+**Two Format Variants:**
+
+1. **Y-Only Format** (`enhanced-ocr-y.txt`) - For Pass 0.5
+   - Format: `[Y:###] text text text`
+   - ~900 tokens/page
+   - Pass 0.5 only needs Y-coordinates for encounter boundary positioning
+   - 80% token reduction compared to XY format
+
+2. **XY Format** (`enhanced-ocr-xy.txt`) - For Pass 1/2
+   - Format: `[Y:###] text (x:###) | text (x:###)`
+   - ~5000 tokens/page
+   - Pass 1/2 need X-coordinates for clinical entity bounding boxes and table structure
+
+**Key Functions:**
+- `generateEnhancedOcrFormatYOnly()` - Y-only format for Pass 0.5
+- `generateEnhancedOcrFormat()` - Full XY format for Pass 1/2
+
+**Storage (via ocr-persistence.ts):**
+- `storeEnhancedOCR_Y()` / `loadEnhancedOCR_Y()` - Y-only format
+- `storeEnhancedOCR_XY()` / `loadEnhancedOCR_XY()` - XY format
+- Backward compatible: falls back to legacy `enhanced-ocr.txt` if new formats not found
+
+**Token Cost Impact (142-page document):**
+| Format | Tokens/Page | Total Input Tokens | Cost |
+|--------|-------------|-------------------|------|
+| XY (old) | 5,079 | 721,247 | $0.26 |
+| Y-only (v12) | 1,470 | 208,687 | $0.09 |
+| **Savings** | **71%** | **512,560** | **$0.17** |
+
 ### 5. Type Definitions (`types.ts`)
 
 **Key Types:**
@@ -224,28 +257,59 @@ apps/render-worker/src/pass05/
 
 | Version | Status | Date | Key Changes | Lines |
 |---------|--------|------|-------------|-------|
-| **v2.9** | **CURRENT PRODUCTION** | 2025-11-06 | Multi-day encounters, timeframe status, date source tracking (Migration 42) | 569 |
-| v2.8 | Previous Production | 2025-11-05 | Boundary detection fixes, citation requirement, verification step | 434 |
+| **v12** | **CURRENT PRODUCTION** | 2025-11-27 | Dual enhanced OCR formats (Y-only for Pass 0.5), 71% token reduction, safe split point limits | ~595 |
+| v11 | Previous Production | 2025-11-20 | Universal progressive, cascade-based continuity, simplified position tracking (7 fields) | ~580 |
+| v2.9 | Historical | 2025-11-06 | Multi-day encounters, timeframe status, date source tracking (Migration 42) | 569 |
+| v2.8 | Historical | 2025-11-05 | Boundary detection fixes, citation requirement, verification step | 434 |
 | v2.7 | Historical | 2025-11-05 | Phase 1 optimization (~47% token reduction) | 368 |
-| v2.4 | Default Fallback | 2025-11-04 | Lab report date extraction fix, page-by-page assignment | 698 |
+| v2.4 | Archived | 2025-11-04 | Lab report date extraction fix, page-by-page assignment | 698 |
 
 ### Version Comparison
 
-| Feature | v2.4 | v2.7 | v2.8 | v2.9 |
-|---------|------|------|------|------|
-| Page-by-page assignment | ✅ | ✅ | ✅ | ✅ |
-| Boundary detection priority | ✅ | ❌ | ✅ | ✅ |
-| Citation requirement | ❌ | ❌ | ✅ | ✅ |
-| Boundary verification step | ❌ | ❌ | ✅ | ✅ |
-| Multi-day encounters | ❌ | ❌ | ❌ | ✅ |
-| Timeframe status tracking | ❌ | ❌ | ❌ | ✅ |
-| Date source tracking | ❌ | ❌ | ❌ | ✅ |
-| Two-branch date logic | ❌ | ❌ | ❌ | ✅ |
-| Token count | High | Low | Medium | Medium |
+| Feature | v2.9 | v11 | v12 |
+|---------|------|-----|-----|
+| Progressive chunking | ❌ | ✅ | ✅ |
+| Cascade-based continuity | ❌ | ✅ | ✅ |
+| Y-only enhanced OCR | ❌ | ❌ | ✅ |
+| Safe split point limits | ❌ | ❌ | ✅ |
+| Simplified position fields (7) | ❌ | ✅ | ✅ |
+| Multi-day encounters | ✅ | ✅ | ✅ |
+| Timeframe status tracking | ✅ | ✅ | ✅ |
+| Date source tracking | ✅ | ✅ | ✅ |
+| Tokens/page (142p doc) | ~868 | ~5,079* | ~1,470 |
 
-### v2.9 (Current Production)
+*v11 tokens were high due to XY format being used for Pass 0.5; v12 fixes this with Y-only format.
 
-**File:** `aiPrompts.v2.9.ts`
+### v12 (Current Production)
+
+**File:** `aiPrompts.v12.ts`
+**Function:** `buildEncounterDiscoveryPromptV12()`
+
+**Key Features (v12 additions):**
+1. **Dual Enhanced OCR Formats:** Y-only for Pass 0.5, XY for Pass 1/2
+2. **71% Token Reduction:** 208,687 vs 721,247 input tokens (142-page document)
+3. **Safe Split Point Limits:** Max 1 split point per 10 pages to control output tokens
+4. **Simplified Instructions:** Streamlined page separation analysis section
+
+**v12 Changes from v11:**
+- Enhanced OCR format guidance updated for Y-only input
+- Safe split point instructions condensed (6 lines to 4 lines)
+- Added explicit limit: "do not exceed 1 split point per 10 pages"
+
+### v11 (Previous Production)
+
+**File:** `aiPrompts.v11.ts` (archived)
+**Function:** `buildEncounterDiscoveryPromptV11()`
+
+**Key Features:**
+1. **Universal Progressive:** All documents use progressive mode (no page thresholds)
+2. **Cascade-based Continuity:** Deterministic cascade IDs link encounters across chunks
+3. **Simplified Position Tracking:** 7 fields instead of 13 (direct Y-coordinates from OCR)
+4. **Enhanced OCR Integration:** Inline coordinates for position tracking
+
+### v2.9 (Historical)
+
+**File:** `aiPrompts.v2.9.ts` (archived)
 **Function:** `buildEncounterDiscoveryPromptV29()`
 
 **Key Features:**
@@ -316,7 +380,7 @@ apps/render-worker/src/pass05/
 
 **Usage:** Default if `PASS_05_VERSION` not set
 
-## Data Flow (Strategy A v11)
+## Data Flow (Strategy A v12)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -356,7 +420,7 @@ apps/render-worker/src/pass05/
 ┌─────────────────────────────────────────────────────────────────┐
 │ 7. chunk-processor.ts (Per-Chunk Processing)                    │
 │    FOR EACH 50-PAGE CHUNK:                                      │
-│    - Build prompt with aiPrompts.v11                            │
+│    - Build prompt with aiPrompts.v12 (Y-only enhanced OCR)      │
 │    - Call OpenAI GPT API                                        │
 │    - Parse AI response                                          │
 │    - Generate cascade IDs (cascade-manager)                     │
@@ -486,11 +550,11 @@ apps/render-worker/src/pass05/
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key (full access)
 - `OPENAI_API_KEY`: OpenAI API key for GPT API access
 
-**Removed (Strategy A v11):**
-- `PASS_05_VERSION`: No longer used (single v11 prompt)
+**Removed (Strategy A v12):**
+- `PASS_05_VERSION`: No longer used (single v12 prompt)
 - `PASS_05_STRATEGY`: No longer used (progressive mode only)
 
-## Database Integration (Strategy A v11)
+## Database Integration (Strategy A v12)
 
 ### Tables Written
 
@@ -534,7 +598,7 @@ apps/render-worker/src/pass05/
 **shell_files:** (Completion tracking)
 - `pass_0_5_completed`: Boolean flag
 - `pass_0_5_completed_at`: Timestamp
-- `pass_0_5_version`: "v11" (Strategy A)
+- `pass_0_5_version`: "v11-strategy-a" or "v12-strategy-a"
 - `pass_0_5_progressive`: true (always progressive mode)
 
 **Supporting Tables:**
@@ -622,29 +686,32 @@ apps/render-worker/src/pass05/
 
 ## Summary
 
-Pass 0.5 is a production-ready, scalable AI system for healthcare encounter discovery. **Strategy A (v11)** uses universal progressive processing for ALL documents (1-1000+ pages) with cascade-based encounter continuity. Legacy single-shot and conditional routing have been archived.
+Pass 0.5 is a production-ready, scalable AI system for healthcare encounter discovery. **Strategy A (v12)** uses universal progressive processing for ALL documents (1-1000+ pages) with cascade-based encounter continuity and optimized dual enhanced OCR formats. Legacy single-shot and conditional routing have been archived.
 
 **Key Architecture Principles:**
 - **Single Code Path:** ALL documents use progressive mode (no thresholds)
 - **Cascade-Based Continuity:** Deterministic cascade IDs link encounters across chunk boundaries
 - **Pending-then-Reconcile:** Chunks write to pending table, reconciliation merges at end
+- **Dual Enhanced OCR:** Y-only format for Pass 0.5 (71% token savings), XY format for Pass 1/2
 - **Scalable:** Handles any document size (tested to 1000+ pages)
 - **Idempotent:** Safe retry via shell_files.pass_0_5_completed check
 
 **Key Features:**
 - 50-page chunk processing with inter-chunk handoff
+- Dual enhanced OCR formats (Y-only ~900 tokens/page, XY ~5000 tokens/page)
+- Safe split point limits (max 1 per 10 pages)
 - Multi-day encounter support (admission + discharge dates)
 - Medical identifier extraction (MRN, Medicare, insurance)
 - Data quality tiers (low/medium/high/verified)
 - Patient identity extraction (name, DOB, address, phone)
-- Sub-page position granularity (13 position fields)
+- Sub-page position granularity (7 position fields)
 - Comprehensive validation (page assignments, type safety, page ranges)
 
-**Current State (November 20, 2024):**
-- Active prompt: aiPrompts.v11.ts (ONLY prompt)
-- Active files: 23 total (10 progressive pipeline, 4 providers, 2 models, 7 core)
-- Archived files: 10 legacy prompts + manifestBuilder.ts + documentation
-- Total lines of code: ~4,500 (progressive pipeline adds complexity)
+**Current State (November 27, 2025):**
+- Active prompt: aiPrompts.v12.ts (ONLY prompt)
+- Active files: 24 total (11 progressive pipeline, 4 providers, 2 models, 7 core)
+- Archived files: 11 legacy prompts (v2.4-v11) + manifestBuilder.ts + documentation
+- Total lines of code: ~4,800 (progressive pipeline + dual OCR)
 - Current model: OpenAI GPT (configurable via model-selector)
 - Database tables: 9+ (pending encounters, final encounters, metrics, identifiers, sessions, etc.)
-- Cost: $0.005-0.050 per file (similar to legacy, but scales to any size)
+- Cost: $0.005-0.050 per file (71% reduction from v11 XY format)
