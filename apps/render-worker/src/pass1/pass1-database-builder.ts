@@ -1,6 +1,7 @@
 /**
  * Pass 1 Database Builder - Creates ALL Pass 1 Database Records
  * Created: 2025-10-03
+ * Updated: 2025-11-28 - Added OCR-only mode support (Strategy-A)
  * Purpose: Build complete Pass 1 database records for all 7 tables per bridge schemas
  *
  * Pass 1 writes to 7 tables:
@@ -16,6 +17,7 @@
 import {
   Pass1AIResponse,
   Pass1Input,
+  Pass1InputOCROnly,
   ProcessingSessionMetadata,
   AIProcessingSessionRecord,
   ProfileClassificationAuditRecord,
@@ -400,4 +402,286 @@ function determineReviewType(
   if (entity.discrepancy_type) return 'entity_validation';
   if (entity.processing_priority === 'highest') return 'safety_concern';
   return 'entity_validation';
+}
+
+// =============================================================================
+// OCR-ONLY MODE BUILDER (Strategy-A)
+// =============================================================================
+
+/**
+ * Build complete Pass 1 database records from AI response (OCR-only mode)
+ *
+ * This is a variation of buildPass1DatabaseRecords for OCR-only processing.
+ * Key differences:
+ * - No raw image data in input
+ * - vision_enabled: false in model config
+ * - Uses enhanced OCR text instead of raw file
+ */
+export function buildPass1DatabaseRecordsOCROnly(
+  input: Pass1InputOCROnly,
+  aiResponse: Pass1AIResponse,
+  sessionMetadata: ProcessingSessionMetadata,
+  entityAuditRecords: EntityAuditRecord[],
+  processingTimeMs: number
+): Pass1DatabaseRecords {
+
+  // 1. Build ai_processing_sessions record (OCR-only variation)
+  const aiProcessingSession = buildAIProcessingSessionRecordOCROnly(
+    input,
+    aiResponse,
+    sessionMetadata
+  );
+
+  // 2. Entity audit records (already built by translation layer)
+  const entityProcessingAudit = entityAuditRecords;
+
+  // 3. Build shell_files updates (OCR-only variation)
+  const shellFileUpdates = buildShellFileUpdatesOCROnly(input, aiResponse, sessionMetadata);
+
+  // 4. Build profile_classification_audit record (OCR-only variation)
+  const profileClassificationAudit = buildProfileClassificationAuditOCROnly(
+    input,
+    aiResponse,
+    sessionMetadata
+  );
+
+  // 5. Build pass1_entity_metrics record (OCR-only variation)
+  const pass1EntityMetrics = buildPass1EntityMetricsOCROnly(
+    input,
+    aiResponse,
+    sessionMetadata,
+    entityAuditRecords,
+    processingTimeMs
+  );
+
+  // 6. Build ai_confidence_scoring records (reuse existing logic)
+  const aiConfidenceScoring = buildAIConfidenceScoringRecordsOCROnly(
+    input,
+    aiResponse,
+    sessionMetadata,
+    entityAuditRecords
+  );
+
+  // 7. Build manual_review_queue records (reuse existing logic)
+  const manualReviewQueue = buildManualReviewQueueRecordsOCROnly(
+    input,
+    aiResponse,
+    sessionMetadata,
+    entityAuditRecords
+  );
+
+  return {
+    ai_processing_session: aiProcessingSession,
+    entity_processing_audit: entityProcessingAudit,
+    shell_file_updates: shellFileUpdates,
+    profile_classification_audit: profileClassificationAudit,
+    pass1_entity_metrics: pass1EntityMetrics,
+    ai_confidence_scoring: aiConfidenceScoring,
+    manual_review_queue: manualReviewQueue,
+  };
+}
+
+function buildAIProcessingSessionRecordOCROnly(
+  input: Pass1InputOCROnly,
+  aiResponse: Pass1AIResponse,
+  sessionMetadata: ProcessingSessionMetadata
+): AIProcessingSessionRecord {
+  return {
+    id: input.processing_session_id,
+    patient_id: input.patient_id,
+    shell_file_id: input.shell_file_id,
+    session_type: 'entity_extraction',
+    session_status: 'completed',
+    ai_model_name: sessionMetadata.model_used,
+    model_config: {
+      temperature: 0.1,
+      max_tokens: 4000,
+      vision_enabled: false,  // OCR-only mode
+      ocr_cross_validation: false,
+      ocr_format: input.ocr_metadata.ocr_format,
+      processing_mode: 'ocr_only',
+    },
+    processing_mode: 'automated',
+    workflow_step: 'entity_detection',
+    total_steps: 2,
+    completed_steps: 1,
+    overall_confidence: aiResponse.processing_metadata.confidence_metrics.overall_confidence,
+    requires_human_review: aiResponse.quality_assessment.requires_manual_review,
+    quality_score: aiResponse.quality_assessment.completeness_score,
+    processing_started_at: sessionMetadata.started_at,
+    processing_completed_at: new Date().toISOString(),
+    total_processing_time: `${aiResponse.processing_metadata.processing_time_seconds} seconds`,
+  };
+}
+
+function buildShellFileUpdatesOCROnly(
+  input: Pass1InputOCROnly,
+  aiResponse: Pass1AIResponse,
+  sessionMetadata: ProcessingSessionMetadata
+): ShellFileUpdateFields {
+  return {
+    status: 'pass1_complete',
+    processing_started_at: sessionMetadata.started_at,
+    processing_completed_at: new Date().toISOString(),
+    file_type: 'medical_record',
+    confidence_score: aiResponse.processing_metadata.confidence_metrics.overall_confidence,
+    // No extracted_text in OCR-only mode (it's the input)
+    ocr_confidence: input.ocr_metadata.ocr_confidence,
+    page_count: input.document_metadata.page_count,
+    processing_cost_estimate: aiResponse.processing_metadata.cost_estimate,
+    processing_duration_seconds: Math.ceil(aiResponse.processing_metadata.processing_time_seconds),
+    language_detected: 'en',
+  };
+}
+
+function buildProfileClassificationAuditOCROnly(
+  input: Pass1InputOCROnly,
+  aiResponse: Pass1AIResponse,
+  sessionMetadata: ProcessingSessionMetadata
+): ProfileClassificationAuditRecord {
+  return {
+    processing_session_id: input.processing_session_id,
+    shell_file_id: input.shell_file_id,
+    recommended_profile_type: 'self',
+    profile_confidence: aiResponse.profile_safety.patient_identity_confidence,
+    identity_extraction_results: {
+      identity_confidence: aiResponse.profile_safety.patient_identity_confidence,
+      age_appropriateness: aiResponse.profile_safety.age_appropriateness_score,
+      processing_mode: 'ocr_only',
+    },
+    contamination_risk_score: 1.0 - aiResponse.profile_safety.patient_identity_confidence,
+    contamination_checks_performed: {
+      identity_verification: true,
+      age_appropriateness_check: true,
+      cross_profile_check: true,
+    },
+    contamination_warnings: aiResponse.profile_safety.safety_flags,
+    cross_profile_risk_detected: aiResponse.profile_safety.requires_identity_verification,
+    identity_consistency_score: aiResponse.profile_safety.patient_identity_confidence,
+    identity_markers_found: [],
+    age_indicators: [],
+    relationship_indicators: [],
+    medicare_number_detected: false,
+    classification_reasoning: 'Pass 1 OCR-only automated profile classification based on document content analysis',
+    manual_review_required: aiResponse.profile_safety.requires_identity_verification,
+    reviewed_by_user: false,
+    medical_appropriateness_score: aiResponse.profile_safety.age_appropriateness_score,
+    age_appropriateness_validated: aiResponse.profile_safety.age_appropriateness_score > 0.8,
+    safety_flags: aiResponse.profile_safety.safety_flags,
+    ai_model_used: sessionMetadata.model_used,
+    validation_method: 'automated',
+  };
+}
+
+function buildPass1EntityMetricsOCROnly(
+  input: Pass1InputOCROnly,
+  aiResponse: Pass1AIResponse,
+  sessionMetadata: ProcessingSessionMetadata,
+  entityAuditRecords: EntityAuditRecord[],
+  processingTimeMs: number
+): Pass1EntityMetricsRecord {
+  const confidenceDistribution = calculateConfidenceDistribution(entityAuditRecords);
+  const entityTypesFound = [
+    ...new Set(entityAuditRecords.map((e) => e.entity_subtype)),
+  ];
+
+  return {
+    profile_id: input.patient_id,
+    shell_file_id: input.shell_file_id,
+    processing_session_id: input.processing_session_id,
+    entities_detected: aiResponse.entities.length,
+    processing_time_ms: processingTimeMs,
+    vision_model_used: `${sessionMetadata.model_used} (ocr_only)`,  // Mark as OCR-only
+    ocr_model_used: sessionMetadata.ocr_provider,
+    ocr_agreement_average: 1.0,  // OCR-only: 100% by definition
+    confidence_distribution: confidenceDistribution,
+    entity_types_found: entityTypesFound,
+    input_tokens: aiResponse.processing_metadata.token_usage.prompt_tokens,
+    output_tokens: aiResponse.processing_metadata.token_usage.completion_tokens,
+    total_tokens: aiResponse.processing_metadata.token_usage.total_tokens,
+    ocr_pages_processed: input.document_metadata.page_count,
+  };
+}
+
+function buildAIConfidenceScoringRecordsOCROnly(
+  input: Pass1InputOCROnly,
+  _aiResponse: Pass1AIResponse,
+  _sessionMetadata: ProcessingSessionMetadata,
+  entityAuditRecords: EntityAuditRecord[]
+): AIConfidenceScoringRecord[] {
+  const records: AIConfidenceScoringRecord[] = [];
+
+  for (const entity of entityAuditRecords) {
+    if (entity.pass1_confidence < 0.8) {
+      records.push({
+        processing_session_id: input.processing_session_id,
+        shell_file_id: input.shell_file_id,
+        patient_id: input.patient_id,
+        entity_id: entity.entity_id,
+        pass1_detection_confidence: entity.pass1_confidence,
+        pass1_classification_confidence: entity.pass1_confidence,
+        pass1_cross_validation_score: 1.0,  // OCR-only: no cross-validation
+        pass1_overall_confidence: entity.pass1_confidence,
+        confidence_factors: {
+          ocr_confidence: entity.ocr_confidence,
+          processing_mode: 'ocr_only',
+        },
+        uncertainty_sources: [
+          ...(entity.ai_visual_confidence < 0.8 ? ['Low classification confidence'] : []),
+        ],
+        confidence_trend: 'stable',
+      });
+    }
+  }
+
+  return records;
+}
+
+function buildManualReviewQueueRecordsOCROnly(
+  input: Pass1InputOCROnly,
+  _aiResponse: Pass1AIResponse,
+  _sessionMetadata: ProcessingSessionMetadata,
+  entityAuditRecords: EntityAuditRecord[]
+): ManualReviewQueueRecord[] {
+  const records: ManualReviewQueueRecord[] = [];
+
+  for (const entity of entityAuditRecords) {
+    if (entity.manual_review_required) {
+      const priority = determinePriority(entity);
+      const reviewType = determineReviewType(entity);
+
+      const aiConcerns = [
+        ...(entity.pass1_confidence < 0.6 ? ['Low detection confidence (OCR-only mode)'] : []),
+      ];
+
+      const reviewTitle = aiConcerns.length > 0
+        ? aiConcerns[0]
+        : `Low Confidence Entity: ${entity.entity_subtype}`;
+
+      records.push({
+        patient_id: input.patient_id,
+        processing_session_id: input.processing_session_id,
+        shell_file_id: input.shell_file_id,
+        review_type: reviewType,
+        priority: priority,
+        ai_confidence_score: entity.pass1_confidence,
+        ai_concerns: aiConcerns,
+        flagged_issues: [],
+        review_title: reviewTitle,
+        review_description: `Entity "${entity.original_text}" detected with ${(entity.pass1_confidence * 100).toFixed(0)}% confidence in OCR-only mode. Manual review recommended.`,
+        ai_suggestions: `Verify the classification of this entity and confirm the extracted text is accurate.`,
+        clinical_context: {
+          entity_id: entity.entity_id,
+          entity_category: entity.entity_category,
+          entity_subtype: entity.entity_subtype,
+          original_text: entity.original_text,
+          location: entity.location_context,
+          processing_mode: 'ocr_only',
+        },
+        review_status: 'pending',
+      });
+    }
+  }
+
+  return records;
 }

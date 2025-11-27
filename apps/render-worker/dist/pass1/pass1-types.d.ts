@@ -56,6 +56,30 @@ export interface Pass1Input {
         upload_timestamp: string;
     };
 }
+/**
+ * Pass 1 input for OCR-only mode (Strategy-A)
+ * Uses enhanced OCR text instead of raw image + old OCR format
+ *
+ * Cost reduction: ~60% (removes ~6,200 image tokens per page)
+ */
+export interface Pass1InputOCROnly {
+    shell_file_id: string;
+    patient_id: string;
+    processing_session_id: string;
+    enhanced_ocr_text: string;
+    document_metadata: {
+        filename: string;
+        file_type: string;
+        page_count: number;
+        upload_timestamp: string;
+    };
+    ocr_metadata: {
+        ocr_provider: string;
+        ocr_format: 'y_only' | 'xy';
+        enhanced_ocr_bytes: number;
+        ocr_confidence: number;
+    };
+}
 export interface EntityDetectionResult {
     entity_id: string;
     original_text: string;

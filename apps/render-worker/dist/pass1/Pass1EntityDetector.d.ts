@@ -1,16 +1,20 @@
 /**
  * Pass 1 Entity Detector - Main Class
  * Created: 2025-10-03
- * Purpose: Core entity detection using GPT5-mini with dual-input processing
+ * Updated: 2025-11-28 - Added OCR-only mode (Strategy-A)
+ * Purpose: Core entity detection with two modes:
+ *   - Legacy: GPT5-mini Vision with raw document image (PRIMARY) + OCR (SECONDARY)
+ *   - OCR-only: Enhanced OCR text only (no image tokens, ~60% cost reduction)
  *
  * This class:
- * 1. Calls OpenAI GPT5-mini Vision with raw document image (PRIMARY)
- * 2. Provides OCR data for cross-validation (SECONDARY)
- * 3. Parses AI response with entity classification
- * 4. Translates to database format
- * 5. Returns processing results
+ * 1. [Legacy] Calls OpenAI GPT5-mini Vision with raw document image
+ * 2. [Legacy] Provides OCR data for cross-validation
+ * 3. [OCR-only] Calls OpenAI with enhanced OCR Y-only text
+ * 4. Parses AI response with entity classification
+ * 5. Translates to database format
+ * 6. Returns processing results
  */
-import { Pass1Input, Pass1ProcessingResult, Pass1Config, EntityAuditRecord } from './pass1-types';
+import { Pass1Input, Pass1InputOCROnly, Pass1ProcessingResult, Pass1Config, EntityAuditRecord } from './pass1-types';
 import { Pass1DatabaseRecords } from './pass1-database-builder';
 export declare class Pass1EntityDetector {
     private openai;
@@ -68,5 +72,27 @@ export declare class Pass1EntityDetector {
      * @deprecated Use getAllDatabaseRecords() for complete Pass 1 implementation
      */
     getEntityAuditRecords(input: Pass1Input): Promise<EntityAuditRecord[]>;
+    /**
+     * Process a document through Pass 1 entity detection using OCR-only mode
+     *
+     * @param input - OCR-only Pass 1 input (enhanced OCR text, no raw image)
+     * @returns Processing result with database records
+     */
+    processDocumentOCROnly(input: Pass1InputOCROnly): Promise<Pass1ProcessingResult>;
+    /**
+     * Call OpenAI for OCR-only entity detection (no vision)
+     *
+     * @param input - OCR-only Pass 1 input
+     * @returns Parsed AI response
+     */
+    private callAIForEntityDetectionOCROnly;
+    /**
+     * Validate OCR-only input before processing
+     */
+    private validateOCROnlyInput;
+    /**
+     * Get ALL Pass 1 database records for OCR-only mode (all 7 tables)
+     */
+    getAllDatabaseRecordsOCROnly(input: Pass1InputOCROnly): Promise<Pass1DatabaseRecords>;
 }
 //# sourceMappingURL=Pass1EntityDetector.d.ts.map

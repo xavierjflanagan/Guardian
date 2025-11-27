@@ -1,14 +1,18 @@
 /**
  * Pass 1 Entity Detector - Main Class
  * Created: 2025-10-03
- * Purpose: Core entity detection using GPT5-mini with dual-input processing
+ * Updated: 2025-11-28 - Added OCR-only mode (Strategy-A)
+ * Purpose: Core entity detection with two modes:
+ *   - Legacy: GPT5-mini Vision with raw document image (PRIMARY) + OCR (SECONDARY)
+ *   - OCR-only: Enhanced OCR text only (no image tokens, ~60% cost reduction)
  *
  * This class:
- * 1. Calls OpenAI GPT5-mini Vision with raw document image (PRIMARY)
- * 2. Provides OCR data for cross-validation (SECONDARY)
- * 3. Parses AI response with entity classification
- * 4. Translates to database format
- * 5. Returns processing results
+ * 1. [Legacy] Calls OpenAI GPT5-mini Vision with raw document image
+ * 2. [Legacy] Provides OCR data for cross-validation
+ * 3. [OCR-only] Calls OpenAI with enhanced OCR Y-only text
+ * 4. Parses AI response with entity classification
+ * 5. Translates to database format
+ * 6. Returns processing results
  */
 
 import OpenAI from 'openai';
@@ -16,6 +20,7 @@ import { retryOpenAI } from '../utils/retry';
 import { createLogger, Logger } from '../utils/logger';
 import {
   Pass1Input,
+  Pass1InputOCROnly,
   Pass1AIResponse,
   Pass1ProcessingResult,
   Pass1Config,
@@ -24,7 +29,9 @@ import {
 } from './pass1-types';
 import {
   generatePass1ClassificationPrompt,
+  generatePass1ClassificationPromptOCROnly,
   PASS1_SYSTEM_MESSAGE,
+  PASS1_SYSTEM_MESSAGE_OCR_ONLY,
 } from './pass1-prompts';
 import {
   generateMinimalListPrompt,
@@ -38,6 +45,7 @@ import {
 } from './pass1-translation';
 import {
   buildPass1DatabaseRecords,
+  buildPass1DatabaseRecordsOCROnly,
   Pass1DatabaseRecords,
 } from './pass1-database-builder';
 import { validateSchemaMapping } from './pass1-schema-mapping';
@@ -703,5 +711,363 @@ export class Pass1EntityDetector {
   async getEntityAuditRecords(input: Pass1Input): Promise<EntityAuditRecord[]> {
     const allRecords = await this.getAllDatabaseRecords(input);
     return allRecords.entity_processing_audit;
+  }
+
+  // ===========================================================================
+  // OCR-ONLY MODE (Strategy-A)
+  // ===========================================================================
+
+  /**
+   * Process a document through Pass 1 entity detection using OCR-only mode
+   *
+   * @param input - OCR-only Pass 1 input (enhanced OCR text, no raw image)
+   * @returns Processing result with database records
+   */
+  async processDocumentOCROnly(input: Pass1InputOCROnly): Promise<Pass1ProcessingResult> {
+    const startTime = Date.now();
+
+    try {
+      // Step 1: Validate OCR-only input
+      this.validateOCROnlyInput(input);
+
+      // Step 2: Prepare session metadata
+      const sessionMetadata: ProcessingSessionMetadata = {
+        shell_file_id: input.shell_file_id,
+        patient_id: input.patient_id,
+        processing_session_id: input.processing_session_id,
+        model_used: this.config.model,
+        vision_processing: false,  // OCR-only mode: no vision
+        ocr_provider: input.ocr_metadata.ocr_provider,
+        started_at: new Date().toISOString(),
+      };
+
+      // Step 3: Call AI for entity detection (OCR-only)
+      this.logger.info('Calling AI for OCR-only entity detection', {
+        model: this.config.model,
+        shell_file_id: input.shell_file_id,
+        enhanced_ocr_bytes: input.enhanced_ocr_text.length,
+        mode: 'ocr_only',
+      });
+      const aiResponse = await this.callAIForEntityDetectionOCROnly(input);
+
+      // DEBUG: Log what AI actually returned
+      this.logger.info('AI OCR-only entity detection completed', {
+        shell_file_id: input.shell_file_id,
+        entity_count: aiResponse.entities.length,
+        mode: 'ocr_only',
+      });
+
+      // Step 4: Translate AI output to database format
+      this.logger.debug('Translating entities to database format', {
+        shell_file_id: input.shell_file_id,
+        entity_count: aiResponse.entities.length,
+      });
+      const entityRecords = translateAIOutputToDatabase(aiResponse, sessionMetadata);
+
+      // Yield to event loop after heavy translation
+      await new Promise(resolve => setImmediate(resolve));
+
+      // Step 5: Validate translated records
+      const validation = validateRecordBatch(entityRecords);
+      if (!validation.valid) {
+        this.logger.error('Record validation failed', new Error('Record validation failed'), {
+          shell_file_id: input.shell_file_id,
+          invalid_records: validation.invalidRecords,
+          error_count: validation.errors.length,
+        });
+        throw new Error(`Record validation failed: ${validation.errors.length} errors found`);
+      }
+
+      // Yield to event loop after validation
+      await new Promise(resolve => setImmediate(resolve));
+
+      // Step 6: Generate statistics
+      const stats = generateRecordStatistics(entityRecords);
+
+      // Yield to event loop after stats generation
+      await new Promise(resolve => setImmediate(resolve));
+
+      // Step 7: Calculate processing time
+      const processingTimeMs = Date.now() - startTime;
+      const processingTimeSec = processingTimeMs / 1000;
+
+      this.logger.info('Pass 1 OCR-only processing complete', {
+        shell_file_id: input.shell_file_id,
+        total_entities: stats.total_entities,
+        processing_time_sec: processingTimeSec.toFixed(2),
+        mode: 'ocr_only',
+      });
+
+      // Step 8: Build all database records (7 tables)
+      const databaseRecords = buildPass1DatabaseRecordsOCROnly(
+        input,
+        aiResponse,
+        sessionMetadata,
+        entityRecords,
+        processingTimeMs
+      );
+
+      // Step 9: Return success result
+      return {
+        success: true,
+        processing_session_id: input.processing_session_id,
+        shell_file_id: input.shell_file_id,
+        patient_id: input.patient_id,
+
+        total_entities_detected: stats.total_entities,
+        entities_by_category: {
+          clinical_event: stats.by_category.clinical_event,
+          healthcare_context: stats.by_category.healthcare_context,
+          document_structure: stats.by_category.document_structure,
+        },
+
+        records_created: {
+          entity_audit: entityRecords.length,
+          ai_sessions: 1,
+          shell_files_updated: 1,
+          profile_classification: 1,
+          entity_metrics: 1,
+          confidence_scoring: databaseRecords.ai_confidence_scoring.length,
+          manual_review_queue: databaseRecords.manual_review_queue.length,
+        },
+
+        processing_time_seconds: processingTimeSec,
+        cost_estimate: aiResponse.processing_metadata.cost_estimate,
+
+        quality_metrics: {
+          overall_confidence: aiResponse.processing_metadata.confidence_metrics.overall_confidence,
+          ai_ocr_agreement: stats.average_ai_ocr_agreement,
+          manual_review_required_count: stats.manual_review_required,
+        },
+
+        pass2_entities_queued: stats.pass2_pending,
+      };
+
+    } catch (error: any) {
+      const processingTime = (Date.now() - startTime) / 1000;
+
+      this.logger.error('Pass 1 OCR-only processing failed', error, {
+        shell_file_id: input.shell_file_id,
+        processing_time_sec: processingTime.toFixed(2),
+        mode: 'ocr_only',
+      });
+
+      return {
+        success: false,
+        processing_session_id: input.processing_session_id,
+        shell_file_id: input.shell_file_id,
+        patient_id: input.patient_id,
+
+        total_entities_detected: 0,
+        entities_by_category: {
+          clinical_event: 0,
+          healthcare_context: 0,
+          document_structure: 0,
+        },
+
+        records_created: {
+          entity_audit: 0,
+          ai_sessions: 0,
+          shell_files_updated: 0,
+          profile_classification: 0,
+          entity_metrics: 0,
+          confidence_scoring: 0,
+          manual_review_queue: 0,
+        },
+
+        processing_time_seconds: processingTime,
+        cost_estimate: 0,
+
+        quality_metrics: {
+          overall_confidence: 0,
+          ai_ocr_agreement: 0,
+          manual_review_required_count: 0,
+        },
+
+        pass2_entities_queued: 0,
+
+        error: error.message,
+        retry_recommended: this.shouldRetryError(error),
+      };
+    }
+  }
+
+  /**
+   * Call OpenAI for OCR-only entity detection (no vision)
+   *
+   * @param input - OCR-only Pass 1 input
+   * @returns Parsed AI response
+   */
+  private async callAIForEntityDetectionOCROnly(input: Pass1InputOCROnly): Promise<Pass1AIResponse> {
+    const startTime = Date.now();
+
+    const prompt = generatePass1ClassificationPromptOCROnly(input.enhanced_ocr_text, this.config.model);
+    const systemMessage = PASS1_SYSTEM_MESSAGE_OCR_ONLY;
+
+    // Build request parameters - NO image, text-only
+    const isGPT5 = this.config.model.startsWith('gpt-5');
+    const requestParams: any = {
+      model: this.config.model,
+      messages: [
+        {
+          role: 'system',
+          content: systemMessage,
+        },
+        {
+          role: 'user',
+          content: prompt,  // Text only, no image
+        },
+      ],
+      response_format: { type: 'json_object' },
+    };
+
+    // Model-specific parameters
+    if (isGPT5) {
+      requestParams.max_completion_tokens = this.config.max_tokens;
+    } else {
+      requestParams.max_tokens = this.config.max_tokens;
+      requestParams.temperature = this.config.temperature;
+    }
+
+    const response = await retryOpenAI(async () => {
+      return await this.openai.chat.completions.create(requestParams);
+    });
+
+    const processingTime = (Date.now() - startTime) / 1000;
+
+    // Parse and validate the response
+    const rawContent = response.choices[0]?.message?.content;
+    const finishReason = response.choices[0]?.finish_reason;
+
+    if (!rawContent) {
+      const errorDetails = {
+        finish_reason: finishReason,
+        choices_length: response.choices?.length || 0,
+        has_refusal: !!response.choices[0]?.message?.refusal,
+        refusal_text: response.choices[0]?.message?.refusal,
+        model: this.config.model,
+        mode: 'ocr_only',
+      };
+      throw new Error(`OpenAI returned empty response. Details: ${JSON.stringify(errorDetails)}`);
+    }
+
+    const rawResult = JSON.parse(rawContent);
+
+    // Validate response structure
+    if (!rawResult.processing_metadata) {
+      throw new Error('AI response missing processing_metadata');
+    }
+    if (!rawResult.entities || !Array.isArray(rawResult.entities)) {
+      throw new Error('AI response missing entities array');
+    }
+    if (!rawResult.document_coverage) {
+      throw new Error('AI response missing document_coverage');
+    }
+
+    // Enhance with actual token usage and cost
+    const enhancedResponse: Pass1AIResponse = {
+      processing_metadata: {
+        model_used: this.config.model,
+        vision_processing: false,  // OCR-only mode
+        processing_time_seconds: processingTime,
+        token_usage: {
+          prompt_tokens: response.usage?.prompt_tokens || 0,
+          completion_tokens: response.usage?.completion_tokens || 0,
+          total_tokens: response.usage?.total_tokens || 0,
+          // No image_tokens in OCR-only mode
+        },
+        cost_estimate: this.calculateCost(response.usage),
+        confidence_metrics: rawResult.processing_metadata.confidence_metrics || {
+          overall_confidence: 0,
+          visual_interpretation_confidence: 0,
+          category_confidence: {
+            clinical_event: 0,
+            healthcare_context: 0,
+            document_structure: 0,
+          },
+        },
+      },
+      entities: rawResult.entities,
+      document_coverage: rawResult.document_coverage,
+      cross_validation_results: rawResult.cross_validation_results || {
+        ai_ocr_agreement_score: 1.0,  // OCR-only: 100% agreement by definition
+        high_discrepancy_count: 0,
+        ocr_missed_entities: 0,
+        ai_missed_ocr_text: 0,
+        spatial_mapping_success_rate: 1.0,
+      },
+      quality_assessment: rawResult.quality_assessment || {
+        completeness_score: 0.9,
+        classification_confidence: 0.85,
+        cross_validation_score: 1.0,
+        requires_manual_review: false,
+        quality_flags: ['ocr_only_mode'],
+      },
+      profile_safety: rawResult.profile_safety || {
+        patient_identity_confidence: 0.9,
+        age_appropriateness_score: 0.9,
+        safety_flags: [],
+        requires_identity_verification: false,
+      },
+    };
+
+    this.logger.info('OCR-only AI call completed', {
+      shell_file_id: input.shell_file_id,
+      input_tokens: response.usage?.prompt_tokens || 0,
+      output_tokens: response.usage?.completion_tokens || 0,
+      cost_usd: enhancedResponse.processing_metadata.cost_estimate.toFixed(6),
+      entity_count: enhancedResponse.entities.length,
+      mode: 'ocr_only',
+    });
+
+    return enhancedResponse;
+  }
+
+  /**
+   * Validate OCR-only input before processing
+   */
+  private validateOCROnlyInput(input: Pass1InputOCROnly): void {
+    if (!input.shell_file_id) {
+      throw new Error('Missing shell_file_id');
+    }
+
+    if (!input.patient_id) {
+      throw new Error('Missing patient_id');
+    }
+
+    if (!input.processing_session_id) {
+      throw new Error('Missing processing_session_id');
+    }
+
+    if (!input.enhanced_ocr_text) {
+      throw new Error('Missing enhanced_ocr_text');
+    }
+
+    if (input.enhanced_ocr_text.length < 10) {
+      throw new Error('Enhanced OCR text too short (minimum 10 characters)');
+    }
+  }
+
+  /**
+   * Get ALL Pass 1 database records for OCR-only mode (all 7 tables)
+   */
+  async getAllDatabaseRecordsOCROnly(input: Pass1InputOCROnly): Promise<Pass1DatabaseRecords> {
+    const sessionMetadata: ProcessingSessionMetadata = {
+      shell_file_id: input.shell_file_id,
+      patient_id: input.patient_id,
+      processing_session_id: input.processing_session_id,
+      model_used: this.config.model,
+      vision_processing: false,  // OCR-only mode
+      ocr_provider: input.ocr_metadata.ocr_provider,
+      started_at: new Date().toISOString(),
+    };
+
+    const aiResponse = await this.callAIForEntityDetectionOCROnly(input);
+    const entityRecords = translateAIOutputToDatabase(aiResponse, sessionMetadata);
+
+    // Extract timing from AI response metadata
+    const processingTimeMs = aiResponse.processing_metadata.processing_time_seconds * 1000;
+
+    return buildPass1DatabaseRecordsOCROnly(input, aiResponse, sessionMetadata, entityRecords, processingTimeMs);
   }
 }

@@ -2,10 +2,11 @@
 /**
  * Pass 1 Entity Detection - Public API
  * Created: 2025-10-03
+ * Updated: 2025-11-28 - Added OCR-only mode exports (Strategy-A)
  * Purpose: Clean exports for Pass 1 module
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildPass1DatabaseRecords = exports.PASS1_SYSTEM_MESSAGE = exports.generatePass1ClassificationPrompt = exports.formatRecordSummary = exports.generateRecordStatistics = exports.validateRecordBatch = exports.validateEntityRecord = exports.batchEntityRecords = exports.translateAIOutputToDatabase = exports.ENTITY_SCHEMA_MAPPING = exports.validateSchemaMapping = exports.getUniqueSchemas = exports.requiresPass2Enrichment = exports.assessEnrichmentComplexity = exports.determineProcessingPriority = exports.assignEntitySchemas = exports.Pass1EntityDetector = void 0;
+exports.buildPass1DatabaseRecordsOCROnly = exports.buildPass1DatabaseRecords = exports.PASS1_SYSTEM_MESSAGE_OCR_ONLY = exports.PASS1_SYSTEM_MESSAGE = exports.generatePass1ClassificationPromptOCROnly = exports.generatePass1ClassificationPrompt = exports.formatRecordSummary = exports.generateRecordStatistics = exports.validateRecordBatch = exports.validateEntityRecord = exports.batchEntityRecords = exports.translateAIOutputToDatabase = exports.ENTITY_SCHEMA_MAPPING = exports.validateSchemaMapping = exports.getUniqueSchemas = exports.requiresPass2Enrichment = exports.assessEnrichmentComplexity = exports.determineProcessingPriority = exports.assignEntitySchemas = exports.Pass1EntityDetector = void 0;
 // Main class
 var Pass1EntityDetector_1 = require("./Pass1EntityDetector");
 Object.defineProperty(exports, "Pass1EntityDetector", { enumerable: true, get: function () { return Pass1EntityDetector_1.Pass1EntityDetector; } });
@@ -29,8 +30,11 @@ Object.defineProperty(exports, "formatRecordSummary", { enumerable: true, get: f
 // Prompt functions (if needed externally)
 var pass1_prompts_1 = require("./pass1-prompts");
 Object.defineProperty(exports, "generatePass1ClassificationPrompt", { enumerable: true, get: function () { return pass1_prompts_1.generatePass1ClassificationPrompt; } });
+Object.defineProperty(exports, "generatePass1ClassificationPromptOCROnly", { enumerable: true, get: function () { return pass1_prompts_1.generatePass1ClassificationPromptOCROnly; } });
 Object.defineProperty(exports, "PASS1_SYSTEM_MESSAGE", { enumerable: true, get: function () { return pass1_prompts_1.PASS1_SYSTEM_MESSAGE; } });
+Object.defineProperty(exports, "PASS1_SYSTEM_MESSAGE_OCR_ONLY", { enumerable: true, get: function () { return pass1_prompts_1.PASS1_SYSTEM_MESSAGE_OCR_ONLY; } });
 // Database builder
 var pass1_database_builder_1 = require("./pass1-database-builder");
 Object.defineProperty(exports, "buildPass1DatabaseRecords", { enumerable: true, get: function () { return pass1_database_builder_1.buildPass1DatabaseRecords; } });
+Object.defineProperty(exports, "buildPass1DatabaseRecordsOCROnly", { enumerable: true, get: function () { return pass1_database_builder_1.buildPass1DatabaseRecordsOCROnly; } });
 //# sourceMappingURL=index.js.map

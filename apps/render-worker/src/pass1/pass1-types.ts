@@ -122,6 +122,42 @@ export interface Pass1Input {
 }
 
 // =============================================================================
+// OCR-ONLY INPUT TYPE (Strategy-A)
+// =============================================================================
+
+/**
+ * Pass 1 input for OCR-only mode (Strategy-A)
+ * Uses enhanced OCR text instead of raw image + old OCR format
+ *
+ * Cost reduction: ~60% (removes ~6,200 image tokens per page)
+ */
+export interface Pass1InputOCROnly {
+  shell_file_id: string;
+  patient_id: string;
+  processing_session_id: string;
+
+  // PRIMARY INPUT: Enhanced OCR text with Y-coordinates
+  // Format: [Y:###] text text text (one line per OCR line)
+  enhanced_ocr_text: string;
+
+  // Processing context
+  document_metadata: {
+    filename: string;
+    file_type: string;
+    page_count: number;
+    upload_timestamp: string;
+  };
+
+  // OCR metadata (for audit/tracking)
+  ocr_metadata: {
+    ocr_provider: string;
+    ocr_format: 'y_only' | 'xy';  // Y-only (~900 tokens/page) or XY (~5000 tokens/page)
+    enhanced_ocr_bytes: number;
+    ocr_confidence: number;
+  };
+}
+
+// =============================================================================
 // AI OUTPUT TYPES (What AI Model Returns)
 // =============================================================================
 
