@@ -78,6 +78,58 @@ export declare function storeEnhancedOCR(supabase: SupabaseClient, patientId: st
  */
 export declare function loadEnhancedOCR(supabase: SupabaseClient, patientId: string, shellFileId: string, correlationId?: string): Promise<string | null>;
 /**
+ * Store Y-Only enhanced OCR format for Pass 0.5
+ *
+ * Y-Only format: [Y:###] text text text (no X-coordinates)
+ * Pass 0.5 only needs Y-coordinates for encounter boundary positioning.
+ * This reduces token usage by ~80% compared to full XY format.
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param enhancedOCRText Enhanced OCR text in Y-only format
+ * @param correlationId Optional correlation ID for logging
+ */
+export declare function storeEnhancedOCR_Y(supabase: SupabaseClient, patientId: string, shellFileId: string, enhancedOCRText: string, correlationId?: string): Promise<void>;
+/**
+ * Load Y-Only enhanced OCR format for Pass 0.5
+ *
+ * Falls back to legacy enhanced-ocr.txt if enhanced-ocr-y.txt not found
+ * (for backward compatibility with documents processed before dual format)
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param correlationId Optional correlation ID for logging
+ * @returns Enhanced OCR text or null if not found
+ */
+export declare function loadEnhancedOCR_Y(supabase: SupabaseClient, patientId: string, shellFileId: string, correlationId?: string): Promise<string | null>;
+/**
+ * Store XY enhanced OCR format for Pass 1/2
+ *
+ * XY format: [Y:###] text (x:###) | text (x:###) (full coordinates)
+ * Pass 1/2 need X-coordinates for clinical entity bounding boxes and table structure.
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param enhancedOCRText Enhanced OCR text in XY format
+ * @param correlationId Optional correlation ID for logging
+ */
+export declare function storeEnhancedOCR_XY(supabase: SupabaseClient, patientId: string, shellFileId: string, enhancedOCRText: string, correlationId?: string): Promise<void>;
+/**
+ * Load XY enhanced OCR format for Pass 1/2
+ *
+ * Falls back to legacy enhanced-ocr.txt if enhanced-ocr-xy.txt not found
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param correlationId Optional correlation ID for logging
+ * @returns Enhanced OCR text or null if not found
+ */
+export declare function loadEnhancedOCR_XY(supabase: SupabaseClient, patientId: string, shellFileId: string, correlationId?: string): Promise<string | null>;
+/**
  * Store raw Google Cloud Vision response for debugging
  *
  * Phase 4 Implementation: Raw GCV Storage (Optional)

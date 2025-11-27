@@ -92,6 +92,7 @@ class V3Worker {
     activeJobs = new Map();
     heartbeatInterval;
     pass1Detector;
+    isShuttingDown = false;
     // ---------------------------------------------------------------------------
     // 3.1: CONSTRUCTOR & INITIALIZATION
     // ---------------------------------------------------------------------------
@@ -150,19 +151,35 @@ class V3Worker {
      * Waits for active jobs to complete before exiting
      */
     async stop() {
-        this.logger.info('Stopping V3 Worker');
+        this.logger.info('Stopping V3 Worker - initiating graceful shutdown');
+        // Signal polling loop to stop claiming new jobs
+        this.isShuttingDown = true;
         // Clear heartbeat interval
         if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
         }
-        // Wait for active jobs to complete
+        // Wait for active jobs to complete with timeout
+        const shutdownStart = Date.now();
+        const maxWaitMs = 25000; // 25 seconds (leave 5s buffer before Render's 30s SIGKILL)
         while (this.activeJobs.size > 0) {
+            const elapsed = Date.now() - shutdownStart;
+            if (elapsed > maxWaitMs) {
+                this.logger.warn('Graceful shutdown timeout reached - abandoning remaining jobs', {
+                    active_jobs: this.activeJobs.size,
+                    elapsed_ms: elapsed,
+                });
+                break;
+            }
             this.logger.info('Waiting for active jobs to complete', {
                 active_jobs: this.activeJobs.size,
+                elapsed_ms: elapsed,
+                max_wait_ms: maxWaitMs,
             });
             await this.sleep(1000);
         }
-        this.logger.info('V3 Worker stopped');
+        this.logger.info('V3 Worker stopped gracefully', {
+            active_jobs_remaining: this.activeJobs.size,
+        });
     }
     // ---------------------------------------------------------------------------
     // 3.3: JOB QUEUE MANAGEMENT
@@ -170,9 +187,10 @@ class V3Worker {
     /**
      * Poll for pending jobs continuously
      * Respects max concurrent job limit
+     * Exits when isShuttingDown flag is set (graceful shutdown)
      */
     async pollForJobs() {
-        while (true) {
+        while (!this.isShuttingDown) {
             try {
                 // Check if we have capacity
                 if (this.activeJobs.size >= config.worker.maxConcurrentJobs) {
@@ -195,6 +213,7 @@ class V3Worker {
                 await this.sleep(config.worker.pollIntervalMs * 2); // Back off on error
             }
         }
+        this.logger.info('Polling loop exited - worker shutting down');
     }
     /**
      * Fetch next job from queue using claim_next_job_v3 RPC
@@ -809,36 +828,54 @@ class V3Worker {
         }
     }
     /**
-     * Generate and store enhanced OCR format
-     * PHASE 1: Enhanced OCR Storage for reuse across all passes
+     * Generate and store dual enhanced OCR formats
+     *
+     * TWO FORMATS STORED:
+     * 1. Y-Only (enhanced-ocr-y.txt) - For Pass 0.5: ~900 tokens/page
+     * 2. XY (enhanced-ocr-xy.txt) - For Pass 1/2: ~5000 tokens/page
+     *
+     * This reduces Pass 0.5 token costs by ~80% while preserving full
+     * coordinate data for Pass 1/2 clinical entity extraction.
      */
     async storeEnhancedOCRFormat(payload, ocrResult) {
-        this.logger.info('Generating enhanced OCR format for permanent storage', {
+        this.logger.info('Generating dual enhanced OCR formats for permanent storage', {
             shell_file_id: payload.shell_file_id,
             page_count: ocrResult.pages.length,
         });
-        const enhancedOCRPages = [];
+        const enhancedOCRPages_Y = []; // Y-only for Pass 0.5
+        const enhancedOCRPages_XY = []; // Full XY for Pass 1/2
         for (let i = 0; i < ocrResult.pages.length; i++) {
             const page = ocrResult.pages[i];
             const actualPageNum = i + 1;
-            // PHASE 3: Use actual blocks structure (not recreated from legacy format)
-            const enhancedText = (0, ocr_formatter_1.generateEnhancedOcrFormat)({
+            const pageData = {
                 page_number: actualPageNum,
                 dimensions: {
                     width: page.size.width_px,
                     height: page.size.height_px,
                 },
-                blocks: page.blocks, // Use real blocks with full hierarchy
-            });
-            // Add page markers
-            enhancedOCRPages.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText}\n--- PAGE ${actualPageNum} END ---`);
+                blocks: page.blocks,
+            };
+            // Generate Y-only format (lightweight, for Pass 0.5)
+            const enhancedText_Y = (0, ocr_formatter_1.generateEnhancedOcrFormatYOnly)(pageData);
+            enhancedOCRPages_Y.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText_Y}\n--- PAGE ${actualPageNum} END ---`);
+            // Generate XY format (full coordinates, for Pass 1/2)
+            const enhancedText_XY = (0, ocr_formatter_1.generateEnhancedOcrFormat)(pageData);
+            enhancedOCRPages_XY.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText_XY}\n--- PAGE ${actualPageNum} END ---`);
         }
-        const enhancedOCRText = enhancedOCRPages.join('\n\n');
-        // Store enhanced OCR permanently in Supabase Storage
-        await (0, ocr_persistence_1.storeEnhancedOCR)(this.supabase, payload.patient_id, payload.shell_file_id, enhancedOCRText, this.logger['correlation_id']);
-        this.logger.info('Enhanced OCR stored successfully', {
+        const enhancedOCRText_Y = enhancedOCRPages_Y.join('\n\n');
+        const enhancedOCRText_XY = enhancedOCRPages_XY.join('\n\n');
+        // Store Y-only format for Pass 0.5
+        await (0, ocr_persistence_1.storeEnhancedOCR_Y)(this.supabase, payload.patient_id, payload.shell_file_id, enhancedOCRText_Y, this.logger['correlation_id']);
+        // Store XY format for Pass 1/2
+        await (0, ocr_persistence_1.storeEnhancedOCR_XY)(this.supabase, payload.patient_id, payload.shell_file_id, enhancedOCRText_XY, this.logger['correlation_id']);
+        // Also store legacy format for backward compatibility (can be removed later)
+        await (0, ocr_persistence_1.storeEnhancedOCR)(this.supabase, payload.patient_id, payload.shell_file_id, enhancedOCRText_XY, // Legacy uses XY format
+        this.logger['correlation_id']);
+        this.logger.info('Dual enhanced OCR formats stored successfully', {
             shell_file_id: payload.shell_file_id,
-            bytes: enhancedOCRText.length,
+            bytes_y_only: enhancedOCRText_Y.length,
+            bytes_xy: enhancedOCRText_XY.length,
+            token_savings_percent: Math.round((1 - enhancedOCRText_Y.length / enhancedOCRText_XY.length) * 100),
             pages: ocrResult.pages.length,
         });
     }
@@ -864,7 +901,7 @@ class V3Worker {
             session_type: 'shell_file_processing',
             session_status: 'processing',
             ai_model_name: 'gpt-5-mini',
-            workflow_step: 'encounter_discovery',
+            workflow_step: 'entity_detection', // Pass 0.5 is encounter discovery, but schema uses entity_detection
             total_steps: 5,
             completed_steps: 0,
             processing_started_at: new Date().toISOString()

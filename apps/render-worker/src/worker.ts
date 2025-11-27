@@ -31,13 +31,15 @@ import { calculateSHA256 } from './utils/checksum';
 import {
   persistOCRArtifacts,
   loadOCRArtifacts,
-  storeEnhancedOCR
+  storeEnhancedOCR,
+  storeEnhancedOCR_Y,
+  storeEnhancedOCR_XY
 } from './utils/ocr-persistence';
 import { retryStorageDownload } from './utils/retry';
 import { createLogger, maskPatientId, Logger } from './utils/logger';
 import { preprocessForOCR, type PreprocessResult } from './utils/format-processor';
 import { storeProcessedImages, type ProcessedImageMetadata } from './utils/storage/store-processed-images';
-import { generateEnhancedOcrFormat } from './pass05/progressive/ocr-formatter';
+import { generateEnhancedOcrFormat, generateEnhancedOcrFormatYOnly } from './pass05/progressive/ocr-formatter';
 import {
   processWithGoogleVisionOCR,
   type OCRResult,
@@ -1031,51 +1033,84 @@ class V3Worker {
   }
 
   /**
-   * Generate and store enhanced OCR format
-   * PHASE 1: Enhanced OCR Storage for reuse across all passes
+   * Generate and store dual enhanced OCR formats
+   *
+   * TWO FORMATS STORED:
+   * 1. Y-Only (enhanced-ocr-y.txt) - For Pass 0.5: ~900 tokens/page
+   * 2. XY (enhanced-ocr-xy.txt) - For Pass 1/2: ~5000 tokens/page
+   *
+   * This reduces Pass 0.5 token costs by ~80% while preserving full
+   * coordinate data for Pass 1/2 clinical entity extraction.
    */
   private async storeEnhancedOCRFormat(
     payload: AIProcessingJobPayload,
     ocrResult: OCRResult
   ): Promise<void> {
-    this.logger.info('Generating enhanced OCR format for permanent storage', {
+    this.logger.info('Generating dual enhanced OCR formats for permanent storage', {
       shell_file_id: payload.shell_file_id,
       page_count: ocrResult.pages.length,
     });
 
-    const enhancedOCRPages: string[] = [];
+    const enhancedOCRPages_Y: string[] = [];  // Y-only for Pass 0.5
+    const enhancedOCRPages_XY: string[] = []; // Full XY for Pass 1/2
+
     for (let i = 0; i < ocrResult.pages.length; i++) {
       const page = ocrResult.pages[i];
       const actualPageNum = i + 1;
 
-      // PHASE 3: Use actual blocks structure (not recreated from legacy format)
-      const enhancedText = generateEnhancedOcrFormat({
+      const pageData = {
         page_number: actualPageNum,
         dimensions: {
           width: page.size.width_px,
           height: page.size.height_px,
         },
-        blocks: page.blocks, // Use real blocks with full hierarchy
-      });
+        blocks: page.blocks,
+      };
 
-      // Add page markers
-      enhancedOCRPages.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText}\n--- PAGE ${actualPageNum} END ---`);
+      // Generate Y-only format (lightweight, for Pass 0.5)
+      const enhancedText_Y = generateEnhancedOcrFormatYOnly(pageData);
+      enhancedOCRPages_Y.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText_Y}\n--- PAGE ${actualPageNum} END ---`);
+
+      // Generate XY format (full coordinates, for Pass 1/2)
+      const enhancedText_XY = generateEnhancedOcrFormat(pageData);
+      enhancedOCRPages_XY.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText_XY}\n--- PAGE ${actualPageNum} END ---`);
     }
 
-    const enhancedOCRText = enhancedOCRPages.join('\n\n');
+    const enhancedOCRText_Y = enhancedOCRPages_Y.join('\n\n');
+    const enhancedOCRText_XY = enhancedOCRPages_XY.join('\n\n');
 
-    // Store enhanced OCR permanently in Supabase Storage
+    // Store Y-only format for Pass 0.5
+    await storeEnhancedOCR_Y(
+      this.supabase,
+      payload.patient_id,
+      payload.shell_file_id,
+      enhancedOCRText_Y,
+      this.logger['correlation_id']
+    );
+
+    // Store XY format for Pass 1/2
+    await storeEnhancedOCR_XY(
+      this.supabase,
+      payload.patient_id,
+      payload.shell_file_id,
+      enhancedOCRText_XY,
+      this.logger['correlation_id']
+    );
+
+    // Also store legacy format for backward compatibility (can be removed later)
     await storeEnhancedOCR(
       this.supabase,
       payload.patient_id,
       payload.shell_file_id,
-      enhancedOCRText,
+      enhancedOCRText_XY, // Legacy uses XY format
       this.logger['correlation_id']
     );
 
-    this.logger.info('Enhanced OCR stored successfully', {
+    this.logger.info('Dual enhanced OCR formats stored successfully', {
       shell_file_id: payload.shell_file_id,
-      bytes: enhancedOCRText.length,
+      bytes_y_only: enhancedOCRText_Y.length,
+      bytes_xy: enhancedOCRText_XY.length,
+      token_savings_percent: Math.round((1 - enhancedOCRText_Y.length / enhancedOCRText_XY.length) * 100),
       pages: ocrResult.pages.length,
     });
   }

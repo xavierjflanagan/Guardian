@@ -940,6 +940,9 @@ Perfect! Now I have all the information I need to provide comprehensive answers 
   - Value "7" is at x:320 (third date column)
   - Unit is at x:420, reference range at x:520
 
+    Key Advantage: GPT-5 can now reason: "The dates are at x:120, x:220, x:320, so the value '16' at x:120 corresponds to 23/03/11, '14' at x:220 corresponds to 02/08/12, etc."
+
+
   ---
   Question 2: AI Model Interpretability of Proposed Format
 
@@ -1052,52 +1055,67 @@ Perfect! Now I have all the information I need to provide comprehensive answers 
   This is not premature optimization - it's a 5-line function that saves real money at scale.
 
   ---
-  Question 4: OCR Detection of Non-Text Elements (Images, Logos)
+ Answer to Question 4: Can OCR Detect Non-Text Content?
 
-  Research findings:
+  YES - Google Cloud Vision already provides this capability via the blockType field.
 
-  YES! Google Cloud Vision API has a specific https://cloud.google.com/vision/docs/detecting-logos 
-  that can:
+  Current Situation: Your OCR processing pipeline discards this metadata. The worker currently only
+  stores:
+  - original_gcv_text (raw text string)
+  - spatially_sorted_text (sorted text string)
 
-  - Detect popular product and corporate logos
-  - Provide confidence scores (0-1 range)
-  - Return bounding polygons showing logo location
-  - Give textual descriptions of detected logos
+  What Google Vision Actually Returns
+  (https://cloud.google.com/vision/docs/reference/rpc/google.cloud.vision.v1):
 
-  (Source: https://blogs.embarcadero.com/detecting-logos-on-images-using-google-cloud-vision-api/)
-
-  Additional Detection Features:
-
-  Google Vision API also provides:
-  - Label Detection: Generic objects, scenes
-  - Image Properties: Dominant colors, image quality
-  - Safe Search: Inappropriate content detection
-
-  Page Routing Strategy:
-
-  You could implement a hybrid routing system:
-
-  interface PageAnalysis {
-    has_logos: boolean;
-    has_images: boolean;
-    text_density: number;  // percentage of page with text
-  }
-
-  function routePage(analysis: PageAnalysis): ProcessingPath {
-    if (analysis.text_density < 0.3 || analysis.has_images) {
-      return "VISION_MODEL";  // Send pixels to GPT-4o Vision
-    } else {
-      return "ENHANCED_OCR";  // Use text + coordinates
+  {
+    "fullTextAnnotation": {
+      "pages": [
+        {
+          "blocks": [
+            {
+              "blockType": "TEXT",  // ← Already provided!
+              "boundingBox": {...},
+              "paragraphs": [...]
+            },
+            {
+              "blockType": "IMAGE",  // ← Diagram/photo detected
+              "boundingBox": {...}
+            }
+          ]
+        }
+      ]
     }
   }
 
-  Cost comparison:
-  - Logo detection: Free (included in document text detection)
-  - Vision API returns logo bboxes in same API call as OCR
-  - Zero additional API calls needed
+  Hierarchy: TextAnnotation → Page → Block → Paragraph → Word → Symbol
 
-  Recommendation: Add logo/image detection to Pass 0.5 batching logic to identify pages that need
-  Vision API vs enhanced OCR.
+  blockType Values:
+  - TEXT - Regular text content
+  - IMAGE - Images, diagrams, photos
+  - TABLE - Tabular data (if supported)
+  - Others as needed
+
+  Implementation Path:
+
+  1. Modify OCR Storage (Quick fix):
+    - Store full Google Vision response, not just extracted text
+    - Preserve blocks array with blockType metadata
+    - Migration to add ocr_blocks_jsonb column
+  2. Page Routing Logic (Simple conditional):
+  const hasNonTextContent = page.blocks.some(b => b.blockType === 'IMAGE');
+
+  if (hasNonTextContent) {
+    // Route to vision model (GPT-5 vision with image input)
+  } else {
+    // Route to text-only model (cheaper, faster)
+  }
+  3. Token Cost Optimization:
+    - Text-only pages: ~450 tokens/page ($0.00056 per page)
+    - Image-containing pages: ~1,105 tokens/page ($0.00138 per page)
+    - Selective routing saves ~60% on text-heavy documents
+
+  Recommendation: Add this capability NOW during OCR pipeline redesign (Option A implementation).
+  It's essentially free - Google already provides the data, you just need to store and check it.
 
   ---
   Summary & Recommendations

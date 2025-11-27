@@ -25,7 +25,7 @@ import {
 } from './database';
 import { processChunk } from './chunk-processor';
 import { reconcilePendingEncounters } from './pending-reconciler';
-import { loadEnhancedOCR } from '../../utils/ocr-persistence';
+import { loadEnhancedOCR_Y } from '../../utils/ocr-persistence';
 
 const CHUNK_SIZE = 50; // Pages per chunk
 
@@ -79,8 +79,9 @@ export async function processDocumentProgressively(
     `[Progressive] Started session ${session.id} for ${totalPages} pages (${session.totalChunks} chunks)`
   );
 
-  // PHASE 1: Load enhanced OCR from storage (fall back to on-the-fly generation if not found)
-  const enhancedOcrText = await loadEnhancedOCR(supabase, patientId, shellFileId);
+  // PHASE 1: Load Y-only enhanced OCR from storage (optimized for Pass 0.5)
+  // Y-only format reduces tokens by ~80% vs XY format (Pass 0.5 only needs Y-coordinates)
+  const enhancedOcrText = await loadEnhancedOCR_Y(supabase, patientId, shellFileId);
   if (enhancedOcrText) {
     console.log(`[Progressive] Loaded enhanced OCR from storage (${enhancedOcrText.length} bytes)`);
   } else {

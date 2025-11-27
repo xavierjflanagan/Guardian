@@ -8,6 +8,10 @@ exports.persistOCRArtifacts = persistOCRArtifacts;
 exports.loadOCRArtifacts = loadOCRArtifacts;
 exports.storeEnhancedOCR = storeEnhancedOCR;
 exports.loadEnhancedOCR = loadEnhancedOCR;
+exports.storeEnhancedOCR_Y = storeEnhancedOCR_Y;
+exports.loadEnhancedOCR_Y = loadEnhancedOCR_Y;
+exports.storeEnhancedOCR_XY = storeEnhancedOCR_XY;
+exports.loadEnhancedOCR_XY = loadEnhancedOCR_XY;
 exports.storeRawGCV = storeRawGCV;
 const checksum_1 = require("./checksum");
 const retry_1 = require("./retry");
@@ -270,6 +274,184 @@ async function loadEnhancedOCR(supabase, patientId, shellFileId, correlationId) 
     const text = await result.data.text();
     const duration_ms = Date.now() - startTime;
     logger.info('Enhanced OCR loaded successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: text.length,
+        duration_ms,
+    });
+    return text;
+}
+/**
+ * Store Y-Only enhanced OCR format for Pass 0.5
+ *
+ * Y-Only format: [Y:###] text text text (no X-coordinates)
+ * Pass 0.5 only needs Y-coordinates for encounter boundary positioning.
+ * This reduces token usage by ~80% compared to full XY format.
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param enhancedOCRText Enhanced OCR text in Y-only format
+ * @param correlationId Optional correlation ID for logging
+ */
+async function storeEnhancedOCR_Y(supabase, patientId, shellFileId, enhancedOCRText, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr-y.txt`;
+    const result = await (0, retry_1.retryStorageUpload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .upload(storagePath, enhancedOCRText, {
+            contentType: 'text/plain',
+            upsert: true,
+        });
+    });
+    if (result.error) {
+        const error = new Error(`Failed to store Y-only enhanced OCR: ${result.error.message}`);
+        error.status = 500;
+        logger.error('Failed to store Y-only enhanced OCR', error, {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+            storage_path: storagePath,
+        });
+        throw error;
+    }
+    const duration_ms = Date.now() - startTime;
+    logger.info('Y-only enhanced OCR stored successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: enhancedOCRText.length,
+        duration_ms,
+    });
+}
+/**
+ * Load Y-Only enhanced OCR format for Pass 0.5
+ *
+ * Falls back to legacy enhanced-ocr.txt if enhanced-ocr-y.txt not found
+ * (for backward compatibility with documents processed before dual format)
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param correlationId Optional correlation ID for logging
+ * @returns Enhanced OCR text or null if not found
+ */
+async function loadEnhancedOCR_Y(supabase, patientId, shellFileId, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr-y.txt`;
+    const result = await (0, retry_1.retryStorageDownload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .download(storagePath);
+    });
+    if (result.error || !result.data) {
+        // Fall back to legacy enhanced-ocr.txt for backward compatibility
+        logger.info('Y-only enhanced OCR not found, trying legacy format', {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        });
+        return await loadEnhancedOCR(supabase, patientId, shellFileId, correlationId);
+    }
+    const text = await result.data.text();
+    const duration_ms = Date.now() - startTime;
+    logger.info('Y-only enhanced OCR loaded successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: text.length,
+        duration_ms,
+    });
+    return text;
+}
+/**
+ * Store XY enhanced OCR format for Pass 1/2
+ *
+ * XY format: [Y:###] text (x:###) | text (x:###) (full coordinates)
+ * Pass 1/2 need X-coordinates for clinical entity bounding boxes and table structure.
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param enhancedOCRText Enhanced OCR text in XY format
+ * @param correlationId Optional correlation ID for logging
+ */
+async function storeEnhancedOCR_XY(supabase, patientId, shellFileId, enhancedOCRText, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr-xy.txt`;
+    const result = await (0, retry_1.retryStorageUpload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .upload(storagePath, enhancedOCRText, {
+            contentType: 'text/plain',
+            upsert: true,
+        });
+    });
+    if (result.error) {
+        const error = new Error(`Failed to store XY enhanced OCR: ${result.error.message}`);
+        error.status = 500;
+        logger.error('Failed to store XY enhanced OCR', error, {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+            storage_path: storagePath,
+        });
+        throw error;
+    }
+    const duration_ms = Date.now() - startTime;
+    logger.info('XY enhanced OCR stored successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: enhancedOCRText.length,
+        duration_ms,
+    });
+}
+/**
+ * Load XY enhanced OCR format for Pass 1/2
+ *
+ * Falls back to legacy enhanced-ocr.txt if enhanced-ocr-xy.txt not found
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param correlationId Optional correlation ID for logging
+ * @returns Enhanced OCR text or null if not found
+ */
+async function loadEnhancedOCR_XY(supabase, patientId, shellFileId, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr-xy.txt`;
+    const result = await (0, retry_1.retryStorageDownload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .download(storagePath);
+    });
+    if (result.error || !result.data) {
+        // Fall back to legacy enhanced-ocr.txt for backward compatibility
+        logger.info('XY enhanced OCR not found, trying legacy format', {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        });
+        return await loadEnhancedOCR(supabase, patientId, shellFileId, correlationId);
+    }
+    const text = await result.data.text();
+    const duration_ms = Date.now() - startTime;
+    logger.info('XY enhanced OCR loaded successfully', {
         shell_file_id: shellFileId,
         patient_id_masked: (0, logger_1.maskPatientId)(patientId),
         storage_path: storagePath,

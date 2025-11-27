@@ -1,12 +1,24 @@
 /**
  * OCR Formatter - Enhanced Coordinate Format Generation (V12)
  *
- * Purpose: Generate enhanced OCR format with inline X+Y coordinates for Pass 0.5 V12
+ * TWO FORMAT VARIANTS:
  *
- * V12 Format: [Y:###] text (x:###) | text (x:###) | ...
+ * 1. Y-Only Format (for Pass 0.5):
+ *    [Y:###] text text text
+ *    - Minimal token usage (~900 tokens/page)
+ *    - Pass 0.5 only needs Y-coordinates for encounter boundary positioning
+ *    - Stored as: enhanced-ocr-y.txt
  *
- * Why: Preserves horizontal table structure that was lost in spatially_sorted_text.
- * AI can now reason about spatial relationships (e.g., which lab value corresponds to which date).
+ * 2. XY Format (for Pass 1/2):
+ *    [Y:###] text (x:###) | text (x:###) | ...
+ *    - Full coordinate data (~5000 tokens/page)
+ *    - Pass 1/2 need X-coordinates for clinical entity bounding boxes and table structure
+ *    - Stored as: enhanced-ocr-xy.txt
+ *
+ * FUTURE OPTIMIZATION (for XY format):
+ * Selective coordinate inclusion - only add X-coordinates for lines that look like tables
+ * (multiple widely-spaced elements). Could reduce XY format size by ~40% for text-heavy docs.
+ * Deferred until Pass 1/2 stress testing determines ROI.
  *
  * Source: OCR-COORDINATE-ENHANCEMENT-IMPLEMENTATION-PLAN.md
  * Complexity: MEDIUM
@@ -239,4 +251,59 @@ export function generateEnhancedOcrFromSortedText(
  */
 export function hasStructuredOcrData(page: OCRPage): boolean {
   return !!(page.blocks && page.blocks.length > 0);
+}
+
+/**
+ * Generate Y-Only enhanced OCR format for Pass 0.5
+ *
+ * This is a lightweight version that only includes Y-coordinates (no X-coordinates).
+ * Pass 0.5 only needs Y-coordinates for encounter boundary positioning.
+ *
+ * Input: Google Cloud Vision OCR page with blocks/paragraphs/words
+ * Output: [Y:###] text text text format
+ *
+ * Example output:
+ * [Y:240] S T-BIL 16 14 7
+ * [Y:270] S ALP 62 66 75
+ *
+ * Token savings: ~80% reduction compared to XY format (~900 vs ~5000 tokens/page)
+ *
+ * @param page OCR page data from Google Cloud Vision
+ * @param config Optional configuration for grouping tolerance
+ * @returns Enhanced OCR text with Y-coordinates only
+ */
+export function generateEnhancedOcrFormatYOnly(
+  page: OCRPage,
+  config: Partial<EnhancedOcrConfig> = {}
+): string {
+  const {
+    yTolerance = 10
+  } = config;
+
+  // Extract all words with coordinates from OCR structure (reuse existing helper)
+  const words = extractWordsWithCoordinates(page);
+
+  if (words.length === 0) {
+    return ''; // Empty page
+  }
+
+  // Group words by Y-coordinate (within tolerance) - reuse existing helper
+  const lines = groupWordsByLine(words, yTolerance);
+
+  // Sort lines by Y-coordinate (top to bottom)
+  const sortedLines = Array.from(lines.entries())
+    .sort(([yA], [yB]) => yA - yB);
+
+  // Format each line with Y-coordinate only (no X-coordinates, no separators)
+  const formattedLines = sortedLines.map(([y, lineWords]) => {
+    // Sort words by X-coordinate (left to right) within line for reading order
+    const sortedWords = lineWords.sort((a, b) => a.x - b.x);
+
+    // Join words with single space (no X-coordinates, no | separators)
+    const lineText = sortedWords.map(word => word.text).join(' ');
+
+    return `[Y:${y}] ${lineText}`;
+  });
+
+  return formattedLines.join('\n');
 }
