@@ -1,1 +1,0 @@
-{"version":3,"file":"aiPromptsOCR.d.ts","sourceRoot":"","sources":["../../src/pass05/aiPromptsOCR.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;GAcG;AAEH,OAAO,EAAE,OAAO,EAAE,MAAM,SAAS,CAAC;AAElC,MAAM,WAAW,WAAW;IAC1B,QAAQ,EAAE,MAAM,CAAC;IACjB,SAAS,EAAE,MAAM,CAAC;IAClB,QAAQ,EAAE,OAAO,EAAE,CAAC;CACrB;AAED;;GAEG;AACH,wBAAgB,uBAAuB,CAAC,KAAK,EAAE,WAAW,GAAG,MAAM,CA0LlE"}

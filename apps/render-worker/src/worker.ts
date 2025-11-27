@@ -1084,7 +1084,7 @@ class V3Worker {
         session_type: 'shell_file_processing',
         session_status: 'processing',
         ai_model_name: 'gpt-5-mini',
-        workflow_step: 'encounter_discovery',
+        workflow_step: 'entity_detection', // Pass 0.5 is encounter discovery, but schema uses entity_detection
         total_steps: 5,
         completed_steps: 0,
         processing_started_at: new Date().toISOString()

@@ -6,6 +6,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.persistOCRArtifacts = persistOCRArtifacts;
 exports.loadOCRArtifacts = loadOCRArtifacts;
+exports.storeEnhancedOCR = storeEnhancedOCR;
+exports.loadEnhancedOCR = loadEnhancedOCR;
+exports.storeRawGCV = storeRawGCV;
 const checksum_1 = require("./checksum");
 const retry_1 = require("./retry");
 const logger_1 = require("./logger");
@@ -184,5 +187,144 @@ async function loadOCRArtifacts(supabase, shellFileId, correlationId) {
         duration_ms,
     });
     return ocrResult;
+}
+/**
+ * Store enhanced OCR format permanently for reuse across all passes
+ *
+ * Phase 1 Implementation: Enhanced OCR Storage
+ * Stores V12 enhanced OCR format with inline coordinates to Supabase Storage
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param enhancedOCRText Enhanced OCR text in V12 format
+ * @param correlationId Optional correlation ID for logging
+ */
+async function storeEnhancedOCR(supabase, patientId, shellFileId, enhancedOCRText, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr.txt`;
+    const result = await (0, retry_1.retryStorageUpload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .upload(storagePath, enhancedOCRText, {
+            contentType: 'text/plain',
+            upsert: true, // Idempotent - allow re-generation if needed
+        });
+    });
+    if (result.error) {
+        const error = new Error(`Failed to store enhanced OCR: ${result.error.message}`);
+        error.status = 500;
+        logger.error('Failed to store enhanced OCR', error, {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+            storage_path: storagePath,
+        });
+        throw error;
+    }
+    const duration_ms = Date.now() - startTime;
+    logger.info('Enhanced OCR stored successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: enhancedOCRText.length,
+        duration_ms,
+    });
+}
+/**
+ * Load enhanced OCR format from storage
+ *
+ * Phase 1 Implementation: Enhanced OCR Loading
+ * Loads V12 enhanced OCR format from Supabase Storage for reuse across passes
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param correlationId Optional correlation ID for logging
+ * @returns Enhanced OCR text or null if not found
+ */
+async function loadEnhancedOCR(supabase, patientId, shellFileId, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr.txt`;
+    const result = await (0, retry_1.retryStorageDownload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .download(storagePath);
+    });
+    if (result.error || !result.data) {
+        logger.warn('Enhanced OCR not found in storage', {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+            storage_path: storagePath,
+            error_message: result.error?.message,
+        });
+        return null;
+    }
+    const text = await result.data.text();
+    const duration_ms = Date.now() - startTime;
+    logger.info('Enhanced OCR loaded successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: text.length,
+        duration_ms,
+    });
+    return text;
+}
+/**
+ * Store raw Google Cloud Vision response for debugging
+ *
+ * Phase 4 Implementation: Raw GCV Storage (Optional)
+ * Stores complete GCV response for debugging and future metadata extraction
+ * Files are deleted after 30 days via Supabase Storage lifecycle policy
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param gcvResponse Complete Google Cloud Vision API response
+ * @param correlationId Optional correlation ID for logging
+ */
+async function storeRawGCV(supabase, patientId, shellFileId, gcvResponse, correlationId) {
+    const startTime = Date.now();
+    const logger = (0, logger_1.createLogger)({
+        context: 'ocr-persistence',
+        correlation_id: correlationId,
+    });
+    const storagePath = `${patientId}/${shellFileId}-ocr/raw-gcv.json`;
+    const gcvJson = JSON.stringify(gcvResponse, null, 2);
+    const result = await (0, retry_1.retryStorageUpload)(async () => {
+        return await supabase.storage
+            .from('medical-docs')
+            .upload(storagePath, gcvJson, {
+            contentType: 'application/json',
+            upsert: true, // Idempotent - allow re-upload if needed
+        });
+    });
+    if (result.error) {
+        const error = new Error(`Failed to store raw GCV response: ${result.error.message}`);
+        error.status = 500;
+        logger.error('Failed to store raw GCV response', error, {
+            shell_file_id: shellFileId,
+            patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+            storage_path: storagePath,
+        });
+        throw error;
+    }
+    const duration_ms = Date.now() - startTime;
+    logger.info('Raw GCV response stored successfully', {
+        shell_file_id: shellFileId,
+        patient_id_masked: (0, logger_1.maskPatientId)(patientId),
+        storage_path: storagePath,
+        bytes: gcvJson.length,
+        duration_ms,
+        note: 'Will be deleted after 30 days via lifecycle policy',
+    });
 }
 //# sourceMappingURL=ocr-persistence.js.map

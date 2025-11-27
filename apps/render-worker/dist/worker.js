@@ -4,6 +4,17 @@
 // =============================================================================
 // Purpose: Process queued jobs from V3 job_queue table
 // Primary focus: Document processing with AI (OCR + medical data extraction)
+//
+// Architecture: Orchestrates complete document processing pipeline
+//   1. Download file from Supabase Storage
+//   2. Format preprocessing (extract pages, convert to JPEG)
+//   3. OCR processing (Google Cloud Vision)
+//   4. Pass 0.5: Encounter discovery (ACTIVE)
+//   5. Pass 1: Entity detection (READY - disabled for Pass 0.5 testing)
+//   6. Pass 2: Clinical extraction (PLACEHOLDER - not yet implemented)
+//   7. Pass 3: Narrative generation (FUTURE - not yet designed)
+//
+// Version: 2.0 (Refactored 2025-11-27)
 // =============================================================================
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20,10 +31,12 @@ const retry_1 = require("./utils/retry");
 const logger_1 = require("./utils/logger");
 const format_processor_1 = require("./utils/format-processor");
 const store_processed_images_1 = require("./utils/storage/store-processed-images");
+const ocr_formatter_1 = require("./pass05/progressive/ocr-formatter");
+const ocr_processing_1 = require("./utils/ocr-processing");
 // Load environment variables
 dotenv_1.default.config();
 // =============================================================================
-// CONFIGURATION
+// SECTION 1: CONFIGURATION
 // =============================================================================
 const config = {
     supabase: {
@@ -37,10 +50,9 @@ const config = {
         apiKey: process.env.GOOGLE_CLOUD_API_KEY,
     },
     worker: {
-        // FIXED: Use deployment guide configuration
         id: process.env.WORKER_ID || `render-${process.env.RENDER_SERVICE_ID || 'local'}-${Date.now()}`,
         pollIntervalMs: parseInt(process.env.POLL_INTERVAL_MS || '5000'),
-        maxConcurrentJobs: parseInt(process.env.WORKER_CONCURRENCY || '3'), // Safety net - matches Render config
+        maxConcurrentJobs: parseInt(process.env.WORKER_CONCURRENCY || '3'),
         heartbeatIntervalMs: 30000, // 30 seconds
     },
     server: {
@@ -52,206 +64,26 @@ const config = {
         logLevel: process.env.LOG_LEVEL || 'info',
         verbose: process.env.VERBOSE === 'true',
     },
+    ocr: {
+        // PHASE 4: Optional raw Google Cloud Vision response storage
+        // Set STORE_RAW_GCV=true to store complete GCV response for debugging
+        // Note: ~2-5MB per page, deleted after 30 days via lifecycle policy
+        storeRawGCV: process.env.STORE_RAW_GCV === 'true',
+        batchSize: parseInt(process.env.OCR_BATCH_SIZE || '10', 10),
+        timeoutMs: parseInt(process.env.OCR_TIMEOUT_MS || '30000', 10),
+    },
+    memory: {
+        limitMB: parseInt(process.env.MEMORY_LIMIT_MB || '1800', 10), // Safety threshold for 2GB plan
+    },
+    passes: {
+        // Control which AI passes are enabled
+        pass05Enabled: true, // Encounter discovery - ALWAYS ENABLED
+        pass1Enabled: process.env.ENABLE_PASS1 === 'true', // Entity detection - DISABLED by default for testing
+        pass2Enabled: false, // Clinical extraction - NOT YET IMPLEMENTED
+    },
 };
-/**
- * Sort text blocks spatially for correct reading order
- * Fixes multi-column reading bug where GCV returns text in detection order, not reading order
- *
- * Algorithm:
- * 1. Group blocks into horizontal rows by Y-coordinate
- * 2. Sort rows top-to-bottom
- * 3. Within each row, sort blocks left-to-right by X-coordinate
- *
- * @param blocks - GCV blocks with boundingBox vertices
- * @returns Sorted blocks in natural reading order (top-to-bottom, left-to-right)
- */
-function sortBlocksSpatially(blocks) {
-    if (!blocks || blocks.length === 0) {
-        return blocks;
-    }
-    // Calculate bbox for each block
-    const blocksWithBbox = blocks.map(block => {
-        const vertices = block.boundingBox?.vertices || [];
-        if (vertices.length < 4) {
-            return { block, y: 0, x: 0, height: 0 };
-        }
-        const y = Math.min(...vertices.map((v) => v.y || 0));
-        const x = Math.min(...vertices.map((v) => v.x || 0));
-        const maxY = Math.max(...vertices.map((v) => v.y || 0));
-        const height = maxY - y;
-        return { block, y, x, height };
-    });
-    // Sort by Y first (top-to-bottom)
-    blocksWithBbox.sort((a, b) => a.y - b.y);
-    // Group into rows (blocks with overlapping Y ranges)
-    const rows = [];
-    let currentRow = [];
-    let currentRowMaxY = 0;
-    for (const item of blocksWithBbox) {
-        // Check if this block overlaps with current row's Y range
-        // Use height-based threshold: block is in same row if it starts within current row's height
-        const isInCurrentRow = currentRow.length === 0 ||
-            (item.y < currentRowMaxY && item.y >= currentRow[0].y - currentRow[0].height * 0.5);
-        if (isInCurrentRow) {
-            currentRow.push(item);
-            currentRowMaxY = Math.max(currentRowMaxY, item.y + item.height);
-        }
-        else {
-            // Start new row
-            if (currentRow.length > 0) {
-                rows.push(currentRow);
-            }
-            currentRow = [item];
-            currentRowMaxY = item.y + item.height;
-        }
-    }
-    // Don't forget last row
-    if (currentRow.length > 0) {
-        rows.push(currentRow);
-    }
-    // Sort each row left-to-right by X
-    rows.forEach(row => {
-        row.sort((a, b) => a.x - b.x);
-    });
-    // Flatten back to sorted blocks
-    return rows.flatMap(row => row.map(item => item.block));
-}
-/**
- * Extract text from sorted blocks in reading order
- * @param blocks - Sorted GCV blocks
- * @returns Concatenated text with proper spacing and line breaks
- */
-function extractTextFromBlocks(blocks) {
-    const textParts = [];
-    for (const block of blocks) {
-        if (block.paragraphs) {
-            for (const paragraph of block.paragraphs) {
-                if (paragraph.words) {
-                    const paragraphText = paragraph.words
-                        .map((word) => word.symbols?.map((s) => s.text).join('') || '')
-                        .filter((text) => text.length > 0)
-                        .join(' ');
-                    if (paragraphText) {
-                        textParts.push(paragraphText);
-                    }
-                }
-            }
-        }
-    }
-    return textParts.join('\n');
-}
-/**
- * Process document with Google Cloud Vision OCR
- * Moved from Edge Function to Worker for instant upload response
- */
-async function processWithGoogleVisionOCR(base64Data, _mimeType // Currently unused but may be needed for future format-specific processing
-) {
-    const googleApiKey = process.env.GOOGLE_CLOUD_API_KEY;
-    if (!googleApiKey) {
-        throw new Error('GOOGLE_CLOUD_API_KEY not configured');
-    }
-    const startTime = Date.now();
-    // Call Google Cloud Vision API with retry logic
-    const response = await (0, retry_1.retryGoogleVision)(async () => {
-        const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${googleApiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                requests: [{
-                        image: { content: base64Data },
-                        features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
-                    }],
-            }),
-        });
-        if (!res.ok) {
-            const error = new Error(`Google Vision API failed: ${res.status} ${res.statusText}`);
-            error.status = res.status;
-            error.response = res; // Preserve response for Retry-After header
-            throw error;
-        }
-        return res;
-    });
-    const result = await response.json();
-    const annotation = result.responses?.[0]?.fullTextAnnotation;
-    if (!annotation) {
-        throw new Error('No text detected in document');
-    }
-    // Capture original GCV text (potentially scrambled in multi-column documents)
-    const originalGCVText = annotation.text || '';
-    // Capture page dimensions for context
-    const pageDimensions = annotation.pages?.[0]
-        ? {
-            width: annotation.pages[0].width || 0,
-            height: annotation.pages[0].height || 0,
-        }
-        : undefined;
-    // SPATIAL SORTING FIX: Sort blocks spatially before extracting text
-    // This fixes multi-column reading bug where GCV returns text in detection order
-    let extractedText = '';
-    if (annotation.pages && annotation.pages[0]?.blocks) {
-        const sortedBlocks = sortBlocksSpatially(annotation.pages[0].blocks);
-        extractedText = extractTextFromBlocks(sortedBlocks);
-    }
-    else {
-        // Fallback to GCV's text if no blocks found (should be rare)
-        extractedText = originalGCVText;
-    }
-    // Build spatial mapping from pages (keeping original structure for bbox data)
-    const spatialMapping = [];
-    // Process pages and blocks
-    if (annotation.pages) {
-        for (const page of annotation.pages) {
-            if (page.blocks) {
-                // Use spatially sorted blocks for consistent ordering
-                const sortedBlocks = sortBlocksSpatially(page.blocks);
-                for (const block of sortedBlocks) {
-                    if (block.paragraphs) {
-                        for (const paragraph of block.paragraphs) {
-                            if (paragraph.words) {
-                                for (const word of paragraph.words) {
-                                    const text = word.symbols?.map((s) => s.text).join('') || '';
-                                    if (text && word.boundingBox?.vertices?.length >= 4) {
-                                        const vertices = word.boundingBox.vertices;
-                                        const x = Math.min(...vertices.map((v) => v.x || 0));
-                                        const y = Math.min(...vertices.map((v) => v.y || 0));
-                                        const maxX = Math.max(...vertices.map((v) => v.x || 0));
-                                        const maxY = Math.max(...vertices.map((v) => v.y || 0));
-                                        spatialMapping.push({
-                                            text,
-                                            bounding_box: {
-                                                x,
-                                                y,
-                                                width: maxX - x,
-                                                height: maxY - y,
-                                            },
-                                            confidence: word.confidence || 0.85,
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    // Calculate average confidence
-    const totalConfidence = spatialMapping.reduce((sum, item) => sum + item.confidence, 0);
-    const confidenceCount = spatialMapping.length;
-    const avgConfidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0.85;
-    const processingTime = Date.now() - startTime;
-    return {
-        extracted_text: extractedText,
-        spatial_mapping: spatialMapping,
-        ocr_confidence: avgConfidence,
-        processing_time_ms: processingTime,
-        ocr_provider: 'google_cloud_vision',
-        original_gcv_text: originalGCVText,
-        page_dimensions: pageDimensions,
-    };
-}
 // =============================================================================
-// WORKER CLASS
+// SECTION 3: V3 WORKER CLASS
 // =============================================================================
 class V3Worker {
     supabase;
@@ -260,6 +92,9 @@ class V3Worker {
     activeJobs = new Map();
     heartbeatInterval;
     pass1Detector;
+    // ---------------------------------------------------------------------------
+    // 3.1: CONSTRUCTOR & INITIALIZATION
+    // ---------------------------------------------------------------------------
     constructor() {
         this.workerId = config.worker.id;
         this.logger = (0, logger_1.createLogger)({
@@ -267,8 +102,8 @@ class V3Worker {
             worker_id: this.workerId,
         });
         this.supabase = (0, supabase_js_1.createClient)(config.supabase.url, config.supabase.serviceRoleKey);
-        // Initialize Pass 1 detector if OpenAI key is available
-        if (config.openai.apiKey) {
+        // Initialize Pass 1 detector if enabled and OpenAI key is available
+        if (config.passes.pass1Enabled && config.openai.apiKey) {
             const pass1Config = {
                 openai_api_key: config.openai.apiKey,
                 model: 'gpt-5-mini', // PRODUCTION: GPT-5-mini for optimal cost/performance
@@ -284,20 +119,58 @@ class V3Worker {
             this.pass1Detector = new pass1_1.Pass1EntityDetector(pass1Config);
             this.logger.info('Pass 1 Entity Detector initialized');
         }
-        else {
-            this.logger.warn('OpenAI API key not found - Pass 1 disabled');
+        else if (!config.passes.pass1Enabled) {
+            this.logger.info('Pass 1 disabled via configuration (ENABLE_PASS1=false)');
         }
-        this.logger.info('V3 Worker initialized');
+        else {
+            this.logger.warn('Pass 1 disabled - OpenAI API key not found');
+        }
+        this.logger.info('V3 Worker initialized', {
+            pass_05_enabled: config.passes.pass05Enabled,
+            pass_1_enabled: config.passes.pass1Enabled,
+            pass_2_enabled: config.passes.pass2Enabled,
+        });
     }
-    // Start the worker
+    // ---------------------------------------------------------------------------
+    // 3.2: WORKER LIFECYCLE
+    // ---------------------------------------------------------------------------
+    /**
+     * Start the worker
+     * Begins heartbeat and job polling loop
+     */
     async start() {
         this.logger.info('Starting V3 Worker');
-        // Start heartbeat
+        // Start heartbeat for active job tracking
         this.startHeartbeat();
-        // Start polling for jobs
+        // Start polling for jobs (infinite loop)
         await this.pollForJobs();
     }
-    // Poll for pending jobs
+    /**
+     * Stop the worker gracefully
+     * Waits for active jobs to complete before exiting
+     */
+    async stop() {
+        this.logger.info('Stopping V3 Worker');
+        // Clear heartbeat interval
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+        }
+        // Wait for active jobs to complete
+        while (this.activeJobs.size > 0) {
+            this.logger.info('Waiting for active jobs to complete', {
+                active_jobs: this.activeJobs.size,
+            });
+            await this.sleep(1000);
+        }
+        this.logger.info('V3 Worker stopped');
+    }
+    // ---------------------------------------------------------------------------
+    // 3.3: JOB QUEUE MANAGEMENT
+    // ---------------------------------------------------------------------------
+    /**
+     * Poll for pending jobs continuously
+     * Respects max concurrent job limit
+     */
     async pollForJobs() {
         while (true) {
             try {
@@ -309,7 +182,7 @@ class V3Worker {
                 // Fetch next pending job
                 const job = await this.fetchNextJob();
                 if (job) {
-                    // Process job asynchronously
+                    // Process job asynchronously (don't await - allow polling to continue)
                     this.processJob(job).catch(error => {
                         this.logger.error('Error processing job', error, { job_id: job.id });
                     });
@@ -323,32 +196,24 @@ class V3Worker {
             }
         }
     }
-    // Fetch next job from queue using CORRECT function name and parameters
+    /**
+     * Fetch next job from queue using claim_next_job_v3 RPC
+     * @returns Job record or null if no jobs available
+     */
     async fetchNextJob() {
         const { data, error } = await this.supabase
             .rpc('claim_next_job_v3', {
-            p_worker_id: this.workerId, // FIXED: Correct parameter name (with p_ prefix)
-            p_job_types: ['ai_processing'], // FIXED: Match Edge Function job type
-            p_job_lanes: ['ai_queue_simple'] // FIXED: Match Edge Function job lane
-        });
-        // VERBOSE LOGGING: See what RPC actually returns
-        this.logger.debug('RPC claim_next_job_v3 response', {
-            hasError: !!error,
-            error: error,
-            dataType: typeof data,
-            dataIsArray: Array.isArray(data),
-            dataLength: data ? (Array.isArray(data) ? data.length : 'NOT_ARRAY') : 'NULL',
-            dataValue: data
+            p_worker_id: this.workerId,
+            p_job_types: ['ai_processing'],
+            p_job_lanes: ['ai_queue_simple']
         });
         if (error) {
             this.logger.error('Error claiming job', error);
             return null;
         }
         if (data && data.length > 0) {
-            // FIXED: Function returns job_id, job_type, job_payload, retry_count
             const jobData = data[0];
-            this.logger.debug('Job data from RPC', jobData);
-            // Need to fetch full job details
+            // Fetch full job details
             const { data: fullJob, error: fetchError } = await this.supabase
                 .from('job_queue')
                 .select('*')
@@ -368,7 +233,13 @@ class V3Worker {
         this.logger.debug('No jobs available');
         return null;
     }
-    // Process a single job
+    // ---------------------------------------------------------------------------
+    // 3.4: JOB PROCESSING ROUTER
+    // ---------------------------------------------------------------------------
+    /**
+     * Process a single job
+     * Handles job lifecycle: active tracking, processing, completion/failure, cleanup
+     */
     async processJob(job) {
         const jobId = job.id;
         // Extract correlation_id from job payload (fallback to job ID for traceability)
@@ -386,12 +257,9 @@ class V3Worker {
                 });
                 // Update heartbeat
                 await this.updateJobHeartbeat(jobId);
-                // Process based on job type
+                // Route to appropriate processor
                 let result;
                 switch (job.job_type) {
-                    case 'shell_file_processing':
-                        result = await this.processShellFile(job);
-                        break;
                     case 'ai_processing':
                         result = await this.processAIJob(job);
                         break;
@@ -409,7 +277,7 @@ class V3Worker {
                 job_id: jobId,
                 error_message: error.message,
             });
-            // GUARD: Don't call failJob if the job was rescheduled (already handled by RPC)
+            // Check if job was rescheduled (handled by RPC)
             if (error.message && error.message.includes('Job rescheduled')) {
                 this.logger.info('Job rescheduled - skipping failJob call', {
                     job_id: jobId,
@@ -424,49 +292,20 @@ class V3Worker {
         finally {
             // Remove from active jobs
             this.activeJobs.delete(jobId);
-            // P0 FIX: Explicit memory cleanup after each job
-            // Purpose: Prevent memory accumulation over time (multi-pass processing uses 70-85MB per large file)
-            // Context: Memory leak pattern discovered 2025-11-03 - worker accumulates memory until OOM crash
+            // Explicit memory cleanup after each job
             await this.cleanupJobMemory(jobId);
         }
     }
-    // Process shell file (document upload)
-    async processShellFile(job) {
-        const { shell_file_id, patient_id } = job.job_payload; // FIXED: Removed unused file_path
-        this.logger.info('Processing shell file', {
-            shell_file_id,
-            patient_id_masked: (0, logger_1.maskPatientId)(patient_id),
-        });
-        // TODO: Implement actual document processing
-        // 1. Download file from storage
-        // 2. Run OCR if needed
-        // 3. Extract medical data with AI
-        // 4. Create clinical narratives
-        // 5. Update shell_files status
-        // For now, just simulate processing
-        await this.sleep(2000);
-        // Update shell file status
-        const { error } = await this.supabase
-            .from('shell_files')
-            .update({
-            status: 'completed',
-            processing_completed_at: new Date().toISOString(),
-        })
-            .eq('id', shell_file_id);
-        if (error) {
-            throw new Error(`Failed to update shell file: ${error.message}`);
-        }
-        return {
-            shell_file_id,
-            patient_id,
-            status: 'completed',
-            message: 'Document processed successfully (simulation)',
-        };
-    }
-    // Process AI job (NEW: storage-based payload structure)
+    // ---------------------------------------------------------------------------
+    // 3.5: DOCUMENT PROCESSING PIPELINE
+    // ---------------------------------------------------------------------------
+    /**
+     * Process AI job (document processing)
+     * Complete pipeline: Download → Preprocess → OCR → Pass 0.5 → Pass 1 (optional)
+     */
     async processAIJob(job) {
         const payload = job.job_payload;
-        // Validate storage-based payload structure
+        // Validate payload structure
         if (!payload.shell_file_id || !payload.storage_path || !payload.patient_id) {
             throw new Error('Invalid AI job payload: missing required fields (shell_file_id, storage_path, patient_id)');
         }
@@ -477,7 +316,7 @@ class V3Worker {
             file_size_bytes: payload.file_size_bytes,
             mime_type: payload.mime_type,
         });
-        // NEW: Update shell_files with job tracking at start
+        // Update shell_files with job tracking at start
         await this.supabase
             .from('shell_files')
             .update({
@@ -487,26 +326,23 @@ class V3Worker {
             processing_worker_id: this.workerId
         })
             .eq('id', payload.shell_file_id);
-        // NEW: Download file from storage with retry logic
+        // Download file from storage
         const result = await (0, retry_1.retryStorageDownload)(async () => {
             return await this.supabase.storage
                 .from('medical-docs')
                 .download(payload.storage_path);
         });
         if (result.error || !result.data) {
-            const error = new Error(`Failed to download file from storage: ${result.error?.message}`);
-            error.status = 500;
-            throw error;
+            throw new Error(`Failed to download file from storage: ${result.error?.message}`);
         }
         const fileBlob = result.data;
-        // NEW: Calculate checksum for integrity verification
         const fileBuffer = Buffer.from(await fileBlob.arrayBuffer());
         const fileChecksum = await (0, checksum_1.calculateSHA256)(fileBuffer);
         this.logger.debug('File checksum calculated', {
             shell_file_id: payload.shell_file_id,
             checksum: fileChecksum,
         });
-        // NEW: Check for existing OCR artifacts (reuse if available)
+        // Check for existing OCR artifacts (reuse if available)
         let ocrResult = await (0, ocr_persistence_1.loadOCRArtifacts)(this.supabase, payload.shell_file_id, this.logger['correlation_id']);
         if (ocrResult) {
             this.logger.info('Reusing existing OCR artifacts', {
@@ -514,450 +350,510 @@ class V3Worker {
             });
         }
         else {
-            // PHASE 1: FORMAT PREPROCESSING (Extract pages from multi-page formats)
-            this.logger.info('Format preprocessing: Extracting pages', {
+            // Run OCR processing pipeline
+            ocrResult = await this.runOCRProcessing(payload, fileBuffer, job);
+        }
+        // Run Pass 0.5 (Encounter Discovery) - ALWAYS ENABLED
+        const processingSessionId = crypto.randomUUID();
+        const pass05Result = await this.runPass05(payload, ocrResult, processingSessionId);
+        // Run Pass 1 (Entity Detection) - OPTIONAL (controlled by config flag)
+        if (config.passes.pass1Enabled) {
+            await this.runPass1(payload, ocrResult, processingSessionId, job);
+            return {
+                success: true,
                 shell_file_id: payload.shell_file_id,
-                mime_type: payload.mime_type,
-            });
-            const base64Data = fileBuffer.toString('base64');
-            let preprocessResult;
-            try {
-                preprocessResult = await (0, format_processor_1.preprocessForOCR)(base64Data, payload.mime_type, {
-                    maxWidth: 1600,
-                    jpegQuality: 85,
-                    correlationId: this.logger['correlation_id'],
-                });
-                this.logger.info('Format preprocessing complete', {
-                    shell_file_id: payload.shell_file_id,
-                    totalPages: preprocessResult.totalPages,
-                    successfulPages: preprocessResult.successfulPages,
-                    originalFormat: preprocessResult.originalFormat,
-                    conversionApplied: preprocessResult.conversionApplied,
-                    processingTimeMs: preprocessResult.processingTimeMs,
-                });
-            }
-            catch (error) {
-                this.logger.error('Format preprocessing failed', error, {
-                    shell_file_id: payload.shell_file_id,
-                });
-                throw error;
-            }
-            // NEW: Store processed JPEG pages for click-to-source feature
-            let imageMetadata;
-            try {
-                imageMetadata = await (0, store_processed_images_1.storeProcessedImages)(this.supabase, payload.patient_id, payload.shell_file_id, preprocessResult.pages, this.logger['correlation_id']);
-                this.logger.info('Processed images stored', {
-                    shell_file_id: payload.shell_file_id,
-                    pageCount: imageMetadata.pages.length,
-                    totalBytes: imageMetadata.totalBytes,
-                    folderPath: imageMetadata.folderPath,
-                });
-            }
-            catch (error) {
-                // CRITICAL: Fail the job if image storage fails
-                // Click-to-source feature requires processed images
-                this.logger.error('Failed to store processed images', error, {
-                    shell_file_id: payload.shell_file_id,
-                });
-                throw new Error(`CRITICAL: Failed to store processed images: ${error.message}`);
-            }
-            // PHASE 2: OCR EACH PAGE
-            this.logger.info('Running OCR on extracted pages', {
-                shell_file_id: payload.shell_file_id,
-                pageCount: preprocessResult.pages.length,
-            });
-            const ocrPages = [];
-            // Batched parallel OCR processing (10 pages at a time)
-            const BATCH_SIZE = parseInt(process.env.OCR_BATCH_SIZE || '10', 10);
-            const OCR_TIMEOUT_MS = parseInt(process.env.OCR_TIMEOUT_MS || '30000', 10); // 30 sec per page
-            const MEMORY_LIMIT_MB = parseInt(process.env.MEMORY_LIMIT_MB || '1800', 10); // Safety threshold (2GB plan: 1800 MB)
-            const validPages = preprocessResult.pages.filter(p => p.base64); // Skip failed pages
-            // OCR SESSION START LOGGING
-            const ocrSessionStartTime = Date.now();
-            const totalBatchesForSession = Math.ceil(validPages.length / BATCH_SIZE);
-            // Calculate queue wait time (time from job creation to job start)
-            const jobCreatedAt = new Date(job.created_at).getTime();
-            const jobStartedAt = new Date(job.started_at).getTime();
-            const queueWaitMs = jobStartedAt - jobCreatedAt;
-            // Track batch processing times for metrics
-            const batchTimesMs = [];
-            this.logger.info('OCR processing session started', {
-                shell_file_id: payload.shell_file_id,
-                correlation_id: this.logger['correlation_id'],
-                total_pages: validPages.length,
-                batch_size: BATCH_SIZE,
-                total_batches: totalBatchesForSession,
-                ocr_provider: 'google_vision',
-                retry_count: job.retry_count,
-                queue_wait_ms: queueWaitMs,
-                timestamp: new Date().toISOString(),
-            });
-            // Process pages in batches with comprehensive error handling
-            try {
-                for (let batchStart = 0; batchStart < validPages.length; batchStart += BATCH_SIZE) {
-                    const batchEnd = Math.min(batchStart + BATCH_SIZE, validPages.length);
-                    const batch = validPages.slice(batchStart, batchEnd);
-                    const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1;
-                    const totalBatches = Math.ceil(validPages.length / BATCH_SIZE);
-                    // Check memory before processing batch
-                    const memBefore = process.memoryUsage();
-                    const batchStartTime = Date.now();
-                    // OCR BATCH START LOGGING
-                    this.logger.info('OCR batch started', {
-                        shell_file_id: payload.shell_file_id,
-                        correlation_id: this.logger['correlation_id'],
-                        batch_number: batchNumber,
-                        total_batches: totalBatches,
-                        batch_size: batch.length,
-                        pages_in_batch: batch.map(p => p.pageNumber).join(','),
-                        memory_before_mb: Math.round(memBefore.rss / 1024 / 1024),
-                        timestamp: new Date().toISOString(),
-                    });
-                    // Safety check: abort if approaching memory limit
-                    const rssMB = Math.round(memBefore.rss / 1024 / 1024);
-                    if (rssMB > MEMORY_LIMIT_MB) {
-                        throw new Error(`Memory limit approaching (${rssMB} MB / ${MEMORY_LIMIT_MB} MB threshold). ` +
-                            `Processed ${ocrPages.length}/${validPages.length} pages before aborting.`);
-                    }
-                    // Process batch in parallel with improved timeout handling
-                    const batchResults = await Promise.allSettled(batch.map(async (page) => {
-                        let timeoutId = null;
-                        try {
-                            this.logger.info(`Processing page ${page.pageNumber}/${preprocessResult.totalPages}`, {
-                                shell_file_id: payload.shell_file_id,
-                                pageNumber: page.pageNumber,
-                                width: page.width,
-                                height: page.height,
-                            });
-                            // Create timeout promise with cleanup
-                            const timeoutPromise = new Promise((_, reject) => {
-                                timeoutId = setTimeout(() => {
-                                    reject(new Error(`OCR timeout after ${OCR_TIMEOUT_MS}ms`));
-                                }, OCR_TIMEOUT_MS);
-                            });
-                            // Race between OCR and timeout
-                            const ocrSpatialData = await Promise.race([
-                                processWithGoogleVisionOCR(page.base64, page.mime),
-                                timeoutPromise,
-                            ]);
-                            // Clear timeout since OCR succeeded
-                            if (timeoutId)
-                                clearTimeout(timeoutId);
-                            // Free memory: nullify base64 after successful OCR
-                            page.base64 = null;
-                            // Transform to OCR page format
-                            const ocrPage = {
-                                page_number: page.pageNumber,
-                                size: { width_px: page.width || 0, height_px: page.height || 0 },
-                                lines: ocrSpatialData.spatial_mapping.map((item, idx) => ({
-                                    text: item.text,
-                                    bbox: {
-                                        x: item.bounding_box.x,
-                                        y: item.bounding_box.y,
-                                        w: item.bounding_box.width,
-                                        h: item.bounding_box.height,
-                                    },
-                                    bbox_norm: page.width && page.height
-                                        ? {
-                                            x: item.bounding_box.x / page.width,
-                                            y: item.bounding_box.y / page.height,
-                                            w: item.bounding_box.width / page.width,
-                                            h: item.bounding_box.height / page.height,
-                                        }
-                                        : null,
-                                    confidence: item.confidence,
-                                    reading_order: idx,
-                                })),
-                                tables: [],
-                                provider: ocrSpatialData.ocr_provider,
-                                processing_time_ms: ocrSpatialData.processing_time_ms,
-                                // Store lightweight text comparison data
-                                original_gcv_text: ocrSpatialData.original_gcv_text,
-                                spatially_sorted_text: ocrSpatialData.extracted_text,
-                                page_dimensions: ocrSpatialData.page_dimensions,
-                            };
-                            this.logger.info(`Page ${page.pageNumber} OCR complete`, {
-                                shell_file_id: payload.shell_file_id,
-                                pageNumber: page.pageNumber,
-                                textLength: ocrSpatialData.extracted_text.length,
-                                confidence: ocrSpatialData.ocr_confidence,
-                            });
-                            return ocrPage;
-                        }
-                        catch (error) {
-                            // Clear timeout on error
-                            if (timeoutId)
-                                clearTimeout(timeoutId);
-                            // Free memory even on error
-                            page.base64 = null;
-                            this.logger.error(`Page ${page.pageNumber} OCR failed`, error, {
-                                shell_file_id: payload.shell_file_id,
-                                pageNumber: page.pageNumber,
-                                errorMessage: error instanceof Error ? error.message : String(error),
-                            });
-                            throw error;
-                        }
-                    }));
-                    // Process batch results - check for failures
-                    const successfulPages = [];
-                    const failedPages = [];
-                    batchResults.forEach((result, index) => {
-                        if (result.status === 'fulfilled') {
-                            successfulPages.push(result.value);
-                        }
-                        else {
-                            const page = batch[index];
-                            failedPages.push({
-                                pageNumber: page.pageNumber,
-                                error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-                            });
-                        }
-                    });
-                    // If ANY pages failed in this batch, fail the entire job
-                    if (failedPages.length > 0) {
-                        throw new Error(`Batch ${batchNumber} failed: ${failedPages.length}/${batch.length} pages failed. ` +
-                            `Failed pages: ${failedPages.map(p => p.pageNumber).join(', ')}. ` +
-                            `First error: ${failedPages[0].error}`);
-                    }
-                    // Add successful batch results to main array
-                    ocrPages.push(...successfulPages);
-                    // Memory cleanup after batch
-                    const memAfter = process.memoryUsage();
-                    const batchProcessingTime = Date.now() - batchStartTime;
-                    // Track batch time for metrics
-                    batchTimesMs.push(batchProcessingTime);
-                    // Calculate batch confidence
-                    const batchConfidences = successfulPages.map(p => {
-                        const avgLineConfidence = p.lines.reduce((sum, line) => sum + line.confidence, 0) / (p.lines.length || 1);
-                        return avgLineConfidence;
-                    });
-                    const avgBatchConfidence = batchConfidences.reduce((a, b) => a + b, 0) / (batchConfidences.length || 1);
-                    // OCR BATCH COMPLETION LOGGING
-                    this.logger.info('OCR batch completed', {
-                        shell_file_id: payload.shell_file_id,
-                        correlation_id: this.logger['correlation_id'],
-                        batch_number: batchNumber,
-                        total_batches: totalBatches,
-                        batch_size: batch.length,
-                        processing_time_ms: batchProcessingTime,
-                        successful_pages: successfulPages.length,
-                        failed_pages: failedPages.length,
-                        failed_page_numbers: failedPages.map(p => p.pageNumber).join(',') || 'none',
-                        average_confidence: avgBatchConfidence.toFixed(4),
-                        memory_after_mb: Math.round(memAfter.rss / 1024 / 1024),
-                        memory_delta_mb: Math.round((memAfter.rss - memBefore.rss) / 1024 / 1024),
-                        timestamp: new Date().toISOString(),
-                    });
-                    // Force garbage collection if available (requires --expose-gc flag)
-                    if (global.gc) {
-                        this.logger.info('Forcing garbage collection', {
-                            shell_file_id: payload.shell_file_id,
-                            batchNumber,
-                        });
-                        global.gc();
-                        const memAfterGC = process.memoryUsage();
-                        this.logger.info('Memory after GC', {
-                            shell_file_id: payload.shell_file_id,
-                            batchNumber,
-                            heapUsedMB: Math.round(memAfterGC.heapUsed / 1024 / 1024),
-                            heapTotalMB: Math.round(memAfterGC.heapTotal / 1024 / 1024),
-                            rssMB: Math.round(memAfterGC.rss / 1024 / 1024),
-                        });
-                    }
-                }
-            }
-            catch (batchError) {
-                // Comprehensive error logging for batch processing failures
-                this.logger.error('Batched OCR processing failed', batchError, {
-                    shell_file_id: payload.shell_file_id,
-                    pagesCompleted: ocrPages.length,
-                    totalPages: validPages.length,
-                    errorMessage: batchError instanceof Error ? batchError.message : String(batchError),
-                });
-                throw batchError;
-            }
-            // Build final multi-page OCR result
-            ocrResult = {
-                pages: ocrPages,
+                pass_05_result: pass05Result,
+                message: 'Pass 0.5 and Pass 1 completed successfully',
             };
-            // OCR SESSION COMPLETION LOGGING
-            const totalOCRTime = Date.now() - ocrSessionStartTime;
-            const avgBatchTime = totalOCRTime / totalBatchesForSession;
-            const avgPageTime = totalOCRTime / validPages.length;
-            // Calculate overall confidence
-            const allConfidences = ocrPages.map(p => {
-                const avgLineConfidence = p.lines.reduce((sum, line) => sum + line.confidence, 0) / (p.lines.length || 1);
-                return avgLineConfidence;
-            });
-            const overallAvgConfidence = allConfidences.reduce((a, b) => a + b, 0) / (allConfidences.length || 1);
-            // Calculate total text length
-            const totalTextLength = ocrPages.reduce((sum, p) => {
-                return sum + p.lines.reduce((lineSum, line) => lineSum + line.text.length, 0);
-            }, 0);
-            // Calculate provider average latency (Google Vision API response time)
-            const providerLatencies = ocrPages.map(p => p.processing_time_ms);
-            const providerAvgLatency = providerLatencies.reduce((a, b) => a + b, 0) / (providerLatencies.length || 1);
-            // Memory stats
-            const finalMemory = process.memoryUsage();
-            const peakMemoryMB = Math.round(finalMemory.rss / 1024 / 1024);
-            this.logger.info('OCR processing session completed', {
+        }
+        else {
+            // Pass 1 disabled - return after Pass 0.5
+            this.logger.info('Pass 1 disabled - returning early after Pass 0.5', {
                 shell_file_id: payload.shell_file_id,
-                correlation_id: this.logger['correlation_id'],
-                total_pages: ocrPages.length,
-                total_batches: totalBatchesForSession,
-                batch_size: BATCH_SIZE,
-                total_processing_time_ms: totalOCRTime,
-                average_batch_time_ms: Math.round(avgBatchTime),
-                average_page_time_ms: Math.round(avgPageTime),
-                provider_avg_latency_ms: Math.round(providerAvgLatency),
-                successful_pages: ocrPages.length,
-                failed_pages: 0,
-                average_confidence: overallAvgConfidence.toFixed(4),
-                total_text_length: totalTextLength,
-                peak_memory_mb: peakMemoryMB,
-                timestamp: new Date().toISOString(),
+                note: 'Set ENABLE_PASS1=true to enable Pass 1 entity detection'
             });
-            // FIX: Update shell_files.page_count with actual OCR page count
-            // Date: 2025-11-05
-            // Context: Edge Function estimates page_count using formulas (PDFs: ~10 pages/MB, Images: 1 page)
-            // Issue: Worker gets actual page count from OCR but never updated shell_files.page_count
-            // Result: All uploads had wrong page_count (e.g., 8 vs 20, 1 vs 2)
-            // Solution: Update with actual OCR page count after OCR completes
-            const actualPageCount = ocrPages.length;
-            const { error: pageCountError } = await this.supabase
+            return {
+                success: true,
+                shell_file_id: payload.shell_file_id,
+                pass_05_only: true,
+                pass_05_result: pass05Result,
+                message: 'Pass 0.5 completed successfully. Pass 1 disabled via configuration.',
+            };
+        }
+    }
+    /**
+     * Run OCR processing pipeline
+     * Steps: Format preprocessing → Processed image storage → Multi-page OCR → Artifact persistence
+     */
+    async runOCRProcessing(payload, fileBuffer, job) {
+        // STEP 1: Format preprocessing (extract pages from multi-page formats)
+        this.logger.info('Format preprocessing: Extracting pages', {
+            shell_file_id: payload.shell_file_id,
+            mime_type: payload.mime_type,
+        });
+        const base64Data = fileBuffer.toString('base64');
+        let preprocessResult;
+        try {
+            preprocessResult = await (0, format_processor_1.preprocessForOCR)(base64Data, payload.mime_type, {
+                maxWidth: 1600,
+                jpegQuality: 85,
+                correlationId: this.logger['correlation_id'],
+            });
+            this.logger.info('Format preprocessing complete', {
+                shell_file_id: payload.shell_file_id,
+                totalPages: preprocessResult.totalPages,
+                successfulPages: preprocessResult.successfulPages,
+                originalFormat: preprocessResult.originalFormat,
+                conversionApplied: preprocessResult.conversionApplied,
+                processingTimeMs: preprocessResult.processingTimeMs,
+            });
+        }
+        catch (error) {
+            this.logger.error('Format preprocessing failed', error, {
+                shell_file_id: payload.shell_file_id,
+            });
+            throw error;
+        }
+        // STEP 2: Store processed JPEG pages for click-to-source feature
+        let imageMetadata;
+        try {
+            imageMetadata = await (0, store_processed_images_1.storeProcessedImages)(this.supabase, payload.patient_id, payload.shell_file_id, preprocessResult.pages, this.logger['correlation_id']);
+            this.logger.info('Processed images stored', {
+                shell_file_id: payload.shell_file_id,
+                pageCount: imageMetadata.pages.length,
+                totalBytes: imageMetadata.totalBytes,
+                folderPath: imageMetadata.folderPath,
+            });
+        }
+        catch (error) {
+            // CRITICAL: Fail the job if image storage fails
+            // Click-to-source feature requires processed images
+            this.logger.error('Failed to store processed images', error, {
+                shell_file_id: payload.shell_file_id,
+            });
+            throw new Error(`CRITICAL: Failed to store processed images: ${error.message}`);
+        }
+        // STEP 3: Run OCR on each page (batched parallel processing)
+        const ocrPages = await this.runBatchedOCR(payload, preprocessResult, job);
+        // STEP 4: Build final multi-page OCR result
+        const ocrResult = { pages: ocrPages };
+        // STEP 5: Update shell_files with actual page count
+        const actualPageCount = ocrPages.length;
+        const { error: pageCountError } = await this.supabase
+            .from('shell_files')
+            .update({ page_count: actualPageCount })
+            .eq('id', payload.shell_file_id);
+        if (pageCountError) {
+            this.logger.error('Failed to update page_count', pageCountError, {
+                shell_file_id: payload.shell_file_id,
+                actual_page_count: actualPageCount,
+            });
+        }
+        else {
+            this.logger.info('Updated page_count with actual OCR count', {
+                shell_file_id: payload.shell_file_id,
+                page_count: actualPageCount,
+            });
+        }
+        // STEP 6: Write OCR processing metrics to database
+        await this.writeOCRMetrics(payload, ocrPages, job);
+        // STEP 7: Persist OCR artifacts for future reuse
+        const fileChecksum = await (0, checksum_1.calculateSHA256)(fileBuffer);
+        await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum, imageMetadata, this.logger['correlation_id']);
+        // STEP 8: Generate and store enhanced OCR format (PHASE 1)
+        await this.storeEnhancedOCRFormat(payload, ocrResult);
+        // STEP 9: Update shell_files with processed image metadata
+        if (imageMetadata) {
+            const { error: updateError } = await this.supabase
                 .from('shell_files')
-                .update({ page_count: actualPageCount })
+                .update({
+                processed_image_path: imageMetadata.folderPath,
+                processed_image_checksum: imageMetadata.combinedChecksum,
+                processed_image_mime: 'image/jpeg',
+                processed_image_size_bytes: imageMetadata.totalBytes,
+            })
                 .eq('id', payload.shell_file_id);
-            if (pageCountError) {
-                this.logger.error('Failed to update page_count', pageCountError, {
+            if (updateError) {
+                this.logger.error('Failed to update shell_files with processed image metadata', updateError, {
                     shell_file_id: payload.shell_file_id,
-                    actual_page_count: actualPageCount,
                 });
-                // Log error but don't fail - this is for data integrity only
             }
             else {
-                this.logger.info('Updated page_count with actual OCR count', {
+                this.logger.info('Updated shell_files with processed image metadata', {
                     shell_file_id: payload.shell_file_id,
-                    page_count: actualPageCount,
-                });
-            }
-            // Write OCR processing metrics to database (Phase 2 of OCR logging)
-            const ocrSessionEndTime = Date.now();
-            const { error: metricsError } = await this.supabase
-                .from('ocr_processing_metrics')
-                .insert({
-                shell_file_id: payload.shell_file_id,
-                patient_id: payload.patient_id,
-                correlation_id: this.logger['correlation_id'],
-                batch_size: BATCH_SIZE,
-                total_batches: totalBatchesForSession,
-                total_pages: ocrPages.length,
-                started_at: new Date(ocrSessionStartTime).toISOString(),
-                completed_at: new Date(ocrSessionEndTime).toISOString(),
-                processing_time_ms: totalOCRTime,
-                average_batch_time_ms: avgBatchTime,
-                average_page_time_ms: avgPageTime,
-                provider_avg_latency_ms: Math.round(providerAvgLatency),
-                batch_times_ms: batchTimesMs,
-                successful_pages: ocrPages.length,
-                failed_pages: 0, // TODO: Track actual failed pages when implemented
-                failed_page_numbers: [],
-                average_confidence: parseFloat(overallAvgConfidence.toFixed(4)),
-                total_text_length: totalTextLength,
-                peak_memory_mb: peakMemoryMB,
-                memory_freed_mb: null, // TODO: Calculate if needed
-                estimated_cost_usd: null, // TODO: Calculate based on Google Vision pricing
-                estimated_cost_per_page_usd: null,
-                ocr_provider: 'google_vision',
-                environment: process.env.APP_ENV || 'development',
-                app_version: process.env.npm_package_version || 'unknown',
-                worker_id: process.env.WORKER_ID || 'unknown',
-                retry_count: job.retry_count,
-                queue_wait_ms: queueWaitMs,
-            });
-            if (metricsError) {
-                this.logger.error('Failed to write OCR metrics to database', metricsError, {
-                    shell_file_id: payload.shell_file_id,
-                    correlation_id: this.logger['correlation_id'],
-                });
-                // Log error but don't fail - metrics are for analysis only
-            }
-            else {
-                this.logger.info('OCR metrics written to database', {
-                    shell_file_id: payload.shell_file_id,
-                    correlation_id: this.logger['correlation_id'],
-                    total_pages: ocrPages.length,
-                    processing_time_ms: totalOCRTime,
-                });
-            }
-            // Persist OCR artifacts for future reuse (with processed image references)
-            await (0, ocr_persistence_1.persistOCRArtifacts)(this.supabase, payload.shell_file_id, payload.patient_id, ocrResult, fileChecksum, imageMetadata, // NEW: Include processed image metadata
-            this.logger['correlation_id']);
-            // Store lightweight OCR text comparison data for debugging
-            const ocrComparisonData = ocrResult.pages
-                .filter((p) => p.original_gcv_text && p.spatially_sorted_text)
-                .map((p) => ({
-                page_number: p.page_number,
-                original_gcv_text: p.original_gcv_text,
-                spatially_sorted_text: p.spatially_sorted_text,
-                dimensions: p.page_dimensions || p.size,
-            }));
-            if (ocrComparisonData.length > 0) {
-                const { error: ocrStorageError } = await this.supabase
-                    .from('shell_files')
-                    .update({
-                    ocr_raw_jsonb: { pages: ocrComparisonData }
-                })
-                    .eq('id', payload.shell_file_id);
-                if (ocrStorageError) {
-                    this.logger.error('Failed to store OCR comparison data', ocrStorageError, {
-                        shell_file_id: payload.shell_file_id,
-                    });
-                    // Log error but don't fail - this is for debugging only
-                }
-                else {
-                    this.logger.info('Stored OCR comparison data in database', {
-                        shell_file_id: payload.shell_file_id,
-                        pages_stored: ocrComparisonData.length,
-                    });
-                }
-            }
-            // Update shell_files record with processed image metadata
-            if (imageMetadata) {
-                const { error: updateError } = await this.supabase
-                    .from('shell_files')
-                    .update({
                     processed_image_path: imageMetadata.folderPath,
-                    processed_image_checksum: imageMetadata.combinedChecksum,
-                    processed_image_mime: 'image/jpeg',
-                    processed_image_size_bytes: imageMetadata.totalBytes, // Migration 40: Combined total size of all processed JPEG pages
-                })
-                    .eq('id', payload.shell_file_id);
-                if (updateError) {
-                    this.logger.error('Failed to update shell_files with processed image metadata', updateError, {
-                        shell_file_id: payload.shell_file_id,
-                    });
-                    // Log error but don't fail the job - OCR and images are already stored
+                });
+            }
+        }
+        return ocrResult;
+    }
+    /**
+     * Run batched parallel OCR processing
+     * Processes pages in batches to manage memory usage
+     */
+    async runBatchedOCR(payload, preprocessResult, job) {
+        this.logger.info('Running OCR on extracted pages', {
+            shell_file_id: payload.shell_file_id,
+            pageCount: preprocessResult.pages.length,
+        });
+        const ocrPages = [];
+        const validPages = preprocessResult.pages.filter(p => p.base64); // Skip failed pages
+        // OCR session tracking
+        const ocrSessionStartTime = Date.now();
+        const totalBatches = Math.ceil(validPages.length / config.ocr.batchSize);
+        // Calculate queue wait time
+        const jobCreatedAt = new Date(job.created_at).getTime();
+        const jobStartedAt = new Date(job.started_at).getTime();
+        const queueWaitMs = jobStartedAt - jobCreatedAt;
+        const batchTimesMs = [];
+        this.logger.info('OCR processing session started', {
+            shell_file_id: payload.shell_file_id,
+            correlation_id: this.logger['correlation_id'],
+            total_pages: validPages.length,
+            batch_size: config.ocr.batchSize,
+            total_batches: totalBatches,
+            ocr_provider: 'google_vision',
+            retry_count: job.retry_count,
+            queue_wait_ms: queueWaitMs,
+            timestamp: new Date().toISOString(),
+        });
+        // Process pages in batches
+        try {
+            for (let batchStart = 0; batchStart < validPages.length; batchStart += config.ocr.batchSize) {
+                const batchEnd = Math.min(batchStart + config.ocr.batchSize, validPages.length);
+                const batch = validPages.slice(batchStart, batchEnd);
+                const batchNumber = Math.floor(batchStart / config.ocr.batchSize) + 1;
+                // Check memory before processing batch
+                const memBefore = process.memoryUsage();
+                const batchStartTime = Date.now();
+                this.logger.info('OCR batch started', {
+                    shell_file_id: payload.shell_file_id,
+                    correlation_id: this.logger['correlation_id'],
+                    batch_number: batchNumber,
+                    total_batches: totalBatches,
+                    batch_size: batch.length,
+                    pages_in_batch: batch.map(p => p.pageNumber).join(','),
+                    memory_before_mb: Math.round(memBefore.rss / 1024 / 1024),
+                    timestamp: new Date().toISOString(),
+                });
+                // Safety check: abort if approaching memory limit
+                const rssMB = Math.round(memBefore.rss / 1024 / 1024);
+                if (rssMB > config.memory.limitMB) {
+                    throw new Error(`Memory limit approaching (${rssMB} MB / ${config.memory.limitMB} MB threshold). ` +
+                        `Processed ${ocrPages.length}/${validPages.length} pages before aborting.`);
                 }
-                else {
-                    this.logger.info('Updated shell_files with processed image metadata', {
+                // Process batch in parallel
+                const batchResults = await this.processBatchParallel(batch, payload, preprocessResult.totalPages);
+                // Check for failures
+                const successfulPages = [];
+                const failedPages = [];
+                batchResults.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        successfulPages.push(result.value);
+                    }
+                    else {
+                        const page = batch[index];
+                        failedPages.push({
+                            pageNumber: page.pageNumber,
+                            error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+                        });
+                    }
+                });
+                // If ANY pages failed in this batch, fail the entire job
+                if (failedPages.length > 0) {
+                    throw new Error(`Batch ${batchNumber} failed: ${failedPages.length}/${batch.length} pages failed. ` +
+                        `Failed pages: ${failedPages.map(p => p.pageNumber).join(', ')}. ` +
+                        `First error: ${failedPages[0].error}`);
+                }
+                // Add successful batch results to main array
+                ocrPages.push(...successfulPages);
+                // Memory cleanup after batch
+                const memAfter = process.memoryUsage();
+                const batchProcessingTime = Date.now() - batchStartTime;
+                batchTimesMs.push(batchProcessingTime);
+                // Calculate batch confidence
+                const batchConfidences = successfulPages.map(p => {
+                    let totalConfidence = 0;
+                    let wordCount = 0;
+                    for (const block of p.blocks) {
+                        for (const paragraph of block.paragraphs) {
+                            for (const word of paragraph.words) {
+                                totalConfidence += word.confidence;
+                                wordCount++;
+                            }
+                        }
+                    }
+                    return wordCount > 0 ? totalConfidence / wordCount : 0.85;
+                });
+                const avgBatchConfidence = batchConfidences.reduce((a, b) => a + b, 0) / (batchConfidences.length || 1);
+                this.logger.info('OCR batch completed', {
+                    shell_file_id: payload.shell_file_id,
+                    correlation_id: this.logger['correlation_id'],
+                    batch_number: batchNumber,
+                    total_batches: totalBatches,
+                    batch_size: batch.length,
+                    processing_time_ms: batchProcessingTime,
+                    successful_pages: successfulPages.length,
+                    failed_pages: failedPages.length,
+                    average_confidence: avgBatchConfidence.toFixed(4),
+                    memory_after_mb: Math.round(memAfter.rss / 1024 / 1024),
+                    memory_delta_mb: Math.round((memAfter.rss - memBefore.rss) / 1024 / 1024),
+                    timestamp: new Date().toISOString(),
+                });
+                // Force garbage collection if available
+                if (global.gc) {
+                    this.logger.info('Forcing garbage collection', {
                         shell_file_id: payload.shell_file_id,
-                        processed_image_path: imageMetadata.folderPath,
+                        batchNumber,
+                    });
+                    global.gc();
+                    const memAfterGC = process.memoryUsage();
+                    this.logger.info('Memory after GC', {
+                        shell_file_id: payload.shell_file_id,
+                        batchNumber,
+                        heapUsedMB: Math.round(memAfterGC.heapUsed / 1024 / 1024),
+                        heapTotalMB: Math.round(memAfterGC.heapTotal / 1024 / 1024),
+                        rssMB: Math.round(memAfterGC.rss / 1024 / 1024),
                     });
                 }
             }
         }
-        // =============================================================================
-        // PASS 0.5: ENCOUNTER DISCOVERY (NEW - October 2025)
-        // =============================================================================
-        // Run Pass 0.5 encounter discovery before Pass 1 entity detection
-        // Creates healthcare_encounters records and manifest for downstream passes
+        catch (batchError) {
+            this.logger.error('Batched OCR processing failed', batchError, {
+                shell_file_id: payload.shell_file_id,
+                pagesCompleted: ocrPages.length,
+                totalPages: validPages.length,
+                errorMessage: batchError instanceof Error ? batchError.message : String(batchError),
+            });
+            throw batchError;
+        }
+        // OCR session completion logging
+        const totalOCRTime = Date.now() - ocrSessionStartTime;
+        const avgBatchTime = totalOCRTime / totalBatches;
+        const avgPageTime = totalOCRTime / validPages.length;
+        // Calculate overall statistics
+        let totalConfidence = 0;
+        let totalWords = 0;
+        let totalTextLength = 0;
+        for (const page of ocrPages) {
+            for (const block of page.blocks) {
+                for (const paragraph of block.paragraphs) {
+                    for (const word of paragraph.words) {
+                        totalConfidence += word.confidence;
+                        totalWords++;
+                        totalTextLength += word.text.length;
+                    }
+                }
+            }
+        }
+        const overallAvgConfidence = totalWords > 0 ? totalConfidence / totalWords : 0.85;
+        const providerLatencies = ocrPages.map(p => p.processing_time_ms);
+        const providerAvgLatency = providerLatencies.reduce((a, b) => a + b, 0) / (providerLatencies.length || 1);
+        const finalMemory = process.memoryUsage();
+        const peakMemoryMB = Math.round(finalMemory.rss / 1024 / 1024);
+        this.logger.info('OCR processing session completed', {
+            shell_file_id: payload.shell_file_id,
+            correlation_id: this.logger['correlation_id'],
+            total_pages: ocrPages.length,
+            total_batches: totalBatches,
+            batch_size: config.ocr.batchSize,
+            total_processing_time_ms: totalOCRTime,
+            average_batch_time_ms: Math.round(avgBatchTime),
+            average_page_time_ms: Math.round(avgPageTime),
+            provider_avg_latency_ms: Math.round(providerAvgLatency),
+            successful_pages: ocrPages.length,
+            failed_pages: 0,
+            average_confidence: overallAvgConfidence.toFixed(4),
+            total_text_length: totalTextLength,
+            peak_memory_mb: peakMemoryMB,
+            timestamp: new Date().toISOString(),
+        });
+        return ocrPages;
+    }
+    /**
+     * Process a batch of pages in parallel
+     * Each page gets OCR processing with timeout handling
+     */
+    async processBatchParallel(batch, payload, totalPages) {
+        return await Promise.allSettled(batch.map(async (page) => {
+            let timeoutId = null;
+            try {
+                this.logger.info(`Processing page ${page.pageNumber}/${totalPages}`, {
+                    shell_file_id: payload.shell_file_id,
+                    pageNumber: page.pageNumber,
+                    width: page.width,
+                    height: page.height,
+                });
+                // Create timeout promise with cleanup
+                const timeoutPromise = new Promise((_, reject) => {
+                    timeoutId = setTimeout(() => {
+                        reject(new Error(`OCR timeout after ${config.ocr.timeoutMs}ms`));
+                    }, config.ocr.timeoutMs);
+                });
+                // OCR processing configuration
+                const ocrConfig = {
+                    googleApiKey: config.googleCloud.apiKey,
+                    storeRawGCV: config.ocr.storeRawGCV,
+                    correlationId: this.logger['correlation_id'],
+                };
+                // Raw GCV storage context (only if enabled)
+                const storageContext = config.ocr.storeRawGCV ? {
+                    supabase: this.supabase,
+                    patientId: payload.patient_id,
+                    shellFileId: payload.shell_file_id,
+                    logger: this.logger,
+                } : undefined;
+                // Race between OCR and timeout
+                const ocrPageResult = await Promise.race([
+                    (0, ocr_processing_1.processWithGoogleVisionOCR)(page.base64, page.mime, ocrConfig, storageContext),
+                    timeoutPromise,
+                ]);
+                // Clear timeout since OCR succeeded
+                if (timeoutId)
+                    clearTimeout(timeoutId);
+                // Free memory: nullify base64 after successful OCR
+                page.base64 = null;
+                // Set correct page number
+                ocrPageResult.page_number = page.pageNumber;
+                this.logger.info(`Page ${page.pageNumber} OCR complete`, {
+                    shell_file_id: payload.shell_file_id,
+                    pageNumber: page.pageNumber,
+                    textLength: ocrPageResult.spatially_sorted_text.length,
+                    blocks: ocrPageResult.blocks.length,
+                });
+                return ocrPageResult;
+            }
+            catch (error) {
+                // Clear timeout on error
+                if (timeoutId)
+                    clearTimeout(timeoutId);
+                // Free memory even on error
+                page.base64 = null;
+                this.logger.error(`Page ${page.pageNumber} OCR failed`, error, {
+                    shell_file_id: payload.shell_file_id,
+                    pageNumber: page.pageNumber,
+                    errorMessage: error instanceof Error ? error.message : String(error),
+                });
+                throw error;
+            }
+        }));
+    }
+    /**
+     * Write OCR processing metrics to database
+     */
+    async writeOCRMetrics(payload, ocrPages, job) {
+        // Calculate metrics
+        let totalConfidence = 0;
+        let totalWords = 0;
+        let totalTextLength = 0;
+        for (const page of ocrPages) {
+            for (const block of page.blocks) {
+                for (const paragraph of block.paragraphs) {
+                    for (const word of paragraph.words) {
+                        totalConfidence += word.confidence;
+                        totalWords++;
+                        totalTextLength += word.text.length;
+                    }
+                }
+            }
+        }
+        const avgConfidence = totalWords > 0 ? totalConfidence / totalWords : 0.85;
+        const providerLatencies = ocrPages.map(p => p.processing_time_ms);
+        const providerAvgLatency = providerLatencies.reduce((a, b) => a + b, 0) / (providerLatencies.length || 1);
+        const finalMemory = process.memoryUsage();
+        const peakMemoryMB = Math.round(finalMemory.rss / 1024 / 1024);
+        const { error: metricsError } = await this.supabase
+            .from('ocr_processing_metrics')
+            .insert({
+            shell_file_id: payload.shell_file_id,
+            patient_id: payload.patient_id,
+            correlation_id: this.logger['correlation_id'],
+            batch_size: config.ocr.batchSize,
+            total_batches: Math.ceil(ocrPages.length / config.ocr.batchSize),
+            total_pages: ocrPages.length,
+            started_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+            processing_time_ms: 0, // TODO: Track actual total time
+            average_batch_time_ms: 0,
+            average_page_time_ms: 0,
+            provider_avg_latency_ms: Math.round(providerAvgLatency),
+            batch_times_ms: [],
+            successful_pages: ocrPages.length,
+            failed_pages: 0,
+            failed_page_numbers: [],
+            average_confidence: parseFloat(avgConfidence.toFixed(4)),
+            total_text_length: totalTextLength,
+            peak_memory_mb: peakMemoryMB,
+            memory_freed_mb: null,
+            estimated_cost_usd: null,
+            estimated_cost_per_page_usd: null,
+            ocr_provider: 'google_vision',
+            environment: process.env.APP_ENV || 'development',
+            app_version: process.env.npm_package_version || 'unknown',
+            worker_id: process.env.WORKER_ID || 'unknown',
+            retry_count: job.retry_count,
+            queue_wait_ms: 0, // TODO: Calculate from job timestamps
+        });
+        if (metricsError) {
+            this.logger.error('Failed to write OCR metrics to database', metricsError, {
+                shell_file_id: payload.shell_file_id,
+                correlation_id: this.logger['correlation_id'],
+            });
+        }
+        else {
+            this.logger.info('OCR metrics written to database', {
+                shell_file_id: payload.shell_file_id,
+                correlation_id: this.logger['correlation_id'],
+                total_pages: ocrPages.length,
+            });
+        }
+    }
+    /**
+     * Generate and store enhanced OCR format
+     * PHASE 1: Enhanced OCR Storage for reuse across all passes
+     */
+    async storeEnhancedOCRFormat(payload, ocrResult) {
+        this.logger.info('Generating enhanced OCR format for permanent storage', {
+            shell_file_id: payload.shell_file_id,
+            page_count: ocrResult.pages.length,
+        });
+        const enhancedOCRPages = [];
+        for (let i = 0; i < ocrResult.pages.length; i++) {
+            const page = ocrResult.pages[i];
+            const actualPageNum = i + 1;
+            // PHASE 3: Use actual blocks structure (not recreated from legacy format)
+            const enhancedText = (0, ocr_formatter_1.generateEnhancedOcrFormat)({
+                page_number: actualPageNum,
+                dimensions: {
+                    width: page.size.width_px,
+                    height: page.size.height_px,
+                },
+                blocks: page.blocks, // Use real blocks with full hierarchy
+            });
+            // Add page markers
+            enhancedOCRPages.push(`--- PAGE ${actualPageNum} START ---\n${enhancedText}\n--- PAGE ${actualPageNum} END ---`);
+        }
+        const enhancedOCRText = enhancedOCRPages.join('\n\n');
+        // Store enhanced OCR permanently in Supabase Storage
+        await (0, ocr_persistence_1.storeEnhancedOCR)(this.supabase, payload.patient_id, payload.shell_file_id, enhancedOCRText, this.logger['correlation_id']);
+        this.logger.info('Enhanced OCR stored successfully', {
+            shell_file_id: payload.shell_file_id,
+            bytes: enhancedOCRText.length,
+            pages: ocrResult.pages.length,
+        });
+    }
+    // ---------------------------------------------------------------------------
+    // 3.6: PASS 0.5 - ENCOUNTER DISCOVERY (ACTIVE)
+    // ---------------------------------------------------------------------------
+    /**
+     * Run Pass 0.5 encounter discovery
+     * Creates healthcare_encounters records and manifest for downstream passes
+     */
+    async runPass05(payload, ocrResult, processingSessionId) {
         this.logger.info('Starting Pass 0.5 encounter discovery', {
             shell_file_id: payload.shell_file_id,
             page_count: ocrResult.pages.length,
         });
-        // Generate processing session ID (shared by Pass 0.5 and Pass 1)
-        const processingSessionId = crypto.randomUUID();
         // Create ai_processing_sessions record (required before Pass 0.5)
         const { error: sessionError } = await this.supabase
             .from('ai_processing_sessions')
@@ -968,7 +864,7 @@ class V3Worker {
             session_type: 'shell_file_processing',
             session_status: 'processing',
             ai_model_name: 'gpt-5-mini',
-            workflow_step: 'entity_detection',
+            workflow_step: 'encounter_discovery',
             total_steps: 5,
             completed_steps: 0,
             processing_started_at: new Date().toISOString()
@@ -983,25 +879,16 @@ class V3Worker {
             ocrOutput: {
                 fullTextAnnotation: {
                     text: ocrResult.pages.map((p, idx) => `--- PAGE ${idx + 1} START ---\n` +
-                        p.lines.map((l) => l.text).join(' ') +
+                        p.spatially_sorted_text +
                         `\n--- PAGE ${idx + 1} END ---`).join('\n\n'),
                     pages: ocrResult.pages.map((page) => ({
-                        width: page.size.width_px || 1000,
-                        height: page.size.height_px || 1400,
-                        confidence: page.lines.reduce((sum, l) => sum + l.confidence, 0) / (page.lines.length || 1),
-                        blocks: page.lines.map((line) => ({
-                            boundingBox: {
-                                vertices: [
-                                    { x: line.bbox.x, y: line.bbox.y },
-                                    { x: line.bbox.x + line.bbox.w, y: line.bbox.y },
-                                    { x: line.bbox.x + line.bbox.w, y: line.bbox.y + line.bbox.h },
-                                    { x: line.bbox.x, y: line.bbox.y + line.bbox.h }
-                                ]
-                            },
-                            confidence: line.confidence,
-                            text: line.text, // FIX: Include text for progressive mode
-                            paragraphs: []
-                        }))
+                        page_number: page.page_number,
+                        width: page.size.width_px,
+                        height: page.size.height_px,
+                        confidence: 0.85, // TODO: Calculate from blocks
+                        spatially_sorted_text: page.spatially_sorted_text,
+                        original_gcv_text: page.original_gcv_text,
+                        blocks: page.blocks // PHASE 3: Real block structure for coordinate lookup
                     }))
                 }
             },
@@ -1019,67 +906,41 @@ class V3Worker {
             ai_cost_usd: pass05Result.aiCostUsd,
             ai_model: pass05Result.aiModel,
         });
-        // =============================================================================
-        // TEMPORARY: PASS 1 DISABLED FOR PASS 0.5 BASELINE VALIDATION TESTING
-        // =============================================================================
-        // Date: October 31, 2025
-        // Purpose: Validate Pass 0.5 baseline prompt improvements without burning tokens on Pass 1
-        // Test Plan: shared/docs/.../test-03-ocr-vs-vision-strategy/BASELINE_VALIDATION_PLAN.md
-        // TODO: Remove this block after baseline validation complete
-        // =============================================================================
-        this.logger.info('Pass 1 DISABLED for testing - returning early after Pass 0.5', {
+        return pass05Result;
+    }
+    // ---------------------------------------------------------------------------
+    // 3.7: PASS 1 - ENTITY DETECTION (READY - DISABLED FOR TESTING)
+    // ---------------------------------------------------------------------------
+    /**
+     * Run Pass 1 entity detection
+     * Detects and classifies all entities in medical documents
+     *
+     * NOTE: Currently disabled by default (config.passes.pass1Enabled = false)
+     * To enable: Set environment variable ENABLE_PASS1=true
+     */
+    async runPass1(payload, ocrResult, processingSessionId, _job) {
+        this.logger.info('Starting Pass 1 entity detection', {
             shell_file_id: payload.shell_file_id,
-            note: 'Temporary modification for baseline validation testing'
+            page_count: ocrResult.pages.length,
         });
-        return {
-            success: true,
-            shell_file_id: payload.shell_file_id,
-            pass_05_only: true,
-            pass_05_result: pass05Result,
-            message: 'Pass 0.5 completed successfully. Pass 1 temporarily disabled for testing.'
-        };
-        // =============================================================================
-        // END TEMPORARY MODIFICATION
-        // =============================================================================
-        // =============================================================================
-        // PASS 1: ENTITY DETECTION (existing code continues)
-        // =============================================================================
-        // =============================================================================
-        // PHASE 1.5: DOWNLOAD FIRST PROCESSED IMAGE FOR VISION AI
-        // =============================================================================
-        // CRITICAL: Vision AI must use the same processed JPEG that OCR used
-        // This ensures format consistency (JPEG not HEIC/TIFF/PDF) and dimension matching
-        this.logger.info('Downloading first processed image for Vision AI', {
-            shell_file_id: payload.shell_file_id,
-        });
-        // Get processed image path from shell_files (set during format preprocessing)
+        // Download first processed image for Vision AI
         const { data: shellFileRecord, error: shellFileError } = await this.supabase
             .from('shell_files')
             .select('processed_image_path')
             .eq('id', payload.shell_file_id)
             .single();
-        if (shellFileError) {
-            throw new Error(`Database error fetching shell_file record: ${shellFileError?.message || 'Unknown error'}`);
+        if (shellFileError || !shellFileRecord?.processed_image_path) {
+            throw new Error(`Failed to fetch processed_image_path for shell_file ${payload.shell_file_id}`);
         }
-        if (!shellFileRecord) {
-            throw new Error(`Shell file ${payload.shell_file_id} not found in database`);
-        }
-        if (!shellFileRecord.processed_image_path) {
-            throw new Error(`Missing processed_image_path for shell_file ${payload.shell_file_id}. ` +
-                `This should have been set during format preprocessing.`);
-        }
-        // Non-null assertions: validated by error checks above
-        const processedImagePath = shellFileRecord.processed_image_path;
-        const firstPagePath = `${processedImagePath}/page-1.jpg`;
+        const firstPagePath = `${shellFileRecord.processed_image_path}/page-1.jpg`;
         const imageDownloadResult = await (0, retry_1.retryStorageDownload)(async () => {
             return await this.supabase.storage
                 .from('medical-docs')
                 .download(firstPagePath);
         });
         if (imageDownloadResult.error || !imageDownloadResult.data) {
-            throw new Error(`Failed to download processed image for Vision AI: ${imageDownloadResult.error?.message}`);
+            throw new Error(`Failed to download processed image: ${imageDownloadResult.error?.message}`);
         }
-        // Non-null assertion: validated by error check above
         const imageBlob = imageDownloadResult.data;
         const processedImageBuffer = Buffer.from(await imageBlob.arrayBuffer());
         const processedImageBase64 = processedImageBuffer.toString('base64');
@@ -1088,36 +949,35 @@ class V3Worker {
             image_path: firstPagePath,
             image_size_bytes: processedImageBuffer.length,
         });
-        // Build Pass1Input from storage-based payload + OCR result
-        // CRITICAL: Use first processed JPEG page (not original file) for format consistency
+        // Build Pass1Input
         const pass1Input = {
             shell_file_id: payload.shell_file_id,
             patient_id: payload.patient_id,
-            processing_session_id: processingSessionId, // Reuse Pass 0.5 session ID
+            processing_session_id: processingSessionId,
             raw_file: {
-                file_data: processedImageBase64, // ✅ Processed JPEG from storage (same as OCR input)
-                file_type: 'image/jpeg', // ✅ Consistent format (not original MIME type)
+                file_data: processedImageBase64,
+                file_type: 'image/jpeg',
                 filename: payload.uploaded_filename,
                 file_size: processedImageBuffer.length
             },
             ocr_spatial_data: {
-                extracted_text: ocrResult.pages.map((p) => p.lines.map((l) => l.text).join(' ')).join(' '),
-                spatial_mapping: ocrResult.pages.flatMap((page) => page.lines.map((line) => ({
-                    text: line.text,
+                extracted_text: ocrResult.pages.map((p) => p.spatially_sorted_text).join(' '),
+                spatial_mapping: ocrResult.pages.flatMap((page) => page.blocks.flatMap((block) => block.paragraphs.flatMap((para) => para.words.map((word) => ({
+                    text: word.text,
                     page_number: page.page_number,
                     bounding_box: {
-                        x: line.bbox.x,
-                        y: line.bbox.y,
-                        width: line.bbox.w,
-                        height: line.bbox.h
+                        x: Math.min(...word.boundingBox.vertices.map((v) => v.x)),
+                        y: Math.min(...word.boundingBox.vertices.map((v) => v.y)),
+                        width: Math.max(...word.boundingBox.vertices.map((v) => v.x)) - Math.min(...word.boundingBox.vertices.map((v) => v.x)),
+                        height: Math.max(...word.boundingBox.vertices.map((v) => v.y)) - Math.min(...word.boundingBox.vertices.map((v) => v.y))
                     },
-                    line_number: line.reading_order,
+                    line_number: 0,
                     word_index: 0,
-                    confidence: line.confidence
-                }))),
-                ocr_confidence: ocrResult.pages[0]?.lines.reduce((sum, line) => sum + line.confidence, 0) / (ocrResult.pages[0]?.lines.length || 1) || 0.85,
-                processing_time_ms: ocrResult.pages[0]?.processing_time_ms || 0,
-                ocr_provider: ocrResult.pages[0]?.provider || 'google_vision'
+                    confidence: word.confidence
+                }))))),
+                ocr_confidence: 0.85, // TODO: Calculate from blocks
+                processing_time_ms: 0,
+                ocr_provider: 'google_vision'
             },
             document_metadata: {
                 filename: payload.uploaded_filename,
@@ -1127,18 +987,17 @@ class V3Worker {
             }
         };
         // Process with Pass 1 entity detection
-        this.logger.info('Starting Pass 1 entity detection with storage-based input', {
-            shell_file_id: pass1Input.shell_file_id,
-        });
-        return await this.processPass1EntityDetection({ ...job, job_payload: pass1Input });
+        return await this.processPass1EntityDetection(pass1Input);
     }
-    // Process Pass 1 Entity Detection
-    async processPass1EntityDetection(job) {
+    /**
+     * Process Pass 1 Entity Detection
+     * Inserts results into 7 database tables
+     */
+    async processPass1EntityDetection(payload) {
         if (!this.pass1Detector) {
             throw new Error('Pass 1 detector not initialized - OpenAI API key may be missing');
         }
-        const payload = job.job_payload;
-        this.logger.info('Starting Pass 1 entity detection', {
+        this.logger.info('Running Pass 1 entity detection', {
             shell_file_id: payload.shell_file_id,
             processing_session_id: payload.processing_session_id,
             ocr_text_length: payload.ocr_spatial_data.extracted_text.length,
@@ -1157,9 +1016,6 @@ class V3Worker {
             document_structure: result.entities_by_category.document_structure,
         });
         // Get ALL Pass 1 database records (7 tables)
-        this.logger.debug('Building Pass 1 database records (7 tables)', {
-            shell_file_id: payload.shell_file_id,
-        });
         const dbRecords = await this.pass1Detector.getAllDatabaseRecords(payload);
         // Insert into ALL 7 Pass 1 tables
         await this.insertPass1DatabaseRecords(dbRecords, payload.shell_file_id);
@@ -1169,7 +1025,7 @@ class V3Worker {
             confidence_scoring_records: result.records_created.confidence_scoring,
             manual_review_records: result.records_created.manual_review_queue,
         });
-        // NEW: Update shell_files with completion tracking
+        // Update shell_files with completion tracking
         await this.supabase
             .from('shell_files')
             .update({
@@ -1179,9 +1035,11 @@ class V3Worker {
             .eq('id', payload.shell_file_id);
         return result;
     }
-    // Insert Pass 1 records into all 7 database tables
+    /**
+     * Insert Pass 1 records into all 7 database tables
+     */
     async insertPass1DatabaseRecords(records, shellFileId) {
-        // 1. UPSERT ai_processing_sessions (may already exist from Pass 0.5)
+        // 1. UPSERT ai_processing_sessions
         const { error: sessionError } = await this.supabase
             .from('ai_processing_sessions')
             .upsert(records.ai_processing_session, { onConflict: 'id' });
@@ -1207,7 +1065,6 @@ class V3Worker {
                 shell_file_id: shellFileId,
                 error_message: shellError.message,
             });
-            // Non-fatal - continue
         }
         // 4. INSERT profile_classification_audit
         const { error: profileError } = await this.supabase
@@ -1223,7 +1080,7 @@ class V3Worker {
         if (metricsError) {
             throw new Error(`Failed to insert pass1_entity_metrics: ${metricsError.message}`);
         }
-        // 6. INSERT ai_confidence_scoring (optional - may be empty)
+        // 6. INSERT ai_confidence_scoring (optional)
         if (records.ai_confidence_scoring.length > 0) {
             const { error: confidenceError } = await this.supabase
                 .from('ai_confidence_scoring')
@@ -1233,10 +1090,9 @@ class V3Worker {
                     shell_file_id: shellFileId,
                     error_message: confidenceError.message,
                 });
-                // Non-fatal - continue
             }
         }
-        // 7. INSERT manual_review_queue (optional - may be empty)
+        // 7. INSERT manual_review_queue (optional)
         if (records.manual_review_queue.length > 0) {
             const { error: reviewError } = await this.supabase
                 .from('manual_review_queue')
@@ -1246,11 +1102,38 @@ class V3Worker {
                     shell_file_id: shellFileId,
                     error_message: reviewError.message,
                 });
-                // Non-fatal - continue
             }
         }
     }
-    // Complete a job
+    // ---------------------------------------------------------------------------
+    // 3.8: PASS 2 - CLINICAL EXTRACTION (PLACEHOLDER - NOT YET IMPLEMENTED)
+    // ---------------------------------------------------------------------------
+    /**
+     * Run Pass 2 clinical extraction
+     *
+     * TODO: Implement Pass 2
+     * Purpose: Extract structured clinical data from Pass 1 entities
+     * Schema: Complete in current_schema/08_job_coordination.sql
+     * Bridge schemas: Defined in bridge-schemas/source/pass-2/
+     *
+     * Implementation steps:
+     * 1. Load Pass 1 entity results
+     * 2. Extract clinical data (diagnoses, medications, procedures, etc.)
+     * 3. Write to Pass 2 database tables
+     * 4. Update shell_files.status to 'pass2_complete'
+     *
+     * NOTE: Placeholder for future implementation - intentionally unused until Pass 2 is implemented
+     */
+    // @ts-ignore - Unused placeholder for future Pass 2 implementation
+    async runPass2(_payload, _ocrResult, _processingSessionId) {
+        throw new Error('Pass 2 clinical extraction not yet implemented');
+    }
+    // ---------------------------------------------------------------------------
+    // 3.9: JOB LIFECYCLE MANAGEMENT
+    // ---------------------------------------------------------------------------
+    /**
+     * Complete a job successfully
+     */
     async completeJob(jobId, result) {
         const { error } = await this.supabase
             .rpc('complete_job', {
@@ -1262,9 +1145,10 @@ class V3Worker {
             throw new Error(`Failed to complete job: ${error.message}`);
         }
     }
-    // Fail a job - NO fail_job RPC function exists, update directly
+    /**
+     * Fail a job with error details
+     */
     async failJob(jobId, errorMessage) {
-        // Since there's no fail_job RPC, we need to update the job_queue directly
         const { error } = await this.supabase
             .from('job_queue')
             .update({
@@ -1277,22 +1161,60 @@ class V3Worker {
             completed_at: new Date().toISOString()
         })
             .eq('id', jobId)
-            .eq('worker_id', this.workerId); // Ensure we only update jobs we own
+            .eq('worker_id', this.workerId);
         if (error) {
             this.logger.error('Failed to mark job as failed', error, { job_id: jobId });
         }
     }
-    // P0 FIX: Cleanup job memory to prevent accumulation
-    // Date: 2025-11-03
-    // Context: Worker was accumulating memory over time (70-85MB per large file job)
-    // After 2.5 hours of operation, worker would OOM crash on large files
-    // Solution: Explicit garbage collection after each job
+    /**
+     * Update job heartbeat to indicate worker is still processing
+     */
+    async updateJobHeartbeat(jobId) {
+        try {
+            const { error } = await this.supabase
+                .rpc('update_job_heartbeat', {
+                p_job_id: jobId,
+                p_worker_id: this.workerId,
+            });
+            if (error) {
+                this.logger.error('Heartbeat failed', error, { job_id: jobId });
+            }
+            else {
+                this.logger.debug('Heartbeat updated', { job_id: jobId });
+            }
+        }
+        catch (err) {
+            this.logger.error('Heartbeat exception', err, { job_id: jobId });
+        }
+    }
+    /**
+     * Start heartbeat interval for all active jobs
+     */
+    startHeartbeat() {
+        this.logger.info('Starting heartbeat interval', {
+            interval_ms: config.worker.heartbeatIntervalMs,
+        });
+        this.heartbeatInterval = setInterval(async () => {
+            const activeJobCount = this.activeJobs.size;
+            if (activeJobCount > 0) {
+                this.logger.debug('Heartbeat tick', { active_jobs: activeJobCount });
+                for (const jobId of this.activeJobs.keys()) {
+                    await this.updateJobHeartbeat(jobId);
+                }
+            }
+        }, config.worker.heartbeatIntervalMs);
+    }
+    // ---------------------------------------------------------------------------
+    // 3.10: MEMORY MANAGEMENT
+    // ---------------------------------------------------------------------------
+    /**
+     * Cleanup job memory to prevent accumulation
+     * Forces garbage collection if available (requires --expose-gc flag)
+     */
     async cleanupJobMemory(jobId) {
         try {
-            // Log memory before cleanup
             const beforeMemory = process.memoryUsage();
             const beforeHeapMB = Math.round(beforeMemory.heapUsed / 1024 / 1024);
-            // Force garbage collection if available
             if (global.gc) {
                 global.gc();
                 const afterMemory = process.memoryUsage();
@@ -1313,67 +1235,21 @@ class V3Worker {
             }
         }
         catch (error) {
-            // Don't fail the job if cleanup fails
             this.logger.error('Memory cleanup failed', error, { job_id: jobId });
         }
     }
-    // Update job heartbeat
-    async updateJobHeartbeat(jobId) {
-        try {
-            const { error } = await this.supabase
-                .rpc('update_job_heartbeat', {
-                p_job_id: jobId,
-                p_worker_id: this.workerId,
-            });
-            if (error) {
-                this.logger.error('Heartbeat failed', error, { job_id: jobId });
-            }
-            else {
-                this.logger.debug('Heartbeat updated', { job_id: jobId });
-            }
-        }
-        catch (err) {
-            this.logger.error('Heartbeat exception', err, { job_id: jobId });
-        }
-    }
-    // Start heartbeat for all active jobs
-    startHeartbeat() {
-        this.logger.info('Starting heartbeat interval', {
-            interval_ms: config.worker.heartbeatIntervalMs,
-        });
-        this.heartbeatInterval = setInterval(async () => {
-            const activeJobCount = this.activeJobs.size;
-            if (activeJobCount > 0) {
-                this.logger.debug('Heartbeat tick', { active_jobs: activeJobCount });
-                for (const jobId of this.activeJobs.keys()) {
-                    await this.updateJobHeartbeat(jobId);
-                }
-            }
-        }, config.worker.heartbeatIntervalMs);
-    }
-    // Stop the worker
-    async stop() {
-        this.logger.info('Stopping V3 Worker');
-        // Clear heartbeat
-        if (this.heartbeatInterval) {
-            clearInterval(this.heartbeatInterval);
-        }
-        // Wait for active jobs to complete
-        while (this.activeJobs.size > 0) {
-            this.logger.info('Waiting for active jobs to complete', {
-                active_jobs: this.activeJobs.size,
-            });
-            await this.sleep(1000);
-        }
-        this.logger.info('V3 Worker stopped');
-    }
-    // Sleep utility
+    // ---------------------------------------------------------------------------
+    // 3.11: UTILITIES
+    // ---------------------------------------------------------------------------
+    /**
+     * Sleep utility for delays
+     */
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 // =============================================================================
-// EXPRESS SERVER (for health checks)
+// SECTION 4: EXPRESS SERVER & HEALTH CHECK
 // =============================================================================
 const app = (0, express_1.default)();
 const worker = new V3Worker();
@@ -1382,7 +1258,9 @@ const serverLogger = (0, logger_1.createLogger)({
     context: 'server',
     worker_id: config.worker.id,
 });
-// Health check endpoint (required by Render.com)
+/**
+ * Health check endpoint (required by Render.com)
+ */
 app.get('/health', (_req, res) => {
     res.json({
         status: 'healthy',
@@ -1391,7 +1269,9 @@ app.get('/health', (_req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-// Start server
+/**
+ * Start server and worker
+ */
 app.listen(config.server.port, () => {
     serverLogger.info('Health check server listening', {
         port: config.server.port,
@@ -1402,7 +1282,9 @@ app.listen(config.server.port, () => {
         process.exit(1);
     });
 });
-// Graceful shutdown
+/**
+ * Graceful shutdown handlers
+ */
 process.on('SIGTERM', async () => {
     serverLogger.info('SIGTERM received, shutting down gracefully');
     await worker.stop();
@@ -1413,4 +1295,39 @@ process.on('SIGINT', async () => {
     await worker.stop();
     process.exit(0);
 });
+// =============================================================================
+// SECTION 5: REMOVED CODE LOG
+// =============================================================================
+//
+// The following code was removed from the original worker.ts during refactoring:
+//
+// 1. REMOVED: processShellFile() function (Lines 627-665 in original)
+//    Reason: Unused simulation code, never called in V3 architecture
+//    Impact: None - function was dead code
+//
+// 2. REMOVED: Legacy `lines` array in OCR page results
+//    Reason: Redundant with blocks structure, adds storage overhead
+//    Impact: BREAKING CHANGE - Requires updates to:
+//      - Pass 0.5 coordinate lookup (must use blocks instead of lines)
+//      - Any other code reading page-N.json files
+//    Migration: Use blocks[].paragraphs[].words[] instead of lines[]
+//
+// 3. MOVED: OCR processing utilities to utils/ocr-processing.ts
+//    - sortBlocksSpatially()
+//    - extractTextFromBlocks()
+//    - processWithGoogleVisionOCR()
+//    Reason: Better organization, testability, reusability
+//    Impact: None - exported functions have same signatures
+//
+// 4. FIXED: Phase 4 Raw GCV Storage (Lines 257-276 in original)
+//    Problem: Code was in standalone function, tried to use 'this' and 'payload'
+//    Solution: Moved storage call to worker class with proper context passing
+//    Impact: Feature now works correctly when STORE_RAW_GCV=true
+//
+// 5. REMOVED: Fake block structure generation (Lines 1188-1224 in original)
+//    Problem: Created incorrect blocks from legacy lines array
+//    Solution: Use real page.blocks directly from OCR processing
+//    Impact: Enhanced OCR format now has correct block hierarchy
+//
+// =============================================================================
 //# sourceMappingURL=worker.js.map

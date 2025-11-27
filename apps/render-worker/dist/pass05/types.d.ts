@@ -151,7 +151,13 @@ export interface OCRPage {
     confidence?: number;
     blocks?: OCRBlock[];
 }
+/**
+ * Block type from Google Cloud Vision API
+ * Used for content-based routing in Pass 1/2 (future implementation)
+ */
+export type BlockType = 'UNKNOWN' | 'TEXT' | 'TABLE' | 'PICTURE' | 'RULER' | 'BARCODE';
 export interface OCRBlock {
+    blockType: BlockType;
     boundingBox: BoundingBox;
     confidence: number;
     paragraphs: OCRParagraph[];
