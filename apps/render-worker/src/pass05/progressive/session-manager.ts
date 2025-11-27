@@ -25,6 +25,7 @@ import {
 } from './database';
 import { processChunk } from './chunk-processor';
 import { reconcilePendingEncounters } from './pending-reconciler';
+import { loadEnhancedOCR } from '../../utils/ocr-persistence';
 
 const CHUNK_SIZE = 50; // Pages per chunk
 
@@ -78,6 +79,14 @@ export async function processDocumentProgressively(
     `[Progressive] Started session ${session.id} for ${totalPages} pages (${session.totalChunks} chunks)`
   );
 
+  // PHASE 1: Load enhanced OCR from storage (fall back to on-the-fly generation if not found)
+  const enhancedOcrText = await loadEnhancedOCR(supabase, patientId, shellFileId);
+  if (enhancedOcrText) {
+    console.log(`[Progressive] Loaded enhanced OCR from storage (${enhancedOcrText.length} bytes)`);
+  } else {
+    console.log(`[Progressive] Enhanced OCR not found in storage, will generate on-the-fly per chunk`);
+  }
+
   let cascadePackage: HandoffPackage | null = null;
   const reviewReasons: string[] = [];
   let aiModel = '';
@@ -106,7 +115,8 @@ export async function processDocumentProgressively(
         totalPages,
         handoffReceived: cascadePackage,
         patientId,
-        shellFileId
+        shellFileId,
+        enhancedOcrText: enhancedOcrText || undefined  // PHASE 1: Pass pre-loaded enhanced OCR
       };
 
       const result = await processChunk(chunkParams);

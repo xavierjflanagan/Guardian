@@ -17,8 +17,8 @@ import {
 import { getSelectedModel } from '../models/model-selector';
 import { getModelById } from '../models/model-registry';
 import { AIProviderFactory } from '../providers/provider-factory';
-import { buildEncounterDiscoveryPromptV11 } from '../aiPrompts.v11';
-import { extractCoordinatesForMarker } from './coordinate-extractor';
+import { buildEncounterDiscoveryPromptV12 } from '../aiPrompts.v12';
+import { generateEnhancedOcrFormat } from './ocr-formatter';
 import { generateCascadeId, generatePendingId, shouldCascade, trackCascade, incrementCascadePendings } from './cascade-manager';
 import { extractIdentifiers, ParsedIdentifier } from './identifier-extractor';
 
@@ -30,49 +30,42 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   console.log(`[Chunk ${params.chunkNumber}] Processing pages ${params.pageRange[0]}-${params.pageRange[1]} with ${params.handoffReceived ? 'handoff context' : 'no prior context'}`);
 
-  // Extract OCR text for this chunk
-  // pageRange is 1-based (e.g., [51, 100]), so convert to 0-based for extractTextFromPages (e.g., 50)
-  const fullText = extractTextFromPages(params.pages, params.pageRange[0] - 1);
+  // PHASE 1: Load enhanced OCR from storage if available, otherwise generate on-the-fly
+  let enhancedOcrText: string;
+  if (params.enhancedOcrText) {
+    // Extract only the pages for this chunk from the full enhanced OCR text
+    console.log(`[Chunk ${params.chunkNumber}] Using pre-loaded enhanced OCR from storage`);
+    enhancedOcrText = extractChunkFromEnhancedOcr(params.enhancedOcrText, params.pageRange[0], params.pageRange[1]);
+  } else {
+    // Fallback: Generate enhanced OCR on-the-fly (backward compatibility)
+    console.log(`[Chunk ${params.chunkNumber}] Enhanced OCR not found in storage, generating on-the-fly`);
+    enhancedOcrText = generateEnhancedOcrTextForChunk(params.pages, params.pageRange[0] - 1);
+  }
 
   // Add guardrails and logging
-  if (fullText.trim().length === 0) {
+  if (enhancedOcrText.trim().length === 0) {
     console.error(`[Chunk ${params.chunkNumber}] CRITICAL: Extracted 0 characters of OCR text - likely data structure mismatch`);
     console.error(`[Chunk ${params.chunkNumber}] Sample page structure: ${JSON.stringify(Object.keys(params.pages[0] || {}))}`);
     // Continue processing (allow pseudo encounters to be created as diagnostic signal)
     // Session-level quality validation will flag this for review
   }
 
-  console.log(`[Chunk ${params.chunkNumber}] Extracted ${fullText.length} chars of OCR text`);
-  console.log(`[Chunk ${params.chunkNumber}] First 200 chars: ${fullText.substring(0, 200)}`);
+  console.log(`[Chunk ${params.chunkNumber}] Extracted ${enhancedOcrText.length} chars of Enhanced OCR text`);
+  console.log(`[Chunk ${params.chunkNumber}] First 200 chars: ${enhancedOcrText.substring(0, 200)}`);
 
-  // Build OCR page map for coordinate extraction
-  // Map: absolute 1-based page number → OCRPage
-  const ocrPageMap = new Map<number, OCRPage>();
-  params.pages.forEach((page, index) => {
-    const absolutePageNum = params.pageRange[0] + index; // Convert chunk-local to absolute
-    ocrPageMap.set(absolutePageNum, page);
-  });
-  console.log(`[Chunk ${params.chunkNumber}] Built OCR page map with ${ocrPageMap.size} pages (${params.pageRange[0]}-${params.pageRange[1]})`);
-
-  // Build V11 prompt with marker + region hint pattern
-  const prompt = buildEncounterDiscoveryPromptV11({
-    fullText,
+  // Build V12 prompt with enhanced OCR format
+  const prompt = buildEncounterDiscoveryPromptV12({
+    enhancedOcrText,
     progressive: {
       chunkNumber: params.chunkNumber,
       totalChunks: params.totalChunks,
       pageRange: params.pageRange,
       totalPages: params.totalPages,
-      cascadeContextReceived: params.handoffReceived?.cascadeContexts  // V11: extract cascade contexts
+      cascadeContextReceived: params.handoffReceived?.cascadeContexts
     }
   });
 
-  console.log(`[Chunk ${params.chunkNumber}] Using V11 prompt with marker + region hint pattern (Strategy A)`);
-  if (prompt.includes('start_text_marker')) {
-    console.log(`[Chunk ${params.chunkNumber}] ✓ V11 marker fields confirmed in prompt`);
-  }
-  if (prompt.includes('is_cascading')) {
-    console.log(`[Chunk ${params.chunkNumber}] ✓ Cascade detection fields confirmed in prompt`);
-  }
+  console.log(`[Chunk ${params.chunkNumber}] Using V12 prompt with inline coordinate integration (Strategy A)`);
 
   // Get AI model and provider
   const model = getSelectedModel();
@@ -89,108 +82,47 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 
   const processingTimeMs = Date.now() - startTime;
 
-  // Parse V11 response into PendingEncounter objects
+  // Parse V12 response into PendingEncounter objects
   // STRATEGY A: ALL encounters become pendings, no direct finals
-  const { pendings, pageSeparationAnalysis, identifiersByEncounter } = parseV11Response(
+  const { pendings, pageSeparationAnalysis, identifiersByEncounter } = parseV12Response(
     aiResponse.content,
     params.sessionId,
     params.chunkNumber,
     params.handoffReceived?.cascadeContexts || []
   );
 
-  console.log(`[Chunk ${params.chunkNumber}] Parsed ${pendings.length} pending encounters from V11 response`);
+  console.log(`[Chunk ${params.chunkNumber}] Parsed ${pendings.length} pending encounters from V12 response`);
 
-  // Extract OCR coordinates for intra-page boundaries
-  console.log(`[Chunk ${params.chunkNumber}] Extracting coordinates for ${pendings.length} pendings...`);
+  // V12: Calculate ACTUAL TEXT HEIGHTS from raw OCR bounding boxes
+  // This determines safe cutting boundaries for document splitting in Pass 1/2
+  // NOTE:
+  //   - start_y/end_y: TOP edge of text (from AI via enhanced OCR)
+  //   - start_text_height/end_text_height: ACTUAL TEXT HEIGHT from OCR bounding box
+  //   - Uses vertices[3].y - vertices[0].y (bottom-left Y minus top-left Y)
+  //   - For END markers: Cut at end_y + end_text_height (below the text)
+  //   - For START markers: Cut at start_y (at the top edge)
+  console.log(`[Chunk ${params.chunkNumber}] Calculating actual text heights from OCR bounding boxes for ${pendings.length} pendings...`);
 
   for (const pending of pendings) {
-    // Extract START coordinates
-    if (pending.start_boundary_type === 'intra_page' && pending.start_text_marker) {
-      const startPage = ocrPageMap.get(pending.start_page);
-      if (startPage) {
-        try {
-          const coords = await extractCoordinatesForMarker(
-            pending.start_text_marker,
-            pending.start_marker_context,
-            pending.start_region_hint as any,
-            pending.start_page,
-            startPage
-          );
-
-          if (coords) {
-            pending.start_text_y_top = coords.text_y_top;
-            pending.start_text_height = coords.text_height;
-            pending.start_y = coords.split_y;  // For START: split BEFORE marker
-            console.log(`[Chunk ${params.chunkNumber}] ✓ START coords for ${pending.pending_id}: y=${coords.split_y}`);
-          } else {
-            console.warn(`[Chunk ${params.chunkNumber}] ⚠ START coord extraction failed for ${pending.pending_id}, keeping as intra_page with null coords`);
-          }
-        } catch (error) {
-          console.error(`[Chunk ${params.chunkNumber}] ✗ START coord extraction error for ${pending.pending_id}:`, error);
-        }
+    // Calculate START text height from OCR bounding box
+    if (pending.start_boundary_type === 'intra_page' && pending.start_y !== null && pending.start_marker) {
+      const height = findActualTextHeight(params.pages, pending.start_page - 1, pending.start_y, pending.start_marker);
+      if (height !== null) {
+        pending.start_text_height = height;  // Actual text height for buffer zone calculations
+        console.log(`[Chunk ${params.chunkNumber}] ✓ START height for ${pending.pending_id}: marker="${pending.start_marker}", y=${pending.start_y}, h=${height}px`);
+      } else {
+        console.warn(`[Chunk ${params.chunkNumber}] ⚠ Could not find START marker "${pending.start_marker}" at y=${pending.start_y} on page ${pending.start_page}`);
       }
     }
 
-    // Extract END coordinates
-    if (pending.end_boundary_type === 'intra_page' && pending.end_text_marker) {
-      const endPage = ocrPageMap.get(pending.end_page);
-      if (endPage) {
-        try {
-          const coords = await extractCoordinatesForMarker(
-            pending.end_text_marker,
-            pending.end_marker_context,
-            pending.end_region_hint as any,
-            pending.end_page,
-            endPage
-          );
-
-          if (coords) {
-            pending.end_text_y_top = coords.text_y_top;
-            pending.end_text_height = coords.text_height;
-            // CRITICAL: For END boundaries, split AFTER the marker
-            pending.end_y = coords.text_y_top + coords.text_height;
-            console.log(`[Chunk ${params.chunkNumber}] ✓ END coords for ${pending.pending_id}: y=${pending.end_y}`);
-          } else {
-            console.warn(`[Chunk ${params.chunkNumber}] ⚠ END coord extraction failed for ${pending.pending_id}, keeping as intra_page with null coords`);
-          }
-        } catch (error) {
-          console.error(`[Chunk ${params.chunkNumber}] ✗ END coord extraction error for ${pending.pending_id}:`, error);
-        }
-      }
-    }
-  }
-
-  // Extract coordinates for page_separation_analysis safe splits
-  if (pageSeparationAnalysis?.safe_split_points?.length > 0) {
-    console.log(`[Chunk ${params.chunkNumber}] Extracting coordinates for ${pageSeparationAnalysis.safe_split_points.length} safe split points...`);
-
-    for (const splitPoint of pageSeparationAnalysis.safe_split_points) {
-      // Only extract for intra_page splits (inter_page splits don't need coordinates)
-      if (splitPoint.split_type === 'intra_page' && splitPoint.marker) {
-        const splitPage = ocrPageMap.get(splitPoint.page);
-
-        if (splitPage) {
-          try {
-            const coords = await extractCoordinatesForMarker(
-              splitPoint.marker,
-              splitPoint.marker_context,
-              splitPoint.region_hint as any,
-              splitPoint.page,
-              splitPage
-            );
-
-            if (coords) {
-              splitPoint.text_y_top = coords.text_y_top;
-              splitPoint.text_height = coords.text_height;
-              splitPoint.split_y = coords.split_y;
-              console.log(`[Chunk ${params.chunkNumber}] ✓ Safe split coords for page ${splitPoint.page}: y=${coords.split_y}`);
-            } else {
-              console.warn(`[Chunk ${params.chunkNumber}] ⚠ Safe split coord extraction failed for page ${splitPoint.page}, keeping null coords`);
-            }
-          } catch (error) {
-            console.error(`[Chunk ${params.chunkNumber}] ✗ Safe split coord extraction error for page ${splitPoint.page}:`, error);
-          }
-        }
+    // Calculate END text height from OCR bounding box
+    if (pending.end_boundary_type === 'intra_page' && pending.end_y !== null && pending.end_marker) {
+      const height = findActualTextHeight(params.pages, pending.end_page - 1, pending.end_y, pending.end_marker);
+      if (height !== null) {
+        pending.end_text_height = height;  // Actual text height for buffer zone calculations
+        console.log(`[Chunk ${params.chunkNumber}] ✓ END height for ${pending.pending_id}: marker="${pending.end_marker}", y=${pending.end_y}, h=${height}px`);
+      } else {
+        console.warn(`[Chunk ${params.chunkNumber}] ⚠ Could not find END marker "${pending.end_marker}" at y=${pending.end_y} on page ${pending.end_page}`);
       }
     }
   }
@@ -437,17 +369,17 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
 }
 
 /**
- * Parse V11 AI response into PendingEncounter objects
+ * Parse V12 AI response into PendingEncounter objects
  *
  * STRATEGY A: ALL encounters become pendings, no direct finals
- * V11 adds marker + region hint pattern for coordinate extraction
+ * V12: Coordinates extracted directly from AI response (start_y, end_y)
  *
  * @param content - AI response content
  * @param sessionId - Session ID
  * @param chunkNumber - Current chunk number
  * @param cascadeContexts - Incoming cascade contexts from previous chunk
  */
-function parseV11Response(
+function parseV12Response(
   content: any,
   sessionId: string,
   chunkNumber: number,
@@ -517,24 +449,24 @@ function parseV11Response(
       cascade_context: enc.cascade_context || null,
       expected_continuation: enc.expected_continuation || null,
 
-      // Position fields (17 fields - AI provided)
+      // Position fields (17 fields) - V12.1: Direct Y-coordinates from AI + post-calculated heights
       start_page: enc.start_page,
       start_boundary_type: enc.start_boundary_type,
-      start_text_marker: enc.start_text_marker || null,
-      start_marker_context: enc.start_marker_context || null,
-      start_region_hint: enc.start_region_hint || null,
-      start_text_y_top: null,  // Filled by coordinate extractor
-      start_text_height: null,  // Filled by coordinate extractor
-      start_y: null,  // Filled by coordinate extractor
+      start_marker: enc.start_marker || null,  // V12: Direct from AI (no mapping layer)
+      start_marker_context: null,              // V12: DEPRECATED (not used)
+      start_region_hint: null,                 // V12: DEPRECATED (not used)
+      start_text_y_top: null,                  // V12: DEPRECATED (redundant with start_y)
+      start_text_height: null,                 // V12.1: Calculated from OCR bounding box AFTER parsing
+      start_y: enc.start_y || null,            // V12: Direct from AI (TOP edge of text)
 
       end_page: enc.end_page,
       end_boundary_type: enc.end_boundary_type,
-      end_text_marker: enc.end_text_marker || null,
-      end_marker_context: enc.end_marker_context || null,
-      end_region_hint: enc.end_region_hint || null,
-      end_text_y_top: null,  // Filled by coordinate extractor
-      end_text_height: null,  // Filled by coordinate extractor
-      end_y: null,  // Filled by coordinate extractor
+      end_marker: enc.end_marker || null,      // V12: Direct from AI (no mapping layer)
+      end_marker_context: null,                // V12: DEPRECATED (not used)
+      end_region_hint: null,                   // V12: DEPRECATED (not used)
+      end_text_y_top: null,                    // V12: DEPRECATED (redundant with end_y)
+      end_text_height: null,                   // V12.1: Calculated from OCR bounding box AFTER parsing
+      end_y: enc.end_y || null,                // V12: Direct from AI (TOP edge of text)
 
       position_confidence: enc.position_confidence || 0.5,
 
@@ -585,71 +517,171 @@ function parseV11Response(
   });
 
   // Parse page separation analysis (safe splits)
-  const pageSeparationAnalysis = parsed.page_separation_analysis || null;
+  // V12: Map split_y from AI response
+  const rawPageSeparation = parsed.page_separation_analysis || null;
+  let pageSeparationAnalysis = null;
+
+  if (rawPageSeparation && rawPageSeparation.safe_split_points) {
+    pageSeparationAnalysis = {
+      ...rawPageSeparation,
+      safe_split_points: rawPageSeparation.safe_split_points.map((split: any) => ({
+        ...split,
+        split_y: split.split_y || null, // Direct extraction from AI
+        text_y_top: null, // Deprecated
+        text_height: null, // Deprecated
+        marker_context: null, // Deprecated
+        region_hint: null // Deprecated
+      }))
+    };
+  }
 
   return { pendings, pageSeparationAnalysis, identifiersByEncounter };
 }
 
 /**
- * Extract full text from OCR pages for base prompt
- * FIXED: Extract text from lines array (actual OCR structure from ocr-persistence.ts)
+ * Extract chunk pages from full enhanced OCR text (PHASE 1)
  *
- * OCR pages have this structure (from ocr-persistence.ts:12-31 and worker.ts:1192-1208):
- * {
- *   page_number: number;
- *   size: { width_px, height_px };
- *   lines: Array<{ text, bbox, confidence, reading_order }>;
- *   tables: Array<{ bbox, rows, columns, confidence }>;
- *   provider: string;
- *   processing_time_ms: number;
- * }
+ * Extracts only the pages needed for this chunk from the full document enhanced OCR
+ *
+ * @param fullEnhancedOcr - Full enhanced OCR text for entire document
+ * @param startPage - First page number for this chunk (1-indexed)
+ * @param endPage - Last page number for this chunk (1-indexed)
+ * @returns Enhanced OCR text for only this chunk's pages
+ */
+function extractChunkFromEnhancedOcr(fullEnhancedOcr: string, startPage: number, endPage: number): string {
+  const chunkPages: string[] = [];
+
+  // Split by page markers
+  const pagePattern = /--- PAGE (\d+) START ---\n([\s\S]*?)\n--- PAGE \d+ END ---/g;
+  let match;
+
+  while ((match = pagePattern.exec(fullEnhancedOcr)) !== null) {
+    const pageNum = parseInt(match[1], 10);
+    const pageContent = match[2];
+
+    // Include this page if it's in our chunk range
+    if (pageNum >= startPage && pageNum <= endPage) {
+      chunkPages.push(`--- PAGE ${pageNum} START ---\n${pageContent}\n--- PAGE ${pageNum} END ---`);
+    }
+  }
+
+  return chunkPages.join('\n\n');
+}
+
+/**
+ * Generate Enhanced OCR Text for V12 (FALLBACK - used when storage unavailable)
+ * Format: [Y:###] text (x:###) | text (x:###)
  *
  * @param pages - Array of OCR pages for this chunk
  * @param startPageNum - The actual starting page number in the document (0-indexed)
  */
-function extractTextFromPages(pages: OCRPage[], startPageNum: number = 0): string {
-  // EMERGENCY DEBUG: Log actual page structure
-  if (pages.length > 0) {
-    const firstPage = pages[0] as any;
-    console.error('[DEBUG] First page keys:', Object.keys(firstPage));
-    console.error('[DEBUG] First page structure sample:', JSON.stringify(firstPage).substring(0, 500));
+function generateEnhancedOcrTextForChunk(pages: OCRPage[], startPageNum: number = 0): string {
+  return pages.map((page, idx) => {
+    const actualPageNum = startPageNum + idx + 1;
+
+    // Generate enhanced OCR format with coordinates
+    const enhancedText = generateEnhancedOcrFormat(page);
+
+    // Add page markers
+    return `--- PAGE ${actualPageNum} START ---\n${enhancedText}\n--- PAGE ${actualPageNum} END ---`;
+  }).join('\n\n');
+}
+
+/**
+ * Find actual text height from raw OCR bounding boxes
+ *
+ * STRATEGY: Use Google Cloud Vision bounding box vertices to get exact text height
+ * - vertices[0] = Top-Left (x, y)
+ * - vertices[3] = Bottom-Left (x, y)
+ * - Actual height = vertices[3].y - vertices[0].y
+ *
+ * This provides EXACT text height (not line height with whitespace), which is critical for:
+ * - END markers: Cut at end_y + end_text_height (below the text)
+ * - START markers: Cut at start_y (at the top edge)
+ *
+ * @param pages Array of OCR pages
+ * @param pageIndex 0-indexed page number within the chunk
+ * @param targetY Y-coordinate to search for (TOP edge from AI)
+ * @param markerText Text marker to search for (e.g., "DISCHARGE SUMMARY")
+ * @returns Actual text height in pixels, or null if not found
+ */
+function findActualTextHeight(
+  pages: OCRPage[],
+  pageIndex: number,
+  targetY: number,
+  markerText: string
+): number | null {
+  const page = pages[pageIndex];
+  if (!page || !page.blocks) {
+    return null;
   }
 
-  return pages.map((page, idx) => {
-    let text = '';
+  // Normalize marker text for comparison (case-insensitive, trim whitespace)
+  const normalizedMarker = markerText.toLowerCase().trim();
 
-    // PRIORITY 1: Use spatially sorted text (proper paragraph structure, table alignment)
-    if ((page as any).spatially_sorted_text) {
-      text = (page as any).spatially_sorted_text;
-    }
-    // FALLBACK 2: Extract text from blocks (worker.ts maps lines to blocks with text field)
-    else if (page.blocks && page.blocks.length > 0) {
-      // Each block represents a line of text (worker.ts:1196-1208)
-      text = page.blocks
-        .map((block: any) => block.text || '')
-        .filter((t: string) => t.length > 0)
-        .join(' ');
-    }
-    // FALLBACK 3: Try lines array (if not transformed by worker)
-    else if ((page as any).lines && Array.isArray((page as any).lines)) {
-      text = (page as any).lines
-        .sort((a: any, b: any) => (a.reading_order || 0) - (b.reading_order || 0))
-        .map((line: any) => line.text)
-        .join(' ');
-    }
-    // FALLBACK 4: Try original GCV text
-    else if ((page as any).original_gcv_text) {
-      text = (page as any).original_gcv_text;
-    }
-    // FALLBACK 5: Last resort page.text
-    else if (page.text) {
-      text = page.text;
-    }
+  // Search through OCR hierarchy: blocks -> paragraphs -> words
+  for (const block of page.blocks) {
+    if (!block.paragraphs) continue;
 
-    // Use actual page number in document, not chunk index
-    const actualPageNum = startPageNum + idx + 1;
-    return `--- PAGE ${actualPageNum} START ---\n${text}\n--- PAGE ${actualPageNum} END ---`;
-  }).join('\n\n');
+    for (const paragraph of block.paragraphs) {
+      if (!paragraph.words) continue;
+
+      for (const word of paragraph.words) {
+        // Check if this word matches the marker text
+        const wordText = word.text.toLowerCase().trim();
+
+        // Check for exact match or if marker contains this word
+        if (wordText === normalizedMarker || normalizedMarker.includes(wordText)) {
+          // Extract Y-coordinate from bounding box
+          if (!word.boundingBox || !word.boundingBox.vertices || word.boundingBox.vertices.length < 4) {
+            continue;
+          }
+
+          const topLeftY = Math.round(word.boundingBox.vertices[0].y);
+
+          // Check if Y-coordinate matches target (within ±5px tolerance)
+          if (Math.abs(topLeftY - targetY) <= 5) {
+            // Calculate actual text height from bounding box
+            const bottomLeftY = Math.round(word.boundingBox.vertices[3].y);
+            const height = bottomLeftY - topLeftY;
+
+            console.log(`[findActualTextHeight] Found "${word.text}" at Y=${topLeftY}, height=${height}px (vertices: TL=${topLeftY}, BL=${bottomLeftY})`);
+            return height;
+          }
+        }
+      }
+    }
+  }
+
+  // Not found - try fuzzy search by Y-coordinate only
+  console.log(`[findActualTextHeight] Marker "${markerText}" not found, trying Y-coordinate fuzzy search at ${targetY}...`);
+
+  for (const block of page.blocks) {
+    if (!block.paragraphs) continue;
+
+    for (const paragraph of block.paragraphs) {
+      if (!paragraph.words) continue;
+
+      for (const word of paragraph.words) {
+        if (!word.boundingBox || !word.boundingBox.vertices || word.boundingBox.vertices.length < 4) {
+          continue;
+        }
+
+        const topLeftY = Math.round(word.boundingBox.vertices[0].y);
+
+        // Fuzzy match by Y-coordinate only (within ±10px for safety)
+        if (Math.abs(topLeftY - targetY) <= 10) {
+          const bottomLeftY = Math.round(word.boundingBox.vertices[3].y);
+          const height = bottomLeftY - topLeftY;
+
+          console.log(`[findActualTextHeight] Fuzzy matched "${word.text}" at Y=${topLeftY} (target=${targetY}), height=${height}px`);
+          return height;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

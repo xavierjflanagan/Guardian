@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS shell_files (
 
     -- Content analysis
     extracted_text TEXT,
-    ocr_raw_jsonb JSONB, -- Complete Google Cloud Vision OCR response for debugging/reprocessing (Migration 37 - 2025-11-03)
+    -- ocr_raw_jsonb REMOVED (Migration 69 - 2025-11-27) - Unused column, OCR data stored in page-N.json files
     page_count INTEGER DEFAULT 1,
 
     -- POST-PASS 3: Shell File Synthesis (replaces primitive document intelligence)

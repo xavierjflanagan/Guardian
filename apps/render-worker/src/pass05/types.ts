@@ -222,7 +222,14 @@ export interface OCRPage {
   blocks?: OCRBlock[];
 }
 
+/**
+ * Block type from Google Cloud Vision API
+ * Used for content-based routing in Pass 1/2 (future implementation)
+ */
+export type BlockType = 'UNKNOWN' | 'TEXT' | 'TABLE' | 'PICTURE' | 'RULER' | 'BARCODE';
+
 export interface OCRBlock {
+  blockType: BlockType;              // PHASE 2: Content type for future vision routing
   boundingBox: BoundingBox;
   confidence: number;
   paragraphs: OCRParagraph[];

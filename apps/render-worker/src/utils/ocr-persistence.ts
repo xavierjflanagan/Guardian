@@ -279,3 +279,176 @@ export async function loadOCRArtifacts(
   });
   return ocrResult;
 }
+
+/**
+ * Store enhanced OCR format permanently for reuse across all passes
+ *
+ * Phase 1 Implementation: Enhanced OCR Storage
+ * Stores V12 enhanced OCR format with inline coordinates to Supabase Storage
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param enhancedOCRText Enhanced OCR text in V12 format
+ * @param correlationId Optional correlation ID for logging
+ */
+export async function storeEnhancedOCR(
+  supabase: SupabaseClient,
+  patientId: string,
+  shellFileId: string,
+  enhancedOCRText: string,
+  correlationId?: string
+): Promise<void> {
+  const startTime = Date.now();
+  const logger = createLogger({
+    context: 'ocr-persistence',
+    correlation_id: correlationId,
+  });
+
+  const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr.txt`;
+
+  const result = await retryStorageUpload(async () => {
+    return await supabase.storage
+      .from('medical-docs')
+      .upload(storagePath, enhancedOCRText, {
+        contentType: 'text/plain',
+        upsert: true, // Idempotent - allow re-generation if needed
+      });
+  });
+
+  if (result.error) {
+    const error: any = new Error(`Failed to store enhanced OCR: ${result.error.message}`);
+    error.status = 500;
+    logger.error('Failed to store enhanced OCR', error, {
+      shell_file_id: shellFileId,
+      patient_id_masked: maskPatientId(patientId),
+      storage_path: storagePath,
+    });
+    throw error;
+  }
+
+  const duration_ms = Date.now() - startTime;
+  logger.info('Enhanced OCR stored successfully', {
+    shell_file_id: shellFileId,
+    patient_id_masked: maskPatientId(patientId),
+    storage_path: storagePath,
+    bytes: enhancedOCRText.length,
+    duration_ms,
+  });
+}
+
+/**
+ * Load enhanced OCR format from storage
+ *
+ * Phase 1 Implementation: Enhanced OCR Loading
+ * Loads V12 enhanced OCR format from Supabase Storage for reuse across passes
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param correlationId Optional correlation ID for logging
+ * @returns Enhanced OCR text or null if not found
+ */
+export async function loadEnhancedOCR(
+  supabase: SupabaseClient,
+  patientId: string,
+  shellFileId: string,
+  correlationId?: string
+): Promise<string | null> {
+  const startTime = Date.now();
+  const logger = createLogger({
+    context: 'ocr-persistence',
+    correlation_id: correlationId,
+  });
+
+  const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr.txt`;
+
+  const result = await retryStorageDownload(async () => {
+    return await supabase.storage
+      .from('medical-docs')
+      .download(storagePath);
+  });
+
+  if (result.error || !result.data) {
+    logger.warn('Enhanced OCR not found in storage', {
+      shell_file_id: shellFileId,
+      patient_id_masked: maskPatientId(patientId),
+      storage_path: storagePath,
+      error_message: result.error?.message,
+    });
+    return null;
+  }
+
+  const text = await result.data.text();
+
+  const duration_ms = Date.now() - startTime;
+  logger.info('Enhanced OCR loaded successfully', {
+    shell_file_id: shellFileId,
+    patient_id_masked: maskPatientId(patientId),
+    storage_path: storagePath,
+    bytes: text.length,
+    duration_ms,
+  });
+
+  return text;
+}
+
+/**
+ * Store raw Google Cloud Vision response for debugging
+ *
+ * Phase 4 Implementation: Raw GCV Storage (Optional)
+ * Stores complete GCV response for debugging and future metadata extraction
+ * Files are deleted after 30 days via Supabase Storage lifecycle policy
+ *
+ * @param supabase Supabase client
+ * @param patientId Patient ID (for storage path)
+ * @param shellFileId Shell file ID
+ * @param gcvResponse Complete Google Cloud Vision API response
+ * @param correlationId Optional correlation ID for logging
+ */
+export async function storeRawGCV(
+  supabase: SupabaseClient,
+  patientId: string,
+  shellFileId: string,
+  gcvResponse: any,
+  correlationId?: string
+): Promise<void> {
+  const startTime = Date.now();
+  const logger = createLogger({
+    context: 'ocr-persistence',
+    correlation_id: correlationId,
+  });
+
+  const storagePath = `${patientId}/${shellFileId}-ocr/raw-gcv.json`;
+  const gcvJson = JSON.stringify(gcvResponse, null, 2);
+
+  const result = await retryStorageUpload(async () => {
+    return await supabase.storage
+      .from('medical-docs')
+      .upload(storagePath, gcvJson, {
+        contentType: 'application/json',
+        upsert: true, // Idempotent - allow re-upload if needed
+      });
+  });
+
+  if (result.error) {
+    const error: any = new Error(`Failed to store raw GCV response: ${result.error.message}`);
+    error.status = 500;
+    logger.error('Failed to store raw GCV response', error, {
+      shell_file_id: shellFileId,
+      patient_id_masked: maskPatientId(patientId),
+      storage_path: storagePath,
+    });
+    throw error;
+  }
+
+  const duration_ms = Date.now() - startTime;
+  logger.info('Raw GCV response stored successfully', {
+    shell_file_id: shellFileId,
+    patient_id_masked: maskPatientId(patientId),
+    storage_path: storagePath,
+    bytes: gcvJson.length,
+    duration_ms,
+    note: 'Will be deleted after 30 days via lifecycle policy',
+  });
+}

@@ -25,33 +25,42 @@ export type BoundaryType = 'inter_page' | 'intra_page';
 
 /**
  * Position fields (17 total) - File 04, 07
- * Enables sub-page granularity for encounter boundaries using marker + region hint pattern
+ * Enables sub-page granularity for encounter boundaries
  *
- * V11 CHANGE: Moved from AI coordinate extraction to marker + region hint pattern
- * - AI provides: text marker + marker context + region hint
- * - Post-processor extracts: exact Y coordinates from OCR
- * - Benefits: 50,000 fewer tokens per chunk, better disambiguation
+ * V12 CHANGE: Direct Y-coordinate output from enhanced OCR format
+ * - AI provides: Y-coordinate directly + optional text marker label
+ * - Post-processor calculates: text height for buffer zones
+ * - Benefits: Simpler, more accurate, ~40-60 fewer output tokens per boundary
+ *
+ * COORDINATE SEMANTICS (V12.1 - Updated):
+ * - start_y / end_y: Y-coordinate of TOP edge of text (pixels from page top)
+ * - start_text_y_top / end_text_y_top: DEPRECATED (redundant with start_y/end_y)
+ * - start_text_height / end_text_height: ACTUAL TEXT HEIGHT from OCR bounding box
+ *   Calculated as: vertices[3].y - vertices[0].y (bottom-left Y minus top-left Y)
+ *   This is the EXACT height of the text, critical for safe cutting:
+ *     - START markers: Cut at start_y (top edge)
+ *     - END markers: Cut at end_y + end_text_height (below the text)
  */
 export interface PositionFields {
   // Start position (8 fields)
   start_page: number;                    // Page where encounter starts (1-indexed)
   start_boundary_type: BoundaryType;     // Does encounter start at page boundary or mid-page?
-  start_text_marker: string | null;      // Text marker (e.g., "DISCHARGE SUMMARY") - AI provided
-  start_marker_context: string | null;   // Additional context for disambiguation - AI provided
-  start_region_hint: string | null;      // Region hint: 'top', 'upper_middle', 'lower_middle', 'bottom' - AI provided
-  start_text_y_top: number | null;       // OCR Y coordinate of start text (pixels) - Post-processor extracted
-  start_text_height: number | null;      // OCR text height (pixels) - Post-processor extracted
-  start_y: number | null;                // Calculated split Y coordinate - Post-processor calculated
+  start_marker: string | null;           // Text marker label (e.g., "DISCHARGE SUMMARY") - V12: Optional human-readable label
+  start_marker_context: string | null;   // V12: DEPRECATED (not used, db column remains for backward compatibility)
+  start_region_hint: string | null;      // V12: DEPRECATED (not used, db column remains for backward compatibility)
+  start_text_y_top: number | null;       // V12: DEPRECATED (redundant with start_y - both represent TOP edge)
+  start_text_height: number | null;      // V12.1: ACTUAL text height from OCR bounding box (vertices[3].y - vertices[0].y)
+  start_y: number | null;                // V12: Y-coordinate from AI (TOP edge of text, pixels from page top)
 
   // End position (8 fields)
   end_page: number;                      // Page where encounter ends (1-indexed)
   end_boundary_type: BoundaryType;       // Does encounter end at page boundary or mid-page?
-  end_text_marker: string | null;        // Text marker - AI provided
-  end_marker_context: string | null;     // Additional context for disambiguation - AI provided
-  end_region_hint: string | null;        // Region hint: 'top', 'upper_middle', 'lower_middle', 'bottom' - AI provided
-  end_text_y_top: number | null;         // OCR Y coordinate - Post-processor extracted
-  end_text_height: number | null;        // OCR text height - Post-processor extracted
-  end_y: number | null;                  // Calculated split Y coordinate - Post-processor calculated
+  end_marker: string | null;             // Text marker label - V12: Optional human-readable label
+  end_marker_context: string | null;     // V12: DEPRECATED (not used, db column remains for backward compatibility)
+  end_region_hint: string | null;        // V12: DEPRECATED (not used, db column remains for backward compatibility)
+  end_text_y_top: number | null;         // V12: DEPRECATED (redundant with end_y - both represent TOP edge)
+  end_text_height: number | null;        // V12.1: ACTUAL text height from OCR bounding box (vertices[3].y - vertices[0].y)
+  end_y: number | null;                  // V12: Y-coordinate from AI (TOP edge of text, pixels from page top)
 
   // Confidence (1 field)
   position_confidence: number;           // AI confidence in position accuracy (0-1)
@@ -324,6 +333,7 @@ export interface ChunkParams {
   handoffReceived: HandoffPackage | null;  // Strategy A: Use handoffReceived.cascadeContexts for cascade context
   patientId: string;  // Required for persisting pending encounters
   shellFileId: string;  // Required for persisting pending encounters
+  enhancedOcrText?: string;  // PHASE 1: Pre-loaded enhanced OCR text from storage (optional for backward compatibility)
 }
 
 /**

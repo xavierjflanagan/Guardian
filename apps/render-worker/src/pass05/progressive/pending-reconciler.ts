@@ -630,16 +630,16 @@ export async function reconcilePendingEncounters(
         // Position data (17 fields from mergePositionData)
         start_page: mergedPosition.start_page,
         start_boundary_type: mergedPosition.start_boundary_type,
-        start_text_marker: mergedPosition.start_text_marker,
+        start_marker: mergedPosition.start_marker,
         start_marker_context: mergedPosition.start_marker_context,
         start_region_hint: mergedPosition.start_region_hint,
         start_text_y_top: mergedPosition.start_text_y_top,
-        start_text_height: mergedPosition.start_height,
+        start_text_height: mergedPosition.start_text_height,  // V12.1: Actual text height from OCR bounding box
         start_y: mergedPosition.start_y,
 
         end_page: mergedPosition.end_page,
         end_boundary_type: mergedPosition.end_boundary_type,
-        end_text_marker: mergedPosition.end_text_marker,
+        end_marker: mergedPosition.end_marker,
         end_marker_context: mergedPosition.end_marker_context,
         end_region_hint: mergedPosition.end_region_hint,
         end_text_y_top: mergedPosition.end_text_y_top,
@@ -986,7 +986,7 @@ function mergePositionData(pendings: any[]): any {
     // Start position (from FIRST chunk)
     start_page: first.start_page,
     start_boundary_type: first.start_boundary_type,
-    start_text_marker: first.start_text_marker,
+    start_marker: first.start_marker,
     start_marker_context: first.start_marker_context,
     start_region_hint: first.start_region_hint,
     start_text_y_top: first.start_text_y_top,
@@ -996,7 +996,7 @@ function mergePositionData(pendings: any[]): any {
     // End position (from LAST chunk)
     end_page: last.end_page,
     end_boundary_type: last.end_boundary_type,
-    end_text_marker: last.end_text_marker,
+    end_marker: last.end_marker,
     end_marker_context: last.end_marker_context,
     end_region_hint: last.end_region_hint,
     end_text_y_top: last.end_text_y_top,

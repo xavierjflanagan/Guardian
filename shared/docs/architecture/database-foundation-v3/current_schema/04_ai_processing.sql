@@ -1942,7 +1942,6 @@ CREATE TABLE IF NOT EXISTS pass05_page_assignments (
   cascade_id varchar(100),  -- Migration 49: Cascade chain ID if page belongs to cascading encounter
 
   -- Page metadata
-  is_partial boolean DEFAULT false,  -- Migration 49: Page has multiple encounters (partial assignment)
   justification text,
 
   -- Timestamp
@@ -1972,7 +1971,10 @@ CREATE INDEX IF NOT EXISTS idx_page_assign_unreconciled
 
 COMMENT ON TABLE pass05_page_assignments IS
   'Maps pages to encounters (pending during chunking, final after reconciliation).
-   Migration 49: Strategy A dual-ID tracking - pending_id during processing, encounter_id after reconciliation.';
+   Migration 49: Strategy A dual-ID tracking - pending_id during processing, encounter_id after reconciliation.
+   Migration 67: Dropped old UNIQUE (shell_file_id, page_num) constraint that blocked cascade chains.
+   Migration 68: Dropped unused is_partial column (never populated, no use cases).
+   Correct constraint: uq_page_per_pending UNIQUE (shell_file_id, page_num, pending_id).';
 
 
 -- =============================================================================
