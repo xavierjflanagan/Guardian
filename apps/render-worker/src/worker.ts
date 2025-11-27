@@ -142,6 +142,7 @@ class V3Worker {
   private activeJobs: Map<string, boolean> = new Map();
   private heartbeatInterval?: NodeJS.Timeout;
   private pass1Detector?: Pass1EntityDetector;
+  private isShuttingDown: boolean = false;
 
   // ---------------------------------------------------------------------------
   // 3.1: CONSTRUCTOR & INITIALIZATION
@@ -211,22 +212,42 @@ class V3Worker {
    * Waits for active jobs to complete before exiting
    */
   async stop() {
-    this.logger.info('Stopping V3 Worker');
+    this.logger.info('Stopping V3 Worker - initiating graceful shutdown');
+
+    // Signal polling loop to stop claiming new jobs
+    this.isShuttingDown = true;
 
     // Clear heartbeat interval
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
     }
 
-    // Wait for active jobs to complete
+    // Wait for active jobs to complete with timeout
+    const shutdownStart = Date.now();
+    const maxWaitMs = 25000; // 25 seconds (leave 5s buffer before Render's 30s SIGKILL)
+
     while (this.activeJobs.size > 0) {
+      const elapsed = Date.now() - shutdownStart;
+
+      if (elapsed > maxWaitMs) {
+        this.logger.warn('Graceful shutdown timeout reached - abandoning remaining jobs', {
+          active_jobs: this.activeJobs.size,
+          elapsed_ms: elapsed,
+        });
+        break;
+      }
+
       this.logger.info('Waiting for active jobs to complete', {
         active_jobs: this.activeJobs.size,
+        elapsed_ms: elapsed,
+        max_wait_ms: maxWaitMs,
       });
       await this.sleep(1000);
     }
 
-    this.logger.info('V3 Worker stopped');
+    this.logger.info('V3 Worker stopped gracefully', {
+      active_jobs_remaining: this.activeJobs.size,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -236,9 +257,10 @@ class V3Worker {
   /**
    * Poll for pending jobs continuously
    * Respects max concurrent job limit
+   * Exits when isShuttingDown flag is set (graceful shutdown)
    */
   private async pollForJobs() {
-    while (true) {
+    while (!this.isShuttingDown) {
       try {
         // Check if we have capacity
         if (this.activeJobs.size >= config.worker.maxConcurrentJobs) {
@@ -264,6 +286,8 @@ class V3Worker {
         await this.sleep(config.worker.pollIntervalMs * 2); // Back off on error
       }
     }
+
+    this.logger.info('Polling loop exited - worker shutting down');
   }
 
   /**
