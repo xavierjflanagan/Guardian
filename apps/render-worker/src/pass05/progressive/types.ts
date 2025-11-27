@@ -125,9 +125,9 @@ export interface PageSeparationAnalysis {
     region_hint: string | null;          // 'top', 'upper_middle', 'lower_middle', 'bottom'
 
     // Post-processor extracted coordinates (null for inter_page, calculated for intra_page)
-    text_y_top?: number | null;          // Y coordinate of marker (pixels)
-    text_height?: number | null;         // Height of marker text
-    split_y?: number | null;             // Calculated split line
+    text_y_top?: number | null;          // Y coordinate of marker top edge (enriched via findActualTextHeight)
+    text_height?: number | null;         // Height of marker text (enriched via findActualTextHeight)
+    split_y?: number | null;             // Split line Y-coordinate (from AI response)
 
     confidence: number;                  // AI confidence (0-1)
   }>;

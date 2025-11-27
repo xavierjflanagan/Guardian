@@ -127,6 +127,34 @@ export async function processChunk(params: ChunkParams): Promise<ChunkResult> {
     }
   }
 
+  // V12.1: Calculate ACTUAL TEXT HEIGHTS for safe split points
+  // Safe split points need heights for Pass 1/2 batching buffer zones
+  if (pageSeparationAnalysis && pageSeparationAnalysis.safe_split_points) {
+    console.log(`[Chunk ${params.chunkNumber}] Calculating text heights for ${pageSeparationAnalysis.safe_split_points.length} safe split points...`);
+
+    for (const splitPoint of pageSeparationAnalysis.safe_split_points) {
+      // Only enrich intra_page splits that have markers
+      if (splitPoint.split_type === 'intra_page' && splitPoint.marker && splitPoint.split_y !== null) {
+        // Convert split point page (1-indexed, relative to chunk) to 0-indexed array position
+        const pageIndex = splitPoint.page - 1;
+        const height = findActualTextHeight(
+          params.pages,
+          pageIndex,
+          splitPoint.split_y,
+          splitPoint.marker
+        );
+
+        if (height !== null) {
+          splitPoint.text_height = height;
+          splitPoint.text_y_top = splitPoint.split_y; // AI gives us top edge
+          console.log(`[Chunk ${params.chunkNumber}] ✓ Safe split height: page=${splitPoint.page}, marker="${splitPoint.marker}", y=${splitPoint.split_y}, h=${height}px`);
+        } else {
+          console.warn(`[Chunk ${params.chunkNumber}] ⚠ Could not find safe split marker "${splitPoint.marker}" at y=${splitPoint.split_y} on page ${splitPoint.page}`);
+        }
+      }
+    }
+  }
+
   // FIX: Assign cascade_ids to encounters that will cascade BEFORE persisting
   // This ensures encounters ending at chunk boundary get proper cascade_ids,
   // not just implicit ones during handoff building
@@ -526,11 +554,11 @@ function parseV12Response(
       ...rawPageSeparation,
       safe_split_points: rawPageSeparation.safe_split_points.map((split: any) => ({
         ...split,
-        split_y: split.split_y || null, // Direct extraction from AI
-        text_y_top: null, // Deprecated
-        text_height: null, // Deprecated
-        marker_context: null, // Deprecated
-        region_hint: null // Deprecated
+        split_y: split.split_y || null,  // AI provides this
+        text_y_top: null,  // Will be enriched post-processing (same as split_y)
+        text_height: null, // Will be enriched post-processing via findActualTextHeight()
+        marker_context: split.marker_context || null, // AI may provide this for disambiguation
+        region_hint: split.region_hint || null // AI may provide this for fuzzy matching
       }))
     };
   }
