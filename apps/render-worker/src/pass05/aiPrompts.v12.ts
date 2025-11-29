@@ -204,26 +204,18 @@ For EVERY encounter, identify position using Y-coordinates from OCR output:
 
 Report: \`end_y: 450\` (previous encounter ends) and \`start_y: 450\` (new encounter starts)
 
-**Position Confidence:**
-- 1.0: Inter-page boundary (no coordinate needed)
-- 0.95-1.0: Clear section marker with Y-coordinate (e.g., "DISCHARGE SUMMARY")
-- 0.85-0.95: Contextual boundary with Y-coordinate (e.g., "Patient discharged")
-- 0.70-0.85: Inferred boundary with Y-coordinate (e.g., blank line + new date)
-
 Example Output:
 \`\`\`json
 {
   "start_page": 1,
   "start_boundary_type": "inter_page",
   "start_y": null,  // Always null for inter_page
-  "start_marker": null // Always null for inter_page
-  "position_confidence": 0.95
+  "start_marker": null, // Always null for inter_page
 
   "end_page": 5,
   "end_boundary_type": "intra_page",
   "end_y": 2376,  // Y-coordinate from OCR
-  "end_marker": "DISCHARGE SUMMARY",
-  "position_confidence": 0.95
+  "end_marker": "DISCHARGE SUMMARY"
 }
 \`\`\`
 
@@ -307,7 +299,6 @@ Extract comprehensive clinical information:
 
 **Metadata:**
 - \`summary\`: Brief 1-2 sentence summary of encounter
-- \`confidence\`: 0.0 to 1.0 confidence in encounter extraction accuracy
 
 ## 7. PAGE SEPARATION ANALYSIS
 
@@ -350,15 +341,13 @@ Safe split points within a single page.
       "page": 12,  // Page AFTER the split (where radiology report begins)
       "split_type": "inter_page",
       "split_y": null, // Always null for inter_page
-      "marker": null,  // Always null for inter_page
-      "confidence": 1.0
+      "marker": null  // Always null for inter_page
     },
     {
       "page": 23,
       "split_type": "intra_page",
       "split_y": 780,  // Y-coordinate from OCR
-      "marker": "PATHOLOGY RESULTS",
-      "confidence": 0.95
+      "marker": "PATHOLOGY RESULTS"
     }
   ]
 }
@@ -396,7 +385,6 @@ Return a JSON object with this exact structure:
       "end_boundary_type": "intra_page",
       "end_y": 1450,
       "end_marker": "Plan discussed with patient",
-      "position_confidence": 0.92,
       "page_ranges": [[1, 2]],
 
       // Timeline test result
@@ -432,8 +420,7 @@ Return a JSON object with this exact structure:
       "diagnoses": ["Hypertension"],
       "procedures": [],  // None mentioned
       "disposition": "Continue current management",
-      "summary": "Routine BP check, stable.",
-      "confidence": 0.95
+      "summary": "Routine BP check, stable."
     },
     {
       // EXAMPLE 2: Cascading Hospital Admission
@@ -451,7 +438,6 @@ Return a JSON object with this exact structure:
       "end_boundary_type": "inter_page",
       "end_y": null,  // Ends at page boundary (end of chunk)
       "end_marker": null, // Ends at page boundary
-      "position_confidence": 0.95,
       "page_ranges": [[2, 5]],
 
       "is_real_world_visit": true,  // It's a primary record of a hospital admission (actual healthcare)
@@ -479,8 +465,7 @@ Return a JSON object with this exact structure:
       "procedures": ["Angiography"],
       "disposition": "Admitted to Ward",
       "summary": "Admission for chest pain, ongoing workup.",
-      "confidence": 0.98,
-      
+
       // Date source tracking
       "date_source": "ai_extracted"  // Possible Values: "ai_extracted" | "file_metadata" | "upload_date"
     }
@@ -510,8 +495,7 @@ Return a JSON object with this exact structure:
         "page": 4,
         "split_type": "intra_page",
         "split_y": 2100,
-        "marker": "PATHOLOGY RESULTS",
-        "confidence": 0.95
+        "marker": "PATHOLOGY RESULTS"
       }
     ]
   },
