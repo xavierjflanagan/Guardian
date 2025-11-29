@@ -1125,7 +1125,19 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     -- Metadata (Compliance Audit Trail)
     user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
     ip_address INET,       -- NULL for background jobs; part of HIPAA audit trail
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Migration 71: Strategy-A observability columns
+    ai_model_used TEXT,                -- AI model used for Strategy-A (replaces legacy vision_model_used)
+    encounters_total INTEGER,          -- Total encounters processed in this session
+    encounters_succeeded INTEGER,
+    encounters_failed INTEGER,
+    batches_total INTEGER,             -- Total batches across all encounters
+    batches_succeeded INTEGER,
+    total_retries_used INTEGER,
+    failure_encounter_id UUID REFERENCES healthcare_encounters(id),
+    error_code TEXT,                   -- Standardized error code if processing failed
+    error_summary TEXT
 );
 
 -- Pass 2 Clinical Enrichment Metrics
@@ -1225,6 +1237,15 @@ CREATE TABLE IF NOT EXISTS ai_processing_summary (
     pass2_metrics_id UUID REFERENCES pass2_clinical_metrics(id),
     pass3_metrics_id UUID REFERENCES pass3_narrative_metrics(id),
 
+    -- Migration 71: Pass 0.5 reference
+    pass05_metrics_id UUID,            -- Reference to Pass 0.5 encounter metrics
+
+    -- Migration 71: Failure drill-down columns
+    failure_encounter_id UUID REFERENCES healthcare_encounters(id),
+    failure_batch_index INTEGER,
+    error_code TEXT,
+    error_drill_down JSONB,            -- Quick summary for UI (batch info, error context)
+
     -- Business Events (preserved from original usage_events)
     business_events JSONB DEFAULT '[]', -- [{"event": "plan_upgraded", "timestamp": "..."}]
 
@@ -1255,6 +1276,173 @@ CREATE INDEX IF NOT EXISTS idx_pass3_narrative_metrics_session ON pass3_narrativ
 CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_profile ON ai_processing_summary(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_shell_file ON ai_processing_summary(shell_file_id);
 CREATE INDEX IF NOT EXISTS idx_ai_processing_summary_status ON ai_processing_summary(processing_status);
+
+
+-- =============================================================================
+-- SECTION: PASS 1 STRATEGY-A HIERARCHICAL OBSERVABILITY (Migration 71)
+-- =============================================================================
+-- Pass 1 Strategy-A encounter and batch result tracking
+-- Design reference: PASS1-STRATEGY-A-MASTER.md Section 4
+
+-- Encounter Results: Per-encounter processing tracking
+CREATE TABLE IF NOT EXISTS pass1_encounter_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Hierarchy
+  shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  healthcare_encounter_id UUID NOT NULL REFERENCES healthcare_encounters(id) ON DELETE CASCADE,
+  processing_session_id UUID REFERENCES ai_processing_sessions(id),
+  patient_id UUID NOT NULL REFERENCES user_profiles(id),
+
+  -- Encounter scope
+  page_count INTEGER NOT NULL,
+
+  -- Batching info
+  batching_used BOOLEAN DEFAULT FALSE,
+  batches_total INTEGER DEFAULT 1,
+
+  -- Processing status
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+    'pending', 'processing', 'succeeded', 'failed'
+  )),
+
+  -- Batch aggregates (updated as batches complete)
+  batches_succeeded INTEGER DEFAULT 0,
+  batches_failed INTEGER DEFAULT 0,
+  total_retries_used INTEGER DEFAULT 0,
+
+  -- Timing
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  total_duration_ms INTEGER,
+
+  -- AI metrics (aggregated from batches)
+  total_input_tokens INTEGER DEFAULT 0,
+  total_output_tokens INTEGER DEFAULT 0,
+
+  -- Output metrics (aggregated from batches)
+  total_entities_detected INTEGER DEFAULT 0,
+  total_zones_detected INTEGER DEFAULT 0,
+
+  -- Error summary (populated if any batch failed permanently)
+  failure_batch_index INTEGER,
+  error_code TEXT,
+  error_summary TEXT,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE pass1_encounter_results IS
+  'Migration 71: Per-encounter processing results for Pass 1 Strategy-A. Aggregates batch results and provides encounter-level status tracking.';
+
+-- Indexes for pass1_encounter_results
+CREATE INDEX IF NOT EXISTS idx_pass1_encounter_shell ON pass1_encounter_results(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_pass1_encounter_status ON pass1_encounter_results(status);
+CREATE INDEX IF NOT EXISTS idx_pass1_encounter_failed ON pass1_encounter_results(shell_file_id) WHERE status = 'failed';
+
+-- Unique constraint: one row per encounter
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pass1_encounter_unique ON pass1_encounter_results(healthcare_encounter_id);
+
+
+-- Batch Results: Per-batch processing with retry tracking
+CREATE TABLE IF NOT EXISTS pass1_batch_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Hierarchy
+  healthcare_encounter_id UUID NOT NULL REFERENCES healthcare_encounters(id) ON DELETE CASCADE,
+  pass1_encounter_result_id UUID NOT NULL REFERENCES pass1_encounter_results(id) ON DELETE CASCADE,
+  processing_session_id UUID REFERENCES ai_processing_sessions(id),
+
+  -- Batch identification
+  batch_index INTEGER NOT NULL,  -- 0-based index within encounter
+  page_range_start INTEGER NOT NULL,
+  page_range_end INTEGER NOT NULL,
+
+  -- Processing status
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+    'pending', 'processing', 'succeeded', 'failed'
+  )),
+
+  -- Retry tracking
+  attempt_count INTEGER DEFAULT 0,
+  max_attempts INTEGER DEFAULT 3,
+
+  -- Timing
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  duration_ms INTEGER,
+
+  -- AI metrics
+  ai_model_used TEXT,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+
+  -- Error tracking (populated on failure)
+  error_code TEXT,
+  error_message TEXT,
+  error_context JSONB,
+
+  -- Transient failure tracking (populated even on success if retries occurred)
+  had_transient_failure BOOLEAN DEFAULT FALSE,
+  transient_error_history JSONB,
+
+  -- Output metrics (populated on success)
+  entities_detected INTEGER,
+  zones_detected INTEGER,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE pass1_batch_results IS
+  'Migration 71: Per-batch processing results for Pass 1 Strategy-A. Tracks retry attempts, errors, and metrics at batch granularity.';
+
+-- Indexes for pass1_batch_results
+CREATE INDEX IF NOT EXISTS idx_pass1_batch_encounter ON pass1_batch_results(healthcare_encounter_id);
+CREATE INDEX IF NOT EXISTS idx_pass1_batch_status ON pass1_batch_results(status) WHERE status IN ('pending', 'processing', 'failed');
+CREATE INDEX IF NOT EXISTS idx_pass1_batch_failed ON pass1_batch_results(healthcare_encounter_id) WHERE status = 'failed';
+CREATE INDEX IF NOT EXISTS idx_pass1_batch_stale ON pass1_batch_results(started_at) WHERE status = 'processing';
+CREATE INDEX IF NOT EXISTS idx_pass1_batch_transient ON pass1_batch_results(healthcare_encounter_id) WHERE had_transient_failure = TRUE;
+
+-- Unique constraint: one row per batch per encounter
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pass1_batch_unique ON pass1_batch_results(healthcare_encounter_id, batch_index);
+
+
+-- RLS for Pass 1 Strategy-A batch/encounter tables
+ALTER TABLE pass1_encounter_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pass1_batch_results ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role full access on pass1_encounter_results"
+  ON pass1_encounter_results
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Service role full access on pass1_batch_results"
+  ON pass1_batch_results
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Users can read own pass1_encounter_results"
+  ON pass1_encounter_results
+  FOR SELECT
+  TO authenticated
+  USING (patient_id IN (SELECT id FROM user_profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Users can read own pass1_batch_results"
+  ON pass1_batch_results
+  FOR SELECT
+  TO authenticated
+  USING (
+    healthcare_encounter_id IN (
+      SELECT id FROM healthcare_encounters
+      WHERE patient_id IN (SELECT id FROM user_profiles WHERE id = auth.uid())
+    )
+  );
+
 
 -- Migration 31 (2025-10-21): Embedding performance metrics for SapBERT/OpenAI optimization
 CREATE TABLE IF NOT EXISTS embedding_performance_metrics (

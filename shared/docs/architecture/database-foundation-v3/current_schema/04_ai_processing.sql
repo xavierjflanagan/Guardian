@@ -372,7 +372,19 @@ CREATE TABLE IF NOT EXISTS ai_processing_sessions (
     
     -- Audit fields
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Migration 71: Pass-specific status columns for quick visibility
+    pass05_status TEXT CHECK (pass05_status IS NULL OR pass05_status IN ('pending', 'processing', 'completed', 'failed', 'skipped')),
+    pass1_status TEXT CHECK (pass1_status IS NULL OR pass1_status IN ('pending', 'processing', 'completed', 'failed', 'skipped')),
+    pass1_5_status TEXT CHECK (pass1_5_status IS NULL OR pass1_5_status IN ('pending', 'processing', 'completed', 'failed', 'skipped')),
+    pass2_status TEXT CHECK (pass2_status IS NULL OR pass2_status IN ('pending', 'processing', 'completed', 'failed', 'skipped')),
+    pass3_status TEXT CHECK (pass3_status IS NULL OR pass3_status IN ('pending', 'processing', 'completed', 'failed', 'skipped')),
+
+    -- Migration 71: Failure drill-down reference
+    failure_pass TEXT,
+    failure_encounter_id UUID REFERENCES healthcare_encounters(id),
+    error_code_v2 TEXT  -- Named error_code_v2 to avoid conflict if error_code exists
 );
 
 -- =============================================================================
@@ -576,6 +588,115 @@ CREATE POLICY pass15_code_candidates_select_policy ON pass15_code_candidates
 -- RLS Policy: Users cannot insert, update, or delete (audit trail is immutable)
 -- Only service role (which bypasses RLS) can write to this table
 -- No INSERT/UPDATE/DELETE policies = complete immutability for users
+
+
+-- =============================================================================
+-- SECTION 2C: PASS 1 STRATEGY-A OBSERVABILITY (Migration 71)
+-- =============================================================================
+-- Pass 1 Strategy-A hierarchical observability tables
+-- Design reference: PASS1-STRATEGY-A-MASTER.md Section 4
+
+-- Bridge Schema Zones: Y-coordinate ranges per schema type for Pass 2 batching
+CREATE TABLE IF NOT EXISTS pass1_bridge_schema_zones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Foreign keys
+  healthcare_encounter_id UUID NOT NULL REFERENCES healthcare_encounters(id) ON DELETE CASCADE,
+  processing_session_id UUID REFERENCES ai_processing_sessions(id),
+
+  -- Zone definition
+  schema_type TEXT NOT NULL,  -- 'medications', 'lab_results', 'vitals', etc.
+  page_number INTEGER NOT NULL,
+  y_start INTEGER NOT NULL,
+  y_end INTEGER NOT NULL,
+
+  -- Audit
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  CONSTRAINT valid_y_range CHECK (y_end > y_start)
+);
+
+COMMENT ON TABLE pass1_bridge_schema_zones IS
+  'Migration 71: Y-coordinate ranges per bridge schema type for Pass 1 Strategy-A. Used by Pass 2 to batch entities by zone.';
+
+-- Indexes for pass1_bridge_schema_zones
+CREATE INDEX IF NOT EXISTS idx_bridge_zones_encounter ON pass1_bridge_schema_zones(healthcare_encounter_id);
+CREATE INDEX IF NOT EXISTS idx_bridge_zones_schema ON pass1_bridge_schema_zones(schema_type);
+
+-- Entity Detections: Minimal entity storage for Pass 1 Strategy-A
+CREATE TABLE IF NOT EXISTS pass1_entity_detections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Foreign keys
+  healthcare_encounter_id UUID NOT NULL REFERENCES healthcare_encounters(id) ON DELETE CASCADE,
+  shell_file_id UUID NOT NULL REFERENCES shell_files(id) ON DELETE CASCADE,
+  patient_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  processing_session_id UUID REFERENCES ai_processing_sessions(id),
+
+  -- Entity identification
+  entity_sequence INTEGER NOT NULL,  -- Order within encounter (e1, e2, etc.)
+  original_text TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN (
+    'medication', 'condition', 'procedure', 'observation',
+    'allergy', 'lab_result', 'vital_sign', 'physical_finding'
+  )),
+  aliases TEXT[] DEFAULT '{}',
+
+  -- Spatial
+  y_coordinate INTEGER,
+  page_number INTEGER NOT NULL DEFAULT 1,
+
+  -- Link to bridge schema zone
+  bridge_schema_zone_id UUID REFERENCES pass1_bridge_schema_zones(id),
+
+  -- Audit
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE pass1_entity_detections IS
+  'Migration 71: Minimal entity storage for Pass 1 Strategy-A. Replaces entity_processing_audit with streamlined schema.';
+
+-- Indexes for pass1_entity_detections
+CREATE INDEX IF NOT EXISTS idx_pass1_entities_encounter ON pass1_entity_detections(healthcare_encounter_id);
+CREATE INDEX IF NOT EXISTS idx_pass1_entities_type ON pass1_entity_detections(entity_type);
+CREATE INDEX IF NOT EXISTS idx_pass1_entities_shell_file ON pass1_entity_detections(shell_file_id);
+CREATE INDEX IF NOT EXISTS idx_pass1_entities_zone ON pass1_entity_detections(bridge_schema_zone_id) WHERE bridge_schema_zone_id IS NOT NULL;
+
+-- RLS for Pass 1 Strategy-A tables
+ALTER TABLE pass1_bridge_schema_zones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pass1_entity_detections ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role full access on pass1_bridge_schema_zones"
+  ON pass1_bridge_schema_zones
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Service role full access on pass1_entity_detections"
+  ON pass1_entity_detections
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Users can read own pass1_entity_detections"
+  ON pass1_entity_detections
+  FOR SELECT
+  TO authenticated
+  USING (patient_id IN (SELECT id FROM user_profiles WHERE id = auth.uid()));
+
+CREATE POLICY "Users can read own pass1_bridge_schema_zones"
+  ON pass1_bridge_schema_zones
+  FOR SELECT
+  TO authenticated
+  USING (
+    healthcare_encounter_id IN (
+      SELECT id FROM healthcare_encounters
+      WHERE patient_id IN (SELECT id FROM user_profiles WHERE id = auth.uid())
+    )
+  );
+
 
 -- =============================================================================
 -- SECTION 3: PROFILE CLASSIFICATION & SAFETY (V2 Integration)
