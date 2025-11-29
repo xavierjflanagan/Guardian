@@ -1,0 +1,171 @@
+{
+  "entity_id": 3,
+  "entity_text": "Blood pressure measurement",
+  "variant_type": "clinical",
+  "query": "blood pressure systolic diastolic",
+  "expected_entity_type": "vital_sign",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:04.984Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "8487-1",
+      "display_name": "Systolic blood pressure 8 hour mean",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.634872
+    },
+    {
+      "rank": 2,
+      "code_value": "8469-9",
+      "display_name": "Diastolic blood pressure 8 hour mean",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.61873
+    },
+    {
+      "rank": 3,
+      "code_value": "8548-0",
+      "display_name": "Digital artery - left Systolic blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.613157
+    },
+    {
+      "rank": 4,
+      "code_value": "8482-2",
+      "display_name": "Systolic blood pressure 8 hour maximum",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.611289
+    },
+    {
+      "rank": 5,
+      "code_value": "8549-8",
+      "display_name": "Digital artery - right Systolic blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.610356
+    },
+    {
+      "rank": 6,
+      "code_value": "8464-0",
+      "display_name": "Diastolic blood pressure 8 hour maximum",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.609649
+    },
+    {
+      "rank": 7,
+      "code_value": "8492-1",
+      "display_name": "Systolic blood pressure 8 hour minimum",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.604828
+    },
+    {
+      "rank": 8,
+      "code_value": "8542-3",
+      "display_name": "Radial artery - left Mean blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.469451
+    },
+    {
+      "rank": 9,
+      "code_value": "8407-9",
+      "display_name": "Celiac trunk artery Mean blood pressure",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.449328
+    },
+    {
+      "rank": 10,
+      "code_value": "39871-9",
+      "display_name": "NM Heart Views for blood flow",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.381256
+    },
+    {
+      "rank": 11,
+      "code_value": "39893-3",
+      "display_name": "NM Heart Views for blood flow and shunt detection",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.364628
+    },
+    {
+      "rank": 12,
+      "code_value": "39495-7",
+      "display_name": "US.doppler Extremity vessels - bilateral",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.351076
+    },
+    {
+      "rank": 13,
+      "code_value": "41921-8",
+      "display_name": "Heart rate 8 hour mean",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.34298
+    },
+    {
+      "rank": 14,
+      "code_value": "38962-7",
+      "display_name": "Deprecated VA Compensation and Pension (C and P) examination hypertension",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.340382
+    },
+    {
+      "rank": 15,
+      "code_value": "69283-0",
+      "display_name": "US.doppler Extremity veins - bilateral",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.33725
+    },
+    {
+      "rank": 16,
+      "code_value": "106314-8",
+      "display_name": "US.doppler Lower extremity veins - bilateral",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.334903
+    },
+    {
+      "rank": 17,
+      "code_value": "45646-7",
+      "display_name": "Other cardiovascular disease [Minimum Data Set]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.331755
+    },
+    {
+      "rank": 18,
+      "code_value": "39496-5",
+      "display_name": "US.doppler Upper extremity vein - bilateral",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.330778
+    },
+    {
+      "rank": 19,
+      "code_value": "30880-9",
+      "display_name": "US.doppler Head vessels and Neck vessels",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.330295
+    },
+    {
+      "rank": 20,
+      "code_value": "39418-9",
+      "display_name": "US.doppler Extremity vein - bilateral",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.324049
+    }
+  ]
+}

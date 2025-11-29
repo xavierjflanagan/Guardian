@@ -1,0 +1,29 @@
+{
+  "entity_id": 5,
+  "entity_text": "Pregnancy test",
+  "variant_type": "clinical",
+  "query": "pregnancy test result",
+  "expected_entity_type": "observation",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:18.267Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "66563-8",
+      "display_name": "Pregnancy test result [PhenX]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 2,
+      "code_value": "85675-7",
+      "display_name": "Serologic test result for Mother --pre pregnancy",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

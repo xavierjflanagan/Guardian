@@ -1439,6 +1439,12 @@ CREATE TABLE IF NOT EXISTS universal_medical_codes (
     normalized_embedding_text TEXT,
     normalized_embedding VECTOR(1536),
 
+    -- Migration 60 (2025-11-22): Embedding flexibility and authority tracking
+    authority_required BOOLEAN DEFAULT FALSE,
+    sapbert_embedding VECTOR(768),
+    sapbert_embedding_generated_at TIMESTAMPTZ,
+    active_embedding_model VARCHAR(20) DEFAULT 'openai' CHECK (active_embedding_model IN ('openai', 'sapbert')),
+
     -- Unique constraint
     UNIQUE(code_system, code_value)
 );
@@ -2174,6 +2180,66 @@ BEGIN
     LIMIT max_results;
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- ============================================================================
+-- Vector Search for Universal Medical Codes (Migration 67 - 2025-11-24)
+-- ============================================================================
+-- Purpose: Fast semantic search across LOINC, SNOMED CT CORE, and RxNorm codes
+-- Use case: Pass 1.5 medical code matching for clinical entities
+-- Index used: idx_universal_codes_vector (IVFFlat, 109k+ vectors)
+-- Performance: ~10-50ms for 109k codes with IVFFlat index
+--
+CREATE OR REPLACE FUNCTION public.match_universal_medical_codes(
+    query_embedding VECTOR(1536),
+    entity_type_filter VARCHAR(20) DEFAULT NULL,
+    code_system_filter VARCHAR(20) DEFAULT NULL,
+    max_results INTEGER DEFAULT 20,
+    min_similarity REAL DEFAULT 0.5
+) RETURNS TABLE (
+    code_system VARCHAR(20),
+    code_value VARCHAR(50),
+    display_name TEXT,
+    search_text TEXT,
+    similarity_score REAL,
+    entity_type VARCHAR(20),
+    active BOOLEAN,
+    active_embedding_model VARCHAR(20)
+) AS $$
+DECLARE
+    v_max_results INTEGER;
+    v_min_similarity REAL;
+BEGIN
+    -- Parameter validation
+    v_max_results := GREATEST(1, max_results);
+    v_min_similarity := GREATEST(0.0, LEAST(1.0, min_similarity));
+
+    RETURN QUERY
+    SELECT
+        umc.code_system,
+        umc.code_value,
+        umc.display_name,
+        umc.search_text,
+        (1 - (umc.embedding <=> query_embedding))::REAL as similarity_score,
+        umc.entity_type,
+        umc.active,
+        umc.active_embedding_model
+    FROM public.universal_medical_codes umc
+    WHERE umc.embedding IS NOT NULL
+        AND (entity_type_filter IS NULL OR umc.entity_type = entity_type_filter)
+        AND (code_system_filter IS NULL OR umc.code_system = code_system_filter)
+        AND (1 - (umc.embedding <=> query_embedding)) >= v_min_similarity
+    ORDER BY umc.embedding <=> query_embedding
+    LIMIT v_max_results;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp;
+
+COMMENT ON FUNCTION public.match_universal_medical_codes IS
+'Pass 1.5 vector similarity search for universal medical codes (LOINC, SNOMED CT CORE, RxNorm).
+Uses IVFFlat index idx_universal_codes_vector for fast cosine similarity matching.
+Returns top N codes matching entity embedding with optional filters.
+Parameters validated: max_results >= 1, min_similarity clamped to [0.0, 1.0].';
+
+GRANT EXECUTE ON FUNCTION public.match_universal_medical_codes TO authenticated, anon, service_role;
 
 -- ============================================================================
 -- Hybrid Search for MBS Procedure Codes (Migration 33 - 2025-10-23)

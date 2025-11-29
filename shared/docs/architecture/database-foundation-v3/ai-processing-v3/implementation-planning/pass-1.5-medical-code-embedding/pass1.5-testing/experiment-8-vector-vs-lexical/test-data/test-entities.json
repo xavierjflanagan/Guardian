@@ -1,0 +1,156 @@
+{
+  "experiment": "Vector vs Lexical Search Comparison",
+  "created": "2025-11-02",
+  "total_entities": 6,
+  "total_queries": 18,
+  "embedding_model": "text-embedding-3-small",
+  "embedding_dimensions": 1536,
+  "database_codes": 102891,
+  "entities": [
+    {
+      "id": 1,
+      "entity_text": "Blood glucose measurement",
+      "category": "lab_test",
+      "expected_entity_type": "lab_result",
+      "clinical_context": "Common lab test for diabetes monitoring and blood sugar assessment",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "glucose serum plasma blood measurement",
+          "rationale": "Clinical terminology as physician would document"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "blood sugar level test",
+          "rationale": "Patient-friendly language for glucose testing"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "BG BSL glucose",
+          "rationale": "Common medical abbreviations (BG=blood glucose, BSL=blood sugar level)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "entity_text": "Hemoglobin A1c test",
+      "category": "lab_test",
+      "expected_entity_type": "lab_result",
+      "clinical_context": "3-month average blood glucose measurement for diabetes management",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "hemoglobin a1c glycated blood",
+          "rationale": "Full clinical name with glycated hemoglobin"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "a1c diabetes blood test",
+          "rationale": "Patient language linking A1c to diabetes"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "HbA1c",
+          "rationale": "Standard medical abbreviation for glycated hemoglobin"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "entity_text": "Blood pressure measurement",
+      "category": "vital_sign",
+      "expected_entity_type": "vital_sign",
+      "clinical_context": "Cardiovascular vital sign measurement (systolic/diastolic)",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "blood pressure systolic diastolic",
+          "rationale": "Clinical components of blood pressure reading"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "BP reading pressure",
+          "rationale": "Common patient language for blood pressure check"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "BP SBP DBP",
+          "rationale": "Standard abbreviations (BP=blood pressure, SBP=systolic, DBP=diastolic)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "entity_text": "Total cholesterol test",
+      "category": "lab_test",
+      "expected_entity_type": "lab_result",
+      "clinical_context": "Lipid panel component for cardiovascular risk assessment",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "cholesterol total serum plasma",
+          "rationale": "Clinical terminology with specimen type"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "cholesterol level blood test",
+          "rationale": "Patient-friendly cholesterol testing language"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "TC chol",
+          "rationale": "Common abbreviations (TC=total cholesterol)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "entity_text": "Pregnancy test",
+      "category": "clinical_observation",
+      "expected_entity_type": "observation",
+      "clinical_context": "Qualitative pregnancy determination (positive/negative)",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "pregnancy test result",
+          "rationale": "Clinical documentation of pregnancy testing"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "pregnant test positive negative",
+          "rationale": "Patient language for pregnancy test outcomes"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "preg test",
+          "rationale": "Common medical abbreviation for pregnancy"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "entity_text": "ECG findings",
+      "category": "diagnostic_test",
+      "expected_entity_type": "observation",
+      "clinical_context": "Cardiac electrical activity interpretation and impression",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "electrocardiogram findings impression",
+          "rationale": "Clinical documentation of ECG interpretation"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "heart test results ECG",
+          "rationale": "Patient-friendly language for cardiac testing"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "EKG ECG",
+          "rationale": "Standard abbreviations (both EKG and ECG are common)"
+        }
+      ]
+    }
+  ],
+  "notes": "These entities span diverse clinical categories (lab tests, vital signs, observations, diagnostics) and test different query types (clinical, layperson, abbreviations) to evaluate vector vs lexical search performance."
+}

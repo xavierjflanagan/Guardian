@@ -1,0 +1,171 @@
+{
+  "entity_id": 5,
+  "entity_text": "Pregnancy test",
+  "variant_type": "abbreviation",
+  "query": "preg test",
+  "expected_entity_type": "observation",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:15.213Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "107557-1",
+      "display_name": "Test performed --1st trimester",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.596589
+    },
+    {
+      "rank": 2,
+      "code_value": "89498-0",
+      "display_name": "Prenatal diagnosis",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.485368
+    },
+    {
+      "rank": 3,
+      "code_value": "5803-2",
+      "display_name": "pH of Urine by Test strip",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.472894
+    },
+    {
+      "rank": 4,
+      "code_value": "95576-5",
+      "display_name": "Pregnanetriol [Z-score] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.462744
+    },
+    {
+      "rank": 5,
+      "code_value": "45144-3",
+      "display_name": "clomiPRAMINE [Presence] in Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.458472
+    },
+    {
+      "rank": 6,
+      "code_value": "50560-2",
+      "display_name": "pH of Urine by Automated test strip",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.450155
+    },
+    {
+      "rank": 7,
+      "code_value": "77881-1",
+      "display_name": "risperiDONE cutoff [Mass/volume] in Urine for Confirmatory method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.440519
+    },
+    {
+      "rank": 8,
+      "code_value": "58457-3",
+      "display_name": "Sulfites [Presence] in Urine by Test strip",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.437051
+    },
+    {
+      "rank": 9,
+      "code_value": "97153-1",
+      "display_name": "Primidone [Presence] in Urine by Confirmatory method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.436457
+    },
+    {
+      "rank": 10,
+      "code_value": "78819-0",
+      "display_name": "clomiPRAMINE cutoff [Mass/volume] in Urine for Confirmatory method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.432589
+    },
+    {
+      "rank": 11,
+      "code_value": "95573-2",
+      "display_name": "Pregnanediol [Z-score] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.424706
+    },
+    {
+      "rank": 12,
+      "code_value": "15092-0",
+      "display_name": "Pregnanetriol [Moles/volume] in Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.417775
+    },
+    {
+      "rank": 13,
+      "code_value": "73570-4",
+      "display_name": "Testosterone/Epitestosterone [Interpretation] in Urine Qualitative",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.415716
+    },
+    {
+      "rank": 14,
+      "code_value": "108424-3",
+      "display_name": "clomiPRAMINE [Measurement] in Urine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.415549
+    },
+    {
+      "rank": 15,
+      "code_value": "19678-2",
+      "display_name": "Prazepam [Presence] in Urine by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.415508
+    },
+    {
+      "rank": 16,
+      "code_value": "74819-4",
+      "display_name": "Promazine [Presence] in Urine by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.41415
+    },
+    {
+      "rank": 17,
+      "code_value": "16904-5",
+      "display_name": "Glucose [Presence] in Urine --1st specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.41262
+    },
+    {
+      "rank": 18,
+      "code_value": "19710-3",
+      "display_name": "traMADol [Presence] in Urine by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.41262
+    },
+    {
+      "rank": 19,
+      "code_value": "44833-2",
+      "display_name": "Preliminary diagnosis",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.412443
+    },
+    {
+      "rank": 20,
+      "code_value": "98964-0",
+      "display_name": "Brexpiprazole [Presence] in Urine by Confirmatory method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.412215
+    }
+  ]
+}

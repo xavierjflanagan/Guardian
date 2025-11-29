@@ -1,0 +1,107 @@
+{
+  "entity_id": 1,
+  "entity_text": "Blood glucose measurement",
+  "variant_type": "abbreviation",
+  "query": "BG BSL glucose",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:37:59.349Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "16911-0",
+      "display_name": "Glucose [Presence] in Urine --8th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.563192
+    },
+    {
+      "rank": 2,
+      "code_value": "21004-7",
+      "display_name": "Glucose tolerance [Interpretation] in Serum or Plasma",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.561229
+    },
+    {
+      "rank": 3,
+      "code_value": "16908-6",
+      "display_name": "Glucose [Presence] in Urine --5th specimen post XXX challenge",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.55668
+    },
+    {
+      "rank": 4,
+      "code_value": "14749-6",
+      "display_name": "Glucose [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.543317
+    },
+    {
+      "rank": 5,
+      "code_value": "63112-7",
+      "display_name": "Blackberry IgG Ab [Mass/volume] in Serum",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.458799
+    },
+    {
+      "rank": 6,
+      "code_value": "29282-1",
+      "display_name": "Glutethimide [Presence] in Gastric fluid",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.456429
+    },
+    {
+      "rank": 7,
+      "code_value": "32077-0",
+      "display_name": "Glutethimide [Presence] in Specimen",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.449891
+    },
+    {
+      "rank": 8,
+      "code_value": "35613-9",
+      "display_name": "Glutethimide [Mass/volume] in Serum or Plasma by Screen method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.422285
+    },
+    {
+      "rank": 9,
+      "code_value": "15580-4",
+      "display_name": "Deprecated Blackberry IgE Ab RAST class [Presence] in Serum",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.42061
+    },
+    {
+      "rank": 10,
+      "code_value": "42680-9",
+      "display_name": "MG Breast XCCL",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.42032
+    },
+    {
+      "rank": 11,
+      "code_value": "22720-7",
+      "display_name": "Glutamine [Moles/volume] in Specimen",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.419529
+    },
+    {
+      "rank": 12,
+      "code_value": "46735-7",
+      "display_name": "Endocrine disorders newborn screen interpretation",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.417705
+    }
+  ]
+}

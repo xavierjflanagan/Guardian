@@ -1,26 +1,31 @@
 # Pass 1.5 Medical Code Data Acquisition Guide
 
-**Purpose:** Step-by-step instructions for acquiring all medical code libraries
+**Purpose:** Step-by-step instructions for acquiring medical code libraries
 
-**Status:** Active - Phase 2 in progress
+**Status:** Active - Updated for universal vs regional strategy (2025-11-22)
 
 **Created:** 2025-10-15
+**Updated:** 2025-11-22
 
 ---
 
 ## Overview
 
-This guide covers acquiring 6 medical code libraries totaling ~228,000 codes:
+This guide covers acquiring medical code libraries for the two-table architecture:
 
-**Universal Codes (Free):**
-- RxNorm: ~50,000 medication codes
-- SNOMED-CT: ~100,000 clinical terms
-- LOINC: ~50,000 lab/observation codes
+**Universal Codes → `universal_medical_codes` table:**
+- SNOMED CT CORE subset: 6,820 codes (NLM-validated, primary clinical matching)
+- SNOMED CT International: 527,304 concepts (optional, for reference)
+- RxNorm: ~50,000 medication codes (US-based, globally recognized)
+- LOINC: ~102,891 lab/observation codes (global standard)
 
-**Regional Codes - Australia:**
-- PBS: ~3,000 subsidized medication codes
-- MBS: ~5,000 Medicare service codes
-- ICD-10-AM: ~20,000 diagnosis codes (paid license)
+**Regional Codes (Australia) → `regional_medical_codes` table:**
+- SNOMED CT AU edition: 706,544 codes (includes International + AU extensions)
+- PBS: ~14,382 subsidized medication codes
+- MBS: Deleted (billing codes, not clinically useful)
+- ICD-10-AM: Optional (paid license, not prioritized)
+
+**Strategy:** Universal codes for primary matching (fast, 90%+ coverage), regional codes for Australian-specific detail and rare disease fallback.
 
 ---
 
@@ -59,26 +64,46 @@ RxNorm_full_MMDDYYYY/
     └── README.txt      # Field descriptions
 ```
 
-**Step 3: Download SNOMED-CT**
+**Step 3: Download SNOMED CT CORE Subset (PRIORITY)**
+1. In UTS, navigate to: Downloads > SNOMED CT
+2. Select: "SNOMED CT CORE Problem List Subset"
+3. Download: Latest version (e.g., `SNOMEDCT_CORE_SUBSET_202506.txt`)
+4. Expected file: ~500 KB text file
+5. Extract to: `data/medical-codes/snomed/core-subset/`
+
+**CORE Subset File Structure (10 columns, pipe-delimited):**
+```
+SNOMED_CID|SNOMED_FSN|SNOMED_CONCEPT_STATUS|UMLS_CUI|OCCURRENCE|USAGE|...
+60728008|Swollen abdomen (finding)|Current|C0000731|4|0.0055|...
+```
+
+**Key Fields:**
+- `OCCURRENCE`: Number of institutions (1-8) using this code
+- `USAGE`: Average usage percentage across institutions
+- Codes with OCCURRENCE=7-8 are most universally relevant
+
+**Step 4: Download SNOMED CT International Edition (OPTIONAL)**
 1. In UTS, navigate to: Downloads > SNOMED CT
 2. Select: "SNOMED CT International Edition"
 3. Download format: **RF2 (Release Format 2)**
 4. Expected file: `SnomedCT_InternationalRF2_PRODUCTION_YYYYMMDD.zip` (~1 GB)
-5. Extract to: `data/medical-codes/snomed/`
+5. Extract to: `data/medical-codes/snomed/raw/`
 
-**Key Files in SNOMED:**
+**Note:** International edition is optional - we use CORE subset (6,820 codes) for primary matching and AU edition (706k codes) for rare disease fallback. International edition can be downloaded for reference but is not actively used in the two-tier architecture.
+
+**Key Files in SNOMED International (if downloaded):**
 ```
 SnomedCT_InternationalRF2/
 ├── Snapshot/
 │   ├── Terminology/
-│   │   ├── sct2_Concept_Snapshot_INT_YYYYMMDD.txt      # All concepts
+│   │   ├── sct2_Concept_Snapshot_INT_YYYYMMDD.txt      # 527,304 concepts
 │   │   ├── sct2_Description_Snapshot_INT_YYYYMMDD.txt  # Human-readable names
 │   │   └── sct2_Relationship_Snapshot_INT_YYYYMMDD.txt # Hierarchies
 │   └── Refset/
-└── Full/  # Historical versions (skip for now)
+└── Full/  # Historical versions (skip)
 ```
 
-**Step 4: Download LOINC**
+**Step 5: Download LOINC**
 1. In UTS, navigate to: Downloads > LOINC
 2. Select: "LOINC Table File"
 3. Download format: **CSV**
@@ -349,7 +374,50 @@ Once all files downloaded:
 
 ---
 
-**Last Updated:** 2025-10-15
-**Status:** Ready for data acquisition
+---
+
+## 11. Database Table Destinations
+
+After parsing and generating embeddings, each library goes to its designated table:
+
+### Universal Medical Codes Table
+
+**Population command:**
+```bash
+npx tsx populate-codes.ts --table=universal --code-system=snomed_core
+npx tsx populate-codes.ts --table=universal --code-system=loinc
+npx tsx populate-codes.ts --table=universal --code-system=rxnorm
+```
+
+**Libraries:**
+- SNOMED CT CORE subset → `universal_medical_codes` (code_system='snomed_ct_core')
+- LOINC → `universal_medical_codes` (code_system='loinc')
+- RxNorm → `universal_medical_codes` (code_system='rxnorm')
+
+**Indexing:**
+- All libraries get full HNSW vector indexes
+- Target query performance: 5-50ms per entity
+
+### Regional Medical Codes Table
+
+**Population command:**
+```bash
+npx tsx populate-codes.ts --table=regional --code-system=snomed_au
+npx tsx populate-codes.ts --table=regional --code-system=pbs
+```
+
+**Libraries:**
+- SNOMED CT AU edition → `regional_medical_codes` (code_system='snomed_ct_au')
+- PBS → `regional_medical_codes` (code_system='pbs')
+
+**Indexing:**
+- PBS: Full HNSW vector index
+- SNOMED AU: Lexical indexes only (no vector, used for rare disease fallback)
+
+---
+
+**Last Updated:** 2025-11-22
+**Status:** Updated for universal vs regional two-table architecture
 **Estimated Time:** 2-4 hours for registration + downloads
+**Reference:** See MEDICAL-CODE-LIBRARY-STRATEGY-AUDIT.md for strategic rationale
 

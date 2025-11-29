@@ -1,0 +1,29 @@
+{
+  "entity_id": 2,
+  "entity_text": "Hemoglobin A1c test",
+  "variant_type": "clinical",
+  "query": "hemoglobin a1c glycated blood",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:38:55.102Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "41995-2",
+      "display_name": "Hemoglobin A1c [Mass/volume] in Blood",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 2,
+      "code_value": "55454-3",
+      "display_name": "Deprecated Hemoglobin A1c in Blood",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}
