@@ -11,8 +11,8 @@
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| Phase 0: Prerequisites | In Progress | 3/6 tasks complete - safe-split infrastructure done |
-| Phase 1: Database Setup | Not Started | Pending Phase 0 completion |
+| Phase 0: Prerequisites | COMPLETE | 6/6 tasks complete - safe-split infrastructure + audits done |
+| Phase 1: Database Setup | Not Started | Ready to begin |
 | Phase 2: Core Implementation | Not Started | |
 | Phase 3: Worker Integration | Not Started | |
 | Phase 4: Testing | Not Started | |
@@ -22,7 +22,9 @@
 - Migration 70: Added `safe_split_points` JSONB column to `healthcare_encounters`
 - Updated `reconcile_pending_to_final` RPC to persist per-encounter safe-splits
 - Updated reconciler to filter safe-splits per encounter's page range
-- Updated AI prompt v12: safe-split density changed from 1/10 pages to ~1/3 pages
+- Updated AI prompt v12: safe-split density changed to ~1/5 pages
+- Removed confidence values from AI output (not actionable, saves tokens)
+- Tested multi-chunk reconciliation: 71-page doc correctly merged 37 splits from 2 chunks
 
 ---
 
@@ -486,9 +488,9 @@ Single source of truth for progress tracking. Check off items as completed.
 | [x] | Add `safe_split_points` column to `healthcare_encounters` table | Migration 70 - 2025-11-29 |
 | [x] | Update Pass 0.5 to limit safe-split output | Updated prompt v12 to ~1 per 3 pages - 2025-11-29 |
 | [x] | Update Pass 0.5 reconciler to consolidate safe-splits | Filter per-encounter from all chunks, pass to RPC - 2025-11-29 |
-| [ ] | Test reconciliation with safe-split consolidation | Verify multi-chunk encounters get merged arrays |
-| [ ] | Audit `image-processing.ts` usage | Is image downscaling already part of pre-Pass05 upload processing? Is it needed for OCR-only pipeline? |
-| [ ] | Audit `format-processor/` usage | Confirm whether this is still used for PDF/TIFF extraction in current OCR pipeline |
+| [x] | Test reconciliation with safe-split consolidation | Verified: 71-page doc, 2 chunks (12+25 splits) merged to 37 in healthcare_encounters - 2025-11-29 |
+| [x] | Audit `image-processing.ts` usage | NOT used by current pipeline. `downscaleImageBase64()` exists but is never called. `format-processor` handles all image optimization. Pass 1 Strategy-A doesn't need it (OCR-only). - 2025-11-29 |
+| [x] | Audit `format-processor/` usage | ACTIVELY USED in worker.ts:540. `preprocessForOCR()` handles PDF/TIFF page extraction, HEIC conversion, and JPEG optimization before OCR. Pass 1 receives post-OCR text, so this is upstream and irrelevant to Strategy-A. - 2025-11-29 |
 
 ### Phase 1: Database Setup
 
