@@ -1,8 +1,39 @@
 # Pass 1 Entity Detection - Documentation Map
 
-**Last Updated:** October 13, 2025
-**Status:** ✅ OPERATIONAL
+**Last Updated:** November 27, 2025
+**Status:** TRANSFORMATION IN PROGRESS (Strategy-A)
 **Source Code:** `apps/render-worker/src/pass1/` (3,116 lines TypeScript, 8 files)
+
+---
+
+## IMPORTANT: Strategy-A Transformation
+
+Pass 1 is undergoing a major transformation to integrate with Pass 0.5 Encounter Discovery.
+
+**Start Here:** [strategy-a/00-START-HERE.md](./strategy-a/00-START-HERE.md)
+
+### Why Strategy-A?
+
+Pass 1 was built in October 2025 BEFORE Pass 0.5 existed. This creates critical issues:
+- No encounter awareness (entities not linked to encounters)
+- Uses raw images as primary input (not OCR-only like Pass 0.5)
+- No integration with `healthcare_encounters` table
+- Single-page image processing only
+
+### Strategy-A Documents
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [00-START-HERE.md](./strategy-a/00-START-HERE.md) | Navigation and context | Active |
+| [01-PASS-1-STRATEGY-A-AUDIT.md](./strategy-a/01-PASS-1-STRATEGY-A-AUDIT.md) | Comprehensive system audit | Complete |
+| 02-PASS-1-STRATEGY-A-IMPLEMENTATION-PLAN.md | Architecture and roadmap | Not Started |
+
+### Pre-Strategy-A Documentation
+
+The following documentation has been archived to `archive-pre-strategy-a/`:
+- `pass1-audits/` - Original database audits
+- `pass1-enhancements/` - Pre-Strategy-A enhancements
+- `pass1-hypothesis-tests-results/` - Historical test results
 
 ---
 

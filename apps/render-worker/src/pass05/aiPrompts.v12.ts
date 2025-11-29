@@ -312,9 +312,10 @@ Extract comprehensive clinical information:
 ## 7. PAGE SEPARATION ANALYSIS
 
 In addition to encounter detection, identify safe split points WITHIN encounters for downstream batching.
-A safe split point is where content can be understood without prior context (e.g., new section header, new progres note, new date).
-Only identify the clearest, highest-confidence split points - aim for approximately 1 split point per 3 pages. For example, a 30-page encounter should have roughly 10 safe-split candidates.
-If no clear split points exist, return an empty array (i.e. \`"safe_split_points": []\`).
+Your task for this section is to scan every page within each encounter to identify safe split points whereby the encounter can be safely split into two or more smaller batches for parallel AI processing.
+A safe split point is a point where the content immediately after the split point can be understood without the context that existed before the split point (e.g., new section header, new progress note, new date).
+Prefer clear, high-confidence split points over uncertain ones. Aim for approximately 1 split point per 3 pages. For example, a 30-page encounter should have roughly 10 safe-split candidates.
+If you do NOT find any safe split points, return an empty array for the \`safe_split_points\` array (i.e. \`"safe_split_points": []\`).
 
 **Critical Rules:**
 1. DO NOT mark encounter boundaries as split points (those are handled separately)
