@@ -1,7 +1,7 @@
 # Pass 1 Strategy-A Master Design & Implementation
 
 **Created:** 2025-11-28
-**Status:** Design Phase - Phase 0 In Progress
+**Status:** Implementation Phase - Phase 0 Complete, Phase 1 Ready
 **Owner:** Xavier Flanagan
 **Last Updated:** 2025-11-29
 
@@ -25,6 +25,9 @@
 - Updated AI prompt v12: safe-split density changed to ~1/5 pages
 - Removed confidence values from AI output (not actionable, saves tokens)
 - Tested multi-chunk reconciliation: 71-page doc correctly merged 37 splits from 2 chunks
+- Audited and deleted unused `image-processing.ts` (250 lines dead code)
+- Confirmed `format-processor/` is actively used upstream (PDF/TIFF/HEIC handling)
+- **Phase 0 COMPLETE** - Ready for Phase 1: Database Setup
 
 ---
 
@@ -59,7 +62,7 @@ Pass 1 Strategy-A transforms entity detection from a heavy vision-based system (
    - 51+ pages with safe-splits: Use splits to create optimal batches
    - 51+ pages without safe-splits: Forced arbitrary splits at 50-page intervals (fallback)
 
-   **Pass 0.5 Constraint:** Max 1 safe-split point per 3 pages (matching MIN_PAGES_PER_BATCH).
+   **Pass 0.5 Constraint:** Target ~1 safe-split point per 5 pages (balances batching flexibility vs output tokens).
 
 5. **Parallel Processing**: Pass 1 leverages parallelism at two levels:
    - **Level A (Multi-Encounter)**: If a shell_file contains multiple encounters (from Pass 0.5), all encounters are processed in parallel
@@ -175,8 +178,8 @@ shared/docs/architecture/database-foundation-v3/current_schema/
 ### Scripts NOT NEEDED in Strategy-A (were used by old Pass 1)
 | File | Location | Notes |
 |------|----------|-------|
-| image-processing.ts | `utils/` | Image downscaling for vision API - NOT needed (OCR only) |
-| format-processor/ | `utils/` | PDF/TIFF processing - NOT needed (Pass 0.5 handles) |
+| ~~image-processing.ts~~ | ~~`utils/`~~ | **DELETED 2025-11-29** - Was dead code (zero imports). `format-processor/` handles all image optimization. |
+| format-processor/ | `utils/` | ACTIVELY USED upstream in worker.ts:540 for PDF/TIFF/HEIC processing before OCR. Not relevant to Pass 1 (receives post-OCR text). |
 
 ### Tables to DEPRECATE (stop writing to)
 | Table | Current Use | Strategy-A Status |
@@ -201,9 +204,9 @@ shared/docs/architecture/database-foundation-v3/current_schema/
 | pass1_bridge_schema_zones | Y-coordinate ranges per schema type |
 
 ### Tables to MODIFY (add columns)
-| Table | Column to Add | Purpose |
-|-------|---------------|---------|
-| healthcare_encounters | safe_split_points JSONB | Consolidated safe-splits from pass05 reconciliation |
+| Table | Column to Add | Purpose | Status |
+|-------|---------------|---------|--------|
+| healthcare_encounters | safe_split_points JSONB | Consolidated safe-splits from pass05 reconciliation | **DONE** - Migration 70, 2025-11-29 |
 
 ---
 
@@ -486,7 +489,7 @@ Single source of truth for progress tracking. Check off items as completed.
 | Status | Task | Notes |
 |--------|------|-------|
 | [x] | Add `safe_split_points` column to `healthcare_encounters` table | Migration 70 - 2025-11-29 |
-| [x] | Update Pass 0.5 to limit safe-split output | Updated prompt v12 to ~1 per 3 pages - 2025-11-29 |
+| [x] | Update Pass 0.5 to limit safe-split output | Updated prompt v12 to ~1 per 5 pages (reduced from 1/3 for token savings) - 2025-11-29 |
 | [x] | Update Pass 0.5 reconciler to consolidate safe-splits | Filter per-encounter from all chunks, pass to RPC - 2025-11-29 |
 | [x] | Test reconciliation with safe-split consolidation | Verified: 71-page doc, 2 chunks (12+25 splits) merged to 37 in healthcare_encounters - 2025-11-29 |
 | [x] | Audit `image-processing.ts` usage | NOT used by current pipeline. `downscaleImageBase64()` exists but is never called. `format-processor` handles all image optimization. Pass 1 Strategy-A doesn't need it (OCR-only). - 2025-11-29 |
@@ -566,7 +569,7 @@ Single source of truth for progress tracking. Check off items as completed.
 
 | Dependency | Status | Impact |
 |------------|--------|--------|
-| Pass 0.5 reconciliation must write `safe_split_points` | PENDING | Blocks Phase 3 batching |
+| Pass 0.5 reconciliation must write `safe_split_points` | **DONE** | Migration 70 + reconciler update complete |
 | Pass 1.5 must accept new entity format | TO VERIFY | May need adapter |
 | Pass 2 design must be finalized | PENDING | Bridge schema zone design depends on Pass 2 needs |
 
@@ -783,7 +786,7 @@ async processEncounterWithRetry(encounter: Encounter, maxRetries = 3): Promise<v
 | Pre-launch: delete legacy, no feature flags | 2025-11-28 | No production users, no backward compatibility needed. Simply replace old implementation. |
 | Batching config: MIN=3, MAX=10, CEILING=50 | 2025-11-29 | MIN 3 pages avoids high prompt overhead ratio (~27%). MAX 10 keeps batches manageable. CEILING 50 matches Pass 0.5 chunk size for forced splits when no safe-splits available. |
 | No job failure for missing safe-splits | 2025-11-29 | Batching is for speed, not correctness. Process as single batch if no splits available. Only use forced arbitrary splits (at 50-page intervals) as last resort for 51+ page encounters. |
-| Pass 0.5 safe-split limit: 1 per 3 pages | 2025-11-29 | Prevents excessive safe-split candidates. A 30-page encounter gets max 10 candidates, from which Pass 1 selects optimal subset. |
+| Pass 0.5 safe-split limit: ~1 per 5 pages | 2025-11-29 | Balances batching flexibility vs output tokens. Originally 1/3, reduced to 1/5 after testing showed sufficient coverage with lower token cost. |
 | Retry-until-complete (not partial saves) | 2025-11-29 | Failed batches retry while successful batches wait in memory. Encounter either fully completes or fully fails. No `pass1_partial` status - Pass 2 needs complete data to batch by zones. |
 | Y-markers added by Prompt Generator, not stored | 2025-11-29 | Database stores raw OCR text in `enhanced_ocr_text`. `[Y:###]` markers added dynamically at prompt generation. Keeps source data clean for other passes. |
 | SafeSplitType as union type | 2025-11-29 | `'header' | 'footer' | 'whitespace' | 'page_break' | 'section_end' | 'forced'` prevents magic strings and enables exhaustive switch statements. |
@@ -791,3 +794,5 @@ async processEncounterWithRetry(encounter: Encounter, maxRetries = 3): Promise<v
 | Hierarchical observability with structured tables | 2025-11-29 | Use `pass1_batch_results` and `pass1_encounter_results` tables (mirroring Pass 0.5 pattern) instead of event log. Full design in `05-hierarchical-observability-system.md`. |
 | Scope observability to AI pipeline only | 2025-11-29 | Pre-AI stages (upload, OCR) omitted from this design. Future `file_pipeline_*` and `master_pipeline_summary` tables may track full pipeline. |
 | Standardized error codes across passes | 2025-11-29 | Error taxonomy: API errors (RATE_LIMIT, API_5XX), processing errors (PARSE_JSON, CONTEXT_TOO_LARGE), data errors (OCR_QUALITY_LOW). Enables consistent debugging. |
+| Remove confidence from Pass 0.5 AI output | 2025-11-29 | AI confidence scores not actionable - quality comes from Pass 1.5 similarity and Pass 2 validation. Saves ~12 tokens/encounter + ~5 tokens/split. TypeScript defaults to 0.5. |
+| Delete unused image-processing.ts | 2025-11-29 | Zero imports in codebase. `format-processor/` handles all image optimization. Removed 250 lines of dead code. |
