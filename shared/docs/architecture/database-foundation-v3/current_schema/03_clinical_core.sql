@@ -578,6 +578,9 @@ CREATE TABLE IF NOT EXISTS healthcare_encounters (
     end_y INTEGER, -- Migration 50: Calculated split line (NULL if inter_page)
     position_confidence NUMERIC, -- Migration 50: Overall confidence in boundary positions (0.0-1.0)
 
+    -- PASS 1/2 BATCHING (Migration 70 - Strategy A)
+    safe_split_points JSONB, -- Migration 70: Per-encounter safe-split points for Pass 1/2 batching. Array of {page, split_type, marker, split_y, confidence} filtered from shell_files.page_separation_analysis
+
     -- RECONCILIATION TRACKING (Migration 50 - Strategy A)
     completed_at TIMESTAMPTZ, -- Migration 50: When reconciliation created this final encounter
     reconciled_from_pendings INTEGER, -- Migration 50: Count of pending encounters merged into this

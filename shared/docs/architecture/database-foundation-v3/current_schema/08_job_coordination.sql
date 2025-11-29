@@ -539,7 +539,7 @@ BEGIN
   FROM pass05_pending_encounters
   WHERE id = p_pending_ids[1];
 
-  -- Insert final encounter atomically (EXTENDED with identity fields - Migration 58)
+  -- Insert final encounter atomically (EXTENDED with safe_split_points - Migration 70)
   INSERT INTO healthcare_encounters (
     patient_id,
     source_shell_file_id,
@@ -568,6 +568,7 @@ BEGIN
     end_text_height,
     end_y,
     position_confidence,
+    safe_split_points,         -- Migration 70: Per-encounter safe splits for Pass 1/2 batching
     page_ranges,
     pass_0_5_confidence,
     summary,
@@ -618,6 +619,7 @@ BEGIN
     (p_encounter_data->>'end_text_height')::INTEGER,
     (p_encounter_data->>'end_y')::INTEGER,
     (p_encounter_data->>'position_confidence')::NUMERIC,
+    (p_encounter_data->'safe_split_points')::JSONB,    -- Migration 70: Safe split points (JSONB not text)
     -- Migration 55: Proper JSONB array to PostgreSQL array conversion
     (SELECT ARRAY(
       SELECT ARRAY[(elem->0)::INTEGER, (elem->1)::INTEGER]
@@ -676,13 +678,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION reconcile_pending_to_final IS
-  'Migration 58: Extended reconcile_pending_to_final to extract identity fields from JSONB.
-   Now extracts patient_full_name, patient_date_of_birth, patient_address, and chief_complaint
-   from p_encounter_data JSONB parameter and writes to healthcare_encounters.
+  'Migration 70: Extended to include safe_split_points for Pass 1/2 batching.
+   Migration 58: Extended to extract identity fields from JSONB.
+   Now extracts patient_full_name, patient_date_of_birth, patient_address, chief_complaint,
+   and safe_split_points from p_encounter_data JSONB parameter and writes to healthcare_encounters.
    These fields must be added to the JSONB by TypeScript reconciler using pickBestValue()
    and normalizeDateToISO() helpers. See STRATEGY-A-DATA-QUALITY-AUDIT.md Issue #8.
    (Migrations 52-53: column names, Migration 55: page_ranges array conversion,
-   Migration 56: pending_id type mismatch fix, Migration 57: audit trail and tracking fields)';
+   Migration 56: pending_id type mismatch fix, Migration 57: audit trail and tracking fields,
+   Migration 70: safe_split_points for Pass 1/2 batching)';
 
 
 -- RPC #1.5: Manual Review Queue Entry Creation (Migration 65)

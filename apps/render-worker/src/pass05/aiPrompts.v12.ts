@@ -313,7 +313,7 @@ Extract comprehensive clinical information:
 
 In addition to encounter detection, identify safe split points WITHIN encounters for downstream batching.
 A safe split point is where content can be understood without prior context (e.g., new section header, new progres note, new date).
-Only identify the clearest, highest-confidence split points - do not exceed 1 split point per 10 pages.
+Only identify the clearest, highest-confidence split points - aim for approximately 1 split point per 3 pages. For example, a 30-page encounter should have roughly 10 safe-split candidates.
 If no clear split points exist, return an empty array (i.e. \`"safe_split_points": []\`).
 
 **Critical Rules:**

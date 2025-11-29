@@ -23,6 +23,34 @@ import {
 } from './database';
 
 /**
+ * Filter safe split points for a specific encounter's page range
+ * Migration 70: Per-encounter safe-splits for Pass 1/2 batching
+ *
+ * @param allSplits - All safe split points from chunk results
+ * @param startPage - First page of encounter (1-indexed)
+ * @param endPage - Last page of encounter (1-indexed)
+ * @returns Filtered array of safe split points within the encounter's page range
+ */
+function filterSafeSplitsForEncounter(
+  allSplits: any[],
+  startPage: number,
+  endPage: number
+): any[] {
+  if (!allSplits || allSplits.length === 0) return [];
+
+  return allSplits.filter(split => {
+    // Handle both inter_page (between_pages) and intra_page (page) formats
+    const splitPage = split.split_type === 'inter_page'
+      ? (split.between_pages?.[0] ?? split.page ?? 0)
+      : (split.page ?? 0);
+
+    // Include split points that fall within the encounter's page range
+    // Note: for inter_page splits, the page number is the page AFTER the split
+    return splitPage >= startPage && splitPage <= endPage;
+  });
+}
+
+/**
  * Pick best value from array of nullable strings
  * Migration 58: Helper for identity field merging
  *
@@ -499,13 +527,35 @@ export async function reconcilePendingEncounters(
 
   console.log(`[Reconcile] Found ${pendings.length} pending encounters`);
 
-  // STEP 3: Group by cascade_id
+  // STEP 3: Fetch all safe split points from chunk results (Migration 70)
+  // Must be done before processing encounters so each encounter can filter its own splits
+  const chunkResults = await getChunkResultsForSession(sessionId);
+  const allSafeSplitPoints: any[] = [];
+  for (const chunk of chunkResults) {
+    const analysis = chunk.page_separation_analysis;
+    if (analysis?.safe_split_points) {
+      allSafeSplitPoints.push(...analysis.safe_split_points);
+    }
+  }
+  // Sort by page number for consistent processing
+  allSafeSplitPoints.sort((a, b) => {
+    const pageA = a.split_type === 'inter_page'
+      ? (a.between_pages?.[0] ?? a.page ?? 0)
+      : (a.page ?? 0);
+    const pageB = b.split_type === 'inter_page'
+      ? (b.between_pages?.[0] ?? b.page ?? 0)
+      : (b.page ?? 0);
+    return pageA - pageB;
+  });
+  console.log(`[Reconcile] Found ${allSafeSplitPoints.length} total safe split points for filtering`);
+
+  // STEP 4: Group by cascade_id
   const cascadeGroups = groupPendingsByCascade(pendings);
   console.log(`[Reconcile] Grouped into ${cascadeGroups.size} cascades`);
 
   const finalEncounterIds: string[] = [];
 
-  // STEP 4: Process each cascade group
+  // STEP 5: Process each cascade group
   for (const [cascadeId, groupPendings] of cascadeGroups) {
     try {
       console.log(`[Reconcile] Processing cascade ${cascadeId || 'null'} (${groupPendings.length} pendings)`);
@@ -648,6 +698,14 @@ export async function reconcilePendingEncounters(
 
         position_confidence: mergedPosition.position_confidence,
 
+        // Migration 70: Per-encounter safe split points for Pass 1/2 batching
+        // Filter from all splits to only those within this encounter's page range
+        safe_split_points: filterSafeSplitsForEncounter(
+          allSafeSplitPoints,
+          mergedPosition.start_page,
+          mergedPosition.end_page
+        ),
+
         // Page ranges and metadata
         page_ranges: mergedPageRanges,
         pass_0_5_confidence: firstPending.confidence,             // Top-level column
@@ -708,7 +766,7 @@ export async function reconcilePendingEncounters(
         encounterData
       );
 
-      console.log(`[Reconcile] Created final encounter ${finalEncounterId} from ${pendingIds.length} pendings`);
+      console.log(`[Reconcile] Created final encounter ${finalEncounterId} from ${pendingIds.length} pendings (${encounterData.safe_split_points?.length || 0} safe splits)`);
 
       // Migration 65: Check for DOB sanity check failure and enqueue manual review
       if (dobResult.parseMethod === 'failed_sanity_check') {
@@ -775,10 +833,10 @@ export async function reconcilePendingEncounters(
     }
   }
 
-  // STEP 5: Aggregate batching analysis to shell_files
+  // STEP 6: Aggregate batching analysis to shell_files (still needed for file-level view)
   await aggregateBatchingAnalysis(sessionId, shellFileId, totalPages);
 
-  // STEP 6: Update metrics after reconciliation (Migration 60: Decoupled from ai_processing_sessions)
+  // STEP 7: Update metrics after reconciliation (Migration 60: Decoupled from ai_processing_sessions)
   try {
     // Migration 60: RPC is now self-contained - only needs shell_file_id
     // The function will self-heal (create metrics record if missing) and query pass05_progressive_sessions
