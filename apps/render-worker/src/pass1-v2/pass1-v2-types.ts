@@ -348,7 +348,7 @@ export const DEFAULT_PASS1_CONFIG: Partial<Pass1Config> = {
   batch_min_pages: 3,
   batch_max_pages: 10,
   batch_hard_ceiling: 50,
-  include_zones_in_prompt: false  // TESTING: Disabled zones to test entity extraction quality
+  include_zones_in_prompt: true  // Production: zones enabled
 };
 
 // =============================================================================
