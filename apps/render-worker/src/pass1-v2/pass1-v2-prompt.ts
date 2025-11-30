@@ -49,30 +49,33 @@ export function buildUserPrompt(
   let prompt = `ENCOUNTER OCR TEXT (Y-coordinates per line):
 ${ocrText}
 
-TASK (TWO PHASES):
+TASK: Extract every clinical entity from this document.
 
-PHASE 1 - MAP THE DOCUMENT:
-Scan the entire document and identify bridge_schema_zones - Y-ranges where specific schema types apply.
-For each zone, count how many entities of that schema_type exist within that Y-range.
+STEP 1 - LINE-BY-LINE EXTRACTION:
+Read EVERY line of the document. For each line, determine:
+- Does this line contain a clinical entity?
+- If yes, extract it with its exact text, entity_type, page_number, and y_coordinate
 
-PHASE 2 - EXTRACT ENTITIES:
-Extract ALL clinical entities. Work through each zone systematically to ensure nothing is missed.
+STEP 2 - GROUP INTO ZONES:
+After extracting all entities, group them into bridge_schema_zones.
+A zone is a contiguous Y-range on a page where entities of the same type cluster.
 
 ENTITY TYPES: ${entityTypesList}
 
-ZONE RULES:
-- Each zone has ONE schema_type
-- Zones on the same page MAY overlap (e.g., a Y-range could have both a "medications" zone and a "conditions" zone)
-- entity_count = number of entities matching this zone's schema_type within this Y-range
-
 EXTRACTION RULES:
-- Extract EVERY clinical entity, even if the same item appears multiple times
-- Each prescription entry is a SEPARATE entity (same drug on different dates = multiple entities)
-- Sections may span multiple pages - continue extracting across page boundaries
-- When uncertain, include the entity rather than omit it
+- A clinical entity is ANY mention of a drug, disease, procedure, vaccine, allergy, test result, vital measurement, or clinical observation
+- Read every line - entities may be scattered throughout without section headers
+- The same entity appearing multiple times = multiple separate entries (e.g., same drug prescribed on different dates)
 - Extract the EXACT text as it appears in the document for original_text
 - Use y_coordinate from the [Y:###] marker for that line
-- Aliases: 1-3 common alternatives for medical code lookup (SNOMED, RxNorm, LOINC)`;
+- When uncertain whether something is a clinical entity, include it
+- Aliases: 1-3 common alternatives for medical code lookup (SNOMED, RxNorm, LOINC)
+
+ZONE RULES:
+- One zone per schema_type per contiguous Y-range
+- Zones of different types on the same page MAY overlap
+- entity_count must match the number of entities you extracted for that zone
+- A clinical section continuing from one page to the next = separate zones (different pages)`;
 
   // Add page context if provided
   if (pageNumber !== undefined) {
@@ -84,61 +87,14 @@ EXTRACTION RULES:
     prompt += `\n- ${batchInfo}`;
   }
 
-  // Add output schema
+  // Add output schema with multi-page example
   prompt += `
 
 OUTPUT JSON SCHEMA:
 {
-  "bridge_schema_zones": [
-    {
-      "schema_type": "conditions",
-      "page_number": 1,
-      "y_start": 200,
-      "y_end": 400,
-      "entity_count": 2
-    },
-    {
-      "schema_type": "procedures",
-      "page_number": 1,
-      "y_start": 200,
-      "y_end": 400,
-      "entity_count": 1
-    },
-    {
-      "schema_type": "medications",
-      "page_number": 1,
-      "y_start": 500,
-      "y_end": 900,
-      "entity_count": 3
-    }
-  ],
   "entities": [
     {
       "id": "e1",
-      "original_text": "Type 2 Diabetes",
-      "entity_type": "condition",
-      "aliases": ["diabetes mellitus type 2", "T2DM"],
-      "y_coordinate": 220,
-      "page_number": 1
-    },
-    {
-      "id": "e2",
-      "original_text": "Hypertension",
-      "entity_type": "condition",
-      "aliases": ["high blood pressure", "HTN"],
-      "y_coordinate": 280,
-      "page_number": 1
-    },
-    {
-      "id": "e3",
-      "original_text": "Appendectomy",
-      "entity_type": "procedure",
-      "aliases": ["appendix removal"],
-      "y_coordinate": 350,
-      "page_number": 1
-    },
-    {
-      "id": "e4",
       "original_text": "Metformin 500mg Tablet",
       "entity_type": "medication",
       "aliases": ["metformin", "glucophage"],
@@ -146,26 +102,121 @@ OUTPUT JSON SCHEMA:
       "page_number": 1
     },
     {
-      "id": "e5",
+      "id": "e2",
       "original_text": "Lisinopril 10mg Tablet",
       "entity_type": "medication",
-      "aliases": ["lisinopril", "prinivil", "zestril"],
-      "y_coordinate": 650,
+      "aliases": ["lisinopril", "zestril"],
+      "y_coordinate": 620,
       "page_number": 1
     },
     {
-      "id": "e6",
-      "original_text": "Metformin 500mg Tablet",
-      "entity_type": "medication",
-      "aliases": ["metformin", "glucophage"],
-      "y_coordinate": 750,
+      "id": "e3",
+      "original_text": "Type 2 Diabetes",
+      "entity_type": "condition",
+      "aliases": ["diabetes mellitus type 2", "T2DM"],
+      "y_coordinate": 900,
       "page_number": 1
+    },
+    {
+      "id": "e4",
+      "original_text": "Hypertension",
+      "entity_type": "condition",
+      "aliases": ["high blood pressure", "HTN"],
+      "y_coordinate": 950,
+      "page_number": 1
+    },
+    {
+      "id": "e5",
+      "original_text": "Ruptured spleen",
+      "entity_type": "condition",
+      "aliases": ["splenic rupture"],
+      "y_coordinate": 130,
+      "page_number": 2
+    },
+    {
+      "id": "e6",
+      "original_text": "Pneumonia",
+      "entity_type": "condition",
+      "aliases": ["lung infection"],
+      "y_coordinate": 200,
+      "page_number": 2
+    },
+    {
+      "id": "e7",
+      "original_text": "Influenza Vaccine",
+      "entity_type": "immunisation",
+      "aliases": ["flu shot", "flu vaccine"],
+      "y_coordinate": 500,
+      "page_number": 2
+    },
+    {
+      "id": "e8",
+      "original_text": "COVID-19 Vaccine",
+      "entity_type": "immunisation",
+      "aliases": ["covid vaccine", "coronavirus vaccine"],
+      "y_coordinate": 550,
+      "page_number": 2
+    },
+    {
+      "id": "e9",
+      "original_text": "Hepatitis B Vaccine",
+      "entity_type": "immunisation",
+      "aliases": ["hep B vaccine"],
+      "y_coordinate": 600,
+      "page_number": 2
+    },
+    {
+      "id": "e10",
+      "original_text": "Doxycycline 100mg Capsule",
+      "entity_type": "medication",
+      "aliases": ["doxycycline"],
+      "y_coordinate": 950,
+      "page_number": 2
+    }
+  ],
+  "bridge_schema_zones": [
+    {
+      "schema_type": "medications",
+      "page_number": 1,
+      "y_start": 550,
+      "y_end": 620,
+      "entity_count": 2
+    },
+    {
+      "schema_type": "conditions",
+      "page_number": 1,
+      "y_start": 900,
+      "y_end": 950,
+      "entity_count": 2
+    },
+    {
+      "schema_type": "conditions",
+      "page_number": 2,
+      "y_start": 130,
+      "y_end": 200,
+      "entity_count": 2
+    },
+    {
+      "schema_type": "immunisations",
+      "page_number": 2,
+      "y_start": 500,
+      "y_end": 600,
+      "entity_count": 3
+    },
+    {
+      "schema_type": "medications",
+      "page_number": 2,
+      "y_start": 950,
+      "y_end": 950,
+      "entity_count": 1
     }
   ]
 }
 
-Note: Zone entity_count must match the number of extracted entities for that schema_type within that Y-range.
-Example above shows: conditions zone (entity_count: 2) has e1, e2; procedures zone (entity_count: 1) has e3; medications zone (entity_count: 3) has e4, e5, e6.
+The example above shows:
+- Page 1: 2 medications (e1, e2), 2 conditions (e3, e4)
+- Page 2: 2 conditions continued from previous page (e5, e6), 3 immunisations (e7, e8, e9), 1 medication (e10)
+- 5 zones total across 2 pages, with entity_count matching actual entities in each zone
 
 Output ONLY valid JSON matching this schema. No explanations or markdown.`;
 
