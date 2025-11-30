@@ -263,11 +263,21 @@ function validateZone(raw: any, index: number): Pass1BridgeSchemaZone {
       : parseInt(String(raw.page_number), 10) || 1;
   }
 
+  // Normalize entity_count (optional)
+  let entityCount: number | undefined;
+  if (raw.entity_count !== undefined && raw.entity_count !== null) {
+    const parsedCount = typeof raw.entity_count === 'number'
+      ? raw.entity_count
+      : parseInt(String(raw.entity_count), 10);
+    entityCount = isNaN(parsedCount) ? undefined : parsedCount;
+  }
+
   return {
     schema_type: raw.schema_type.trim().toLowerCase(),
     page_number: pageNumber,
     y_start: finalYStart,
-    y_end: finalYEnd
+    y_end: finalYEnd,
+    entity_count: entityCount
   };
 }
 

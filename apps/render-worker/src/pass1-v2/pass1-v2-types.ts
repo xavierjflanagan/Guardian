@@ -89,6 +89,7 @@ export interface Pass1BridgeSchemaZone {
   page_number: number;   // 1-indexed page number
   y_start: number;       // Top of zone
   y_end: number;         // Bottom of zone
+  entity_count?: number; // Expected count of entities in this zone (for validation)
 }
 
 /**
