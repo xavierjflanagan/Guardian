@@ -22,7 +22,8 @@ export type Pass1EntityType =
   | 'allergy'
   | 'lab_result'
   | 'vital_sign'
-  | 'physical_finding';
+  | 'physical_finding'
+  | 'immunisation';
 
 /**
  * Valid entity types for runtime validation
@@ -35,7 +36,8 @@ export const VALID_ENTITY_TYPES: Pass1EntityType[] = [
   'allergy',
   'lab_result',
   'vital_sign',
-  'physical_finding'
+  'physical_finding',
+  'immunisation'
 ];
 
 // =============================================================================

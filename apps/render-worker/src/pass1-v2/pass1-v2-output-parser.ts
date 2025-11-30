@@ -207,7 +207,14 @@ function mapEntityType(rawType: string): Pass1EntityType | null {
 
     // Observation variations
     'note': 'observation',
-    'clinical_note': 'observation'
+    'clinical_note': 'observation',
+
+    // Immunisation variations (US spelling -> international)
+    'immunization': 'immunisation',
+    'immunizations': 'immunisation',
+    'immunisations': 'immunisation',
+    'vaccine': 'immunisation',
+    'vaccination': 'immunisation'
   };
 
   return mappings[normalized] || null;

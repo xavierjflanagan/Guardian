@@ -274,7 +274,8 @@ export const ENTITY_TO_SCHEMA_TYPE: Record<Pass1EntityType, string> = {
   'allergy': 'allergies',
   'lab_result': 'lab_results',
   'vital_sign': 'vitals',
-  'physical_finding': 'physical_findings'
+  'physical_finding': 'physical_findings',
+  'immunisation': 'immunisations'
 };
 
 /**
