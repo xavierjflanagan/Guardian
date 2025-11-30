@@ -10,11 +10,11 @@
 //   2. Format preprocessing (extract pages, convert to JPEG)
 //   3. OCR processing (Google Cloud Vision)
 //   4. Pass 0.5: Encounter discovery (ACTIVE)
-//   5. Pass 1: Entity detection (READY - disabled for Pass 0.5 testing)
+//   5. Pass 1: Entity detection (ACTIVE - Strategy-A v2, OCR-only)
 //   6. Pass 2: Clinical extraction (PLACEHOLDER - not yet implemented)
 //   7. Pass 3: Narrative generation (FUTURE - not yet designed)
 //
-// Version: 2.0 (Refactored 2025-11-27)
+// Version: 2.1 (Pass 1 v2 integration 2025-11-29)
 // =============================================================================
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -23,7 +23,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const supabase_js_1 = require("@supabase/supabase-js");
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const pass1_1 = require("./pass1");
+const pass1_v2_1 = require("./pass1-v2");
 const pass05_1 = require("./pass05");
 const checksum_1 = require("./utils/checksum");
 const ocr_persistence_1 = require("./utils/ocr-persistence");
@@ -78,10 +78,8 @@ const config = {
     passes: {
         // Control which AI passes are enabled
         pass05Enabled: true, // Encounter discovery - ALWAYS ENABLED
-        pass1Enabled: process.env.ENABLE_PASS1 === 'true', // Entity detection - DISABLED by default for testing
+        pass1Enabled: true, // Entity detection - Strategy-A v2 (OCR-only, no env flag needed)
         pass2Enabled: false, // Clinical extraction - NOT YET IMPLEMENTED
-        // Strategy-A: OCR-only mode for Pass 1 (no vision, ~60% cost reduction)
-        pass1OcrOnly: process.env.PASS1_OCR_ONLY === 'true', // Default: false (use legacy vision mode)
     },
 };
 // =============================================================================
@@ -105,25 +103,12 @@ class V3Worker {
             worker_id: this.workerId,
         });
         this.supabase = (0, supabase_js_1.createClient)(config.supabase.url, config.supabase.serviceRoleKey);
-        // Initialize Pass 1 detector if enabled and OpenAI key is available
-        if (config.passes.pass1Enabled && config.openai.apiKey) {
-            const pass1Config = {
-                openai_api_key: config.openai.apiKey,
-                model: 'gpt-5-mini', // PRODUCTION: GPT-5-mini for optimal cost/performance
-                temperature: 0.1,
-                max_tokens: 32000, // Safe limit for GPT-5-mini (supports up to 128k)
-                confidence_threshold: 0.7,
-            };
-            this.logger.debug('Pass 1 configuration', {
-                model: pass1Config.model,
-                max_tokens: pass1Config.max_tokens,
-                temperature: pass1Config.temperature,
+        // Initialize Pass 1 v2 detector (Strategy-A: OCR-only)
+        if (config.openai.apiKey) {
+            this.pass1Detector = (0, pass1_v2_1.createPass1Detector)(this.supabase, {
+                openai_api_key: config.openai.apiKey
             });
-            this.pass1Detector = new pass1_1.Pass1EntityDetector(pass1Config);
-            this.logger.info('Pass 1 Entity Detector initialized');
-        }
-        else if (!config.passes.pass1Enabled) {
-            this.logger.info('Pass 1 disabled via configuration (ENABLE_PASS1=false)');
+            this.logger.info('Pass 1 v2 Detector initialized (Strategy-A)');
         }
         else {
             this.logger.warn('Pass 1 disabled - OpenAI API key not found');
@@ -377,30 +362,15 @@ class V3Worker {
         // Run Pass 0.5 (Encounter Discovery) - ALWAYS ENABLED
         const processingSessionId = crypto.randomUUID();
         const pass05Result = await this.runPass05(payload, ocrResult, processingSessionId);
-        // Run Pass 1 (Entity Detection) - OPTIONAL (controlled by config flag)
-        if (config.passes.pass1Enabled) {
-            await this.runPass1(payload, ocrResult, processingSessionId, job);
-            return {
-                success: true,
-                shell_file_id: payload.shell_file_id,
-                pass_05_result: pass05Result,
-                message: 'Pass 0.5 and Pass 1 completed successfully',
-            };
-        }
-        else {
-            // Pass 1 disabled - return after Pass 0.5
-            this.logger.info('Pass 1 disabled - returning early after Pass 0.5', {
-                shell_file_id: payload.shell_file_id,
-                note: 'Set ENABLE_PASS1=true to enable Pass 1 entity detection'
-            });
-            return {
-                success: true,
-                shell_file_id: payload.shell_file_id,
-                pass_05_only: true,
-                pass_05_result: pass05Result,
-                message: 'Pass 0.5 completed successfully. Pass 1 disabled via configuration.',
-            };
-        }
+        // Run Pass 1 (Entity Detection) - Strategy-A v2
+        const pass1Result = await this.runPass1(payload, processingSessionId);
+        return {
+            success: true,
+            shell_file_id: payload.shell_file_id,
+            pass_05_result: pass05Result,
+            pass_1_result: pass1Result,
+            message: 'Pass 0.5 and Pass 1 completed successfully',
+        };
     }
     /**
      * Run OCR processing pipeline
@@ -948,320 +918,45 @@ class V3Worker {
         return pass05Result;
     }
     // ---------------------------------------------------------------------------
-    // 3.7: PASS 1 - ENTITY DETECTION (READY - DISABLED FOR TESTING)
+    // 3.7: PASS 1 - ENTITY DETECTION (Strategy-A v2)
     // ---------------------------------------------------------------------------
     /**
-     * Run Pass 1 entity detection
-     * Detects and classifies all entities in medical documents
+     * Run Pass 1 entity detection using Strategy-A v2
      *
-     * TWO MODES:
-     * - Legacy (vision): Downloads image + builds SpatialElement[] from OCR blocks
-     * - OCR-only (Strategy-A): Loads enhanced OCR Y-only text, no image download
+     * Strategy-A v2 is OCR-only (no vision), processes encounters from
+     * healthcare_encounters table, and writes to new pass1_* tables.
      *
-     * NOTE: Currently disabled by default (config.passes.pass1Enabled = false)
-     * To enable: Set environment variable ENABLE_PASS1=true
-     * To use OCR-only mode: Set environment variable PASS1_OCR_ONLY=true
+     * The Pass1Detector handles internally:
+     * - Loading encounters from healthcare_encounters
+     * - Loading OCR from Supabase Storage (enhanced-ocr-y.txt)
+     * - Batching large encounters using safe-split points
+     * - Retry-until-complete pattern for failed batches
+     * - Writing to pass1_entity_detections, pass1_bridge_schema_zones, etc.
      */
-    async runPass1(payload, ocrResult, processingSessionId, _job) {
-        const ocrOnlyMode = config.passes.pass1OcrOnly;
-        this.logger.info('Starting Pass 1 entity detection', {
-            shell_file_id: payload.shell_file_id,
-            page_count: ocrResult.pages.length,
-            mode: ocrOnlyMode ? 'ocr_only' : 'legacy_vision',
-        });
-        if (ocrOnlyMode) {
-            // =========================================================================
-            // OCR-ONLY MODE (Strategy-A)
-            // Load enhanced OCR Y-only format, no image download
-            // Expected ~60% cost reduction from removing image tokens
-            // =========================================================================
-            return await this.runPass1OCROnly(payload, ocrResult, processingSessionId);
-        }
-        // =========================================================================
-        // LEGACY MODE (Vision + OCR)
-        // Download image and build SpatialElement[] from OCR blocks
-        // =========================================================================
-        // Download first processed image for Vision AI
-        const { data: shellFileRecord, error: shellFileError } = await this.supabase
-            .from('shell_files')
-            .select('processed_image_path')
-            .eq('id', payload.shell_file_id)
-            .single();
-        if (shellFileError || !shellFileRecord?.processed_image_path) {
-            throw new Error(`Failed to fetch processed_image_path for shell_file ${payload.shell_file_id}`);
-        }
-        const firstPagePath = `${shellFileRecord.processed_image_path}/page-1.jpg`;
-        const imageDownloadResult = await (0, retry_1.retryStorageDownload)(async () => {
-            return await this.supabase.storage
-                .from('medical-docs')
-                .download(firstPagePath);
-        });
-        if (imageDownloadResult.error || !imageDownloadResult.data) {
-            throw new Error(`Failed to download processed image: ${imageDownloadResult.error?.message}`);
-        }
-        const imageBlob = imageDownloadResult.data;
-        const processedImageBuffer = Buffer.from(await imageBlob.arrayBuffer());
-        const processedImageBase64 = processedImageBuffer.toString('base64');
-        this.logger.info('First processed image downloaded for Vision AI', {
-            shell_file_id: payload.shell_file_id,
-            image_path: firstPagePath,
-            image_size_bytes: processedImageBuffer.length,
-        });
-        // Build Pass1Input (legacy format)
-        const pass1Input = {
-            shell_file_id: payload.shell_file_id,
-            patient_id: payload.patient_id,
-            processing_session_id: processingSessionId,
-            raw_file: {
-                file_data: processedImageBase64,
-                file_type: 'image/jpeg',
-                filename: payload.uploaded_filename,
-                file_size: processedImageBuffer.length
-            },
-            ocr_spatial_data: {
-                extracted_text: ocrResult.pages.map((p) => p.spatially_sorted_text).join(' '),
-                spatial_mapping: ocrResult.pages.flatMap((page) => page.blocks.flatMap((block) => block.paragraphs.flatMap((para) => para.words.map((word) => ({
-                    text: word.text,
-                    page_number: page.page_number,
-                    bounding_box: {
-                        x: Math.min(...word.boundingBox.vertices.map((v) => v.x)),
-                        y: Math.min(...word.boundingBox.vertices.map((v) => v.y)),
-                        width: Math.max(...word.boundingBox.vertices.map((v) => v.x)) - Math.min(...word.boundingBox.vertices.map((v) => v.x)),
-                        height: Math.max(...word.boundingBox.vertices.map((v) => v.y)) - Math.min(...word.boundingBox.vertices.map((v) => v.y))
-                    },
-                    line_number: 0,
-                    word_index: 0,
-                    confidence: word.confidence
-                }))))),
-                ocr_confidence: 0.85, // TODO: Calculate from blocks
-                processing_time_ms: 0,
-                ocr_provider: 'google_vision'
-            },
-            document_metadata: {
-                filename: payload.uploaded_filename,
-                file_type: payload.mime_type,
-                page_count: ocrResult.pages.length,
-                upload_timestamp: new Date().toISOString()
-            }
-        };
-        // Process with Pass 1 entity detection (legacy)
-        return await this.processPass1EntityDetection(pass1Input);
-    }
-    /**
-     * Run Pass 1 in OCR-only mode (Strategy-A)
-     * Uses enhanced OCR Y-only format instead of raw image + old OCR format
-     *
-     * Benefits:
-     * - ~60% cost reduction (removes ~6,200 image tokens per page)
-     * - Faster processing (no image download/encoding)
-     * - Consistent with Pass 0.5 OCR-primary architecture
-     */
-    async runPass1OCROnly(payload, ocrResult, processingSessionId) {
-        // Load enhanced OCR Y-only format from storage
-        const enhancedOCR = await (0, ocr_persistence_1.loadEnhancedOCR_Y)(this.supabase, payload.patient_id, payload.shell_file_id);
-        if (!enhancedOCR) {
-            // Fall back to generating on-the-fly if not in storage
-            this.logger.warn('Enhanced OCR Y-only not found in storage, generating on-the-fly', {
-                shell_file_id: payload.shell_file_id,
-            });
-            // Generate Y-only format from OCR result
-            const generatedOCR = ocrResult.pages.map((page) => page.lines?.map((line) => `[Y:${Math.round(line.bbox?.y || 0)}] ${line.text}`).join('\n') || page.spatially_sorted_text).join('\n\n--- PAGE BREAK ---\n\n');
-            return await this.processPass1OCROnlyDetection(payload, generatedOCR, processingSessionId, ocrResult.pages.length);
-        }
-        this.logger.info('Enhanced OCR Y-only loaded from storage', {
-            shell_file_id: payload.shell_file_id,
-            enhanced_ocr_bytes: enhancedOCR.length,
-        });
-        return await this.processPass1OCROnlyDetection(payload, enhancedOCR, processingSessionId, ocrResult.pages.length);
-    }
-    /**
-     * Process Pass 1 entity detection in OCR-only mode
-     * Calls OpenAI with OCR-only prompt (no vision)
-     */
-    async processPass1OCROnlyDetection(payload, enhancedOCR, processingSessionId, pageCount) {
+    async runPass1(payload, processingSessionId) {
         if (!this.pass1Detector) {
             throw new Error('Pass 1 detector not initialized - OpenAI API key may be missing');
         }
-        this.logger.info('Running Pass 1 OCR-only entity detection', {
+        this.logger.info('Starting Pass 1 v2 entity detection (Strategy-A)', {
             shell_file_id: payload.shell_file_id,
-            processing_session_id: processingSessionId,
-            enhanced_ocr_bytes: enhancedOCR.length,
-            mode: 'ocr_only',
         });
-        // Build OCR-only input
-        const pass1InputOCROnly = {
+        const result = await this.pass1Detector.processShellFile({
             shell_file_id: payload.shell_file_id,
             patient_id: payload.patient_id,
-            processing_session_id: processingSessionId,
-            enhanced_ocr_text: enhancedOCR,
-            document_metadata: {
-                filename: payload.uploaded_filename,
-                file_type: payload.mime_type,
-                page_count: pageCount,
-                upload_timestamp: new Date().toISOString()
-            },
-            ocr_metadata: {
-                ocr_provider: 'google_vision',
-                ocr_format: 'y_only',
-                enhanced_ocr_bytes: enhancedOCR.length,
-                ocr_confidence: 0.85 // TODO: Calculate from OCR result
-            }
-        };
-        // Process with Pass 1 OCR-only detection
-        const result = await this.pass1Detector.processDocumentOCROnly(pass1InputOCROnly);
+            processing_session_id: processingSessionId
+        });
         if (!result.success) {
-            throw new Error(`Pass 1 OCR-only processing failed: ${result.error}`);
+            throw new Error(`Pass 1 failed: ${result.errorSummary || 'Unknown error'}`);
         }
-        this.logger.info('Pass 1 OCR-only entity detection completed', {
+        this.logger.info('Pass 1 v2 entity detection completed', {
             shell_file_id: payload.shell_file_id,
-            total_entities: result.total_entities_detected,
-            clinical_events: result.entities_by_category.clinical_event,
-            healthcare_context: result.entities_by_category.healthcare_context,
-            document_structure: result.entities_by_category.document_structure,
-            mode: 'ocr_only',
+            encounters_processed: result.encountersProcessed,
+            encounters_succeeded: result.encountersSucceeded,
+            total_entities: result.totalEntities,
+            total_zones: result.totalZones,
+            duration_ms: result.totalDurationMs,
         });
-        // Get ALL Pass 1 database records (7 tables)
-        const dbRecords = await this.pass1Detector.getAllDatabaseRecordsOCROnly(pass1InputOCROnly);
-        // Insert into ALL 7 Pass 1 tables
-        await this.insertPass1DatabaseRecords(dbRecords, payload.shell_file_id);
-        this.logger.info('Pass 1 OCR-only complete - inserted records into 7 tables', {
-            shell_file_id: payload.shell_file_id,
-            entity_audit_records: result.records_created.entity_audit,
-            confidence_scoring_records: result.records_created.confidence_scoring,
-            manual_review_records: result.records_created.manual_review_queue,
-            mode: 'ocr_only',
-        });
-        // Update shell_files with completion tracking
-        await this.supabase
-            .from('shell_files')
-            .update({
-            status: 'pass1_complete',
-            processing_completed_at: new Date().toISOString()
-        })
-            .eq('id', payload.shell_file_id);
         return result;
-    }
-    /**
-     * Process Pass 1 Entity Detection
-     * Inserts results into 7 database tables
-     */
-    async processPass1EntityDetection(payload) {
-        if (!this.pass1Detector) {
-            throw new Error('Pass 1 detector not initialized - OpenAI API key may be missing');
-        }
-        this.logger.info('Running Pass 1 entity detection', {
-            shell_file_id: payload.shell_file_id,
-            processing_session_id: payload.processing_session_id,
-            ocr_text_length: payload.ocr_spatial_data.extracted_text.length,
-            spatial_mapping_elements: payload.ocr_spatial_data.spatial_mapping.length,
-        });
-        // Run Pass 1 processing
-        const result = await this.pass1Detector.processDocument(payload);
-        if (!result.success) {
-            throw new Error(`Pass 1 processing failed: ${result.error}`);
-        }
-        this.logger.info('Pass 1 entity detection completed', {
-            shell_file_id: payload.shell_file_id,
-            total_entities: result.total_entities_detected,
-            clinical_events: result.entities_by_category.clinical_event,
-            healthcare_context: result.entities_by_category.healthcare_context,
-            document_structure: result.entities_by_category.document_structure,
-        });
-        // Get ALL Pass 1 database records (7 tables)
-        const dbRecords = await this.pass1Detector.getAllDatabaseRecords(payload);
-        // Insert into ALL 7 Pass 1 tables
-        await this.insertPass1DatabaseRecords(dbRecords, payload.shell_file_id);
-        this.logger.info('Pass 1 complete - inserted records into 7 tables', {
-            shell_file_id: payload.shell_file_id,
-            entity_audit_records: result.records_created.entity_audit,
-            confidence_scoring_records: result.records_created.confidence_scoring,
-            manual_review_records: result.records_created.manual_review_queue,
-        });
-        // Update shell_files with completion tracking
-        await this.supabase
-            .from('shell_files')
-            .update({
-            status: 'pass1_complete',
-            processing_completed_at: new Date().toISOString()
-        })
-            .eq('id', payload.shell_file_id);
-        return result;
-    }
-    /**
-     * Insert Pass 1 records into all 7 database tables
-     */
-    async insertPass1DatabaseRecords(records, shellFileId) {
-        // 1. UPSERT ai_processing_sessions
-        const { error: sessionError } = await this.supabase
-            .from('ai_processing_sessions')
-            .upsert(records.ai_processing_session, { onConflict: 'id' });
-        if (sessionError) {
-            throw new Error(`Failed to upsert ai_processing_sessions: ${sessionError.message}`);
-        }
-        // 2. INSERT entity_processing_audit (bulk)
-        if (records.entity_processing_audit.length > 0) {
-            const { error: entityError } = await this.supabase
-                .from('entity_processing_audit')
-                .insert(records.entity_processing_audit);
-            if (entityError) {
-                throw new Error(`Failed to insert entity_processing_audit: ${entityError.message}`);
-            }
-        }
-        // 3. UPDATE shell_files
-        const { error: shellError } = await this.supabase
-            .from('shell_files')
-            .update(records.shell_file_updates)
-            .eq('id', shellFileId);
-        if (shellError) {
-            this.logger.warn('Failed to update shell_files (non-fatal)', {
-                shell_file_id: shellFileId,
-                error_message: shellError.message,
-            });
-        }
-        // 4. INSERT profile_classification_audit
-        // SKIPPED: Table schema mismatch - Pass 0.5 Migration 51 repurposed this table.
-        // Pass 1 will be redesigned. For now, skip this insert to allow OCR-only testing.
-        const { error: profileError } = await this.supabase
-            .from('profile_classification_audit')
-            .insert(records.profile_classification_audit);
-        if (profileError) {
-            // Non-fatal: Table schema was changed by Pass 0.5, skip for now
-            this.logger.warn('Skipping profile_classification_audit insert (table schema mismatch, Pass 1 redesign pending)', {
-                shell_file_id: shellFileId,
-                error_message: profileError.message,
-            });
-        }
-        // 5. INSERT pass1_entity_metrics
-        const { error: metricsError } = await this.supabase
-            .from('pass1_entity_metrics')
-            .insert(records.pass1_entity_metrics);
-        if (metricsError) {
-            throw new Error(`Failed to insert pass1_entity_metrics: ${metricsError.message}`);
-        }
-        // 6. INSERT ai_confidence_scoring (optional)
-        if (records.ai_confidence_scoring.length > 0) {
-            const { error: confidenceError } = await this.supabase
-                .from('ai_confidence_scoring')
-                .insert(records.ai_confidence_scoring);
-            if (confidenceError) {
-                this.logger.warn('Failed to insert ai_confidence_scoring (non-fatal)', {
-                    shell_file_id: shellFileId,
-                    error_message: confidenceError.message,
-                });
-            }
-        }
-        // 7. INSERT manual_review_queue (optional)
-        if (records.manual_review_queue.length > 0) {
-            const { error: reviewError } = await this.supabase
-                .from('manual_review_queue')
-                .insert(records.manual_review_queue);
-            if (reviewError) {
-                this.logger.warn('Failed to insert manual_review_queue (non-fatal)', {
-                    shell_file_id: shellFileId,
-                    error_message: reviewError.message,
-                });
-            }
-        }
     }
     // ---------------------------------------------------------------------------
     // 3.8: PASS 2 - CLINICAL EXTRACTION (PLACEHOLDER - NOT YET IMPLEMENTED)

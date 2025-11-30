@@ -30,18 +30,27 @@ export const PASS1_SYSTEM_MESSAGE = `You are a medical document reviewer that lo
 // =============================================================================
 
 /**
+ * Options for building the user prompt
+ */
+export interface PromptOptions {
+  pageNumber?: number;
+  batchInfo?: string;
+  includeZones?: boolean;  // Default: true - set false for entity-only extraction test
+}
+
+/**
  * Build the user prompt for Pass 1 entity detection
  *
  * @param ocrText - Pre-formatted OCR text with [Y:###] markers (from enhanced-ocr-y.txt)
- * @param pageNumber - Page number for context (optional, for batch processing)
- * @param batchInfo - Batch info string for multi-page batches (optional)
+ * @param options - Prompt options (pageNumber, batchInfo, includeZones)
  * @returns User prompt string
  */
 export function buildUserPrompt(
   ocrText: string,
-  pageNumber?: number,
-  batchInfo?: string
+  options: PromptOptions = {}
 ): string {
+  const { pageNumber, batchInfo, includeZones = true } = options;
+
   // Build entity types list
   const entityTypesList = VALID_ENTITY_TYPES.join(', ');
 
@@ -55,11 +64,18 @@ STEP 1 - LINE-BY-LINE EXTRACTION:
 Read EVERY line of the document. For each line, determine:
 - Does this line contain any clinical entities?
 - If yes, extract ALL clinical entities with their exact text, entity_type, page_number, and y_coordinate
+`;
 
+  // Only add zone instructions if includeZones is true
+  if (includeZones) {
+    prompt += `
 STEP 2 - GROUP INTO ZONES:
-After extracting all entities, group them into bridge_schema_zones to help with downstream parralel batch processing.
+After extracting all entities, group them into bridge_schema_zones to help with downstream parallel batch processing.
 A zone is a contiguous Y-range on a page where entities of the same type cluster.
+`;
+  }
 
+  prompt += `
 ENTITY TYPES: ${entityTypesList}
 
 EXTRACTION RULES:
@@ -77,13 +93,18 @@ COMMON PATTERNS TO RECOGNIZE:
 - Immunisation records often have format: "DATE Vaccine Name (Disease)"
 - Past History sections contain conditions AND procedures
 - Lines with "mg", "mcg", "mL", "Tablet", "Capsule", "Injection" are likely medications or immunisations
-- Lines with dates followed by medical terms are likely clinical events
+- Lines with dates followed by medical terms are likely clinical events`;
+
+  // Only add zone rules if includeZones is true
+  if (includeZones) {
+    prompt += `
 
 ZONE RULES:
 - One zone per schema_type per contiguous Y-range
 - Zones of different types on the same page MAY overlap
 - entity_count must match the number of entities you extracted for that zone
 - A clinical section continuing from one page to the next = separate zones (different pages)`;
+  }
 
   // Add page context if provided
   if (pageNumber !== undefined) {
@@ -95,8 +116,9 @@ ZONE RULES:
     prompt += `\n- ${batchInfo}`;
   }
 
-  // Add output schema with multi-page example
-  prompt += `
+  // Add output schema - different based on includeZones flag
+  if (includeZones) {
+    prompt += `
 
 OUTPUT JSON SCHEMA:
 {
@@ -236,6 +258,55 @@ The example above shows:
 - 5 zones total across 2 pages, with entity_count matching actual entities in each zone
 
 Output ONLY valid JSON matching this schema. No explanations or markdown.`;
+  } else {
+    // Entity-only output schema (no zones)
+    prompt += `
+
+OUTPUT JSON SCHEMA (entities only - no zones required):
+{
+  "entities": [
+    {
+      "id": "e1",
+      "original_text": "Metformin 500mg Tablet",
+      "entity_type": "medication",
+      "aliases": ["metformin", "glucophage"],
+      "y_coordinate": 550,
+      "page_number": 1
+    },
+    {
+      "id": "e2",
+      "original_text": "Lisinopril 10mg Tablet",
+      "entity_type": "medication",
+      "aliases": ["lisinopril", "zestril"],
+      "y_coordinate": 620,
+      "page_number": 1
+    },
+    {
+      "id": "e3",
+      "original_text": "Type 2 Diabetes",
+      "entity_type": "condition",
+      "aliases": ["diabetes mellitus type 2", "T2DM"],
+      "y_coordinate": 900,
+      "page_number": 1
+    },
+    {
+      "id": "e4",
+      "original_text": "Metformin 500mg Tablet",
+      "entity_type": "medication",
+      "aliases": ["metformin", "glucophage"],
+      "y_coordinate": 1200,
+      "page_number": 1
+    }
+  ]
+}
+
+The example above shows:
+- e1 and e4 are BOTH "Metformin 500mg Tablet" - same drug appearing on different lines = 2 separate entities
+- Every line with clinical content must produce at least one entity
+- Focus on COMPLETENESS - extract every clinical mention
+
+Output ONLY valid JSON with "entities" array. No explanations or markdown.`;
+  }
 
   return prompt;
 }
@@ -261,7 +332,7 @@ export function buildPass1Prompt(
 
   return {
     system: PASS1_SYSTEM_MESSAGE,
-    user: buildUserPrompt(ocrText, pageNumber, batchInfo)
+    user: buildUserPrompt(ocrText, { pageNumber, batchInfo })
   };
 }
 
@@ -289,7 +360,7 @@ export function buildBatchPrompt(
 
   return {
     system: PASS1_SYSTEM_MESSAGE,
-    user: buildUserPrompt(batchOcrText, pageRangeStart, batchInfo)
+    user: buildUserPrompt(batchOcrText, { pageNumber: pageRangeStart, batchInfo })
   };
 }
 
