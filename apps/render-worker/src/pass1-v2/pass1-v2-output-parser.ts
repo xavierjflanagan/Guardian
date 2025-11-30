@@ -259,8 +259,11 @@ function validateZone(raw: any, index: number): Pass1BridgeSchemaZone {
     throw new ParseError(`Zone at index ${index} has invalid y_start or y_end`, 'PARSE_SCHEMA');
   }
 
-  // Ensure y_end > y_start (swap if needed)
-  const [finalYStart, finalYEnd] = yStart < yEnd ? [yStart, yEnd] : [yEnd, yStart];
+  // Ensure y_end > y_start (swap if needed, add 1 if equal)
+  let [finalYStart, finalYEnd] = yStart <= yEnd ? [yStart, yEnd] : [yEnd, yStart];
+  if (finalYEnd <= finalYStart) {
+    finalYEnd = finalYStart + 1; // Single-line zones need y_end > y_start
+  }
 
   // Normalize page_number
   let pageNumber = 1;
