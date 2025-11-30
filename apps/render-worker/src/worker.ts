@@ -20,6 +20,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import express from 'express';
 import dotenv from 'dotenv';
 import { createPass1Detector, Pass1Detector } from './pass1-v2';
+import { getSelectedModel } from './shared/ai';
 import type { AIProcessingJobPayload } from './pass1/pass1-types';
 import { runPass05, Pass05Input } from './pass05';
 import { calculateSHA256 } from './utils/checksum';
@@ -156,6 +157,23 @@ class V3Worker {
       config.supabase.url,
       config.supabase.serviceRoleKey
     );
+
+    // Validate Pass 0.5 model selection (fail-fast in production)
+    // Model is selected via PASS_05_USE_* environment variables
+    try {
+      const pass05Model = getSelectedModel();
+      this.logger.info('Pass 0.5 model validated', { model: pass05Model.displayName });
+    } catch (error) {
+      this.logger.error('Pass 0.5 model selection failed', error as Error);
+      if (config.environment.nodeEnv === 'production') {
+        console.error('\n' + '='.repeat(80));
+        console.error('WORKER STARTUP FAILED - PASS 0.5 MODEL CONFIGURATION ERROR');
+        console.error('='.repeat(80));
+        console.error((error as Error).message);
+        console.error('='.repeat(80) + '\n');
+        process.exit(1);
+      }
+    }
 
     // Initialize Pass 1 v2 detector (Strategy-A: OCR-only)
     // Model is selected via PASS_1_USE_* environment variables

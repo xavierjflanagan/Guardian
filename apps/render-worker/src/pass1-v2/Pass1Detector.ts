@@ -108,12 +108,9 @@ export class Pass1Detector {
       ...config
     } as Pass1Config;
 
-    // Get model from environment variable toggles
+    // Get model from environment variable toggles (shared AI provider system)
     this.model = getSelectedModelForPass('PASS_1');
     this.provider = AIProviderFactory.createProvider(this.model);
-
-    // Override config model with selected model
-    this.config.model = this.model.modelId;
 
     this.limit = pLimit(this.config.concurrency_limit);
   }
@@ -204,7 +201,7 @@ export class Pass1Detector {
       this.supabase,
       { shell_file_id, patient_id, processing_session_id },
       {
-        ai_model_used: this.config.model,
+        ai_model_used: this.model.modelId,
         encounters_total: encounters.length,
         encounters_succeeded: encountersSucceeded,
         encounters_failed: encountersFailed,
@@ -644,7 +641,8 @@ export class Pass1Detector {
 /**
  * Create a Pass1Detector instance
  *
- * Model is selected via environment variables (PASS_1_USE_GPT4O_MINI, etc.)
+ * Model is selected via environment variables (PASS_1_USE_GPT5, etc.)
+ * See shared/ai/models/model-registry.ts for available models.
  *
  * @param supabase - Supabase client
  * @param config - Optional configuration overrides

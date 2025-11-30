@@ -55,13 +55,13 @@ export interface ModelDefinition {
  */
 export const MODEL_REGISTRY: ModelDefinition[] = [
   // ==========================================================================
-  // OpenAI GPT-5 Family (Pass 0.5 - reasoning/discovery tasks)
+  // OpenAI GPT-5 Family
   // ==========================================================================
   {
     envVarSuffix: 'USE_GPT5',
     vendor: 'openai',
-    modelId: 'gpt-5',
-    displayName: 'GPT-5',
+    modelId: 'gpt-5.1',
+    displayName: 'GPT-5.1',
     contextWindow: 400_000,
     maxOutput: 128_000,
     inputCostPer1M: 1.25,
@@ -98,37 +98,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
   },
 
   // ==========================================================================
-  // OpenAI GPT-4o Family (Pass 1 - entity extraction)
-  // ==========================================================================
-  {
-    envVarSuffix: 'USE_GPT4O',
-    vendor: 'openai',
-    modelId: 'gpt-4o',
-    displayName: 'GPT-4o',
-    contextWindow: 128_000,
-    maxOutput: 16_384,
-    inputCostPer1M: 2.50,
-    outputCostPer1M: 10.00,
-    temperatureSupported: true,
-    maxTokensParam: 'max_tokens',
-    availableForPasses: ['PASS_1']
-  },
-  {
-    envVarSuffix: 'USE_GPT4O_MINI',
-    vendor: 'openai',
-    modelId: 'gpt-4o-mini',
-    displayName: 'GPT-4o-mini',
-    contextWindow: 128_000,
-    maxOutput: 16_384,
-    inputCostPer1M: 0.15,
-    outputCostPer1M: 0.60,
-    temperatureSupported: true,
-    maxTokensParam: 'max_tokens',
-    availableForPasses: ['PASS_1']
-  },
-
-  // ==========================================================================
-  // Google Gemini Family (available for multiple passes)
+  // Google Gemini Family
   // ==========================================================================
   {
     envVarSuffix: 'USE_GEMINI_2_5_PRO',
@@ -150,8 +120,8 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     displayName: 'Gemini 2.5 Flash',
     contextWindow: 1_048_576,
     maxOutput: 65_536,
-    inputCostPer1M: 0.15,
-    outputCostPer1M: 0.60,
+    inputCostPer1M: 0.30,
+    outputCostPer1M: 2.50,
     temperatureSupported: true,
     maxTokensParam: 'maxOutputTokens',
     availableForPasses: ['PASS_05', 'PASS_1']

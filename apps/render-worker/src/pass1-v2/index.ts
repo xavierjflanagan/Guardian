@@ -7,9 +7,12 @@
  *
  * Model Selection:
  * Set ONE of these env vars in Render.com to select the AI model:
- *   - PASS_1_USE_GPT4O_MINI=true  (default, cheapest)
- *   - PASS_1_USE_GPT4O=true       (better quality)
+ *   - PASS_1_USE_GPT5=true        (highest quality)
+ *   - PASS_1_USE_GPT5_MINI=true   (good balance)
+ *   - PASS_1_USE_GPT5_NANO=true   (cheapest)
  *   - PASS_1_USE_GEMINI_2_5_FLASH=true  (Google alternative)
+ *
+ * See shared/ai/models/model-registry.ts for full model list.
  *
  * Usage:
  * ```typescript

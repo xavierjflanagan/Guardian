@@ -14,9 +14,7 @@ import {
   updatePageSeparationAnalysis,
   supabase
 } from './database';
-import { getSelectedModel } from '../models/model-selector';
-import { getModelById } from '../models/model-registry';
-import { AIProviderFactory } from '../providers/provider-factory';
+import { getSelectedModel, getModelById, AIProviderFactory } from '../../shared/ai';
 import { buildEncounterDiscoveryPromptV12 } from '../aiPrompts.v12';
 import { generateEnhancedOcrFormat } from './ocr-formatter';
 import { generateCascadeId, generatePendingId, shouldCascade, trackCascade, incrementCascadePendings } from './cascade-manager';
@@ -730,11 +728,7 @@ function calculateCost(modelName: string, inputTokens: number, outputTokens: num
     return (inputTokens * 0.10 / 1_000_000) + (outputTokens * 0.40 / 1_000_000);
   }
 
-  // Fallback: OpenAI GPT-4o pricing
-  // Input: $2.50 per 1M tokens, Output: $10.00 per 1M tokens
-  if (modelName.includes('gpt-5')) {
-    // Default to GPT-5 pricing if exact model not found in registry
-    return (inputTokens * 1.25 / 1_000_000) + (outputTokens * 10.00 / 1_000_000);
-  }
-  return (inputTokens * 2.50 / 1_000_000) + (outputTokens * 10.00 / 1_000_000);
+  // Fallback: GPT-5 pricing (default for unknown OpenAI models)
+  // Input: $1.25 per 1M tokens, Output: $10.00 per 1M tokens
+  return (inputTokens * 1.25 / 1_000_000) + (outputTokens * 10.00 / 1_000_000);
 }

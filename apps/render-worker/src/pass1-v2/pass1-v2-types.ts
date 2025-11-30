@@ -323,13 +323,11 @@ export interface Pass1Result {
 /**
  * Pass 1 detector configuration
  *
- * Note: Model selection is now handled via environment variables (PASS_1_USE_*)
- * and the shared AI provider system. The 'model' field is auto-populated.
+ * Note: Model selection is handled via environment variables (PASS_1_USE_*)
+ * and the shared AI provider system. Model, temperature, and max_tokens are
+ * controlled by the provider - not this config.
  */
 export interface Pass1Config {
-  model: string;                    // Auto-set from env var selection (e.g., 'gpt-4o-mini')
-  temperature: number;              // e.g., 0.1
-  max_tokens: number;               // e.g., 4096
   max_retries: number;              // Default: 3
   concurrency_limit: number;        // Default: 5 (for p-limit)
   batch_min_pages: number;          // Default: 3
@@ -341,16 +339,13 @@ export interface Pass1Config {
 /**
  * Default configuration values
  */
-export const DEFAULT_PASS1_CONFIG: Partial<Pass1Config> = {
-  model: 'gpt-4o-mini',
-  temperature: 0.1,
-  max_tokens: 4096,
+export const DEFAULT_PASS1_CONFIG: Pass1Config = {
   max_retries: 3,
   concurrency_limit: 5,
   batch_min_pages: 3,
   batch_max_pages: 10,
   batch_hard_ceiling: 50,
-  include_zones_in_prompt: true  // Production: zones enabled
+  include_zones_in_prompt: true
 };
 
 // =============================================================================

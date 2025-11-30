@@ -2,7 +2,7 @@
  * OpenAI Provider - Shared across all passes
  *
  * Implements AI generation using OpenAI's Chat Completions API.
- * Supports GPT-4o, GPT-4o-mini, GPT-5 family, and future models.
+ * Supports GPT-5 family (gpt-5, gpt-5-mini, gpt-5-nano) and future models.
  */
 
 import OpenAI from 'openai';
