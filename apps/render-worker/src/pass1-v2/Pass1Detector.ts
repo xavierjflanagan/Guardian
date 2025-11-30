@@ -548,10 +548,9 @@ export class Pass1Detector {
     console.log(`[Pass1] Batch ${batch.index}: ~${estimatedTokens} input tokens (${this.model.displayName})`);
 
     // Call AI provider (handles both OpenAI and Google)
+    // Note: Don't pass maxOutputTokens - let provider use model's full capacity (128K for GPT-5)
     const response = await this.provider.generateJSON(user, {
-      systemMessage: system,
-      temperature: this.config.temperature,
-      maxOutputTokens: this.config.max_tokens
+      systemMessage: system
     });
 
     if (!response.content) {
