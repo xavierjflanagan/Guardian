@@ -1,0 +1,298 @@
+{
+  "schema_version": "1.0.0",
+  "table": "patient_observations",
+  "pass": "pass-2",
+  "description": "Detailed observation data for information gathering clinical events. This table stores measurements, test results, physical findings, and assessment scores extracted from medical documents.",
+  "clinical_context": "Use this schema for extracting quantitative or qualitative observations from medical documents. Observations represent information gathering activities (O3 'observation' activity type) with detailed measurement values, reference ranges, and interpretations.",
+
+  "required_fields": [
+    "event_id",
+    "observation_type"
+  ],
+
+  "value_fields_requirement": "At least ONE value field must be populated: value_text, value_numeric, value_secondary, or value_boolean",
+
+  "fields": {
+    "event_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "References parent patient_clinical_events record (the clinical event this observation details)",
+      "required": true,
+      "cascade": "ON DELETE CASCADE",
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "This links the observation details to the parent clinical event. The parent event should have activity_type='observation'."
+    },
+
+    "observation_type": {
+      "type": "enum",
+      "values": ["vital_sign", "lab_result", "physical_finding", "assessment_score"],
+      "description": "Category of observation being recorded",
+      "required": true,
+      "type_definitions": {
+        "vital_sign": "Physiological measurements like blood pressure, heart rate, temperature, weight",
+        "lab_result": "Laboratory test results requiring analysis (blood work, cultures, chemistry)",
+        "physical_finding": "Clinical observations from physical examination (no lab needed)",
+        "assessment_score": "Standardized tool results with defined scoring systems (PHQ-9, MMSE)"
+      },
+      "selection_guide": {
+        "vital_sign": ["Blood pressure", "Heart rate", "Temperature", "Respiratory rate", "O2 saturation", "Weight", "Height", "BMI"],
+        "lab_result": ["Blood glucose", "Cholesterol", "Hemoglobin", "White blood cell count", "Urinalysis", "Culture results"],
+        "physical_finding": ["Skin condition", "Breath sounds", "Heart sounds", "Reflexes", "Range of motion", "Palpation findings"],
+        "assessment_score": ["PHQ-9 score", "MMSE score", "Glasgow Coma Scale", "Pain scale", "Functional assessment"]
+      }
+    },
+
+    "value_text": {
+      "type": "string",
+      "description": "Original text value as extracted from document",
+      "required": false,
+      "examples": [
+        "95 mg/dL",
+        "Normal breath sounds bilaterally",
+        "Rash present on left forearm",
+        "8/27"
+      ],
+      "guidance": "Preserve the original text. Useful when numeric conversion is ambiguous or when the finding is qualitative."
+    },
+
+    "value_numeric": {
+      "type": "numeric",
+      "description": "Normalized numeric value for quantitative observations",
+      "required": false,
+      "examples": [120, 95.5, 98.6, 8],
+      "guidance": "Extract and normalize the primary numeric value. For blood pressure, use systolic. For paired values, use value_secondary for the second number."
+    },
+
+    "value_secondary": {
+      "type": "numeric",
+      "description": "Secondary numeric value for paired measurements",
+      "required": false,
+      "examples": [80, 60],
+      "use_cases": [
+        "Blood pressure diastolic (when value_numeric is systolic)",
+        "Second measurement in a paired reading"
+      ],
+      "guidance": "Primarily used for blood pressure diastolic values when systolic is in value_numeric."
+    },
+
+    "value_boolean": {
+      "type": "boolean",
+      "description": "Boolean value for yes/no or present/absent findings",
+      "required": false,
+      "examples": [true, false],
+      "use_cases": [
+        "Rash present: true",
+        "Fever: false",
+        "Abnormal finding detected: true"
+      ]
+    },
+
+    "unit": {
+      "type": "string",
+      "description": "Measurement unit for numeric values",
+      "required": false,
+      "examples": [
+        "mmHg",
+        "mg/dL",
+        "°F",
+        "°C",
+        "bpm",
+        "kg",
+        "lbs",
+        "%",
+        "points"
+      ],
+      "guidance": "Should typically be provided when value_numeric is present. Use standard medical abbreviations."
+    },
+
+    "reference_range_text": {
+      "type": "string",
+      "description": "Human-readable reference range as stated in document",
+      "required": false,
+      "examples": [
+        "Normal: 70-100 mg/dL",
+        "Normal: <120/<80 mmHg",
+        "0-4: minimal, 5-9: mild, 10-14: moderate"
+      ],
+      "guidance": "Preserve the exact reference range text from the document if available."
+    },
+
+    "reference_range_low": {
+      "type": "numeric",
+      "description": "Lower bound of normal reference range",
+      "required": false,
+      "examples": [70, 90, 36.1],
+      "guidance": "Extract the numeric lower bound. Used for programmatic range checking."
+    },
+
+    "reference_range_high": {
+      "type": "numeric",
+      "description": "Upper bound of normal reference range",
+      "required": false,
+      "examples": [100, 120, 37.8],
+      "guidance": "Extract the numeric upper bound. Used for programmatic range checking."
+    },
+
+    "interpretation": {
+      "type": "enum",
+      "values": ["normal", "high", "low", "critical", "abnormal"],
+      "description": "Clinical interpretation of the observation value",
+      "required": false,
+      "interpretation_guide": {
+        "normal": "Value within expected/healthy range",
+        "high": "Value above normal range (not immediately critical)",
+        "low": "Value below normal range (not immediately critical)",
+        "critical": "Value requiring immediate attention or intervention",
+        "abnormal": "Value outside normal but direction unclear or not specified"
+      },
+      "guidance": "Base this on explicit statement in document or comparison to reference ranges. Use 'abnormal' if document states abnormal but doesn't specify high/low."
+    },
+
+    "assessment_tool": {
+      "type": "string",
+      "description": "Name of standardized assessment tool (for observation_type='assessment_score')",
+      "required": false,
+      "examples": [
+        "PHQ-9",
+        "MMSE",
+        "Glasgow Coma Scale",
+        "Beck Depression Inventory",
+        "Visual Analog Pain Scale",
+        "Karnofsky Performance Status"
+      ],
+      "guidance": "Only populate for assessment_score observation types. Use the full standardized name of the tool."
+    },
+
+    "score_max": {
+      "type": "numeric",
+      "description": "Maximum possible score for the assessment tool",
+      "required": false,
+      "examples": [27, 30, 15],
+      "common_maximums": {
+        "PHQ-9": 27,
+        "MMSE": 30,
+        "Glasgow Coma Scale": 15
+      },
+      "guidance": "Include when extracting assessment scores to provide context for the value_numeric score."
+    },
+
+    "ai_extracted": {
+      "type": "boolean",
+      "description": "Always true for AI-extracted observations",
+      "required": true,
+      "default": true
+    },
+
+    "ai_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in the extraction (0.000-1.000)",
+      "required": true,
+      "examples": [0.950, 0.875, 0.680],
+      "confidence_guidance": {
+        "high": ">= 0.900 - Clear, unambiguous extraction",
+        "medium": "0.700 - 0.899 - Reasonable confidence, may need review",
+        "low": "< 0.700 - Ambiguous or uncertain, requires review"
+      },
+      "guidance": "Be honest about uncertainty. Consider factors: clarity of text, completeness of information, presence of contradictions."
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag if this observation needs human review",
+      "required": true,
+      "default": false,
+      "guidance": "Set to true if ai_confidence < 0.700, or if there are ambiguities, contradictions, or incomplete information."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Blood pressure reading (vital sign with paired values)",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "observation_type": "vital_sign",
+        "value_text": "120/80 mmHg",
+        "value_numeric": 120,
+        "value_secondary": 80,
+        "unit": "mmHg",
+        "reference_range_text": "Normal: <120/<80 mmHg",
+        "reference_range_low": 90,
+        "reference_range_high": 120,
+        "interpretation": "normal",
+        "ai_extracted": true,
+        "ai_confidence": 0.950,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Glucose lab result with reference range",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "observation_type": "lab_result",
+        "value_text": "95 mg/dL",
+        "value_numeric": 95,
+        "unit": "mg/dL",
+        "reference_range_text": "Normal: 70-100 mg/dL",
+        "reference_range_low": 70,
+        "reference_range_high": 100,
+        "interpretation": "normal",
+        "ai_extracted": true,
+        "ai_confidence": 0.920,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "PHQ-9 depression screening assessment",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "observation_type": "assessment_score",
+        "assessment_tool": "PHQ-9",
+        "value_text": "8/27",
+        "value_numeric": 8,
+        "score_max": 27,
+        "interpretation": "normal",
+        "reference_range_text": "0-4: minimal, 5-9: mild, 10-14: moderate, 15-19: moderately severe, 20-27: severe",
+        "ai_extracted": true,
+        "ai_confidence": 0.880,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Physical finding with boolean value",
+      "extraction": {
+        "event_id": "uuid-of-parent-clinical-event",
+        "observation_type": "physical_finding",
+        "value_text": "Rash present on left forearm",
+        "value_boolean": true,
+        "ai_extracted": true,
+        "ai_confidence": 0.850,
+        "requires_review": true
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "value_field_strategy": "At least ONE value field must be populated. Choose based on observation type: vital_sign/lab_result typically use value_numeric, physical_finding may use value_text or value_boolean, assessment_score uses value_numeric with score_max.",
+    "paired_values": "For blood pressure and other paired measurements, use value_numeric for the first value (systolic) and value_secondary for the second (diastolic).",
+    "unit_consistency": "Always include unit when providing numeric values. Use standard medical abbreviations.",
+    "reference_ranges": "Extract both text and numeric ranges when available. Numeric ranges enable programmatic validation.",
+    "interpretation_logic": "Only set interpretation if explicitly stated or clearly derivable from reference ranges. When in doubt, leave null.",
+    "assessment_scores": "For assessment_score types, always include assessment_tool name and score_max for context.",
+    "confidence_thresholds": {
+      "clear_numeric": ">= 0.900 for clear numeric values with units",
+      "unclear_text": "0.700-0.899 for ambiguous text or missing context",
+      "requires_review": "< 0.700 for uncertain or incomplete extractions"
+    }
+  },
+
+  "validation_rules": {
+    "observation_type": "Must be exactly one of: 'vital_sign', 'lab_result', 'physical_finding', 'assessment_score'",
+    "value_requirement": "At least ONE of: value_text, value_numeric, value_secondary, or value_boolean must be non-null",
+    "interpretation": "If provided, must be one of: 'normal', 'high', 'low', 'critical', 'abnormal'",
+    "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
+    "assessment_fields": "If observation_type='assessment_score', should include assessment_tool and score_max"
+  }
+}

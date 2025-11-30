@@ -1,0 +1,44 @@
+{
+  "table": "manual_review_queue",
+  "pass": "pass-1",
+  "operation": "CREATE",
+  "required": ["patient_id", "processing_session_id", "shell_file_id", "review_type", "review_title", "review_description"],
+  "fields": {
+    "patient_id": "uuid (context)",
+    "processing_session_id": "uuid (context)",
+    "shell_file_id": "uuid (context)",
+    "review_type": "entity_validation|profile_classification|clinical_accuracy|safety_concern|low_confidence|contamination_risk",
+    "priority": "low|normal|high|urgent|critical (default: normal, critical/urgent BLOCK Pass 2)",
+    "ai_confidence_score": "numeric(4,3)? 0.000-1.000",
+    "ai_concerns": "text[]? (technical issues)",
+    "flagged_issues": "text[]? (business/safety issues)",
+    "review_title": "string (short summary)",
+    "review_description": "string (detailed explanation)",
+    "ai_suggestions": "string? (what to focus on)",
+    "clinical_context": "jsonb? (default: {}, page numbers/entity IDs)",
+    "assigned_reviewer": "string? (user identifier or role)",
+    "assigned_at": "timestamptz?",
+    "estimated_review_time": "interval? (default: 15 minutes)",
+    "review_status": "pending|in_review|completed|escalated|deferred (default: pending)"
+  },
+  "reviewer_fields_null": ["reviewer_decision", "reviewer_notes", "modifications_required", "review_started_at", "review_completed_at", "actual_review_time", "review_quality_score", "reviewer_confidence"],
+  "example": {
+    "patient_id": "uuid-of-patient",
+    "processing_session_id": "uuid-of-session",
+    "shell_file_id": "uuid-of-shell-file",
+    "review_type": "low_confidence",
+    "priority": "high",
+    "ai_confidence_score": 0.620,
+    "ai_concerns": ["low_ocr_confidence", "handwriting_detected", "ai_ocr_discrepancy"],
+    "flagged_issues": ["unclear_medication_dosage"],
+    "review_title": "Low Confidence Medication Detection",
+    "review_description": "Detected medication 'Lisinopril' with dosage, but OCR interpreted '10mg' as '1Omg' (digit-letter confusion). AI confidence: 62%. Handwritten notation present.",
+    "ai_suggestions": "Verify medication name and dosage. Check for other handwritten entries on same page.",
+    "clinical_context": {
+      "page_number": 2,
+      "section": "medications",
+      "entity_id": "entity_012"
+    },
+    "estimated_review_time": "00:05:00"
+  }
+}

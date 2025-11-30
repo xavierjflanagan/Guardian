@@ -1,0 +1,51 @@
+{
+  "table": "pass2_clinical_metrics",
+  "pass": "pass-2",
+  "required": ["profile_id", "shell_file_id", "processing_session_id", "clinical_entities_enriched", "schemas_populated", "clinical_model_used", "processing_time_ms", "processing_time_minutes"],
+  "fields": {
+    "profile_id": "uuid (context, cross-pass join key)",
+    "shell_file_id": "uuid (source document)",
+    "processing_session_id": "uuid (PRIMARY cross-pass join key)",
+    "clinical_entities_enriched": "integer (NOT NULL, entity count)",
+    "schemas_populated": "string[] (NOT NULL, exact table names)",
+    "clinical_model_used": "string (NOT NULL)",
+    "average_clinical_confidence": "numeric(4,3)? 0.000-1.000",
+    "manual_review_triggered_count": "integer? (default: 0)",
+    "validation_failures": "integer? (default: 0)",
+    "bridge_schemas_used": "string[]? (schema identifiers)",
+    "schema_loading_time_ms": "integer?",
+    "clinical_tokens_used": "integer (NOT NULL)",
+    "processing_time_ms": "integer (NOT NULL)",
+    "processing_time_minutes": "numeric(10,2) (NOT NULL, GENERATED, auto-calculated from ms / 60000)",
+    "cost_usd": "numeric(8,4)?",
+    "user_agent": "string?",
+    "ip_address": "inet?"
+  },
+  "quality_indicators": {
+    "high": "avg_conf >= 0.900, validation_failures = 0",
+    "moderate": "avg_conf 0.700-0.899 OR validation_failures <= 2",
+    "low": "avg_conf < 0.700 OR validation_failures > 2"
+  },
+  "cross_pass_keys": {
+    "processing_session_id": "Primary join for rollup analytics",
+    "profile_id": "Per-patient aggregation",
+    "shell_file_id": "Per-document tracking"
+  },
+  "example": {
+    "profile_id": "uuid-from-context",
+    "shell_file_id": "uuid-of-processed-document",
+    "processing_session_id": "uuid-of-ai-session",
+    "clinical_entities_enriched": 15,
+    "schemas_populated": ["patient_conditions", "patient_medications", "patient_observations"],
+    "clinical_model_used": "gpt-4o-mini",
+    "average_clinical_confidence": 0.920,
+    "manual_review_triggered_count": 2,
+    "validation_failures": 0,
+    "bridge_schemas_used": ["patient_conditions_detailed", "patient_medications_detailed", "patient_observations_minimal"],
+    "schema_loading_time_ms": 45,
+    "clinical_tokens_used": 3500,
+    "processing_time_ms": 2100,
+    "processing_time_minutes": 0.04,
+    "cost_usd": 0.0042
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "table": "ai_confidence_scoring",
+  "pass": "pass-2",
+  "operation": "UPDATE",
+  "optional": true,
+  "fields": {
+    "clinical_coding_confidence": "numeric(4,3)? 0.000-1.000",
+    "overall_confidence": "numeric(4,3)? 0.000-1.000 (recalculate with Pass 2)",
+    "reliability_score": "numeric(4,3)? 0.000-1.000",
+    "confidence_flags": "text[]? (append Pass 2 flags)"
+  },
+  "readonly": [
+    "processing_session_id",
+    "entity_processing_audit_id",
+    "all_pass1_confidence_metrics"
+  ],
+  "example": {
+    "clinical_coding_confidence": 0.920,
+    "overall_confidence": 0.895
+  },
+  "note": "Pass 2 updates are ENTIRELY OPTIONAL. Many deployments may skip Pass 2 updates and use Pass 1 metrics only."
+}

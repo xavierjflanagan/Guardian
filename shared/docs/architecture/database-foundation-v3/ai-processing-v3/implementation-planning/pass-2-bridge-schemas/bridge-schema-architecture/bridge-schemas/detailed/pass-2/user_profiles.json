@@ -1,0 +1,416 @@
+{
+  "schema_version": "1.0.0",
+  "table": "user_profiles",
+  "pass": "pass-2",
+  "description": "User profiles with multi-profile support (self, child, pet, dependent) including identity, demographic data, and GDPR-compliant archival system. This table is the foundation for profile management in the Guardian healthcare platform.",
+  "clinical_context": "Use this schema for extracting or verifying user profile and demographic information from medical documents. This table is primarily populated through user registration, but demographic data (name, date of birth) may be extracted from medical documents to verify or update profile information.",
+
+  "required_fields": [
+    "account_owner_id",
+    "profile_type",
+    "display_name"
+  ],
+
+  "fields": {
+    "account_owner_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "The primary account holder (from authentication context)",
+      "required": true,
+      "example": "uuid-from-auth-context",
+      "guidance": "This is the auth.users.id of the account owner. NOT extracted from documents - comes from authentication context."
+    },
+
+    "profile_type": {
+      "type": "enum",
+      "values": ["self", "child", "pet", "dependent"],
+      "description": "Type of profile",
+      "required": true,
+      "profile_type_definitions": {
+        "self": "Primary account owner's own profile",
+        "child": "Child or minor dependent profile",
+        "pet": "Pet or animal profile (veterinary records)",
+        "dependent": "Other dependent (elderly parent, etc.)"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 4 values. Determines which fields are relevant (e.g., species/breed for pets)."
+    },
+
+    "display_name": {
+      "type": "string",
+      "description": "Name displayed in UI",
+      "required": true,
+      "examples": [
+        "Sarah Johnson",
+        "Emma Johnson",
+        "Max (pet)",
+        "Mom - Mary Smith"
+      ],
+      "guidance": "User-friendly display name. Can be first name, nickname, or descriptive name."
+    },
+
+    "profile_status": {
+      "type": "enum",
+      "values": ["active", "inactive", "pending_transfer"],
+      "description": "Current status of profile",
+      "required": false,
+      "default": "active",
+      "status_definitions": {
+        "active": "Currently active profile (default)",
+        "inactive": "Profile deactivated but retained",
+        "pending_transfer": "Profile in process of being transferred to another account"
+      },
+      "guidance": "Database has CHECK constraint with default 'active'. Most profiles are 'active'."
+    },
+
+    "full_name": {
+      "type": "string",
+      "description": "Complete legal name",
+      "required": false,
+      "examples": [
+        "Sarah Marie Johnson",
+        "Emma Grace Johnson",
+        "Max Johnson"
+      ],
+      "guidance": "Full legal name if different from display_name. Can be extracted from medical documents."
+    },
+
+    "date_of_birth": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Date of birth",
+      "required": false,
+      "examples": ["1985-03-15", "2018-07-22", "2020-05-10"],
+      "guidance": "PostgreSQL DATE type (no time component). Can be extracted from medical documents for verification."
+    },
+
+    "species": {
+      "type": "string",
+      "description": "Species (for pet profiles only)",
+      "required": false,
+      "examples": ["dog", "cat", "bird", "rabbit", "horse"],
+      "guidance": "Only applicable when profile_type='pet'. Extract from veterinary documents."
+    },
+
+    "breed": {
+      "type": "string",
+      "description": "Breed (for pet profiles only)",
+      "required": false,
+      "examples": ["Golden Retriever", "Persian Cat", "Cockatiel"],
+      "guidance": "Only applicable when profile_type='pet'. Extract from veterinary documents."
+    },
+
+    "relationship": {
+      "type": "string",
+      "description": "Relationship to account owner (custom enum type)",
+      "required": false,
+      "examples": ["child", "parent", "spouse", "pet", "dependent"],
+      "guidance": "Uses profile_relationship_type custom enum. For AI extraction, treat as text string."
+    },
+
+    "legal_status": {
+      "type": "enum",
+      "values": ["guardian", "parent", "caregiver", "self", "owner"],
+      "description": "Legal status of account owner relative to profile",
+      "required": false,
+      "legal_status_definitions": {
+        "guardian": "Legal guardian of the profile subject",
+        "parent": "Biological or adoptive parent",
+        "caregiver": "Designated caregiver",
+        "self": "Profile is for oneself",
+        "owner": "Owner (for pet profiles)"
+      },
+      "guidance": "Database has CHECK constraint enforcing these 5 values."
+    },
+
+    "theme_color": {
+      "type": "string",
+      "description": "Theme color for profile UI",
+      "required": false,
+      "default": "#2563eb",
+      "examples": ["#2563eb", "#dc2626", "#16a34a"],
+      "guidance": "Hex color code. Defaults to blue (#2563eb)."
+    },
+
+    "avatar_url": {
+      "type": "string",
+      "description": "URL to profile avatar image",
+      "required": false,
+      "examples": ["https://storage.example.com/avatars/user123.jpg"],
+      "guidance": "External URL to profile image."
+    },
+
+    "custom_theme": {
+      "type": "jsonb",
+      "description": "Extended theme customization",
+      "required": false,
+      "default": "{}",
+      "examples": [
+        {"primary_color": "#2563eb", "secondary_color": "#64748b"},
+        {}
+      ],
+      "guidance": "JSONB object for flexible theme settings. Defaults to empty object."
+    },
+
+    "profile_icon": {
+      "type": "string",
+      "description": "Icon identifier for quick visual recognition",
+      "required": false,
+      "examples": ["user-circle", "baby", "paw", "heart"],
+      "guidance": "Icon identifier string for UI display."
+    },
+
+    "auth_level": {
+      "type": "string",
+      "description": "Access level (custom enum type)",
+      "required": false,
+      "default": "read_write",
+      "examples": ["read_only", "read_write", "admin"],
+      "guidance": "Uses access_level_type custom enum with default 'read_write'. For AI extraction, treat as text string."
+    },
+
+    "auth_verified_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601 with timezone",
+      "description": "When authentication was verified",
+      "required": false,
+      "examples": ["2025-10-01T10:00:00Z"],
+      "guidance": "TIMESTAMPTZ field. Typically system-set, not extracted."
+    },
+
+    "auth_verification_status": {
+      "type": "string",
+      "description": "Verification status (custom enum type)",
+      "required": false,
+      "default": "unverified",
+      "examples": ["unverified", "pending", "verified"],
+      "guidance": "Uses verification_status_type custom enum with default 'unverified'. For AI extraction, treat as text string."
+    },
+
+    "auth_method": {
+      "type": "string",
+      "description": "Authentication method used",
+      "required": false,
+      "examples": ["file_extraction", "manual_entry", "id_verification", "bank_verification"],
+      "guidance": "Free-text field describing how profile was authenticated."
+    },
+
+    "transferred_from": {
+      "type": "uuid",
+      "description": "Source profile if this profile was transferred",
+      "required": false,
+      "example": "uuid-of-source-profile",
+      "guidance": "Self-referential FK to user_profiles(id). ON DELETE SET NULL."
+    },
+
+    "transferred_to": {
+      "type": "uuid",
+      "description": "Destination profile if this profile was transferred",
+      "required": false,
+      "example": "uuid-of-destination-profile",
+      "guidance": "Self-referential FK to user_profiles(id). ON DELETE SET NULL."
+    },
+
+    "archived": {
+      "type": "boolean",
+      "description": "Legacy archival flag",
+      "required": false,
+      "default": false,
+      "guidance": "Boolean with default FALSE. Part of GDPR-compliant archival system."
+    },
+
+    "archived_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601 with timezone",
+      "description": "When archival occurred",
+      "required": false,
+      "examples": ["2025-10-01T10:00:00Z"],
+      "guidance": "TIMESTAMPTZ field. Set when profile is archived."
+    },
+
+    "archived_by": {
+      "type": "uuid",
+      "description": "User who initiated archival",
+      "required": false,
+      "example": "uuid-from-auth-users",
+      "guidance": "FK to auth.users(id). ON DELETE SET NULL."
+    },
+
+    "archival_reason": {
+      "type": "string",
+      "description": "User-provided deletion reason",
+      "required": false,
+      "examples": ["Account closed", "Transferred to new account", "GDPR erasure request"],
+      "guidance": "Free-text reason for archival."
+    },
+
+    "recovery_expires_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601 with timezone",
+      "description": "30-day recovery window expiration",
+      "required": false,
+      "examples": ["2025-10-31T10:00:00Z"],
+      "guidance": "TIMESTAMPTZ field. Typically 30 days after archival."
+    },
+
+    "processing_restricted_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601 with timezone",
+      "description": "GDPR Article 18 compliance timestamp",
+      "required": false,
+      "examples": ["2025-10-01T10:00:00Z"],
+      "guidance": "TIMESTAMPTZ field. Set when processing is restricted per GDPR Article 18."
+    },
+
+    "legal_hold": {
+      "type": "boolean",
+      "description": "Prevents purge during litigation",
+      "required": false,
+      "default": false,
+      "guidance": "Boolean with default FALSE. Prevents any data purge during legal proceedings."
+    },
+
+    "erasure_performed_at": {
+      "type": "timestamptz",
+      "format": "ISO 8601 with timezone",
+      "description": "When PII was purged",
+      "required": false,
+      "examples": ["2025-11-01T10:00:00Z"],
+      "guidance": "TIMESTAMPTZ field. Set when PII erasure is performed."
+    },
+
+    "erasure_scope": {
+      "type": "string",
+      "description": "Scope of data erasure",
+      "required": false,
+      "examples": ["pii_only", "analytics_only", "full_restriction"],
+      "guidance": "Free-text field describing what was erased."
+    },
+
+    "region_of_record": {
+      "type": "string",
+      "description": "Jurisdiction for compliance",
+      "required": false,
+      "examples": ["AU", "US", "EU"],
+      "guidance": "ISO country code for jurisdiction-specific compliance handling."
+    },
+
+    "date_preferences": {
+      "type": "jsonb",
+      "description": "Universal date format management preferences",
+      "required": false,
+      "default": {
+        "preferred_format": "DD/MM/YYYY",
+        "home_country": "AU",
+        "timezone": "Australia/Sydney",
+        "show_confidence_badges": true,
+        "format_switching_enabled": true,
+        "confidence_threshold_for_badges": 0.7
+      },
+      "examples": [
+        {
+          "preferred_format": "MM/DD/YYYY",
+          "home_country": "US",
+          "timezone": "America/New_York"
+        }
+      ],
+      "guidance": "JSONB object with comprehensive default for Australian locale. Supports universal date format management."
+    },
+
+    "is_pregnancy_profile": {
+      "type": "boolean",
+      "description": "Indicates pregnancy tracking profile",
+      "required": false,
+      "default": false,
+      "guidance": "Boolean with default FALSE. Used for pregnancy tracking feature."
+    },
+
+    "expected_due_date": {
+      "type": "date",
+      "format": "ISO 8601 (YYYY-MM-DD)",
+      "description": "Expected due date for pregnancy profiles",
+      "required": false,
+      "examples": ["2026-06-15"],
+      "guidance": "PostgreSQL DATE type. Only populated when is_pregnancy_profile=true."
+    },
+
+    "transitioned_to_child_profile_id": {
+      "type": "uuid",
+      "description": "Child profile created after pregnancy completion",
+      "required": false,
+      "example": "uuid-of-child-profile",
+      "guidance": "Self-referential FK to user_profiles(id). Links pregnancy profile to child profile after birth."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Self profile with basic information",
+      "extraction": {
+        "account_owner_id": "uuid-from-auth-context",
+        "profile_type": "self",
+        "display_name": "Sarah Johnson",
+        "full_name": "Sarah Marie Johnson",
+        "date_of_birth": "1985-03-15",
+        "legal_status": "self",
+        "profile_status": "active",
+        "region_of_record": "AU",
+        "date_preferences": {
+          "preferred_format": "DD/MM/YYYY",
+          "home_country": "AU",
+          "timezone": "Australia/Sydney"
+        }
+      }
+    },
+    {
+      "description": "Child profile",
+      "extraction": {
+        "account_owner_id": "uuid-from-auth-context",
+        "profile_type": "child",
+        "display_name": "Emma Johnson",
+        "full_name": "Emma Grace Johnson",
+        "date_of_birth": "2018-07-22",
+        "legal_status": "parent",
+        "profile_status": "active",
+        "region_of_record": "AU"
+      }
+    },
+    {
+      "description": "Pet profile from veterinary document",
+      "extraction": {
+        "account_owner_id": "uuid-from-auth-context",
+        "profile_type": "pet",
+        "display_name": "Max",
+        "full_name": "Max Johnson",
+        "date_of_birth": "2020-05-10",
+        "species": "dog",
+        "breed": "Golden Retriever",
+        "legal_status": "owner",
+        "profile_status": "active"
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "not_typically_extracted": "This table is primarily populated through user registration and profile creation workflows, NOT from AI document extraction. However, demographic data may be extracted to verify/update profiles.",
+    "profile_type_detection": "Determine profile_type based on document context (human medical = self/child, veterinary = pet).",
+    "date_extraction": "date_of_birth can be extracted from medical documents for verification. Use DATE format (YYYY-MM-DD).",
+    "pet_fields": "species and breed only apply when profile_type='pet'. Extract from veterinary documents.",
+    "archival_fields": "Archival and GDPR fields are typically system-managed, not extracted from documents.",
+    "custom_enums": "Several fields use PostgreSQL custom enum types. For AI extraction, treat as text strings matching the defined values.",
+    "jsonb_defaults": "custom_theme and date_preferences have default values. If not extracting specific values, omit these fields.",
+    "region_detection": "region_of_record can be inferred from document header (Australian documents → 'AU', US documents → 'US')."
+  },
+
+  "validation_rules": {
+    "account_owner_id": "Must be valid UUID from auth context (NOT NULL)",
+    "profile_type": "Must be one of: 'self', 'child', 'pet', 'dependent' (NOT NULL)",
+    "display_name": "Must be provided (NOT NULL)",
+    "profile_status": "If provided, must be one of: 'active', 'inactive', 'pending_transfer'",
+    "legal_status": "If provided, must be one of: 'guardian', 'parent', 'caregiver', 'self', 'owner'",
+    "date_of_birth": "If provided, must be valid ISO 8601 DATE format",
+    "custom_theme": "If provided, must be valid JSONB object",
+    "date_preferences": "If provided, must be valid JSONB object",
+    "pet_rule": "For profile_type='pet': species and/or breed should be populated",
+    "pregnancy_rule": "For is_pregnancy_profile=true: expected_due_date should be populated"
+  }
+}

@@ -1,0 +1,359 @@
+{
+  "schema_version": "1.0.0",
+  "table": "patient_vitals",
+  "pass": "pass-2",
+  "description": "Vital signs measurements with flexible JSONB value storage. This table stores physiological measurements like blood pressure, heart rate, temperature, weight, and other vital signs extracted from medical documents.",
+  "clinical_context": "Use this schema for extracting vital signs from medical documents. Vitals are routine physiological measurements taken during clinical encounters or self-monitoring. The measurement_value field uses JSONB for flexible storage of different vital sign types.",
+
+  "required_fields": [
+    "patient_id",
+    "event_id",
+    "vital_type",
+    "measurement_value",
+    "unit",
+    "measurement_date"
+  ],
+
+  "fields": {
+    "patient_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Patient identifier from processing context (not extracted from document)",
+      "required": true,
+      "example": "uuid-from-context",
+      "guidance": "This table HAS patient_id column (denormalized for RLS performance). The composite FK ensures patient_id consistency with parent event."
+    },
+
+    "event_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "References parent patient_clinical_events record (the clinical event this vital measurement is part of)",
+      "required": true,
+      "cascade": "ON DELETE CASCADE",
+      "example": "uuid-of-parent-clinical-event",
+      "guidance": "This links the vital measurement to the parent clinical event. Migration 08 requires event_id NOT NULL and enforces consistency via composite FK."
+    },
+
+    "vital_type": {
+      "type": "enum",
+      "values": ["blood_pressure", "heart_rate", "temperature", "respiratory_rate", "oxygen_saturation", "weight", "height", "bmi", "blood_glucose", "other"],
+      "description": "Type of vital sign measurement",
+      "required": true,
+      "db_enforced": true,
+      "type_definitions": {
+        "blood_pressure": "Systolic and diastolic blood pressure in mmHg",
+        "heart_rate": "Heart rate or pulse in beats per minute",
+        "temperature": "Body temperature in Fahrenheit or Celsius",
+        "respiratory_rate": "Breaths per minute",
+        "oxygen_saturation": "Blood oxygen saturation percentage",
+        "weight": "Body weight in kg or lbs",
+        "height": "Height in cm or inches",
+        "bmi": "Body Mass Index calculated value",
+        "blood_glucose": "Blood glucose level in mg/dL",
+        "other": "Any other vital sign not categorized above"
+      }
+    },
+
+    "measurement_value": {
+      "type": "jsonb",
+      "description": "Flexible JSONB structure for measurement values - structure varies by vital_type",
+      "required": true,
+      "structures_by_type": {
+        "blood_pressure": {"systolic": "number", "diastolic": "number"},
+        "heart_rate": {"bpm": "number"},
+        "temperature": {"degrees": "number"},
+        "respiratory_rate": {"breaths_per_minute": "number"},
+        "oxygen_saturation": {"percentage": "number"},
+        "weight": {"value": "number"},
+        "height": {"value": "number"},
+        "bmi": {"value": "number"},
+        "blood_glucose": {"value": "number"}
+      },
+      "examples": [
+        {"systolic": 120, "diastolic": 80},
+        {"bpm": 72},
+        {"degrees": 98.6},
+        {"percentage": 98},
+        {"value": 70.5}
+      ],
+      "guidance": "Use the appropriate structure for the vital_type. For blood_pressure, always use systolic/diastolic. For most others, use a generic 'value' key or specific key like 'bpm', 'degrees', 'percentage'."
+    },
+
+    "unit": {
+      "type": "string",
+      "description": "Measurement unit (NOT NULL - always required)",
+      "required": true,
+      "examples_by_type": {
+        "blood_pressure": ["mmHg"],
+        "heart_rate": ["bpm", "beats/min"],
+        "temperature": ["F", "C", "°F", "°C"],
+        "respiratory_rate": ["breaths/min", "bpm"],
+        "oxygen_saturation": ["%", "percent"],
+        "weight": ["kg", "lbs", "g"],
+        "height": ["cm", "in", "m"],
+        "bmi": ["kg/m2"],
+        "blood_glucose": ["mg/dL", "mmol/L"]
+      },
+      "guidance": "Always provide unit. Use standard medical abbreviations."
+    },
+
+    "measurement_date": {
+      "type": "timestamptz",
+      "format": "ISO 8601",
+      "description": "When the measurement was taken (NOT NULL)",
+      "required": true,
+      "examples": [
+        "2025-09-30T14:30:00Z",
+        "2025-09-30T09:00:00-05:00"
+      ],
+      "guidance": "Use full timestamp with timezone if available. Required field."
+    },
+
+    "measurement_method": {
+      "type": "string",
+      "description": "How the measurement was taken",
+      "required": false,
+      "examples": [
+        "manual",
+        "automated",
+        "self_reported"
+      ],
+      "guidance": "Extract if mentioned in document. Useful for quality assessment."
+    },
+
+    "body_position": {
+      "type": "string",
+      "description": "Patient position during measurement",
+      "required": false,
+      "examples": [
+        "sitting",
+        "standing",
+        "lying",
+        "supine",
+        "prone"
+      ],
+      "guidance": "Particularly important for blood pressure measurements. Extract if stated."
+    },
+
+    "measured_by": {
+      "type": "string",
+      "description": "Who or what took the measurement",
+      "required": false,
+      "examples": [
+        "Dr. Johnson",
+        "Nurse Williams",
+        "Patient (self-reported)",
+        "Automated blood pressure cuff"
+      ],
+      "guidance": "Can be provider name, device, or 'patient' for self-reported measurements."
+    },
+
+    "source_shell_file_id": {
+      "type": "uuid",
+      "description": "Source document reference (optional FK)",
+      "required": false,
+      "example": "uuid-from-context",
+      "guidance": "Recommended for provenance tracking. Links to shell_files table."
+    },
+
+    "device_info": {
+      "type": "jsonb",
+      "description": "Device manufacturer, model, and other details",
+      "required": false,
+      "example": {
+        "manufacturer": "Masimo",
+        "model": "MightySat",
+        "serial": "12345"
+      },
+      "guidance": "Extract device information if mentioned. Useful for quality assessment and recalls."
+    },
+
+    "clinical_context": {
+      "type": "string",
+      "description": "Clinical context of the measurement",
+      "required": false,
+      "examples": [
+        "routine_visit",
+        "emergency",
+        "home_monitoring",
+        "pre-operative",
+        "post-operative"
+      ],
+      "guidance": "Provides context for why measurement was taken."
+    },
+
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the measurement",
+      "required": false,
+      "examples": [
+        "Patient appeared anxious",
+        "Measurement repeated due to initial high reading",
+        "Fasting glucose"
+      ]
+    },
+
+    "confidence_score": {
+      "type": "numeric",
+      "precision": 3,
+      "scale": 2,
+      "range": [0, 1],
+      "description": "Overall quality/confidence score (0.00-1.00)",
+      "required": false,
+      "default": 1.0,
+      "examples": [1.00, 0.95, 0.85],
+      "guidance": "Different precision than ai_confidence (2 decimals vs 3). Represents overall measurement quality."
+    },
+
+    "is_abnormal": {
+      "type": "boolean",
+      "description": "Whether the value is abnormal/outside normal range",
+      "required": false,
+      "default": false,
+      "guidance": "Set based on comparison to reference_range if provided."
+    },
+
+    "reference_range": {
+      "type": "jsonb",
+      "description": "Normal ranges for this measurement type",
+      "required": false,
+      "examples": [
+        {"systolic": {"low": 90, "high": 120}, "diastolic": {"low": 60, "high": 80}},
+        {"low": 97.0, "high": 99.0},
+        {"low": 70, "high": 100}
+      ],
+      "guidance": "Extract reference ranges if stated in document. Use JSONB structure matching measurement_value."
+    },
+
+    "ai_extracted": {
+      "type": "boolean",
+      "description": "Always true for AI-extracted vitals",
+      "required": true,
+      "default": true
+    },
+
+    "ai_confidence": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "AI confidence in the extraction (0.000-1.000)",
+      "required": true,
+      "examples": [0.950, 0.920, 0.850],
+      "confidence_guidance": {
+        "high": ">= 0.900 - Clear, unambiguous extraction",
+        "medium": "0.700 - 0.899 - Reasonable confidence",
+        "low": "< 0.700 - Uncertain, requires review"
+      },
+      "note": "Different precision than confidence_score (3 decimals vs 2)"
+    },
+
+    "requires_review": {
+      "type": "boolean",
+      "description": "Flag if this vital needs human review",
+      "required": true,
+      "default": false,
+      "guidance": "Set to true if ai_confidence < 0.700 or if values seem clinically implausible."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Blood pressure measurement with full context",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "vital_type": "blood_pressure",
+        "measurement_value": {"systolic": 120, "diastolic": 80},
+        "unit": "mmHg",
+        "measurement_date": "2025-09-30T14:30:00Z",
+        "measurement_method": "automated",
+        "body_position": "sitting",
+        "measured_by": "Nurse Williams",
+        "source_shell_file_id": "uuid-from-context",
+        "clinical_context": "routine_visit",
+        "is_abnormal": false,
+        "reference_range": {"systolic": {"low": 90, "high": 120}, "diastolic": {"low": 60, "high": 80}},
+        "ai_extracted": true,
+        "ai_confidence": 0.950,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Temperature measurement",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "vital_type": "temperature",
+        "measurement_value": {"degrees": 98.6},
+        "unit": "F",
+        "measurement_date": "2025-09-30T10:00:00Z",
+        "measurement_method": "automated",
+        "measured_by": "Dr. Johnson",
+        "source_shell_file_id": "uuid-from-context",
+        "is_abnormal": false,
+        "ai_extracted": true,
+        "ai_confidence": 0.920,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Weight measurement",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "vital_type": "weight",
+        "measurement_value": {"value": 70.5},
+        "unit": "kg",
+        "measurement_date": "2025-09-30T09:00:00Z",
+        "measurement_method": "manual",
+        "source_shell_file_id": "uuid-from-context",
+        "clinical_context": "routine_visit",
+        "ai_extracted": true,
+        "ai_confidence": 0.890,
+        "requires_review": false
+      }
+    },
+    {
+      "description": "Oxygen saturation with device info",
+      "extraction": {
+        "patient_id": "uuid-from-context",
+        "event_id": "uuid-of-parent-clinical-event",
+        "vital_type": "oxygen_saturation",
+        "measurement_value": {"percentage": 98},
+        "unit": "%",
+        "measurement_date": "2025-09-30T11:30:00Z",
+        "measurement_method": "automated",
+        "device_info": {"manufacturer": "Masimo", "model": "MightySat", "serial": "12345"},
+        "source_shell_file_id": "uuid-from-context",
+        "is_abnormal": false,
+        "ai_extracted": true,
+        "ai_confidence": 0.910,
+        "requires_review": false
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "jsonb_structure": "The measurement_value JSONB structure MUST match the vital_type. Blood pressure uses {systolic, diastolic}. Most others use {value} or type-specific keys.",
+    "required_fields_strict": "All 6 required fields (patient_id, event_id, vital_type, measurement_value, unit, measurement_date) must be provided. Database will reject records missing these.",
+    "vital_type_validation": "vital_type is CHECK constrained in database - must be exactly one of the 10 allowed values.",
+    "unit_requirement": "unit is NOT NULL in database - always provide a unit, even if you need to infer it from context.",
+    "patient_id_context": "patient_id comes from processing context. This table HAS patient_id column (denormalized for RLS performance) and uses composite FK to ensure consistency with parent event.",
+    "event_id_requirement": "event_id is NOT NULL (Migration 08) - links to parent patient_clinical_events. Composite FK ensures patient_id matches parent event's patient_id.",
+    "reference_ranges": "Extract reference ranges when provided in document. Structure should mirror measurement_value (e.g., BP reference has systolic/diastolic sub-ranges).",
+    "confidence_precision": "Two different numeric precisions: ai_confidence (4,3) vs confidence_score (3,2). Be precise."
+  },
+
+  "validation_rules": {
+    "vital_type": "Must be one of 10 DB-enforced values",
+    "measurement_value": "Must be valid JSONB matching expected structure for vital_type",
+    "blood_pressure_structure": "If vital_type='blood_pressure', measurement_value must have systolic and diastolic keys",
+    "unit": "NOT NULL - must always be provided",
+    "measurement_date": "NOT NULL - must be valid TIMESTAMPTZ",
+    "event_id": "NOT NULL - must reference valid patient_clinical_events record",
+    "ai_confidence": "Must be between 0.000 and 1.000 with 3 decimal places",
+    "confidence_score": "If provided, must be between 0.00 and 1.00 with 2 decimal places",
+    "all_jsonb_fields": "measurement_value, device_info, reference_range must be valid JSON"
+  }
+}

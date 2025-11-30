@@ -1,0 +1,51 @@
+{
+  "table": "patient_interventions",
+  "pass": "pass-2",
+  "required": ["event_id", "intervention_type"],
+  "fields": {
+    "event_id": "uuid (parent clinical event)",
+    "intervention_type": "medication_admin|vaccination|minor_procedure|surgery|therapy",
+    "substance_name": "string?",
+    "manufacturer": "string?",
+    "lot_number": "string?",
+    "dose_amount": "numeric?",
+    "dose_unit": "string?",
+    "route": "string?",
+    "frequency": "string?",
+    "technique": "string?",
+    "equipment_used": "string?",
+    "immediate_outcome": "string?",
+    "complications": "string?",
+    "followup_required": "boolean? (false)",
+    "followup_instructions": "string?",
+    "ai_extracted": "boolean (true)",
+    "ai_confidence": "numeric(4,3) 0.000-1.000",
+    "requires_review": "boolean"
+  },
+  "intervention_types": {
+    "medication_admin": "medications, prescriptions",
+    "vaccination": "immunizations, vaccines",
+    "minor_procedure": "office procedures, biopsies",
+    "surgery": "surgical procedures, operations",
+    "therapy": "PT, OT, counseling, chemo"
+  },
+  "field_usage": {
+    "medication_admin": ["substance_name", "dose_amount", "dose_unit", "route", "frequency"],
+    "vaccination": ["substance_name", "manufacturer", "lot_number", "dose_amount", "dose_unit", "route"],
+    "minor_procedure": ["technique", "equipment_used", "followup_required", "followup_instructions"],
+    "surgery": ["technique", "equipment_used", "complications", "followup_required", "followup_instructions"],
+    "therapy": ["technique", "followup_instructions"]
+  },
+  "example": {
+    "event_id": "uuid-of-parent-clinical-event",
+    "intervention_type": "medication_admin",
+    "substance_name": "Lisinopril",
+    "dose_amount": 10,
+    "dose_unit": "mg",
+    "route": "oral",
+    "frequency": "daily",
+    "ai_extracted": true,
+    "ai_confidence": 0.920,
+    "requires_review": false
+  }
+}

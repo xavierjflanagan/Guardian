@@ -1,0 +1,300 @@
+{
+  "schema_version": "1.0.0",
+  "table": "pass1_entity_metrics",
+  "pass": "pass-1",
+  "description": "Pass 1 entity detection quality and performance metrics. This table tracks metrics for the Pass 1 AI vision and OCR processing pipeline including entity counts, confidence distribution, vision/OCR agreement, token consumption, and processing costs.",
+  "clinical_context": "This is a SYSTEM-GENERATED metrics table, NOT extracted from medical documents. It tracks the performance and quality of the Pass 1 entity detection process (vision AI + OCR). The AI processing system populates this table automatically after completing Pass 1 detection.",
+
+  "required_fields": [
+    "profile_id",
+    "shell_file_id",
+    "processing_session_id",
+    "entities_detected",
+    "processing_time_ms",
+    "processing_time_minutes",
+    "vision_model_used"
+  ],
+
+  "fields": {
+    "profile_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Profile identifier from processing context",
+      "required": true,
+      "example": "uuid-from-context",
+      "guidance": "References user_profiles(id) ON DELETE CASCADE. Cross-pass join key for aggregation."
+    },
+
+    "shell_file_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "Source document being processed",
+      "required": true,
+      "example": "uuid-of-processed-document",
+      "guidance": "References shell_files(id) ON DELETE CASCADE. Tracks which document was processed."
+    },
+
+    "processing_session_id": {
+      "type": "uuid",
+      "source": "context",
+      "description": "AI processing session identifier",
+      "required": true,
+      "example": "uuid-of-ai-session",
+      "guidance": "References ai_processing_sessions(id) ON DELETE CASCADE. PRIMARY cross-pass join key for rollup analytics across Pass 1, Pass 2, and Pass 3."
+    },
+
+    "entities_detected": {
+      "type": "integer",
+      "description": "Count of entities detected in Pass 1",
+      "required": true,
+      "examples": [25, 32, 8],
+      "guidance": "Total number of entities detected by vision AI in Pass 1. Must be non-negative. Compare with Pass 2's clinical_entities_enriched for pipeline progression."
+    },
+
+    "processing_time_ms": {
+      "type": "integer",
+      "description": "Total processing time in milliseconds",
+      "required": true,
+      "examples": [1800, 2400, 1200],
+      "guidance": "INTEGER type. End-to-end Pass 1 processing duration. Required for performance analysis. Non-negative. Consistent with Pass 2's processing_time_ms field."
+    },
+
+    "processing_time_minutes": {
+      "type": "numeric",
+      "precision": 10,
+      "scale": 2,
+      "description": "Processing time in minutes (auto-calculated from processing_time_ms for human readability)",
+      "required": true,
+      "generated": true,
+      "examples": [4.92, 3.00, 2.00],
+      "guidance": "NUMERIC(10,2) GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED. Auto-calculated from processing_time_ms. Example: 295084 ms = 4.92 minutes. NOT NULL but automatically computed."
+    },
+
+    "vision_model_used": {
+      "type": "string",
+      "description": "Vision AI model name and version used",
+      "required": true,
+      "examples": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "claude-3-5-sonnet-20241022",
+        "gpt-4o-2024-08-06"
+      ],
+      "guidance": "Model identifier string including version if available. Required for cost attribution and quality analysis."
+    },
+
+    "ocr_model_used": {
+      "type": "string",
+      "description": "OCR model name and version used (if applicable)",
+      "required": false,
+      "examples": [
+        "google-cloud-vision",
+        "azure-document-intelligence",
+        "tesseract-5.0"
+      ],
+      "guidance": "Optional - only populated if OCR was used alongside vision AI. Some documents may be processed vision-only."
+    },
+
+    "ocr_agreement_average": {
+      "type": "numeric",
+      "precision": 4,
+      "scale": 3,
+      "range": [0, 1],
+      "description": "Average agreement between vision AI and OCR results",
+      "required": false,
+      "examples": [0.920, 0.885, 0.750],
+      "guidance": "NUMERIC(4,3) - 0.000-1.000 range with 3 decimal places. Measures consistency between vision and OCR. Higher values indicate better agreement. Mirrors Pass 2's average_clinical_confidence precision."
+    },
+
+    "confidence_distribution": {
+      "type": "jsonb",
+      "description": "Distribution of confidence levels across detected entities",
+      "required": false,
+      "examples": [
+        {"high": 18, "medium": 5, "low": 2},
+        {"high": 22, "medium": 8, "low": 2},
+        {"high": 3, "medium": 3, "low": 2}
+      ],
+      "guidance": "JSONB object with flexible structure showing confidence breakdown. Common structure: {\"high\": count, \"medium\": count, \"low\": count}. Useful for quality assessment."
+    },
+
+    "entity_types_found": {
+      "type": "array",
+      "item_type": "string",
+      "description": "Array of entity type categories detected in Pass 1",
+      "required": false,
+      "examples": [
+        ["medication", "condition", "vital_sign", "observation"],
+        ["medication", "condition", "vital_sign", "observation", "allergy"],
+        ["medication", "condition"]
+      ],
+      "guidance": "PostgreSQL TEXT[] array. Entity type categories detected during Pass 1. Consider GIN index for analytics: CREATE INDEX idx_entity_types_found ON pass1_entity_metrics USING GIN(entity_types_found);"
+    },
+
+    "input_tokens": {
+      "type": "integer",
+      "description": "Input tokens from OpenAI prompt_tokens (text + images combined)",
+      "required": false,
+      "examples": [1800, 2400, 1300],
+      "guidance": "INTEGER type. Input tokens (text + images) from OpenAI API prompt_tokens field. Used for accurate cost calculation (input tokens priced differently than output). Non-negative."
+    },
+
+    "output_tokens": {
+      "type": "integer",
+      "description": "Output tokens from OpenAI completion_tokens",
+      "required": false,
+      "examples": [700, 800, 500],
+      "guidance": "INTEGER type. Output tokens from OpenAI API completion_tokens field. Used for accurate cost calculation (output tokens typically 4x more expensive than input). Non-negative."
+    },
+
+    "total_tokens": {
+      "type": "integer",
+      "description": "Sum of input + output tokens from OpenAI total_tokens",
+      "required": false,
+      "examples": [2500, 3200, 1800],
+      "guidance": "INTEGER type. Sum of input + output tokens from OpenAI API total_tokens field. Should equal input_tokens + output_tokens. Non-negative. Mirrors Pass 2's total_tokens field."
+    },
+
+    "ocr_pages_processed": {
+      "type": "integer",
+      "description": "Number of pages processed by OCR",
+      "required": false,
+      "examples": [4, 2, 1],
+      "guidance": "INTEGER type. Count of pages processed through OCR. Only populated if OCR was used. Non-negative."
+    },
+
+    "user_agent": {
+      "type": "string",
+      "description": "User agent string from processing request",
+      "required": false,
+      "examples": ["Mozilla/5.0...", "Guardian-Worker/1.0"],
+      "guidance": "Optional metadata for debugging and analytics."
+    },
+
+    "ip_address": {
+      "type": "inet",
+      "description": "IP address of processing request",
+      "required": false,
+      "examples": ["192.168.1.1", "2001:0db8:85a3:0000:0000:8a2e:0370:7334"],
+      "guidance": "PostgreSQL INET type. Supports both IPv4 and IPv6. Optional metadata for security and analytics."
+    }
+  },
+
+  "examples": [
+    {
+      "description": "Vision-only Pass 1 processing with high entity detection",
+      "extraction": {
+        "profile_id": "uuid-from-context",
+        "shell_file_id": "uuid-of-processed-document",
+        "processing_session_id": "uuid-of-ai-session",
+        "entities_detected": 25,
+        "processing_time_ms": 1800,
+        "vision_model_used": "gpt-4o",
+        "ocr_agreement_average": 0.920,
+        "confidence_distribution": {
+          "high": 18,
+          "medium": 5,
+          "low": 2
+        },
+        "entity_types_found": ["medication", "condition", "vital_sign", "observation"],
+        "input_tokens": 1800,
+        "output_tokens": 700,
+        "total_tokens": 2500
+      }
+    },
+    {
+      "description": "Vision + OCR Pass 1 processing with comprehensive entity detection",
+      "extraction": {
+        "profile_id": "uuid-from-context",
+        "shell_file_id": "uuid-of-processed-document",
+        "processing_session_id": "uuid-of-ai-session",
+        "entities_detected": 32,
+        "processing_time_ms": 2400,
+        "vision_model_used": "gpt-4o",
+        "ocr_model_used": "google-cloud-vision",
+        "ocr_agreement_average": 0.885,
+        "confidence_distribution": {
+          "high": 22,
+          "medium": 8,
+          "low": 2
+        },
+        "entity_types_found": ["medication", "condition", "vital_sign", "observation", "allergy"],
+        "input_tokens": 2400,
+        "output_tokens": 800,
+        "total_tokens": 3200,
+        "ocr_pages_processed": 4
+      }
+    },
+    {
+      "description": "Low entity detection with quality concerns",
+      "extraction": {
+        "profile_id": "uuid-from-context",
+        "shell_file_id": "uuid-of-processed-document",
+        "processing_session_id": "uuid-of-ai-session",
+        "entities_detected": 8,
+        "processing_time_ms": 1200,
+        "vision_model_used": "gpt-4o-mini",
+        "ocr_model_used": "google-cloud-vision",
+        "ocr_agreement_average": 0.750,
+        "confidence_distribution": {
+          "high": 3,
+          "medium": 3,
+          "low": 2
+        },
+        "entity_types_found": ["medication", "condition"],
+        "input_tokens": 1300,
+        "output_tokens": 500,
+        "total_tokens": 1800,
+        "ocr_pages_processed": 2
+      }
+    }
+  ],
+
+  "extraction_guidelines": {
+    "system_generated": "This table is populated AUTOMATICALLY by the AI processing system after Pass 1 completion. It is NOT extracted from medical documents.",
+    "required_fields_strict": "All 7 required fields (profile_id, shell_file_id, processing_session_id, entities_detected, processing_time_ms, processing_time_minutes (auto-calculated), vision_model_used) must be provided.",
+    "cross_pass_consistency": "Use consistent field names and precisions with Pass 2 and Pass 3 metrics tables for aggregation. processing_session_id is the PRIMARY join key.",
+    "ocr_optional": "OCR fields (ocr_model_used, ocr_pages_processed) are optional. Vision-only processing may not populate these fields.",
+    "cost_calculation": "Cost calculated on-demand from token breakdown: (input_tokens × input_price_per_token) + (output_tokens × output_price_per_token). Output tokens typically 4x more expensive than input.",
+    "quality_indicators": {
+      "high_quality": "ocr_agreement_average >= 0.900 AND confidence_distribution.high >= 70% of entities_detected",
+      "moderate_quality": "ocr_agreement_average 0.750-0.899 OR confidence_distribution.high >= 50% of entities_detected",
+      "low_quality": "ocr_agreement_average < 0.750 OR confidence_distribution.low > 25% of entities_detected"
+    },
+    "performance_optimization": "Database creates indexes on profile_id, shell_file_id, and processing_session_id. Consider GIN index on entity_types_found for filtering."
+  },
+
+  "interoperability_notes": {
+    "cross_pass_keys": "Uses same keys as Pass 2 (profile_id, shell_file_id, processing_session_id) with identical datatypes for cross-pass aggregation.",
+    "field_naming_alignment": {
+      "pass1": "entities_detected INTEGER NOT NULL",
+      "pass2": "clinical_entities_enriched INTEGER NOT NULL",
+      "pass3": "(planned) narratives_generated INTEGER NOT NULL"
+    },
+    "cost_performance_consistency": {
+      "processing_time_ms": "INTEGER - same across all passes",
+      "token_breakdown": "input_tokens, output_tokens, total_tokens - same across all passes",
+      "cost_calculation": "On-demand calculation from token breakdown and model pricing"
+    },
+    "summary_layer": "Designed for aggregation into ai_processing_summary materialized view per processing_session_id and per profile_id.",
+    "analytics_indexes": "GIN index on entity_types_found enables efficient filtering: CREATE INDEX idx_entity_types_found ON pass1_entity_metrics USING GIN(entity_types_found);"
+  },
+
+  "validation_rules": {
+    "profile_id": "Must be valid UUID (NOT NULL)",
+    "shell_file_id": "Must be valid UUID (NOT NULL)",
+    "processing_session_id": "Must be valid UUID (NOT NULL)",
+    "entities_detected": "Must be non-negative integer (NOT NULL)",
+    "processing_time_ms": "Must be non-negative integer (NOT NULL)",
+    "processing_time_minutes": "Auto-calculated from processing_time_ms (NOT NULL, GENERATED)",
+    "vision_model_used": "Must be provided (NOT NULL)",
+    "ocr_agreement_average": "If provided, must be between 0.000 and 1.000 with 3 decimal places",
+    "confidence_distribution": "If provided, must be valid JSONB object",
+    "entity_types_found": "If provided, must be valid TEXT[] array",
+    "input_tokens": "If provided, must be non-negative integer",
+    "output_tokens": "If provided, must be non-negative integer",
+    "total_tokens": "If provided, must be non-negative integer matching sum of input + output",
+    "ocr_pages_processed": "If provided, must be non-negative integer",
+    "ip_address": "If provided, must be valid IPv4 or IPv6 format"
+  }
+}

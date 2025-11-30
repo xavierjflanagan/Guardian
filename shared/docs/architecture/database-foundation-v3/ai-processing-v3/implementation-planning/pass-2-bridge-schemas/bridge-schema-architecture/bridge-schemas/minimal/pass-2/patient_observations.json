@@ -1,0 +1,41 @@
+{
+  "table": "patient_observations",
+  "pass": "pass-2",
+  "required": ["event_id", "observation_type"],
+  "value_requirement": "At least ONE value field required",
+  "fields": {
+    "event_id": "uuid (parent clinical event)",
+    "observation_type": "vital_sign|lab_result|physical_finding|assessment_score",
+    "value_text": "string?",
+    "value_numeric": "numeric?",
+    "value_secondary": "numeric?",
+    "value_boolean": "boolean?",
+    "unit": "string?",
+    "reference_range_text": "string?",
+    "reference_range_low": "numeric?",
+    "reference_range_high": "numeric?",
+    "interpretation": "normal|high|low|critical|abnormal?",
+    "assessment_tool": "string?",
+    "score_max": "numeric?",
+    "ai_extracted": "boolean (true)",
+    "ai_confidence": "numeric(4,3) 0.000-1.000",
+    "requires_review": "boolean"
+  },
+  "observation_types": {
+    "vital_sign": "BP, HR, temp, weight",
+    "lab_result": "blood/urine tests",
+    "physical_finding": "exam findings",
+    "assessment_score": "PHQ-9, MMSE, etc"
+  },
+  "example": {
+    "event_id": "uuid-of-parent-clinical-event",
+    "observation_type": "vital_sign",
+    "value_numeric": 120,
+    "value_secondary": 80,
+    "unit": "mmHg",
+    "interpretation": "normal",
+    "ai_extracted": true,
+    "ai_confidence": 0.950,
+    "requires_review": false
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "table": "entity_processing_audit",
+  "pass": "pass-2",
+  "operation": "UPDATE",
+  "fields": {
+    "pass2_status": "in_progress|completed|failed",
+    "pass2_confidence": "numeric(4,3)? 0.000-1.000",
+    "pass2_started_at": "timestamptz? (set once with COALESCE)",
+    "pass2_completed_at": "timestamptz? (>= pass2_started_at)",
+    "enrichment_errors": "string? (if failed)",
+    "pass2_model_used": "string? (gpt-4o-mini, claude-3-5-sonnet)",
+    "pass2_token_usage": "integer?",
+    "pass2_cost_estimate": "numeric(8,4)?",
+    "final_event_id": "uuid? (patient_clinical_events link)",
+    "final_encounter_id": "uuid? (healthcare_encounters link)",
+    "final_observation_id": "uuid? (patient_observations link)",
+    "final_intervention_id": "uuid? (patient_interventions link)",
+    "final_condition_id": "uuid? (patient_conditions link)",
+    "final_allergy_id": "uuid? (patient_allergies link)",
+    "final_vital_id": "uuid? (patient_vitals link)"
+  },
+  "readonly": [
+    "shell_file_id",
+    "patient_id",
+    "processing_session_id",
+    "entity_id",
+    "original_text",
+    "entity_category",
+    "entity_subtype",
+    "pass1_confidence",
+    "requires_schemas",
+    "processing_priority",
+    "pass1_model_used",
+    "all_pass1_spatial_and_ocr_fields"
+  ],
+  "link_mapping": {
+    "vital_sign_*": ["final_observation_id", "final_vital_id"],
+    "medication": ["final_intervention_id"],
+    "diagnosis": ["final_condition_id", "final_event_id"],
+    "allergy": ["final_allergy_id"],
+    "lab_result": ["final_observation_id"],
+    "procedure": ["final_intervention_id", "final_event_id"],
+    "appointment": ["final_encounter_id"],
+    "immunization": ["final_intervention_id"]
+  },
+  "example": {
+    "pass2_status": "completed",
+    "pass2_confidence": 0.920,
+    "pass2_started_at": "2025-01-01T12:35:10Z",
+    "pass2_completed_at": "2025-01-01T12:35:18Z",
+    "pass2_model_used": "gpt-4o-mini",
+    "pass2_token_usage": 2400,
+    "pass2_cost_estimate": 0.0062,
+    "final_observation_id": "uuid-of-observation-record",
+    "final_vital_id": "uuid-of-vital-record"
+  }
+}
