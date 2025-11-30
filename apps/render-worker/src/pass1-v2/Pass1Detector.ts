@@ -226,7 +226,7 @@ export class Pass1Detector {
     await updateShellFileStatus(
       this.supabase,
       shell_file_id,
-      success ? 'pass1_complete' : 'pass1_failed'
+      success ? 'pass1_complete' : 'failed'
     );
 
     console.log(`[Pass1] Completed shell file ${shell_file_id}: ${encountersSucceeded}/${encounters.length} succeeded`);
