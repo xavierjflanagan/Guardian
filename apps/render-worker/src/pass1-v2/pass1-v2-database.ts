@@ -481,46 +481,32 @@ export async function updateSessionPass1Status(
   }
 }
 
+// =============================================================================
+// PASS 1 CONTEXT TYPE
+// =============================================================================
+
 /**
- * Update pass1_entity_metrics
- *
- * @param supabase - Supabase client
- * @param sessionId - Processing session ID
- * @param shellFileId - Shell file ID
- * @param patientId - Patient ID
- * @param metrics - Metrics to record
+ * Context required for all Pass 1 database operations
+ * These are always available from the entry point (processShellFile)
+ * and must be passed explicitly - no optional fallbacks.
  */
+export interface Pass1Context {
+  shell_file_id: string;
+  patient_id: string;
+  processing_session_id: string;
+}
+
 export async function updatePass1Metrics(
   supabase: SupabaseClient,
-  shellFileId: string,
-  metrics: Pass1MetricsUpdate & {
-    processing_session_id?: string;
-    patient_id?: string;
-  }
+  context: Pass1Context,
+  metrics: Pass1MetricsUpdate
 ): Promise<void> {
-  // First get the shell file to get patient_id and session_id if not provided
-  let patientId = metrics.patient_id;
-  let sessionId = metrics.processing_session_id;
-
-  if (!patientId || !sessionId) {
-    const { data: shellFile, error: fetchError } = await supabase
-      .from('shell_files')
-      .select('patient_id')
-      .eq('id', shellFileId)
-      .single();
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch shell file: ${fetchError.message}`);
-    }
-    patientId = patientId || shellFile.patient_id;
-  }
-
   const { error } = await supabase
     .from('pass1_entity_metrics')
     .insert({
-      profile_id: patientId,
-      shell_file_id: shellFileId,
-      processing_session_id: sessionId,
+      profile_id: context.patient_id,
+      shell_file_id: context.shell_file_id,
+      processing_session_id: context.processing_session_id,
       entities_detected: metrics.entities_detected,
       processing_time_ms: metrics.processing_time_ms,
       vision_model_used: 'none',  // Legacy field - Strategy-A is OCR-only

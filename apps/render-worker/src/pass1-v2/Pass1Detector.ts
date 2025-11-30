@@ -190,23 +190,27 @@ export class Pass1Detector {
     const finalStatus = success ? 'completed' : 'failed';
     await updateSessionPass1Status(this.supabase, processing_session_id, finalStatus);
 
-    await updatePass1Metrics(this.supabase, shell_file_id, {
-      ai_model_used: this.config.model,
-      encounters_total: encounters.length,
-      encounters_succeeded: encountersSucceeded,
-      encounters_failed: encountersFailed,
-      batches_total: results.reduce((sum, r) => sum + r.batchCount, 0),
-      batches_succeeded: results.filter(r => r.success).reduce((sum, r) => sum + r.batchCount, 0),
-      total_retries_used: totalRetries,
-      failure_encounter_id: failedResult?.encounterId,
-      error_code: failedResult?.errorCode,
-      error_summary: failedResult?.error,
-      entities_detected: totalEntities,
-      processing_time_ms: totalDurationMs,
-      input_tokens: totalInputTokens,
-      output_tokens: totalOutputTokens,
-      total_tokens: totalInputTokens + totalOutputTokens
-    });
+    await updatePass1Metrics(
+      this.supabase,
+      { shell_file_id, patient_id, processing_session_id },
+      {
+        ai_model_used: this.config.model,
+        encounters_total: encounters.length,
+        encounters_succeeded: encountersSucceeded,
+        encounters_failed: encountersFailed,
+        batches_total: results.reduce((sum, r) => sum + r.batchCount, 0),
+        batches_succeeded: results.filter(r => r.success).reduce((sum, r) => sum + r.batchCount, 0),
+        total_retries_used: totalRetries,
+        failure_encounter_id: failedResult?.encounterId,
+        error_code: failedResult?.errorCode,
+        error_summary: failedResult?.error,
+        entities_detected: totalEntities,
+        processing_time_ms: totalDurationMs,
+        input_tokens: totalInputTokens,
+        output_tokens: totalOutputTokens,
+        total_tokens: totalInputTokens + totalOutputTokens
+      }
+    );
 
     // Update shell file status
     await updateShellFileStatus(

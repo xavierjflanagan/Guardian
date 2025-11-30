@@ -125,6 +125,7 @@ export {
 } from './pass1-v2-batching';
 
 // Database utilities (for testing/advanced use)
+export type { Pass1Context } from './pass1-v2-database';
 export {
   createEncounterResult,
   updateEncounterResult,
