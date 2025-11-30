@@ -68,7 +68,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     outputCostPer1M: 10.00,
     temperatureSupported: false,  // Reasoning model - only default temperature
     maxTokensParam: 'max_completion_tokens',
-    availableForPasses: ['PASS_05']
+    availableForPasses: ['PASS_05', 'PASS_1']
   },
   {
     envVarSuffix: 'USE_GPT5_MINI',
@@ -81,7 +81,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     outputCostPer1M: 2.00,
     temperatureSupported: false,
     maxTokensParam: 'max_completion_tokens',
-    availableForPasses: ['PASS_05']
+    availableForPasses: ['PASS_05', 'PASS_1']
   },
   {
     envVarSuffix: 'USE_GPT5_NANO',
@@ -94,7 +94,7 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
     outputCostPer1M: 0.40,
     temperatureSupported: false,
     maxTokensParam: 'max_completion_tokens',
-    availableForPasses: ['PASS_05']
+    availableForPasses: ['PASS_05', 'PASS_1']
   },
 
   // ==========================================================================

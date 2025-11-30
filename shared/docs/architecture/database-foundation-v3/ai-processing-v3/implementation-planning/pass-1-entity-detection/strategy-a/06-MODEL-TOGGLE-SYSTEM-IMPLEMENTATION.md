@@ -59,38 +59,68 @@ apps/render-worker/src/shared/ai/
 ### Phase 3: Deploy and Test
 - [ ] Commit changes
 - [ ] Add env vars to Render.com:
-  - `PASS_1_USE_GPT4O_MINI=true`
-  - `PASS_1_USE_GPT4O=false`
+  - `PASS_1_USE_GPT5=true` (active - matching Pass 0.5)
+  - `PASS_1_USE_GPT5_MINI=false`
+  - `PASS_1_USE_GPT5_NANO=false`
+  - `PASS_1_USE_GEMINI_2_5_PRO=false`
   - `PASS_1_USE_GEMINI_2_5_FLASH=false`
+  - `PASS_1_USE_GEMINI_2_5_FLASH_LITE=false`
 - [ ] Deploy and test with different models
 
 ## Model Registry - Pass 1 Models
 
+Pass 1 now uses the same GPT-5 family as Pass 0.5 for consistency:
+
 ```typescript
-// Pass 1 Models (entity extraction - needs good instruction following)
+// OpenAI GPT-5 Family (reasoning models)
 {
-  envVar: 'PASS_1_USE_GPT4O',
+  envVar: 'PASS_1_USE_GPT5',
   vendor: 'openai',
-  modelId: 'gpt-4o',
-  displayName: 'GPT-4o',
-  contextWindow: 128_000,
-  maxOutput: 16_384,
-  inputCostPer1M: 2.50,
+  modelId: 'gpt-5',
+  displayName: 'GPT-5',
+  contextWindow: 400_000,
+  maxOutput: 128_000,
+  inputCostPer1M: 1.25,
   outputCostPer1M: 10.00,
-  temperatureSupported: true,
-  maxTokensParam: 'max_tokens'
+  temperatureSupported: false,  // Reasoning model
+  maxTokensParam: 'max_completion_tokens'
 },
 {
-  envVar: 'PASS_1_USE_GPT4O_MINI',
+  envVar: 'PASS_1_USE_GPT5_MINI',
   vendor: 'openai',
-  modelId: 'gpt-4o-mini',
-  displayName: 'GPT-4o-mini',
-  contextWindow: 128_000,
-  maxOutput: 16_384,
-  inputCostPer1M: 0.15,
-  outputCostPer1M: 0.60,
+  modelId: 'gpt-5-mini',
+  displayName: 'GPT-5-mini',
+  contextWindow: 400_000,
+  maxOutput: 128_000,
+  inputCostPer1M: 0.25,
+  outputCostPer1M: 2.00,
+  temperatureSupported: false,
+  maxTokensParam: 'max_completion_tokens'
+},
+{
+  envVar: 'PASS_1_USE_GPT5_NANO',
+  vendor: 'openai',
+  modelId: 'gpt-5-nano',
+  displayName: 'GPT-5-nano',
+  contextWindow: 400_000,
+  maxOutput: 128_000,
+  inputCostPer1M: 0.05,
+  outputCostPer1M: 0.40,
+  temperatureSupported: false,
+  maxTokensParam: 'max_completion_tokens'
+},
+// Google Gemini Family
+{
+  envVar: 'PASS_1_USE_GEMINI_2_5_PRO',
+  vendor: 'google',
+  modelId: 'gemini-2.5-pro',
+  displayName: 'Gemini 2.5 Pro',
+  contextWindow: 1_048_576,
+  maxOutput: 65_536,
+  inputCostPer1M: 1.25,
+  outputCostPer1M: 10.00,
   temperatureSupported: true,
-  maxTokensParam: 'max_tokens'
+  maxTokensParam: 'maxOutputTokens'
 },
 {
   envVar: 'PASS_1_USE_GEMINI_2_5_FLASH',
@@ -103,6 +133,18 @@ apps/render-worker/src/shared/ai/
   outputCostPer1M: 0.60,
   temperatureSupported: true,
   maxTokensParam: 'maxOutputTokens'
+},
+{
+  envVar: 'PASS_1_USE_GEMINI_2_5_FLASH_LITE',
+  vendor: 'google',
+  modelId: 'gemini-2.5-flash-lite',
+  displayName: 'Gemini 2.5 Flash-Lite',
+  contextWindow: 1_048_576,
+  maxOutput: 65_536,
+  inputCostPer1M: 0.10,
+  outputCostPer1M: 0.40,
+  temperatureSupported: true,
+  maxTokensParam: 'maxOutputTokens'
 }
 ```
 
@@ -113,13 +155,18 @@ apps/render-worker/src/shared/ai/
 **Pass 0.5 (existing):**
 - `PASS_05_USE_GPT5=false`
 - `PASS_05_USE_GPT5_MINI=false`
+- `PASS_05_USE_GPT5_NANO=false`
 - `PASS_05_USE_GEMINI_2_5_PRO=false`
 - `PASS_05_USE_GEMINI_2_5_FLASH=true` (current)
+- `PASS_05_USE_GEMINI_2_5_FLASH_LITE=false`
 
 **Pass 1 (new):**
-- `PASS_1_USE_GPT4O=false`
-- `PASS_1_USE_GPT4O_MINI=true` (default)
+- `PASS_1_USE_GPT5=true` (active - matching Pass 0.5 model family)
+- `PASS_1_USE_GPT5_MINI=false`
+- `PASS_1_USE_GPT5_NANO=false`
+- `PASS_1_USE_GEMINI_2_5_PRO=false`
 - `PASS_1_USE_GEMINI_2_5_FLASH=false`
+- `PASS_1_USE_GEMINI_2_5_FLASH_LITE=false`
 
 ## Key Code Changes
 
