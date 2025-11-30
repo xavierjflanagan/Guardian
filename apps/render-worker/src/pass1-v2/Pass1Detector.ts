@@ -529,7 +529,8 @@ export class Pass1Detector {
       batch.pageRangeStart,
       batch.pageRangeEnd,
       batch.index,
-      totalBatches
+      totalBatches,
+      this.config.include_zones_in_prompt
     );
 
     // Estimate tokens for logging

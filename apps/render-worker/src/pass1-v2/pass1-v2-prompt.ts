@@ -317,12 +317,14 @@ Output ONLY valid JSON with "entities" array. No explanations or markdown.`;
  * @param ocrText - Pre-formatted OCR text with [Y:###] markers
  * @param pageNumber - Starting page number (for single-page or batch context)
  * @param pageCount - Total pages in this batch
+ * @param includeZones - Whether to include zone instructions (default: true)
  * @returns Object with system and user prompts
  */
 export function buildPass1Prompt(
   ocrText: string,
   pageNumber?: number,
-  pageCount?: number
+  pageCount?: number,
+  includeZones: boolean = true
 ): { system: string; user: string } {
   // Build batch info if multi-page
   let batchInfo: string | undefined;
@@ -332,7 +334,7 @@ export function buildPass1Prompt(
 
   return {
     system: PASS1_SYSTEM_MESSAGE,
-    user: buildUserPrompt(ocrText, { pageNumber, batchInfo })
+    user: buildUserPrompt(ocrText, { pageNumber, batchInfo, includeZones })
   };
 }
 
@@ -344,6 +346,7 @@ export function buildPass1Prompt(
  * @param pageRangeEnd - Last page in batch (1-indexed)
  * @param batchIndex - Batch index (0-based)
  * @param totalBatches - Total number of batches
+ * @param includeZones - Whether to include zone instructions (default: true)
  * @returns Object with system and user prompts
  */
 export function buildBatchPrompt(
@@ -351,7 +354,8 @@ export function buildBatchPrompt(
   pageRangeStart: number,
   pageRangeEnd: number,
   batchIndex: number,
-  totalBatches: number
+  totalBatches: number,
+  includeZones: boolean = true
 ): { system: string; user: string } {
   let batchInfo = `This is batch ${batchIndex + 1} of ${totalBatches}, covering pages ${pageRangeStart}-${pageRangeEnd}`;
   if (totalBatches > 1) {
@@ -360,7 +364,7 @@ export function buildBatchPrompt(
 
   return {
     system: PASS1_SYSTEM_MESSAGE,
-    user: buildUserPrompt(batchOcrText, { pageNumber: pageRangeStart, batchInfo })
+    user: buildUserPrompt(batchOcrText, { pageNumber: pageRangeStart, batchInfo, includeZones })
   };
 }
 
