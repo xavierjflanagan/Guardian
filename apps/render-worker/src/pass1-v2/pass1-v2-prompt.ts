@@ -23,7 +23,7 @@ import { Pass1EntityType, VALID_ENTITY_TYPES } from './pass1-v2-types';
  * System message for Pass 1 entity detection
  * Minimal persona focused on classification
  */
-export const PASS1_SYSTEM_MESSAGE = `You are a medical document entity classifier. Your task is to identify clinical entities and their types from OCR text. Output minimal JSON only.`;
+export const PASS1_SYSTEM_MESSAGE = `You are a medical document reviewer that locates, extracts and classifies clinical entities and their locations from the uploaded document OCR text. Output minimal JSON only.`;
 
 // =============================================================================
 // PROMPT GENERATION
@@ -49,27 +49,35 @@ export function buildUserPrompt(
   let prompt = `ENCOUNTER OCR TEXT (Y-coordinates per line):
 ${ocrText}
 
-TASK: Extract every clinical entity from this document.
+TASK: Identify and extract every clinical entity from this document.
 
 STEP 1 - LINE-BY-LINE EXTRACTION:
 Read EVERY line of the document. For each line, determine:
-- Does this line contain a clinical entity?
-- If yes, extract it with its exact text, entity_type, page_number, and y_coordinate
+- Does this line contain any clinical entities?
+- If yes, extract ALL clinical entities with their exact text, entity_type, page_number, and y_coordinate
 
 STEP 2 - GROUP INTO ZONES:
-After extracting all entities, group them into bridge_schema_zones.
+After extracting all entities, group them into bridge_schema_zones to help with downstream parralel batch processing.
 A zone is a contiguous Y-range on a page where entities of the same type cluster.
 
 ENTITY TYPES: ${entityTypesList}
 
 EXTRACTION RULES:
-- A clinical entity is ANY mention of a drug, disease, procedure, vaccine, allergy, test result, vital measurement, or clinical observation
+- A clinical entity is ANY mention of a medication, condition, disease, procedure, immunisation, allergy, test result, vital measurement, or clinical observation - essentially anything that is a clinical event, clinical fact or clinical context.
 - Read every line - entities may be scattered throughout without section headers
-- The same entity appearing multiple times = multiple separate entries (e.g., same drug prescribed on different dates)
+- DO NOT DEDUPLICATE: If the same medication/vaccine appears on 5 different lines, output 5 separate entities with different y_coordinates
+- Each line that contains clinical entities = at least one entity in your output (even if the clinical entity is listed on other lines)
 - Extract the EXACT text as it appears in the document for original_text
 - Use y_coordinate from the [Y:###] marker for that line
 - When uncertain whether something is a clinical entity, include it
 - Aliases: 1-3 common alternatives for medical code lookup (SNOMED, RxNorm, LOINC)
+
+COMMON PATTERNS TO RECOGNIZE:
+- "Prescriptions:" or "Script date:" sections contain medications
+- Immunisation records often have format: "DATE Vaccine Name (Disease)"
+- Past History sections contain conditions AND procedures
+- Lines with "mg", "mcg", "mL", "Tablet", "Capsule", "Injection" are likely medications or immunisations
+- Lines with dates followed by medical terms are likely clinical events
 
 ZONE RULES:
 - One zone per schema_type per contiguous Y-range
@@ -172,6 +180,14 @@ OUTPUT JSON SCHEMA:
       "aliases": ["doxycycline"],
       "y_coordinate": 950,
       "page_number": 2
+    },
+    {
+      "id": "e11",
+      "original_text": "Metformin 500mg Tablet",
+      "entity_type": "medication",
+      "aliases": ["metformin", "glucophage"],
+      "y_coordinate": 1050,
+      "page_number": 2
     }
   ],
   "bridge_schema_zones": [
@@ -207,15 +223,16 @@ OUTPUT JSON SCHEMA:
       "schema_type": "medications",
       "page_number": 2,
       "y_start": 950,
-      "y_end": 950,
-      "entity_count": 1
+      "y_end": 1050,
+      "entity_count": 2
     }
   ]
 }
 
 The example above shows:
 - Page 1: 2 medications (e1, e2), 2 conditions (e3, e4)
-- Page 2: 2 conditions continued from previous page (e5, e6), 3 immunisations (e7, e8, e9), 1 medication (e10)
+- Page 2: 2 conditions (e5, e6), 3 immunisations (e7, e8, e9), 2 medications (e10, e11)
+- Note: e11 is "Metformin 500mg Tablet" again - same drug as e1 but different line/date = separate entity
 - 5 zones total across 2 pages, with entity_count matching actual entities in each zone
 
 Output ONLY valid JSON matching this schema. No explanations or markdown.`;
