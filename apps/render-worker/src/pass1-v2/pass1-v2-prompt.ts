@@ -50,17 +50,23 @@ export function buildUserPrompt(
 ${ocrText}
 
 TASK:
-1. Identify all clinical entities from these categories: ${entityTypesList}
-2. For each entity output: original_text, entity_type, aliases (max 3), y_coordinate, page_number
+1. Identify ALL clinical entities from these categories: ${entityTypesList}
+2. For each entity output: original_text, entity_type, aliases (1-3 common alternatives), y_coordinate, page_number
 3. Identify bridge_schema_zones: Y-ranges where specific schema types apply
    - Create ONE zone per schema_type (not multiple schema_types per zone)
    - Zones MAY overlap if multiple schema types share the same Y-region
    - Keep zones focused on actual content regions
 
+CRITICAL - EXTRACT EVERY ENTITY:
+- Extract EVERY clinical entity, even if the same medication/condition appears multiple times
+- Each prescription entry is a SEPARATE entity (same drug prescribed on different dates = multiple entities)
+- Sections may span multiple pages - continue extracting across page boundaries
+- When uncertain, include the entity rather than omit it
+
 IMPORTANT:
 - Extract the EXACT text as it appears in the document for original_text
-- Use the [Y:###] marker to help identify the location of entities, as well as the start and end borders of the bridge schema zones
-- Aliases should be common alternative names or abbreviations that will help the downstream processing pass identify the entity within an international medical code library (such as SNOMED, RxNorm, LOINC, etc.)`;
+- Use y_coordinate from the [Y:###] marker for that line
+- Aliases should be common alternative names (1-3) to help identify the entity in medical code libraries (SNOMED, RxNorm, LOINC)`;
 
   // Add page context if provided
   if (pageNumber !== undefined) {
