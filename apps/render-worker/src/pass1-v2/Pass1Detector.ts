@@ -17,9 +17,15 @@
  * - Y-markers added dynamically at prompt time (not stored in DB)
  */
 
-import OpenAI from 'openai';
 import pLimit from 'p-limit';
 import { SupabaseClient } from '@supabase/supabase-js';
+
+import {
+  getSelectedModelForPass,
+  AIProviderFactory,
+  BaseAIProvider,
+  ModelDefinition
+} from '../shared/ai';
 
 import {
   Pass1Config,
@@ -86,14 +92,15 @@ import {
  * Implements hierarchical observability with encounter and batch level tracking.
  */
 export class Pass1Detector {
-  private openai: OpenAI;
+  private provider: BaseAIProvider;
+  private model: ModelDefinition;
   private supabase: SupabaseClient;
   private config: Pass1Config;
   private limit: ReturnType<typeof pLimit>;
 
   constructor(
     supabase: SupabaseClient,
-    config: Partial<Pass1Config> & { openai_api_key: string }
+    config?: Partial<Pass1Config>
   ) {
     this.supabase = supabase;
     this.config = {
@@ -101,9 +108,12 @@ export class Pass1Detector {
       ...config
     } as Pass1Config;
 
-    this.openai = new OpenAI({
-      apiKey: this.config.openai_api_key
-    });
+    // Get model from environment variable toggles
+    this.model = getSelectedModelForPass('PASS_1');
+    this.provider = AIProviderFactory.createProvider(this.model);
+
+    // Override config model with selected model
+    this.config.model = this.model.modelId;
 
     this.limit = pLimit(this.config.concurrency_limit);
   }
@@ -535,32 +545,27 @@ export class Pass1Detector {
 
     // Estimate tokens for logging
     const estimatedTokens = estimatePromptTokens(batch.ocrTextSlice);
-    console.log(`[Pass1] Batch ${batch.index}: ~${estimatedTokens} input tokens`);
+    console.log(`[Pass1] Batch ${batch.index}: ~${estimatedTokens} input tokens (${this.model.displayName})`);
 
-    // Call OpenAI
-    const response = await this.openai.chat.completions.create({
-      model: this.config.model,
+    // Call AI provider (handles both OpenAI and Google)
+    const response = await this.provider.generateJSON(user, {
+      systemMessage: system,
       temperature: this.config.temperature,
-      max_tokens: this.config.max_tokens,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user }
-      ]
+      maxOutputTokens: this.config.max_tokens
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
+    if (!response.content) {
       throw new Error('Empty response from AI');
     }
 
     // Parse response
-    const parsed = parsePass1Response(content);
+    const parsed = parsePass1Response(response.content);
 
     const durationMs = Date.now() - startTime;
-    const inputTokens = response.usage?.prompt_tokens || 0;
-    const outputTokens = response.usage?.completion_tokens || 0;
+    const inputTokens = response.inputTokens;
+    const outputTokens = response.outputTokens;
 
-    console.log(`[Pass1] Batch ${batch.index}: ${parsed.entities.length} entities, ${parsed.bridge_schema_zones.length} zones in ${durationMs}ms`);
+    console.log(`[Pass1] Batch ${batch.index}: ${parsed.entities.length} entities, ${parsed.bridge_schema_zones.length} zones in ${durationMs}ms (cost: $${response.cost.toFixed(4)})`);
 
     return {
       success: true,
@@ -640,13 +645,15 @@ export class Pass1Detector {
 /**
  * Create a Pass1Detector instance
  *
+ * Model is selected via environment variables (PASS_1_USE_GPT4O_MINI, etc.)
+ *
  * @param supabase - Supabase client
- * @param config - Configuration (must include openai_api_key)
+ * @param config - Optional configuration overrides
  * @returns Pass1Detector instance
  */
 export function createPass1Detector(
   supabase: SupabaseClient,
-  config: Partial<Pass1Config> & { openai_api_key: string }
+  config?: Partial<Pass1Config>
 ): Pass1Detector {
   return new Pass1Detector(supabase, config);
 }

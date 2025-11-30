@@ -5,13 +5,17 @@
  * Purpose: Public API for Pass 1 entity detection
  * Reference: PASS1-STRATEGY-A-MASTER.md
  *
+ * Model Selection:
+ * Set ONE of these env vars in Render.com to select the AI model:
+ *   - PASS_1_USE_GPT4O_MINI=true  (default, cheapest)
+ *   - PASS_1_USE_GPT4O=true       (better quality)
+ *   - PASS_1_USE_GEMINI_2_5_FLASH=true  (Google alternative)
+ *
  * Usage:
  * ```typescript
  * import { createPass1Detector, Pass1ShellFileInput } from './pass1-v2';
  *
- * const detector = createPass1Detector(supabase, {
- *   openai_api_key: process.env.OPENAI_API_KEY!
- * });
+ * const detector = createPass1Detector(supabase);
  *
  * const result = await detector.processShellFile({
  *   shell_file_id: 'xxx',

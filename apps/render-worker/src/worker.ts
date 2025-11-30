@@ -158,13 +158,12 @@ class V3Worker {
     );
 
     // Initialize Pass 1 v2 detector (Strategy-A: OCR-only)
-    if (config.openai.apiKey) {
-      this.pass1Detector = createPass1Detector(this.supabase, {
-        openai_api_key: config.openai.apiKey
-      });
+    // Model is selected via PASS_1_USE_* environment variables
+    try {
+      this.pass1Detector = createPass1Detector(this.supabase);
       this.logger.info('Pass 1 v2 Detector initialized (Strategy-A)');
-    } else {
-      this.logger.warn('Pass 1 disabled - OpenAI API key not found');
+    } catch (error) {
+      this.logger.warn('Pass 1 disabled - Model selection failed', { error: (error as Error).message });
     }
 
     this.logger.info('V3 Worker initialized', {

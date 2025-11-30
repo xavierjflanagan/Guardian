@@ -322,10 +322,12 @@ export interface Pass1Result {
 
 /**
  * Pass 1 detector configuration
+ *
+ * Note: Model selection is now handled via environment variables (PASS_1_USE_*)
+ * and the shared AI provider system. The 'model' field is auto-populated.
  */
 export interface Pass1Config {
-  openai_api_key: string;
-  model: string;                    // e.g., 'gpt-4o-mini'
+  model: string;                    // Auto-set from env var selection (e.g., 'gpt-4o-mini')
   temperature: number;              // e.g., 0.1
   max_tokens: number;               // e.g., 4096
   max_retries: number;              // Default: 3
