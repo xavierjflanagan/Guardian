@@ -1,0 +1,155 @@
+{
+  "entity_id": 2,
+  "entity_text": "Hemoglobin A1c test",
+  "variant_type": "layperson",
+  "query": "a1c diabetes blood test",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:02.546Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "74150-4",
+      "display_name": "Diabetes Type I action plan",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.493741
+    },
+    {
+      "rank": 2,
+      "code_value": "71785-0",
+      "display_name": "Exam findings communicated to clinician managing diabetic care",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.47468
+    },
+    {
+      "rank": 3,
+      "code_value": "84086-8",
+      "display_name": "Diabetology Initial evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.456085
+    },
+    {
+      "rank": 4,
+      "code_value": "84090-0",
+      "display_name": "Diabetology Outpatient Initial evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.437236
+    },
+    {
+      "rank": 5,
+      "code_value": "84092-6",
+      "display_name": "Diabetology Risk assessment and screening note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.436092
+    },
+    {
+      "rank": 6,
+      "code_value": "83571-0",
+      "display_name": "Diabetology Nurse Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.426098
+    },
+    {
+      "rank": 7,
+      "code_value": "84088-4",
+      "display_name": "Diabetology Medication management note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.421165
+    },
+    {
+      "rank": 8,
+      "code_value": "84094-2",
+      "display_name": "Diabetology Plan of care note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.419598
+    },
+    {
+      "rank": 9,
+      "code_value": "83572-8",
+      "display_name": "Diabetology Nurse Outpatient Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.405452
+    },
+    {
+      "rank": 10,
+      "code_value": "84089-2",
+      "display_name": "Diabetology Outpatient Group counseling note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.399895
+    },
+    {
+      "rank": 11,
+      "code_value": "84084-3",
+      "display_name": "Diabetology Case manager Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.398204
+    },
+    {
+      "rank": 12,
+      "code_value": "104664-8",
+      "display_name": "APOL1 [Genotype] in Blood, Tissue or Saliva by Molecular genetics method Nominal",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.383213
+    },
+    {
+      "rank": 13,
+      "code_value": "104594-7",
+      "display_name": "Diabetology nurse practitioner Outpatient Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.371908
+    },
+    {
+      "rank": 14,
+      "code_value": "104762-0",
+      "display_name": "HIV 1 RNA [Log #/volume] in Serum or Plasma by Molecular genetics method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.330343
+    },
+    {
+      "rank": 15,
+      "code_value": "78574-1",
+      "display_name": "Optometry Diagnostic study note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.321151
+    },
+    {
+      "rank": 16,
+      "code_value": "60509-7",
+      "display_name": "Text-diagnosis section Set NAACCR v.12",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.320627
+    },
+    {
+      "rank": 17,
+      "code_value": "78577-4",
+      "display_name": "Podiatry Diagnostic study note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.313205
+    },
+    {
+      "rank": 18,
+      "code_value": "104268-8",
+      "display_name": "UBA1 gene mutation in Specimen by Molecular genetics method",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.313182
+    }
+  ]
+}

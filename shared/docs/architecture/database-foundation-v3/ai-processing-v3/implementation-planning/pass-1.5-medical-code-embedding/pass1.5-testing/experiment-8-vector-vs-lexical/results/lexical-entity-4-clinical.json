@@ -1,0 +1,191 @@
+{
+  "entity_id": 4,
+  "entity_text": "Total cholesterol test",
+  "variant_type": "clinical",
+  "query": "cholesterol total serum plasma",
+  "expected_entity_type": "lab_result",
+  "method": "lexical",
+  "timestamp": "2025-11-02T01:39:11.043Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "54373-6",
+      "display_name": "Cholesterol.non-esterified [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0.659705
+    },
+    {
+      "rank": 2,
+      "code_value": "54467-6",
+      "display_name": "Cholesterol in HDL 2a/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 3,
+      "code_value": "54468-4",
+      "display_name": "Cholesterol in HDL 2b/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 4,
+      "code_value": "54469-2",
+      "display_name": "Cholesterol in HDL 3a/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 5,
+      "code_value": "54470-0",
+      "display_name": "Cholesterol in HDL 3b/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 6,
+      "code_value": "54471-8",
+      "display_name": "Cholesterol in HDL 3c/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 7,
+      "code_value": "55440-2",
+      "display_name": "Cholesterol.in LDL (real) [Mass/volume] in Serum or Plasma by VAP",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 8,
+      "code_value": "55607-6",
+      "display_name": "Triglyceride/Cholesterol in HDL [Molar ratio] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 9,
+      "code_value": "55838-7",
+      "display_name": "Cholesterol/Phospholipid [Molar ratio] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 10,
+      "code_value": "55839-5",
+      "display_name": "Cholesterol ester transfer protein [Units/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 11,
+      "code_value": "55840-3",
+      "display_name": "Cholesterol esters [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 12,
+      "code_value": "56132-4",
+      "display_name": "Cholesterol in HDL 2a [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 13,
+      "code_value": "56134-0",
+      "display_name": "Cholesterol in IDL 1 [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 14,
+      "code_value": "56135-7",
+      "display_name": "Cholesterol in IDL 2 [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 15,
+      "code_value": "57936-7",
+      "display_name": "Cholesterol in HDL 2a [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 16,
+      "code_value": "57937-5",
+      "display_name": "Cholesterol in HDL 3a [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 17,
+      "code_value": "59250-1",
+      "display_name": "Tocopherols/Cholesterol [Molar ratio] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 18,
+      "code_value": "74435-9",
+      "display_name": "Cholesterol.non-esterified/Cholesterol.total in Serum or Plasma by Gas chromatography",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 19,
+      "code_value": "66126-4",
+      "display_name": "Cholesterol in VLDL [Moles/volume] in Serum or Plasma by calculation",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    },
+    {
+      "rank": 20,
+      "code_value": "66499-5",
+      "display_name": "Cholesterol in VLDL.beta [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "relevance_score": 1,
+      "similarity_score": 0
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "total_codes": 6820,
+  "match_rate": 1,
+  "occurrence_distribution": {
+    "0": 686,
+    "1": 3274,
+    "2": 1067,
+    "3": 623,
+    "4": 415,
+    "5": 285,
+    "6": 195,
+    "7": 144,
+    "8": 131
+  },
+  "usage_stats": {
+    "min": 0,
+    "max": 3.2242,
+    "avg": 0.013416026392961794
+  },
+  "active_codes": 0,
+  "retired_codes": 0
+}

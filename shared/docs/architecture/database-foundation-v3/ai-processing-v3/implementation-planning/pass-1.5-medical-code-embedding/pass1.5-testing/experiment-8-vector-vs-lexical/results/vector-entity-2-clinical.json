@@ -1,0 +1,171 @@
+{
+  "entity_id": 2,
+  "entity_text": "Hemoglobin A1c test",
+  "variant_type": "clinical",
+  "query": "hemoglobin a1c glycated blood",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:01.178Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "104664-8",
+      "display_name": "APOL1 [Genotype] in Blood, Tissue or Saliva by Molecular genetics method Nominal",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.423
+    },
+    {
+      "rank": 2,
+      "code_value": "71785-0",
+      "display_name": "Exam findings communicated to clinician managing diabetic care",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.382056
+    },
+    {
+      "rank": 3,
+      "code_value": "84084-3",
+      "display_name": "Diabetology Case manager Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.377902
+    },
+    {
+      "rank": 4,
+      "code_value": "84086-8",
+      "display_name": "Diabetology Initial evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.372885
+    },
+    {
+      "rank": 5,
+      "code_value": "84092-6",
+      "display_name": "Diabetology Risk assessment and screening note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.372303
+    },
+    {
+      "rank": 6,
+      "code_value": "104762-0",
+      "display_name": "HIV 1 RNA [Log #/volume] in Serum or Plasma by Molecular genetics method",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.358504
+    },
+    {
+      "rank": 7,
+      "code_value": "84088-4",
+      "display_name": "Diabetology Medication management note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.357306
+    },
+    {
+      "rank": 8,
+      "code_value": "84090-0",
+      "display_name": "Diabetology Outpatient Initial evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.3569
+    },
+    {
+      "rank": 9,
+      "code_value": "74150-4",
+      "display_name": "Diabetes Type I action plan",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.352213
+    },
+    {
+      "rank": 10,
+      "code_value": "83571-0",
+      "display_name": "Diabetology Nurse Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.348231
+    },
+    {
+      "rank": 11,
+      "code_value": "84089-2",
+      "display_name": "Diabetology Outpatient Group counseling note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.346207
+    },
+    {
+      "rank": 12,
+      "code_value": "84094-2",
+      "display_name": "Diabetology Plan of care note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.34306
+    },
+    {
+      "rank": 13,
+      "code_value": "83572-8",
+      "display_name": "Diabetology Nurse Outpatient Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.331968
+    },
+    {
+      "rank": 14,
+      "code_value": "104268-8",
+      "display_name": "UBA1 gene mutation in Specimen by Molecular genetics method",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.325703
+    },
+    {
+      "rank": 15,
+      "code_value": "104594-7",
+      "display_name": "Diabetology nurse practitioner Outpatient Note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.304484
+    },
+    {
+      "rank": 16,
+      "code_value": "100464-7",
+      "display_name": "Endocrinology Outpatient Progress note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.296312
+    },
+    {
+      "rank": 17,
+      "code_value": "68471-2",
+      "display_name": "Cardiology Hospital Admission evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.295912
+    },
+    {
+      "rank": 18,
+      "code_value": "86214-4",
+      "display_name": "Womens health Annual evaluation note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.294969
+    },
+    {
+      "rank": 19,
+      "code_value": "60509-7",
+      "display_name": "Text-diagnosis section Set NAACCR v.12",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.287432
+    },
+    {
+      "rank": 20,
+      "code_value": "90010-0",
+      "display_name": "Clinical pathology procedure note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.283891
+    }
+  ]
+}

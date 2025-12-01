@@ -1,395 +1,225 @@
 # Pass 1.5 Medical Code Data Preparation
 
-**Purpose:** Complete workflow for acquiring, parsing, embedding, and loading medical code libraries into Supabase
-
-**Status:** Phase 2 - Data Acquisition and Preparation (In Progress)
+**Status:** Updated for universal vs regional two-table architecture (2025-11-22)
 
 **Created:** 2025-10-15
+**Last Major Update:** 2025-11-22 (Consolidated documentation, universal vs regional strategy)
 
 ---
 
 ## Overview
 
-This directory contains all documentation and scripts for Phase 2 of the Pass 1.5 Medical Code Embedding System implementation.
+This directory contains documentation for Pass 1.5 Medical Code Embedding System data preparation using a two-table architecture.
 
-### Phase 2 Goals
-1. Acquire 6 medical code libraries (~228,000 codes)
-2. Parse raw data into **library-agnostic standardized JSON** format
-3. Generate OpenAI embeddings for all codes
-4. Populate Supabase database tables
+## Strategic Documents (Start Here)
+
+### 1. MEDICAL-CODE-LIBRARY-STRATEGY-AUDIT.md (PRIMARY STRATEGY)
+**Purpose:** Complete strategic analysis of universal vs regional code library architecture
+
+**Key Decisions:**
+- SNOMED CORE subset (6,820 codes) in `universal_medical_codes` for primary matching
+- SNOMED AU edition (706k codes) in `regional_medical_codes` for rare disease fallback
+- LOINC needs migration from regional to universal table
+- RxNorm + PBS dual-tier approach for medications
+
+**When to read:** Before implementing any code library work
+
+### 2. medical-code-sources.md
+**Purpose:** Classification of medical code libraries (universal vs regional)
+
+**Contents:**
+- Universal libraries: SNOMED CORE, LOINC, RxNorm
+- Regional libraries: SNOMED AU, PBS
+- Brand name handling strategies
+- Update schedules
+
+**When to read:** When deciding which library to use for a specific entity type
+
+### 3. DATA-ACQUISITION-GUIDE.md
+**Purpose:** Step-by-step download instructions for all medical code libraries
+
+**Contents:**
+- UMLS account setup
+- SNOMED CORE subset download (PRIORITY)
+- SNOMED International/AU edition downloads
+- RxNorm, LOINC, PBS download instructions
+- Table destination mappings
+
+**When to read:** When acquiring new medical code data
+
+### 4. PARSING-STRATEGY.md
+**Purpose:** Parser implementation specifications for all code libraries
+
+**Contents:**
+- Library-agnostic standardized JSON schema
+- Parser specs for SNOMED CORE, SNOMED AU, RxNorm, LOINC, PBS
+- Table destination routing
+- Brand name preservation logic
+
+**When to read:** When implementing parser scripts
 
 ---
 
-## Workflow Summary
+## Current Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     PASS 1.5 DATA PREPARATION WORKFLOW                │
-└─────────────────────────────────────────────────────────────────────┘
+### Two-Table System
 
-Step 1: DATA ACQUISITION (User Action)
-├── Register for UMLS account (RxNorm, SNOMED, LOINC)
-├── Download PBS data (Australian government)
-├── Download MBS data (Australian government)
-└── Download ICD-10-AM (paid license, optional)
-    │
-    ├─> See: DATA-ACQUISITION-GUIDE.md
-    └─> Output: Raw files in data/medical-codes/<system>/raw/
+**universal_medical_codes:**
+- Purpose: Globally recognized medical code standards
+- Libraries: SNOMED CORE (6,820), LOINC (102,891), RxNorm (~50k)
+- Indexing: Full HNSW vector indexes
+- Performance: 5-50ms queries (primary matching, 90%+ coverage)
 
-Step 2: PARSING (PBS & LOINC Complete)
-├── Parse RxNorm RRF files → JSON (pending UMLS approval)
-├── Parse SNOMED-CT RF2 files → JSON (pending UMLS approval)
-├── Parse LOINC CSV → JSON (✅ COMPLETE - 102,891 codes)
-├── Parse PBS CSV → JSON (✅ COMPLETE - ran successfully)
-├── Parse MBS CSV → JSON (❌ DELETED - billing codes not useful)
-└── Parse ICD-10-AM CSV → JSON (optional)
-    │
-    ├─> See: PARSING-STRATEGY.md
-    └─> Output: Standardized JSON in data/medical-codes/<system>/processed/
+**regional_medical_codes:**
+- Purpose: Country/region-specific medical codes
+- Libraries: SNOMED AU (706,544), PBS (14,382)
+- Indexing: Selective (PBS vector, SNOMED AU lexical)
+- Performance: 10-500ms queries (fallback matching, rare diseases)
 
-Step 3: EMBEDDING GENERATION (Script Ready)
-├── Load parsed JSON files
-├── Call OpenAI text-embedding-3-small API
-├── Generate 1536-dimensional vectors
-└── Save embeddings back to JSON files
-    │
-    ├─> Script: generate-embeddings.ts
-    ├─> Guide: EMBEDDING-GENERATION-GUIDE.md
-    └─> Cost: ~$0.05 for all 228K codes
+### Why AU Edition is Bigger Than International
 
-Step 4: DATABASE POPULATION (Script Ready)
-├── Load embedded JSON files
-├── Insert into universal_medical_codes table (RxNorm, SNOMED, LOINC)
-├── Insert into regional_medical_codes table (PBS, MBS, ICD-10-AM)
-└── Verify vector indexes active
-    │
-    ├─> Script: populate-database.ts
-    ├─> Guide: DATABASE-POPULATION-GUIDE.md
-    └─> Time: ~5-15 minutes
-```
+SNOMED CT Australian edition (706,544 codes) is a **SUPERSET** of International edition (527,304 codes):
+- Includes ALL 527k international concepts
+- PLUS ~179k Australian-specific extensions
+- Used for rare disease fallback in two-tier search
+
+### Two-Tier Search Strategy
+
+**Tier 1 (Universal):**
+- Lab results → LOINC
+- Medications → RxNorm
+- Clinical terms → SNOMED CORE
+- Fast queries (5-50ms)
+
+**Tier 2 (Regional fallback):**
+- Australian medications → PBS (for AU brands)
+- Rare diseases → SNOMED AU (lexical search)
+- Slower queries (10-500ms)
+
+---
+
+## Implementation Status
+
+### Completed
+- UMLS access acquired (2025-11-08)
+- SNOMED CORE subset downloaded and parsed (6,820 codes, 100% match to AU edition)
+- SNOMED AU edition in database (706,544 codes)
+- LOINC in database (102,891 codes, needs migration to universal table)
+- PBS in database (14,382 codes)
+- RxNorm downloaded (not yet parsed)
+- SNOMED International downloaded (not yet parsed, optional for reference)
+
+### In Progress
+- Strategy documentation updates
+- Parser script updates for universal vs regional
+
+### Not Started
+- Migrate LOINC from regional_medical_codes to universal_medical_codes
+- Parse and load SNOMED CORE to universal_medical_codes
+- Parse and load RxNorm to universal_medical_codes
+- Create indexes (universal: CORE + LOINC + RxNorm, regional: PBS vector + SNOMED AU lexical)
+- Implement two-tier search in Pass 1.5 runtime
 
 ---
 
 ## Files in This Directory
 
-### Documentation
-1. **README.md** (this file) - Overview and workflow summary
-2. **DATA-ACQUISITION-GUIDE.md** - Step-by-step instructions for downloading medical code libraries
-3. **PARSING-STRATEGY.md** - Parsing logic for each code system format
-4. **EMBEDDING-GENERATION-GUIDE.md** - Instructions for generating OpenAI embeddings
-5. **DATABASE-POPULATION-GUIDE.md** - Instructions for loading codes into Supabase
+### Active Documentation
+- **README.md** (this file) - Directory overview and navigation
+- **MEDICAL-CODE-LIBRARY-STRATEGY-AUDIT.md** - Strategic decisions (consolidates previous ARCHITECTURAL-REVIEW-2025.md)
+- **medical-code-sources.md** - Universal vs regional library classification
+- **DATA-ACQUISITION-GUIDE.md** - Download instructions
+- **PARSING-STRATEGY.md** - Parser implementation specs
 
-### Scripts
-1. **generate-embeddings.ts** - TypeScript script for embedding generation
-2. **populate-database.ts** - TypeScript script for database population
-
-### Parser Implementation Status
-- **parse-pbs.ts** - ✅ PBS CSV parser (COMPLETE - ran successfully)
-- **parse-loinc.ts** - ✅ LOINC CSV parser (COMPLETE - 102,891 codes parsed)
-- **parse-rxnorm.ts** - ⏳ RxNorm RRF parser (pending UMLS approval)
-- **parse-snomed.ts** - ⏳ SNOMED-CT RF2 parser (pending UMLS approval)
-- **parse-mbs.ts** - ⏸️ MBS CSV parser (deleted - billing codes not clinically useful)
-- **parse-icd10am.ts** - ⏸️ ICD-10-AM CSV parser (optional)
+### Archive
+- **archive/v1-full-dataset/** - Full 706k SNOMED approach (superseded by CORE subset)
+- **archive/v1-entity-specific-indexes/** - Entity-specific vector indexes (superseded by unified approach)
+- **archive/ARCHITECTURAL-REVIEW-2025.md** - Original CORE subset analysis (consolidated into STRATEGY-AUDIT)
+- **archive/licenses/** - UMLS license agreement
+- **archive/test-files/** - Test scripts and sample data
 
 ---
 
-## Quick Start Guide
+## Related Scripts
 
-### Prerequisites
-- Node.js 18+ and pnpm installed
-- OpenAI API key
-- Supabase service role key
-- Medical code library files downloaded
+Scripts are located in `/scripts/medical-codes/`:
 
-### Step 1: Data Acquisition (User Task)
-```bash
-# Follow instructions in DATA-ACQUISITION-GUIDE.md
-# Register for UMLS account
-# Download RxNorm, SNOMED-CT, LOINC
-# Download PBS and MBS from Australian government
-# (Optional) Acquire ICD-10-AM license
-```
+### SNOMED Scripts
+- `parse-core-subset.ts` - Parse NLM CORE subset file
+- `mark-core-codes.ts` - Mark CORE codes in database
+- `parse-snomed.ts` - Parse SNOMED AU edition (already run)
+- `generate-snomed-embeddings.ts` - Generate embeddings (needs --core-only flag)
 
-### Step 2: Parsing (PBS Ready, Others Pending)
-```bash
-# Run PBS parser (ready now)
-cd /Users/xflanagan/Documents/GitHub/Guardian-Cursor
-npx tsx parse-pbs.ts
+### LOINC Scripts
+- `parse-loinc.ts` - Parse LOINC CSV (already run)
+- `populate-loinc-no-embeddings.ts` - Database population (already run)
+- `generate-loinc-embeddings.ts` - Generate embeddings (already run)
+- Migration script needed: Move LOINC from regional to universal table
 
-# TODO: Implement remaining parsers based on PARSING-STRATEGY.md
-# npx tsx parse-rxnorm.ts    # after UMLS approval
-# npx tsx parse-snomed.ts    # after UMLS approval  
-# npx tsx parse-loinc.ts     # after UMLS approval
-# npx tsx parse-mbs.ts       # needs implementation
-# npx tsx parse-icd10am.ts   # optional
-```
+### RxNorm Scripts (To be created)
+- `parse-rxnorm.ts` - Parse RxNorm RRF files
+- `generate-rxnorm-embeddings.ts` - Generate embeddings
+- `populate-rxnorm.ts` - Populate universal_medical_codes
 
-### Step 3: Embedding Generation
-```bash
-# Set OpenAI API key
-export OPENAI_API_KEY="sk-..."
-
-# Generate embeddings for all code systems
-npx tsx generate-embeddings.ts --code-system=all
-
-# Or generate for specific code system
-npx tsx generate-embeddings.ts --code-system=rxnorm
-```
-
-### Step 4: Database Population
-```bash
-# Set Supabase credentials
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-
-# Dry run first (recommended)
-npx tsx populate-database.ts --code-system=all --dry-run
-
-# Populate database
-npx tsx populate-database.ts --code-system=all
-```
+### PBS Scripts
+- `parse-pbs.ts` - Parse PBS CSV (already run)
+- Embeddings and indexing pending
 
 ---
 
-## Data Flow
+## Next Steps (Priority Order)
 
-### Input: Raw Medical Code Libraries
-```
-data/medical-codes/
-├── rxnorm/raw/
-│   ├── RXNCONSO.RRF              # ~500 MB
-│   └── RXNSAT.RRF
-├── snomed/raw/
-│   ├── sct2_Concept_Snapshot_INT.txt    # ~1 GB
-│   └── sct2_Description_Snapshot_INT.txt
-├── loinc/raw/
-│   └── Loinc.csv                 # ~100 MB
-├── pbs/raw/
-│   └── 2025-10-01-PBS-API-CSV-files/  # ~10 MB CSV format
-├── mbs/raw/
-│   └── MBS_Items_YYYYMMDD.xlsx   # ~5 MB
-└── icd10am/raw/
-    └── ICD-10-AM-Tabular-List.xlsx  # ~50 MB (optional)
-```
+1. **Migrate LOINC** from regional_medical_codes to universal_medical_codes
+   - Copy data with table change
+   - Verify embeddings preserved
+   - Delete from regional table
+   - Rebuild indexes
 
-### Intermediate: Parsed JSON Files
-```
-data/medical-codes/
-├── rxnorm/processed/
-│   └── rxnorm_codes.json         # ~5 MB, 50,000 records
-├── snomed/processed/
-│   └── snomed_codes.json         # ~10 MB, 100,000 records
-├── loinc/processed/
-│   └── loinc_codes.json          # ✅ 143 MB, 102,891 records
-├── pbs/processed/
-│   └── pbs_codes.json            # ~300 KB, 3,000 records
-├── mbs/processed/
-│   └── mbs_codes.json            # ~500 KB, 5,000 records
-└── icd10am/processed/
-    └── icd10am_codes.json        # ~2 MB, 20,000 records
-```
+2. **Populate SNOMED CORE** to universal_medical_codes
+   - Use core_mapping.json from parse-core-subset.ts output
+   - Generate embeddings for 6,820 codes (~$0.01 cost, 5-10 minutes)
+   - Create HNSW index (~20-30 MB, <1 minute build time)
 
-**JSON Structure (Library-Agnostic Standardized):**
-```json
-[
-  {
-    "code_system": "pbs",
-    "code_value": "10001J_14023_31078_31081_31083",  // Most granular ID
-    "grouping_code": "10001J",                       // Optional grouping ID
-    "display_name": "Rifaximin Tablet 550 mg",
-    "entity_type": "medication",
-    "search_text": "Rifaximin Tablet 550 mg Xifaxan",
-    "library_version": "v2025Q4", 
-    "country_code": "AUS",
-    "region_specific_data": {
-      "original_li_item_id": "10001J_14023_31078_31081_31083",
-      "original_pbs_code": "10001J",
-      "brand_name": "Xifaxan"
-    }
-  },
-  ...
-]
-```
+3. **Parse and Populate RxNorm**
+   - Implement parse-rxnorm.ts parser
+   - Generate embeddings for ~50k codes (~$0.05 cost, 15-20 minutes)
+   - Load to universal_medical_codes
+   - Create HNSW index (~150 MB)
 
-### Intermediate: Embedded JSON Files
-Same files as above, but with `embedding` field added:
+4. **Update SNOMED AU in regional table**
+   - Rename code_system from 'snomed_ct' to 'snomed_ct_au'
+   - Remove embeddings (not needed for lexical fallback)
+   - Create trigram indexes for lexical search
 
-```json
-[
-  {
-    "code_system": "rxnorm",
-    "code_value": "205923",
-    "display_name": "Atorvastatin 20 MG Oral Tablet",
-    "entity_type": "medication",
-    "search_text": "Atorvastatin 20 MG Oral Tablet",
-    "library_version": "v2025Q1",
-    "country_code": null,
-    "region_specific_data": {},
-    "embedding": [0.0234, -0.0456, 0.0123, ...] // 1536 numbers
-  },
-  ...
-]
-```
+5. **Generate PBS embeddings and indexes**
+   - Generate embeddings for 14,382 codes (~$0.01 cost)
+   - Create HNSW index (~50 MB, <1 minute)
 
-### Output: Supabase Database Tables
-
-**universal_medical_codes** (RxNorm, SNOMED, LOINC):
-```sql
-SELECT code_system, COUNT(*) FROM universal_medical_codes GROUP BY code_system;
--- rxnorm  | 50,000
--- snomed  | 100,000
--- loinc   | 50,000
-```
-
-**regional_medical_codes** (PBS, MBS, ICD-10-AM):
-```sql
-SELECT code_system, country_code, COUNT(*) FROM regional_medical_codes GROUP BY code_system, country_code;
--- pbs       | AUS | 3,000
--- mbs       | AUS | 5,000
--- icd10_am  | AUS | 20,000
-```
+6. **Implement two-tier search** in Pass 1.5 worker
 
 ---
 
-## Cost Estimates
+## Success Metrics
 
-### OpenAI Embedding Generation
-- **Model:** text-embedding-3-small
-- **Rate:** $0.02 per 1M tokens
-- **Estimated tokens:** ~2.2M (for all 228K codes)
-- **Estimated cost:** ~$0.05 USD
+**Storage Efficiency:**
+- Universal table: ~710 MB (data + indexes)
+- Regional table: ~684 MB (data + indexes)
+- Total: ~1.4 GB (93% reduction vs full SNOMED indexing)
+- No disk upgrade needed (stays within 18 GB tier)
 
-### Supabase Database Storage
-- **Embeddings:** ~300 MB (228K codes × 1536 dimensions × 4 bytes)
-- **Metadata:** ~50 MB (JSON, text fields)
-- **Total storage:** ~350 MB
-- **Cost:** Free tier includes 500 MB
+**Performance:**
+- Universal queries: <50ms per entity
+- Regional fallback: <1000ms per entity
+- CORE coverage: >90% of entities
 
----
-
-## Time Estimates
-
-| Step | Time |
-|------|------|
-| Data Acquisition (user) | 2-4 hours (registration + downloads) |
-| Parsing (not yet implemented) | 1-2 hours (once scripts written) |
-| Embedding Generation | 15-30 minutes (API calls) |
-| Database Population | 5-15 minutes (batch inserts) |
-| **Total** | **4-7 hours** |
+**Cost:**
+- No ongoing cost increase
+- One-time embedding generation: ~$0.10 total
+- Monthly savings: $21/year (no disk upgrade)
 
 ---
 
-## Current Status
-
-### Completed ✅
-- [X] Data acquisition guide written
-- [X] Parsing strategy documented
-- [X] Embedding generation script written
-- [X] Embedding generation guide written
-- [X] Database population script written
-- [X] Database population guide written
-- [X] Directory structure created (all 6 code systems)
-- [X] PBS data downloaded and organized (32 CSV files, primary: items.csv 7.6 MB)
-- [X] MBS data downloaded and saved (MBS-XML-20251101.XML, 7.8 MB) - then deleted (billing codes not useful)
-- [X] UMLS account registration submitted
-- [X] LOINC data downloaded (Loinc_2.81 - 108,248 total codes)
-- [X] LOINC parser implemented and run (102,891 codes parsed, 5,357 panels excluded)
-- [X] PBS parser implemented and run successfully
-- [X] MBS codes deleted from database (6,001 codes removed - billing codes not clinically useful)
-
-### In Progress ⏳
-- [⏳] UMLS account approval (1-2 business days expected)
-- [ ] User will download RxNorm, SNOMED after UMLS approval
-
-### Not Started ⏸️
-- [ ] RxNorm, SNOMED parser implementation (pending UMLS approval)
-- [ ] Embedding generation execution (ready for PBS + LOINC)
-- [ ] Database population execution (ready for PBS + LOINC with embeddings)
-- [ ] Vector search testing and validation
-
-### Ready to Start
-- **Embedding generation** - PBS and LOINC JSON files ready (~106K codes)
-- **Database population** - After embeddings generated
-
----
-
-## Next Steps
-
-### For User (Data Acquisition)
-1. Register for UMLS account at https://uts.nlm.nih.gov/uts/signup-login
-2. Download RxNorm, SNOMED-CT, LOINC after approval
-3. Download PBS from https://www.pbs.gov.au/
-4. Download MBS from http://www.mbsonline.gov.au/
-5. (Optional) Research ICD-10-AM licensing
-
-### For Development Team (Parser Implementation)
-1. Implement 6 parser scripts based on PARSING-STRATEGY.md
-2. Test parsers with sample data
-3. Run parsers on full datasets
-4. Validate standardized JSON output
-
-### For Both (Embedding + Population)
-1. Run embedding generation script (15-30 minutes)
-2. Verify embeddings generated correctly
-3. Run database population script (5-15 minutes)
-4. Validate data loaded into Supabase
-5. Test vector similarity search
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Problem: UMLS account not approved**
-- Solution: Check spam folder, wait 48 hours, contact help@nlm.nih.gov
-
-**Problem: PBS/MBS data format changed**
-- Solution: Check official documentation, parse headers dynamically
-
-**Problem: OpenAI rate limits**
-- Solution: Script has automatic retry with exponential backoff
-
-**Problem: Supabase timeout errors**
-- Solution: Reduce batch size in populate-database.ts
-
-**Problem: Duplicate codes on re-run**
-- Solution: Duplicates are automatically skipped (by design)
-
----
-
-## Support and Resources
-
-### Official Documentation
-- **UMLS:** https://www.nlm.nih.gov/research/umls/
-- **OpenAI Embeddings:** https://platform.openai.com/docs/guides/embeddings
-- **Supabase pgvector:** https://supabase.com/docs/guides/ai/vector-embeddings
-
-### Contact Support
-- **UMLS:** help@nlm.nih.gov
-- **PBS:** pbs@health.gov.au
-- **MBS:** mbsonline@health.gov.au
-- **OpenAI:** https://help.openai.com
-- **Supabase:** https://supabase.com/support
-
----
-
-## Related Documentation
-
-### Pass 1.5 Implementation Plan
-- **Main Plan:** `../PASS-1.5-IMPLEMENTATION-PLAN.md`
-- **Phase 1 (Complete):** Database setup and migration
-- **Phase 2 (In Progress):** Data acquisition and preparation
-- **Phase 3 (Pending):** Runtime integration
-
-### Database Schema
-- **03_clinical_core.sql** - Medical code table definitions
-- **04_ai_processing.sql** - pass15_code_candidates audit table
-- **Migration 26** - Pass 1.5 versioning and RPC functions
-
----
-
-**Last Updated:** 2025-10-31
-**Status:** Phase 2 major progress - LOINC and PBS parsers complete (102,891 + PBS codes ready)
-**Next Milestone:** Generate embeddings for PBS + LOINC, then populate database
-**Critical Decision:** Entity type expansion strategy implemented (vital_sign searches include observations via hybrid search)
+**Last Updated:** 2025-11-22
+**Status:** Documentation consolidated and updated for two-table architecture
+**Decision Owner:** Xavier Flanagan
+**Next Milestone:** Migrate LOINC to universal table

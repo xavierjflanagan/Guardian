@@ -1,0 +1,171 @@
+{
+  "entity_id": 2,
+  "entity_text": "Hemoglobin A1c test",
+  "variant_type": "abbreviation",
+  "query": "HbA1c",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:04.004Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "104877-6",
+      "display_name": "Hematocrit [Volume Fraction] of Blood --1.5 hours post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.553506
+    },
+    {
+      "rank": 2,
+      "code_value": "104879-2",
+      "display_name": "Hematocrit [Volume Fraction] of Blood --2.5 hours post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.548408
+    },
+    {
+      "rank": 3,
+      "code_value": "104876-8",
+      "display_name": "Hematocrit [Volume Fraction] of Blood --1 hour post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.542577
+    },
+    {
+      "rank": 4,
+      "code_value": "58557-0",
+      "display_name": "Corticotropin [Moles/volume] in Plasma --1 hour post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.434639
+    },
+    {
+      "rank": 5,
+      "code_value": "47656-4",
+      "display_name": "Insulin [Units/volume] in Serum or Plasma --1 minute post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.421521
+    },
+    {
+      "rank": 6,
+      "code_value": "47654-9",
+      "display_name": "Insulin [Units/volume] in Serum or Plasma --10 minutes post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.420638
+    },
+    {
+      "rank": 7,
+      "code_value": "48116-8",
+      "display_name": "Insulin [Units/volume] in Serum or Plasma --10 minutes pre dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.419244
+    },
+    {
+      "rank": 8,
+      "code_value": "58528-1",
+      "display_name": "Corticotropin [Mass/volume] in Plasma --1.5 hours post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.419008
+    },
+    {
+      "rank": 9,
+      "code_value": "58556-2",
+      "display_name": "Corticotropin [Mass/volume] in Plasma --1 hour post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.417421
+    },
+    {
+      "rank": 10,
+      "code_value": "58624-8",
+      "display_name": "Corticotropin [Mass/volume] in Plasma --pre dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.411405
+    },
+    {
+      "rank": 11,
+      "code_value": "58583-6",
+      "display_name": "Corticotropin [Mass/volume] in Plasma --30 minutes post dose glucose",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.406367
+    },
+    {
+      "rank": 12,
+      "code_value": "47653-1",
+      "display_name": "Insulin [Units/volume] in Serum or Plasma --10 minutes post dose glucagon",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.404873
+    },
+    {
+      "rank": 13,
+      "code_value": "47667-1",
+      "display_name": "Insulin [Units/volume] in Serum or Plasma --6 minutes post dose glucagon",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.391819
+    },
+    {
+      "rank": 14,
+      "code_value": "50069-4",
+      "display_name": "11-Hydroxyandrostenedione [Moles/volume] in Serum or Plasma --30 minutes post 250 ug corticotropin",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.382084
+    },
+    {
+      "rank": 15,
+      "code_value": "7442-7",
+      "display_name": "Firebush IgA Ab [Units/volume] in Serum",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.377553
+    },
+    {
+      "rank": 16,
+      "code_value": "26877-1",
+      "display_name": "Hydroxytriazolam [Mass/mass] in Hair",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.375151
+    },
+    {
+      "rank": 17,
+      "code_value": "58582-8",
+      "display_name": "Corticotropin [Moles/volume] in Plasma --30 minutes post dose glucagon",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.374692
+    },
+    {
+      "rank": 18,
+      "code_value": "45295-3",
+      "display_name": "Acetylcholinesterase/Cholinesterase [Enzymatic activity ratio] in Amniotic fluid",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.373232
+    },
+    {
+      "rank": 19,
+      "code_value": "73858-3",
+      "display_name": "Allo-pregnanediol [Moles/volume] in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.371504
+    },
+    {
+      "rank": 20,
+      "code_value": "57573-8",
+      "display_name": "3-Alpha-Androstanediol glucuronide [Moles/volume] in Serum or Plasma --pre dose corticotropin",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.370122
+    }
+  ]
+}

@@ -1,16 +1,47 @@
 # Pass 1.5 Medical Code Parsing Strategy
 
-**Purpose:** Transform 6 medical code libraries into library-agnostic standardized JSON for embedding generation
+**Purpose:** Transform medical code libraries into standardized JSON for embedding generation and database population
 
-**Status:** Active - Implementation ready  
-**Created:** 2025-10-15  
-**Updated:** 2025-10-16 (clean rewrite)
+**Status:** Active - Updated for universal vs regional strategy
+**Created:** 2025-10-15
+**Updated:** 2025-11-22 (universal vs regional table destinations)
+
+---
+
+## Database Table Destinations
+
+**IMPORTANT:** Parsed codes are distributed to two separate database tables based on universal vs regional classification:
+
+### Universal Medical Codes Table
+
+**Libraries:**
+- SNOMED CT CORE subset (6,820 codes) → `code_system='snomed_ct_core'`
+- LOINC (102,891 codes) → `code_system='loinc'`
+- RxNorm (~50,000 codes) → `code_system='rxnorm'`
+
+**Characteristics:**
+- Globally recognized standards
+- Primary code matching (90%+ coverage)
+- Full HNSW vector indexes
+- Fast queries (5-50ms)
+
+### Regional Medical Codes Table
+
+**Libraries:**
+- SNOMED CT AU edition (706,544 codes) → `code_system='snomed_ct_au'`
+- PBS (14,382 codes) → `code_system='pbs'`
+
+**Characteristics:**
+- Country/region-specific codes
+- Fallback matching and AU-specific detail
+- Selective indexing (PBS vector, SNOMED AU lexical)
+- Variable query performance (10-500ms)
 
 ---
 
 ## Executive Summary
 
-This document defines the unified parsing strategy for converting raw medical code libraries into standardized JSON format. Key innovations include **library-agnostic field mapping** and **comprehensive brand name preservation** based on extensive research into universal medical code practices.
+This document defines the unified parsing strategy for converting raw medical code libraries into standardized JSON format. Key innovations include **library-agnostic field mapping**, **comprehensive brand name preservation**, and **clear table destination routing**.
 
 **Key Research Findings (2025-10-16):**
 - **RxNorm** includes both generic (SCD) and branded (SBD) medications (~33,000 total codes)
@@ -71,16 +102,17 @@ function findSimilarCodes(patientText: string, library: MedicalCodeStandard[]) {
 
 ## 2. Input Sources & Expected Outputs
 
-| Library | Type | Format | Input Size | Expected Output | Entity Types |
-|---------|------|--------|------------|-----------------|--------------|
-| **RxNorm** | Universal | RRF (pipe) | ~500 MB | ~33,000 medications | medication |
-| **SNOMED-CT** | Universal | RF2 (tab) | ~1 GB | ~100,000 clinical terms | mixed |
-| **LOINC** | Universal | CSV | ~100 MB | ~50,000 observations | observation |
-| **PBS** | Regional (AUS) | CSV | ~10 MB | ~3,000 medications | medication |
-| **MBS** | Regional (AUS) | CSV/Excel | ~5 MB | ~5,000 procedures | procedure |
-| **ICD-10-AM** | Regional (AUS) | CSV/Excel | ~50 MB | ~20,000 conditions | condition |
+| Library | Type | Table | Format | Input Size | Expected Output | Entity Types |
+|---------|------|-------|--------|------------|-----------------|--------------|
+| **SNOMED CORE** | Universal | universal | TXT (pipe) | ~500 KB | 6,820 codes | mixed (clinical) |
+| **RxNorm** | Universal | universal | RRF (pipe) | ~500 MB | ~50,000 codes | medication |
+| **LOINC** | Universal | universal | CSV | ~100 MB | 102,891 codes | observation |
+| **SNOMED AU** | Regional (AUS) | regional | RF2 (tab) | ~1 GB | 706,544 codes | mixed (clinical) |
+| **PBS** | Regional (AUS) | regional | CSV | ~10 MB | 14,382 codes | medication |
+| **MBS** | Regional (AUS) | regional | CSV/Excel | ~5 MB | Deleted (not used) | procedure |
+| **ICD-10-AM** | Regional (AUS) | regional | CSV/Excel | ~50 MB | Optional (not prioritized) | condition |
 
-**Total Expected Output:** ~211,000 standardized medical codes
+**Total Codes:** ~880,000+ codes across both tables (160k universal, 720k regional)
 
 ---
 
@@ -188,40 +220,83 @@ function parsePBS(row: CSVRow): MedicalCodeStandard | null {
 }
 ```
 
-### 4.3 SNOMED-CT Parser (Universal - Clinical Terms)
+### 4.3 SNOMED CT CORE Subset Parser (Universal - Clinical Terms)
 
 **Input Files:**
-- Primary: `sct2_Description_Snapshot_INT_YYYYMMDD.txt`
-- Secondary: `sct2_Concept_Snapshot_INT_YYYYMMDD.txt`
+- Primary: `SNOMEDCT_CORE_SUBSET_YYYYMM.txt`
 
-**Note:** No brand handling (brands only in national extensions)
+**Key Innovation:** NLM-validated subset with usage metadata
 ```typescript
-function parseSNOMED(line: string): MedicalCodeStandard | null {
-  const fields = line.split('\t');
-  
-  const conceptId = fields[4];
-  const term = fields[7];
-  const active = fields[2];
-  
-  if (active !== '1') return null;
-  
+function parseSNOMEDCore(line: string): MedicalCodeStandard | null {
+  const fields = line.split('|');
+
+  const conceptId = fields[0];      // SNOMED_CID
+  const fsn = fields[1];            // Fully Specified Name
+  const status = fields[2];         // Active/Inactive
+  const occurrence = parseInt(fields[4]) || 0;  // 1-8 institutions
+  const usage = parseFloat(fields[5]) || 0;      // Average usage %
+
+  if (status !== 'Current' && status !== 'Active') return null;
+
   return {
-    code_system: 'snomed',
+    code_system: 'snomed_ct_core',   // IMPORTANT: Different from regular SNOMED
     code_value: conceptId,
-    // grouping_code: null,         // No grouping needed
-    display_name: term,
+    display_name: fsn,
     entity_type: classifySNOMEDEntity(conceptId),
-    search_text: term,
-    library_version: 'v2025Q1',
-    country_code: null,
+    search_text: fsn,
+    library_version: 'CORE_202506',
+    country_code: null,              // Universal
     region_specific_data: {
-      original_concept_id: conceptId
+      original_concept_id: conceptId,
+      core_occurrence: occurrence,    // NLM validation metric
+      core_usage: usage,              // NLM validation metric
+      nlm_validated: true
     }
   };
 }
 ```
 
-### 4.4 LOINC Parser (Universal - Lab/Observations)
+**Destination:** `universal_medical_codes` table (code_system='snomed_ct_core')
+
+### 4.4 SNOMED CT AU Edition Parser (Regional - Clinical Terms)
+
+**Input Files:**
+- Primary: `sct2_Description_Snapshot_AU1000036_YYYYMMDD.txt` (Australian edition)
+- Secondary: `sct2_Concept_Snapshot_AU1000036_YYYYMMDD.txt`
+
+**Note:** AU edition includes International + Australian extensions (706k total codes)
+```typescript
+function parseSNOMEDAU(line: string): MedicalCodeStandard | null {
+  const fields = line.split('\t');
+
+  const conceptId = fields[4];
+  const term = fields[7];
+  const active = fields[2];
+
+  if (active !== '1') return null;
+
+  return {
+    code_system: 'snomed_ct_au',    // IMPORTANT: Regional, not universal
+    code_value: conceptId,
+    display_name: term,
+    entity_type: classifySNOMEDEntity(conceptId),
+    search_text: term,
+    library_version: 'AU1000036_20251031',
+    country_code: 'AUS',            // Regional code
+    region_specific_data: {
+      original_concept_id: conceptId,
+      edition: 'Australian',
+      includes_international: true   // AU is superset of International
+    }
+  };
+}
+```
+
+**Destination:** `regional_medical_codes` table (code_system='snomed_ct_au')
+
+**Indexing Strategy:** Lexical only (no vector embeddings) - used for rare disease fallback
+
+### 4.5 LOINC Parser (Universal - Lab/Observations)
 
 **Input Files:**
 - Primary: `Loinc.csv`
@@ -248,7 +323,7 @@ function parseLOINC(row: CSVRow): MedicalCodeStandard {
 }
 ```
 
-### 4.5 MBS Parser (Regional - Australia Procedures)
+### 4.6 MBS Parser (Regional - Australia Procedures - DEPRECATED)
 
 **Input Files:**
 - Primary: `MBS_Items_YYYYMMDD.xlsx` or `MBS.csv`
@@ -274,7 +349,9 @@ function parseMBS(row: CSVRow): MedicalCodeStandard {
 }
 ```
 
-### 4.6 ICD-10-AM Parser (Regional - Australia Diagnoses)
+**Note:** MBS codes were deleted from the database (billing codes, not clinically useful for patient data extraction). This parser is kept for reference only.
+
+### 4.7 ICD-10-AM Parser (Regional - Australia Diagnoses - OPTIONAL)
 
 **Input Files:**
 - Primary: `ICD-10-AM-Tabular-List.xlsx`
@@ -339,13 +416,20 @@ function removeDuplicates(codes: MedicalCodeStandard[]): MedicalCodeStandard[] {
 
 ```
 data/medical-codes/
-├── rxnorm/processed/rxnorm_codes.json           # ~33,000 records
-├── snomed/processed/snomed_codes.json           # ~100,000 records  
-├── loinc/processed/loinc_codes.json             # ~50,000 records
-├── pbs/processed/pbs_codes.json                 # ~3,000 records
-├── mbs/processed/mbs_codes.json                 # ~5,000 records
-└── icd10am/processed/icd10am_codes.json         # ~20,000 records
+├── snomed/
+│   ├── core-subset/
+│   │   └── core_mapping.json                    # 6,820 records (universal)
+│   └── processed/
+│       └── snomed_au_codes.json                 # 706,544 records (regional)
+├── rxnorm/processed/rxnorm_codes.json           # ~50,000 records (universal)
+├── loinc/processed/loinc_codes.json             # 102,891 records (universal)
+├── pbs/processed/pbs_codes.json                 # 14,382 records (regional)
+└── icd10am/processed/icd10am_codes.json         # Optional (regional)
 ```
+
+**Table Destinations:**
+- Universal libraries → `universal_medical_codes` table
+- Regional libraries → `regional_medical_codes` table
 
 **Example Output (PBS with brand preservation):**
 ```json
@@ -432,6 +516,7 @@ function validateCode(code: MedicalCodeStandard): boolean {
 
 ---
 
-**Last Updated:** 2025-10-16  
-**Status:** PBS parser ready - MBS parser next  
-**Estimated Completion:** 3-4 weeks (dependent on UMLS approval)
+**Last Updated:** 2025-11-22
+**Status:** Updated for universal vs regional two-table architecture
+**Implementation Priority:** SNOMED CORE parser, RxNorm parser (UMLS access acquired)
+**Reference:** See MEDICAL-CODE-LIBRARY-STRATEGY-AUDIT.md for strategic rationale

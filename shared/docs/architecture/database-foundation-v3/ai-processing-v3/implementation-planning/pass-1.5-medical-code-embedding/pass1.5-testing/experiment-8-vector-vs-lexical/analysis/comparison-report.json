@@ -1,0 +1,4533 @@
+[
+  {
+    "entity_id": 1,
+    "entity_text": "Blood glucose measurement",
+    "variant_type": "clinical",
+    "query": "glucose serum plasma blood measurement",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "14749-6",
+        "display_name": "Glucose [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.725642
+      },
+      {
+        "rank": 2,
+        "code_value": "21004-7",
+        "display_name": "Glucose tolerance [Interpretation] in Serum or Plasma",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.688902
+      },
+      {
+        "rank": 3,
+        "code_value": "16911-0",
+        "display_name": "Glucose [Presence] in Urine --8th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.538761
+      },
+      {
+        "rank": 4,
+        "code_value": "16908-6",
+        "display_name": "Glucose [Presence] in Urine --5th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.529905
+      },
+      {
+        "rank": 5,
+        "code_value": "35613-9",
+        "display_name": "Glutethimide [Mass/volume] in Serum or Plasma by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.519291
+      },
+      {
+        "rank": 6,
+        "code_value": "5622-6",
+        "display_name": "Chromium [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.502146
+      },
+      {
+        "rank": 7,
+        "code_value": "25374-0",
+        "display_name": "Chromium [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.48497
+      },
+      {
+        "rank": 8,
+        "code_value": "77138-6",
+        "display_name": "Chloride [Moles/volume] in Serum, Plasma or Blood",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.462393
+      },
+      {
+        "rank": 9,
+        "code_value": "63112-7",
+        "display_name": "Blackberry IgG Ab [Mass/volume] in Serum",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.448986
+      },
+      {
+        "rank": 10,
+        "code_value": "65363-4",
+        "display_name": "Glutathione [Moles/volume] in Blood",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.437235
+      },
+      {
+        "rank": 11,
+        "code_value": "55346-1",
+        "display_name": "cloBAZam+Norclobazam [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.436255
+      },
+      {
+        "rank": 12,
+        "code_value": "5594-7",
+        "display_name": "Beryllium [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.429839
+      },
+      {
+        "rank": 13,
+        "code_value": "79609-4",
+        "display_name": "Glutathione.oxidized [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.426747
+      },
+      {
+        "rank": 14,
+        "code_value": "52899-2",
+        "display_name": "Beryllium [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.425586
+      },
+      {
+        "rank": 15,
+        "code_value": "55558-1",
+        "display_name": "Nicotine [Moles/volume] in Serum or Plasma by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.422731
+      },
+      {
+        "rank": 16,
+        "code_value": "3853-9",
+        "display_name": "Nicotine [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.422342
+      },
+      {
+        "rank": 17,
+        "code_value": "111396-8",
+        "display_name": "Chromium [Measurement] in Urine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.419188
+      },
+      {
+        "rank": 18,
+        "code_value": "108506-7",
+        "display_name": "Platinum [Measurement] in Urine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.417674
+      },
+      {
+        "rank": 19,
+        "code_value": "29282-1",
+        "display_name": "Glutethimide [Presence] in Gastric fluid",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.410848
+      },
+      {
+        "rank": 20,
+        "code_value": "55557-3",
+        "display_name": "Nicotine [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.407884
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "14749-6",
+        "21004-7",
+        "16911-0",
+        "16908-6",
+        "35613-9",
+        "5622-6",
+        "25374-0",
+        "77138-6",
+        "63112-7",
+        "65363-4",
+        "55346-1",
+        "5594-7",
+        "79609-4",
+        "52899-2",
+        "55558-1",
+        "3853-9",
+        "111396-8",
+        "108506-7",
+        "29282-1",
+        "55557-3"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "14749-6",
+        "21004-7",
+        "16911-0",
+        "16908-6",
+        "35613-9",
+        "5622-6",
+        "25374-0",
+        "77138-6",
+        "63112-7",
+        "65363-4",
+        "55346-1",
+        "5594-7",
+        "79609-4",
+        "52899-2",
+        "55558-1",
+        "3853-9",
+        "111396-8",
+        "108506-7",
+        "29282-1",
+        "55557-3"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.47786624999999994,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 14,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 1,
+    "entity_text": "Blood glucose measurement",
+    "variant_type": "layperson",
+    "query": "blood sugar level test",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "16911-0",
+        "display_name": "Glucose [Presence] in Urine --8th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.494581
+      },
+      {
+        "rank": 2,
+        "code_value": "16908-6",
+        "display_name": "Glucose [Presence] in Urine --5th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.482895
+      },
+      {
+        "rank": 3,
+        "code_value": "21004-7",
+        "display_name": "Glucose tolerance [Interpretation] in Serum or Plasma",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.482018
+      },
+      {
+        "rank": 4,
+        "code_value": "14749-6",
+        "display_name": "Glucose [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.43934
+      },
+      {
+        "rank": 5,
+        "code_value": "46735-7",
+        "display_name": "Endocrine disorders newborn screen interpretation",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.398541
+      },
+      {
+        "rank": 6,
+        "code_value": "80198-5",
+        "display_name": "Nonsteroidal antiinflammatory drugs [Presence] in Blood by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.39481
+      },
+      {
+        "rank": 7,
+        "code_value": "111396-8",
+        "display_name": "Chromium [Measurement] in Urine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.357669
+      },
+      {
+        "rank": 8,
+        "code_value": "15118-3",
+        "display_name": "Chromium [Moles/volume] in Blood",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.344985
+      },
+      {
+        "rank": 9,
+        "code_value": "45227-6",
+        "display_name": "Blackberry IgE Ab/IgE total in Serum",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.341065
+      },
+      {
+        "rank": 10,
+        "code_value": "19304-5",
+        "display_name": "Thiazides tested for in Urine by Screen method Nominal",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.340859
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "16911-0",
+        "16908-6",
+        "21004-7",
+        "14749-6",
+        "46735-7",
+        "80198-5",
+        "111396-8",
+        "15118-3",
+        "45227-6",
+        "19304-5"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "16911-0",
+        "16908-6",
+        "21004-7",
+        "14749-6",
+        "46735-7",
+        "80198-5",
+        "111396-8",
+        "15118-3",
+        "45227-6",
+        "19304-5"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.4076763,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 5,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 1,
+    "entity_text": "Blood glucose measurement",
+    "variant_type": "abbreviation",
+    "query": "BG BSL glucose",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "16911-0",
+        "display_name": "Glucose [Presence] in Urine --8th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.563192
+      },
+      {
+        "rank": 2,
+        "code_value": "21004-7",
+        "display_name": "Glucose tolerance [Interpretation] in Serum or Plasma",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.561229
+      },
+      {
+        "rank": 3,
+        "code_value": "16908-6",
+        "display_name": "Glucose [Presence] in Urine --5th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.55668
+      },
+      {
+        "rank": 4,
+        "code_value": "14749-6",
+        "display_name": "Glucose [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.543317
+      },
+      {
+        "rank": 5,
+        "code_value": "63112-7",
+        "display_name": "Blackberry IgG Ab [Mass/volume] in Serum",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.458799
+      },
+      {
+        "rank": 6,
+        "code_value": "29282-1",
+        "display_name": "Glutethimide [Presence] in Gastric fluid",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.456429
+      },
+      {
+        "rank": 7,
+        "code_value": "32077-0",
+        "display_name": "Glutethimide [Presence] in Specimen",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.449891
+      },
+      {
+        "rank": 8,
+        "code_value": "35613-9",
+        "display_name": "Glutethimide [Mass/volume] in Serum or Plasma by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.422285
+      },
+      {
+        "rank": 9,
+        "code_value": "15580-4",
+        "display_name": "Deprecated Blackberry IgE Ab RAST class [Presence] in Serum",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.42061
+      },
+      {
+        "rank": 10,
+        "code_value": "42680-9",
+        "display_name": "MG Breast XCCL",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.42032
+      },
+      {
+        "rank": 11,
+        "code_value": "22720-7",
+        "display_name": "Glutamine [Moles/volume] in Specimen",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.419529
+      },
+      {
+        "rank": 12,
+        "code_value": "46735-7",
+        "display_name": "Endocrine disorders newborn screen interpretation",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.417705
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "16911-0",
+        "21004-7",
+        "16908-6",
+        "14749-6",
+        "63112-7",
+        "29282-1",
+        "32077-0",
+        "35613-9",
+        "15580-4",
+        "42680-9",
+        "22720-7",
+        "46735-7"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "16911-0",
+        "21004-7",
+        "16908-6",
+        "14749-6",
+        "63112-7",
+        "29282-1",
+        "32077-0",
+        "35613-9",
+        "15580-4",
+        "42680-9",
+        "22720-7",
+        "46735-7"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.4741655,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 6,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 2,
+    "entity_text": "Hemoglobin A1c test",
+    "variant_type": "clinical",
+    "query": "hemoglobin a1c glycated blood",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "104664-8",
+        "display_name": "APOL1 [Genotype] in Blood, Tissue or Saliva by Molecular genetics method Nominal",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.423
+      },
+      {
+        "rank": 2,
+        "code_value": "71785-0",
+        "display_name": "Exam findings communicated to clinician managing diabetic care",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.382056
+      },
+      {
+        "rank": 3,
+        "code_value": "84084-3",
+        "display_name": "Diabetology Case manager Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.377902
+      },
+      {
+        "rank": 4,
+        "code_value": "84086-8",
+        "display_name": "Diabetology Initial evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.372885
+      },
+      {
+        "rank": 5,
+        "code_value": "84092-6",
+        "display_name": "Diabetology Risk assessment and screening note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.372303
+      },
+      {
+        "rank": 6,
+        "code_value": "104762-0",
+        "display_name": "HIV 1 RNA [Log #/volume] in Serum or Plasma by Molecular genetics method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.358504
+      },
+      {
+        "rank": 7,
+        "code_value": "84088-4",
+        "display_name": "Diabetology Medication management note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.357306
+      },
+      {
+        "rank": 8,
+        "code_value": "84090-0",
+        "display_name": "Diabetology Outpatient Initial evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.3569
+      },
+      {
+        "rank": 9,
+        "code_value": "74150-4",
+        "display_name": "Diabetes Type I action plan",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.352213
+      },
+      {
+        "rank": 10,
+        "code_value": "83571-0",
+        "display_name": "Diabetology Nurse Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.348231
+      },
+      {
+        "rank": 11,
+        "code_value": "84089-2",
+        "display_name": "Diabetology Outpatient Group counseling note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.346207
+      },
+      {
+        "rank": 12,
+        "code_value": "84094-2",
+        "display_name": "Diabetology Plan of care note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.34306
+      },
+      {
+        "rank": 13,
+        "code_value": "83572-8",
+        "display_name": "Diabetology Nurse Outpatient Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.331968
+      },
+      {
+        "rank": 14,
+        "code_value": "104268-8",
+        "display_name": "UBA1 gene mutation in Specimen by Molecular genetics method",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.325703
+      },
+      {
+        "rank": 15,
+        "code_value": "104594-7",
+        "display_name": "Diabetology nurse practitioner Outpatient Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.304484
+      },
+      {
+        "rank": 16,
+        "code_value": "100464-7",
+        "display_name": "Endocrinology Outpatient Progress note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.296312
+      },
+      {
+        "rank": 17,
+        "code_value": "68471-2",
+        "display_name": "Cardiology Hospital Admission evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.295912
+      },
+      {
+        "rank": 18,
+        "code_value": "86214-4",
+        "display_name": "Womens health Annual evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.294969
+      },
+      {
+        "rank": 19,
+        "code_value": "60509-7",
+        "display_name": "Text-diagnosis section Set NAACCR v.12",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.287432
+      },
+      {
+        "rank": 20,
+        "code_value": "90010-0",
+        "display_name": "Clinical pathology procedure note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.283891
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "41995-2",
+        "display_name": "Hemoglobin A1c [Mass/volume] in Blood",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "55454-3",
+        "display_name": "Deprecated Hemoglobin A1c in Blood",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "104664-8",
+        "71785-0",
+        "84084-3",
+        "84086-8",
+        "84092-6",
+        "104762-0",
+        "84088-4",
+        "84090-0",
+        "74150-4",
+        "83571-0",
+        "84089-2",
+        "84094-2",
+        "83572-8",
+        "104268-8",
+        "104594-7",
+        "100464-7",
+        "68471-2",
+        "86214-4",
+        "60509-7",
+        "90010-0"
+      ],
+      "lexical_codes": [
+        "41995-2",
+        "55454-3"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "104664-8",
+        "71785-0",
+        "84084-3",
+        "84086-8",
+        "84092-6",
+        "104762-0",
+        "84088-4",
+        "84090-0",
+        "74150-4",
+        "83571-0",
+        "84089-2",
+        "84094-2",
+        "83572-8",
+        "104268-8",
+        "104594-7",
+        "100464-7",
+        "68471-2",
+        "86214-4",
+        "60509-7",
+        "90010-0"
+      ],
+      "lexical_only_codes": [
+        "41995-2",
+        "55454-3"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.34056190000000003,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 1,
+      "lexical_entity_type_match": 1
+    }
+  },
+  {
+    "entity_id": 2,
+    "entity_text": "Hemoglobin A1c test",
+    "variant_type": "layperson",
+    "query": "a1c diabetes blood test",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "74150-4",
+        "display_name": "Diabetes Type I action plan",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.493741
+      },
+      {
+        "rank": 2,
+        "code_value": "71785-0",
+        "display_name": "Exam findings communicated to clinician managing diabetic care",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.47468
+      },
+      {
+        "rank": 3,
+        "code_value": "84086-8",
+        "display_name": "Diabetology Initial evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.456085
+      },
+      {
+        "rank": 4,
+        "code_value": "84090-0",
+        "display_name": "Diabetology Outpatient Initial evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.437236
+      },
+      {
+        "rank": 5,
+        "code_value": "84092-6",
+        "display_name": "Diabetology Risk assessment and screening note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.436092
+      },
+      {
+        "rank": 6,
+        "code_value": "83571-0",
+        "display_name": "Diabetology Nurse Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.426098
+      },
+      {
+        "rank": 7,
+        "code_value": "84088-4",
+        "display_name": "Diabetology Medication management note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.421165
+      },
+      {
+        "rank": 8,
+        "code_value": "84094-2",
+        "display_name": "Diabetology Plan of care note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.419598
+      },
+      {
+        "rank": 9,
+        "code_value": "83572-8",
+        "display_name": "Diabetology Nurse Outpatient Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.405452
+      },
+      {
+        "rank": 10,
+        "code_value": "84089-2",
+        "display_name": "Diabetology Outpatient Group counseling note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.399895
+      },
+      {
+        "rank": 11,
+        "code_value": "84084-3",
+        "display_name": "Diabetology Case manager Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.398204
+      },
+      {
+        "rank": 12,
+        "code_value": "104664-8",
+        "display_name": "APOL1 [Genotype] in Blood, Tissue or Saliva by Molecular genetics method Nominal",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.383213
+      },
+      {
+        "rank": 13,
+        "code_value": "104594-7",
+        "display_name": "Diabetology nurse practitioner Outpatient Note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.371908
+      },
+      {
+        "rank": 14,
+        "code_value": "104762-0",
+        "display_name": "HIV 1 RNA [Log #/volume] in Serum or Plasma by Molecular genetics method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.330343
+      },
+      {
+        "rank": 15,
+        "code_value": "78574-1",
+        "display_name": "Optometry Diagnostic study note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.321151
+      },
+      {
+        "rank": 16,
+        "code_value": "60509-7",
+        "display_name": "Text-diagnosis section Set NAACCR v.12",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.320627
+      },
+      {
+        "rank": 17,
+        "code_value": "78577-4",
+        "display_name": "Podiatry Diagnostic study note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.313205
+      },
+      {
+        "rank": 18,
+        "code_value": "104268-8",
+        "display_name": "UBA1 gene mutation in Specimen by Molecular genetics method",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.313182
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "74150-4",
+        "71785-0",
+        "84086-8",
+        "84090-0",
+        "84092-6",
+        "83571-0",
+        "84088-4",
+        "84094-2",
+        "83572-8",
+        "84089-2",
+        "84084-3",
+        "104664-8",
+        "104594-7",
+        "104762-0",
+        "78574-1",
+        "60509-7",
+        "78577-4",
+        "104268-8"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "74150-4",
+        "71785-0",
+        "84086-8",
+        "84090-0",
+        "84092-6",
+        "83571-0",
+        "84088-4",
+        "84094-2",
+        "83572-8",
+        "84089-2",
+        "84084-3",
+        "104664-8",
+        "104594-7",
+        "104762-0",
+        "78574-1",
+        "60509-7",
+        "78577-4",
+        "104268-8"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.39565972222222223,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 1,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 2,
+    "entity_text": "Hemoglobin A1c test",
+    "variant_type": "abbreviation",
+    "query": "HbA1c",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "104877-6",
+        "display_name": "Hematocrit [Volume Fraction] of Blood --1.5 hours post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.553506
+      },
+      {
+        "rank": 2,
+        "code_value": "104879-2",
+        "display_name": "Hematocrit [Volume Fraction] of Blood --2.5 hours post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.548408
+      },
+      {
+        "rank": 3,
+        "code_value": "104876-8",
+        "display_name": "Hematocrit [Volume Fraction] of Blood --1 hour post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.542577
+      },
+      {
+        "rank": 4,
+        "code_value": "58557-0",
+        "display_name": "Corticotropin [Moles/volume] in Plasma --1 hour post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.434639
+      },
+      {
+        "rank": 5,
+        "code_value": "47656-4",
+        "display_name": "Insulin [Units/volume] in Serum or Plasma --1 minute post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.421521
+      },
+      {
+        "rank": 6,
+        "code_value": "47654-9",
+        "display_name": "Insulin [Units/volume] in Serum or Plasma --10 minutes post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.420638
+      },
+      {
+        "rank": 7,
+        "code_value": "48116-8",
+        "display_name": "Insulin [Units/volume] in Serum or Plasma --10 minutes pre dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.419244
+      },
+      {
+        "rank": 8,
+        "code_value": "58528-1",
+        "display_name": "Corticotropin [Mass/volume] in Plasma --1.5 hours post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.419008
+      },
+      {
+        "rank": 9,
+        "code_value": "58556-2",
+        "display_name": "Corticotropin [Mass/volume] in Plasma --1 hour post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.417421
+      },
+      {
+        "rank": 10,
+        "code_value": "58624-8",
+        "display_name": "Corticotropin [Mass/volume] in Plasma --pre dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.411405
+      },
+      {
+        "rank": 11,
+        "code_value": "58583-6",
+        "display_name": "Corticotropin [Mass/volume] in Plasma --30 minutes post dose glucose",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.406367
+      },
+      {
+        "rank": 12,
+        "code_value": "47653-1",
+        "display_name": "Insulin [Units/volume] in Serum or Plasma --10 minutes post dose glucagon",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.404873
+      },
+      {
+        "rank": 13,
+        "code_value": "47667-1",
+        "display_name": "Insulin [Units/volume] in Serum or Plasma --6 minutes post dose glucagon",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.391819
+      },
+      {
+        "rank": 14,
+        "code_value": "50069-4",
+        "display_name": "11-Hydroxyandrostenedione [Moles/volume] in Serum or Plasma --30 minutes post 250 ug corticotropin",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.382084
+      },
+      {
+        "rank": 15,
+        "code_value": "7442-7",
+        "display_name": "Firebush IgA Ab [Units/volume] in Serum",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.377553
+      },
+      {
+        "rank": 16,
+        "code_value": "26877-1",
+        "display_name": "Hydroxytriazolam [Mass/mass] in Hair",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.375151
+      },
+      {
+        "rank": 17,
+        "code_value": "58582-8",
+        "display_name": "Corticotropin [Moles/volume] in Plasma --30 minutes post dose glucagon",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.374692
+      },
+      {
+        "rank": 18,
+        "code_value": "45295-3",
+        "display_name": "Acetylcholinesterase/Cholinesterase [Enzymatic activity ratio] in Amniotic fluid",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.373232
+      },
+      {
+        "rank": 19,
+        "code_value": "73858-3",
+        "display_name": "Allo-pregnanediol [Moles/volume] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.371504
+      },
+      {
+        "rank": 20,
+        "code_value": "57573-8",
+        "display_name": "3-Alpha-Androstanediol glucuronide [Moles/volume] in Serum or Plasma --pre dose corticotropin",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.370122
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "55454-3",
+        "display_name": "Deprecated Hemoglobin A1c in Blood",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "41960-6",
+        "display_name": "Type of HbA1c measurement device",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "41961-4",
+        "display_name": "HbA1c measurement device Vendor name",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "41962-2",
+        "display_name": "HbA1c measurement device Vendor model code",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "41963-0",
+        "display_name": "HbA1c measurement device Vendor serial number",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "41964-8",
+        "display_name": "HbA1c measurement device Vendor software version",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "104877-6",
+        "104879-2",
+        "104876-8",
+        "58557-0",
+        "47656-4",
+        "47654-9",
+        "48116-8",
+        "58528-1",
+        "58556-2",
+        "58624-8",
+        "58583-6",
+        "47653-1",
+        "47667-1",
+        "50069-4",
+        "7442-7",
+        "26877-1",
+        "58582-8",
+        "45295-3",
+        "73858-3",
+        "57573-8"
+      ],
+      "lexical_codes": [
+        "55454-3",
+        "41960-6",
+        "41961-4",
+        "41962-2",
+        "41963-0",
+        "41964-8"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "104877-6",
+        "104879-2",
+        "104876-8",
+        "58557-0",
+        "47656-4",
+        "47654-9",
+        "48116-8",
+        "58528-1",
+        "58556-2",
+        "58624-8",
+        "58583-6",
+        "47653-1",
+        "47667-1",
+        "50069-4",
+        "7442-7",
+        "26877-1",
+        "58582-8",
+        "45295-3",
+        "73858-3",
+        "57573-8"
+      ],
+      "lexical_only_codes": [
+        "55454-3",
+        "41960-6",
+        "41961-4",
+        "41962-2",
+        "41963-0",
+        "41964-8"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.42078819999999995,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 3,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 3,
+    "entity_text": "Blood pressure measurement",
+    "variant_type": "clinical",
+    "query": "blood pressure systolic diastolic",
+    "expected_entity_type": "vital_sign",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "8487-1",
+        "display_name": "Systolic blood pressure 8 hour mean",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.634872
+      },
+      {
+        "rank": 2,
+        "code_value": "8469-9",
+        "display_name": "Diastolic blood pressure 8 hour mean",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.61873
+      },
+      {
+        "rank": 3,
+        "code_value": "8548-0",
+        "display_name": "Digital artery - left Systolic blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.613157
+      },
+      {
+        "rank": 4,
+        "code_value": "8482-2",
+        "display_name": "Systolic blood pressure 8 hour maximum",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.611289
+      },
+      {
+        "rank": 5,
+        "code_value": "8549-8",
+        "display_name": "Digital artery - right Systolic blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.610356
+      },
+      {
+        "rank": 6,
+        "code_value": "8464-0",
+        "display_name": "Diastolic blood pressure 8 hour maximum",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.609649
+      },
+      {
+        "rank": 7,
+        "code_value": "8492-1",
+        "display_name": "Systolic blood pressure 8 hour minimum",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.604828
+      },
+      {
+        "rank": 8,
+        "code_value": "8542-3",
+        "display_name": "Radial artery - left Mean blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.469451
+      },
+      {
+        "rank": 9,
+        "code_value": "8407-9",
+        "display_name": "Celiac trunk artery Mean blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.449328
+      },
+      {
+        "rank": 10,
+        "code_value": "39871-9",
+        "display_name": "NM Heart Views for blood flow",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.381256
+      },
+      {
+        "rank": 11,
+        "code_value": "39893-3",
+        "display_name": "NM Heart Views for blood flow and shunt detection",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.364628
+      },
+      {
+        "rank": 12,
+        "code_value": "39495-7",
+        "display_name": "US.doppler Extremity vessels - bilateral",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.351076
+      },
+      {
+        "rank": 13,
+        "code_value": "41921-8",
+        "display_name": "Heart rate 8 hour mean",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.34298
+      },
+      {
+        "rank": 14,
+        "code_value": "38962-7",
+        "display_name": "Deprecated VA Compensation and Pension (C and P) examination hypertension",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.340382
+      },
+      {
+        "rank": 15,
+        "code_value": "69283-0",
+        "display_name": "US.doppler Extremity veins - bilateral",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.33725
+      },
+      {
+        "rank": 16,
+        "code_value": "106314-8",
+        "display_name": "US.doppler Lower extremity veins - bilateral",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.334903
+      },
+      {
+        "rank": 17,
+        "code_value": "45646-7",
+        "display_name": "Other cardiovascular disease [Minimum Data Set]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.331755
+      },
+      {
+        "rank": 18,
+        "code_value": "39496-5",
+        "display_name": "US.doppler Upper extremity vein - bilateral",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.330778
+      },
+      {
+        "rank": 19,
+        "code_value": "30880-9",
+        "display_name": "US.doppler Head vessels and Neck vessels",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.330295
+      },
+      {
+        "rank": 20,
+        "code_value": "39418-9",
+        "display_name": "US.doppler Extremity vein - bilateral",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.324049
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "55284-4",
+        "display_name": "Blood pressure systolic and diastolic",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "45372-0",
+        "display_name": "Blood pressure systolic and diastolic--post phlebotomy",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "50402-7",
+        "display_name": "Blood pressure systolic and diastolic--after transfusion",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "50403-5",
+        "display_name": "Blood pressure systolic and diastolic--before transfusion",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "8487-1",
+        "8469-9",
+        "8548-0",
+        "8482-2",
+        "8549-8",
+        "8464-0",
+        "8492-1",
+        "8542-3",
+        "8407-9",
+        "39871-9",
+        "39893-3",
+        "39495-7",
+        "41921-8",
+        "38962-7",
+        "69283-0",
+        "106314-8",
+        "45646-7",
+        "39496-5",
+        "30880-9",
+        "39418-9"
+      ],
+      "lexical_codes": [
+        "55284-4",
+        "45372-0",
+        "50402-7",
+        "50403-5"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "8487-1",
+        "8469-9",
+        "8548-0",
+        "8482-2",
+        "8549-8",
+        "8464-0",
+        "8492-1",
+        "8542-3",
+        "8407-9",
+        "39871-9",
+        "39893-3",
+        "39495-7",
+        "41921-8",
+        "38962-7",
+        "69283-0",
+        "106314-8",
+        "45646-7",
+        "39496-5",
+        "30880-9",
+        "39418-9"
+      ],
+      "lexical_only_codes": [
+        "55284-4",
+        "45372-0",
+        "50402-7",
+        "50403-5"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.44955059999999997,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 10,
+      "lexical_entity_type_match": 4
+    }
+  },
+  {
+    "entity_id": 3,
+    "entity_text": "Blood pressure measurement",
+    "variant_type": "layperson",
+    "query": "BP reading pressure",
+    "expected_entity_type": "vital_sign",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "8457-4",
+        "display_name": "Mean blood pressure--standing",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.645928
+      },
+      {
+        "rank": 2,
+        "code_value": "76285-6",
+        "display_name": "Pulmonary capillary Blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.631674
+      },
+      {
+        "rank": 3,
+        "code_value": "76284-9",
+        "display_name": "Pulmonary artery Blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.629361
+      },
+      {
+        "rank": 4,
+        "code_value": "8479-8",
+        "display_name": "Systolic blood pressure by palpation",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.62646
+      },
+      {
+        "rank": 5,
+        "code_value": "76533-9",
+        "display_name": "Blood pressure by Noninvasive",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.624228
+      },
+      {
+        "rank": 6,
+        "code_value": "8456-6",
+        "display_name": "Mean blood pressure--sitting",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.606512
+      },
+      {
+        "rank": 7,
+        "code_value": "18684-1",
+        "display_name": "First Blood pressure Set",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.603546
+      },
+      {
+        "rank": 8,
+        "code_value": "71895-7",
+        "display_name": "Pediatric blood pressure screening results",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.602023
+      },
+      {
+        "rank": 9,
+        "code_value": "8454-1",
+        "display_name": "Diastolic blood pressure--standing",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.59858
+      },
+      {
+        "rank": 10,
+        "code_value": "76212-0",
+        "display_name": "Invasive Blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.59839
+      },
+      {
+        "rank": 11,
+        "code_value": "76539-6",
+        "display_name": "Blood pressure device Cuff pressure.diastolic",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.598284
+      },
+      {
+        "rank": 12,
+        "code_value": "76287-2",
+        "display_name": "Pulmonary capillary Mean blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.594466
+      },
+      {
+        "rank": 13,
+        "code_value": "45372-0",
+        "display_name": "Blood pressure systolic and diastolic--post phlebotomy",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.59422
+      },
+      {
+        "rank": 14,
+        "code_value": "76288-0",
+        "display_name": "Pulmonary capillary Systolic blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.588785
+      },
+      {
+        "rank": 15,
+        "code_value": "76286-4",
+        "display_name": "Pulmonary capillary Diastolic blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.586604
+      },
+      {
+        "rank": 16,
+        "code_value": "8587-8",
+        "display_name": "Pulmonary artery wedge Mean blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.58469
+      },
+      {
+        "rank": 17,
+        "code_value": "76534-7",
+        "display_name": "Systolic blood pressure by Noninvasive",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.581608
+      },
+      {
+        "rank": 18,
+        "code_value": "75994-4",
+        "display_name": "Pulmonary artery wedge pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.574037
+      },
+      {
+        "rank": 19,
+        "code_value": "60995-8",
+        "display_name": "Pulmonary artery wedge Systolic blood pressure",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.571909
+      },
+      {
+        "rank": 20,
+        "code_value": "76535-4",
+        "display_name": "Diastolic blood pressure by Noninvasive",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.570315
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "72076-3",
+        "display_name": "Blood pressure home reading",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "8457-4",
+        "76285-6",
+        "76284-9",
+        "8479-8",
+        "76533-9",
+        "8456-6",
+        "18684-1",
+        "71895-7",
+        "8454-1",
+        "76212-0",
+        "76539-6",
+        "76287-2",
+        "45372-0",
+        "76288-0",
+        "76286-4",
+        "8587-8",
+        "76534-7",
+        "75994-4",
+        "60995-8",
+        "76535-4"
+      ],
+      "lexical_codes": [
+        "72076-3"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "8457-4",
+        "76285-6",
+        "76284-9",
+        "8479-8",
+        "76533-9",
+        "8456-6",
+        "18684-1",
+        "71895-7",
+        "8454-1",
+        "76212-0",
+        "76539-6",
+        "76287-2",
+        "45372-0",
+        "76288-0",
+        "76286-4",
+        "8587-8",
+        "76534-7",
+        "75994-4",
+        "60995-8",
+        "76535-4"
+      ],
+      "lexical_only_codes": [
+        "72076-3"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.600581,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 17,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 3,
+    "entity_text": "Blood pressure measurement",
+    "variant_type": "abbreviation",
+    "query": "BP SBP DBP",
+    "expected_entity_type": "vital_sign",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "96595-4",
+        "display_name": "Hemoglobin A1c/Hemoglobin.total in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.532058
+      },
+      {
+        "rank": 2,
+        "code_value": "28139-4",
+        "display_name": "Blood pressure alteration [CCC]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.521766
+      },
+      {
+        "rank": 3,
+        "code_value": "53346-3",
+        "display_name": "Cortisol [Moles/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.509718
+      },
+      {
+        "rank": 4,
+        "code_value": "53345-5",
+        "display_name": "Cortisol [Mass/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.500594
+      },
+      {
+        "rank": 5,
+        "code_value": "29574-1",
+        "display_name": "Thyrotropin [Presence] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.496762
+      },
+      {
+        "rank": 6,
+        "code_value": "96423-9",
+        "display_name": "Progesterone [Mass/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.491886
+      },
+      {
+        "rank": 7,
+        "code_value": "53064-2",
+        "display_name": "Beta aminoisobutyrate [Moles/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.491514
+      },
+      {
+        "rank": 8,
+        "code_value": "96425-4",
+        "display_name": "Cortisol/Cortisone [Mass Ratio] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.491298
+      },
+      {
+        "rank": 9,
+        "code_value": "47573-1",
+        "display_name": "Aspartate [Moles/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.482925
+      },
+      {
+        "rank": 10,
+        "code_value": "29575-8",
+        "display_name": "Thyrotropin [Units/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.475376
+      },
+      {
+        "rank": 11,
+        "code_value": "50083-5",
+        "display_name": "Alpha aminoadipate [Moles/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.473667
+      },
+      {
+        "rank": 12,
+        "code_value": "96587-1",
+        "display_name": "Aspartate aminotransferase [Enzymatic activity/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.467577
+      },
+      {
+        "rank": 13,
+        "code_value": "103810-8",
+        "display_name": "Pulse pressure by Invasive",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.465331
+      },
+      {
+        "rank": 14,
+        "code_value": "43927-3",
+        "display_name": "Arginine [Presence] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.457604
+      },
+      {
+        "rank": 15,
+        "code_value": "80558-0",
+        "display_name": "Amitriptyline [Mass/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.45689
+      },
+      {
+        "rank": 16,
+        "code_value": "96586-3",
+        "display_name": "Alanine aminotransferase [Enzymatic activity/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.456704
+      },
+      {
+        "rank": 17,
+        "code_value": "96424-7",
+        "display_name": "Testosterone/Cortisol [Mass Ratio] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.456606
+      },
+      {
+        "rank": 18,
+        "code_value": "96422-1",
+        "display_name": "Cortisone [Mass/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.454754
+      },
+      {
+        "rank": 19,
+        "code_value": "38506-2",
+        "display_name": "Thyroxine (T4) [Presence] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.453391
+      },
+      {
+        "rank": 20,
+        "code_value": "92749-1",
+        "display_name": "Lyso-sphingomyelin [Moles/volume] in DBS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.449153
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "96595-4",
+        "28139-4",
+        "53346-3",
+        "53345-5",
+        "29574-1",
+        "96423-9",
+        "53064-2",
+        "96425-4",
+        "47573-1",
+        "29575-8",
+        "50083-5",
+        "96587-1",
+        "103810-8",
+        "43927-3",
+        "80558-0",
+        "96586-3",
+        "96424-7",
+        "96422-1",
+        "38506-2",
+        "92749-1"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "96595-4",
+        "28139-4",
+        "53346-3",
+        "53345-5",
+        "29574-1",
+        "96423-9",
+        "53064-2",
+        "96425-4",
+        "47573-1",
+        "29575-8",
+        "50083-5",
+        "96587-1",
+        "103810-8",
+        "43927-3",
+        "80558-0",
+        "96586-3",
+        "96424-7",
+        "96422-1",
+        "38506-2",
+        "92749-1"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.47927870000000006,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 1,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 4,
+    "entity_text": "Total cholesterol test",
+    "variant_type": "clinical",
+    "query": "cholesterol total serum plasma",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "47228-2",
+        "display_name": "Cholesterol non HDL/Cholesterol.total [Mass Ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.705532
+      },
+      {
+        "rank": 2,
+        "code_value": "110258-1",
+        "display_name": "Cholesterol [Measurement] in Serum or Plasma",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.68228
+      },
+      {
+        "rank": 3,
+        "code_value": "2095-8",
+        "display_name": "Cholesterol in HDL/Cholesterol.total [Mass Ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.681361
+      },
+      {
+        "rank": 4,
+        "code_value": "2093-3",
+        "display_name": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.680041
+      },
+      {
+        "rank": 5,
+        "code_value": "43396-1",
+        "display_name": "Cholesterol non HDL [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.664452
+      },
+      {
+        "rank": 6,
+        "code_value": "54373-6",
+        "display_name": "Cholesterol.non-esterified [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.659705
+      },
+      {
+        "rank": 7,
+        "code_value": "2094-1",
+        "display_name": "Cholesterol.non-esterified [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.653014
+      },
+      {
+        "rank": 8,
+        "code_value": "108018-3",
+        "display_name": "Cholesterol in LDL [Measurement] in Serum or Plasma",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.638397
+      },
+      {
+        "rank": 9,
+        "code_value": "91116-4",
+        "display_name": "Cholesterol in LDL 5 [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.629555
+      },
+      {
+        "rank": 10,
+        "code_value": "91109-9",
+        "display_name": "Cholesterol in LDL 5 [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.622788
+      },
+      {
+        "rank": 11,
+        "code_value": "9322-9",
+        "display_name": "Cholesterol.total/Cholesterol in HDL [Percentile]",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.601806
+      },
+      {
+        "rank": 12,
+        "code_value": "96258-9",
+        "display_name": "Cholesterol in LDL [Moles/volume] in Serum or Plasma by Calculated by Martin-Hopkins",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.580524
+      },
+      {
+        "rank": 13,
+        "code_value": "1990-1",
+        "display_name": "Cholecalciferol (Vit D3) [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.576268
+      },
+      {
+        "rank": 14,
+        "code_value": "33958-0",
+        "display_name": "Cholecalciferol (Vit D3) [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.565118
+      },
+      {
+        "rank": 15,
+        "code_value": "81021-8",
+        "display_name": "Cholesterol intake 24 hour Estimated",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.564517
+      },
+      {
+        "rank": 16,
+        "code_value": "12531-0",
+        "display_name": "Deprecated Cholesterol [Mass/volume] in Body fluid",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.541698
+      },
+      {
+        "rank": 17,
+        "code_value": "9342-7",
+        "display_name": "Cholesterol [Percentile]",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.533947
+      },
+      {
+        "rank": 18,
+        "code_value": "11094-0",
+        "display_name": "Dichlorodiphenyltrichloroethane [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.506844
+      },
+      {
+        "rank": 19,
+        "code_value": "23854-3",
+        "display_name": "Dioxin [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.477915
+      },
+      {
+        "rank": 20,
+        "code_value": "2885-2",
+        "display_name": "Protein [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.464636
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "54373-6",
+        "display_name": "Cholesterol.non-esterified [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0.659705
+      },
+      {
+        "rank": 2,
+        "code_value": "54467-6",
+        "display_name": "Cholesterol in HDL 2a/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "54468-4",
+        "display_name": "Cholesterol in HDL 2b/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "54469-2",
+        "display_name": "Cholesterol in HDL 3a/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "54470-0",
+        "display_name": "Cholesterol in HDL 3b/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "54471-8",
+        "display_name": "Cholesterol in HDL 3c/Cholesterol in total HDL in Serum or Plasma by Electrophoresis",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 7,
+        "code_value": "55440-2",
+        "display_name": "Cholesterol.in LDL (real) [Mass/volume] in Serum or Plasma by VAP",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 8,
+        "code_value": "55607-6",
+        "display_name": "Triglyceride/Cholesterol in HDL [Molar ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 9,
+        "code_value": "55838-7",
+        "display_name": "Cholesterol/Phospholipid [Molar ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 10,
+        "code_value": "55839-5",
+        "display_name": "Cholesterol ester transfer protein [Units/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 11,
+        "code_value": "55840-3",
+        "display_name": "Cholesterol esters [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 12,
+        "code_value": "56132-4",
+        "display_name": "Cholesterol in HDL 2a [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 13,
+        "code_value": "56134-0",
+        "display_name": "Cholesterol in IDL 1 [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 14,
+        "code_value": "56135-7",
+        "display_name": "Cholesterol in IDL 2 [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 15,
+        "code_value": "57936-7",
+        "display_name": "Cholesterol in HDL 2a [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 16,
+        "code_value": "57937-5",
+        "display_name": "Cholesterol in HDL 3a [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 17,
+        "code_value": "59250-1",
+        "display_name": "Tocopherols/Cholesterol [Molar ratio] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 18,
+        "code_value": "74435-9",
+        "display_name": "Cholesterol.non-esterified/Cholesterol.total in Serum or Plasma by Gas chromatography",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 19,
+        "code_value": "66126-4",
+        "display_name": "Cholesterol in VLDL [Moles/volume] in Serum or Plasma by calculation",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 20,
+        "code_value": "66499-5",
+        "display_name": "Cholesterol in VLDL.beta [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "47228-2",
+        "110258-1",
+        "2095-8",
+        "2093-3",
+        "43396-1",
+        "54373-6",
+        "2094-1",
+        "108018-3",
+        "91116-4",
+        "91109-9",
+        "9322-9",
+        "96258-9",
+        "1990-1",
+        "33958-0",
+        "81021-8",
+        "12531-0",
+        "9342-7",
+        "11094-0",
+        "23854-3",
+        "2885-2"
+      ],
+      "lexical_codes": [
+        "54373-6",
+        "54467-6",
+        "54468-4",
+        "54469-2",
+        "54470-0",
+        "54471-8",
+        "55440-2",
+        "55607-6",
+        "55838-7",
+        "55839-5",
+        "55840-3",
+        "56132-4",
+        "56134-0",
+        "56135-7",
+        "57936-7",
+        "57937-5",
+        "59250-1",
+        "74435-9",
+        "66126-4",
+        "66499-5"
+      ],
+      "overlap_codes": [
+        "54373-6"
+      ],
+      "vector_only_codes": [
+        "47228-2",
+        "110258-1",
+        "2095-8",
+        "2093-3",
+        "43396-1",
+        "2094-1",
+        "108018-3",
+        "91116-4",
+        "91109-9",
+        "9322-9",
+        "96258-9",
+        "1990-1",
+        "33958-0",
+        "81021-8",
+        "12531-0",
+        "9342-7",
+        "11094-0",
+        "23854-3",
+        "2885-2"
+      ],
+      "lexical_only_codes": [
+        "54467-6",
+        "54468-4",
+        "54469-2",
+        "54470-0",
+        "54471-8",
+        "55440-2",
+        "55607-6",
+        "55838-7",
+        "55839-5",
+        "55840-3",
+        "56132-4",
+        "56134-0",
+        "56135-7",
+        "57936-7",
+        "57937-5",
+        "59250-1",
+        "74435-9",
+        "66126-4",
+        "66499-5"
+      ],
+      "overlap_count": 1,
+      "overlap_percentage": 5,
+      "vector_avg_similarity": 0.6015199,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0.03298525,
+      "vector_entity_type_match": 17,
+      "lexical_entity_type_match": 20
+    }
+  },
+  {
+    "entity_id": 4,
+    "entity_text": "Total cholesterol test",
+    "variant_type": "layperson",
+    "query": "cholesterol level blood test",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "74435-9",
+        "display_name": "Cholesterol.non-esterified/Cholesterol.total in Serum or Plasma by Gas chromatography",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.495891
+      },
+      {
+        "rank": 2,
+        "code_value": "58293-2",
+        "display_name": "Taken medication for high blood cholesterol",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.462037
+      },
+      {
+        "rank": 3,
+        "code_value": "105508-6",
+        "display_name": "Have you ever taken medication for high blood cholesterol",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.437639
+      },
+      {
+        "rank": 4,
+        "code_value": "21026-0",
+        "display_name": "Pathologist interpretation of Blood tests",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.403193
+      },
+      {
+        "rank": 5,
+        "code_value": "14869-2",
+        "display_name": "Pathologist review of Blood tests",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.400309
+      },
+      {
+        "rank": 6,
+        "code_value": "62421-3",
+        "display_name": "Fatty acids.nonesterified [Moles/volume] in Serum or Plasma --9th specimen fasting",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.36688
+      },
+      {
+        "rank": 7,
+        "code_value": "49856-8",
+        "display_name": "Methyltestosterone [Presence] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.365223
+      },
+      {
+        "rank": 8,
+        "code_value": "105121-8",
+        "display_name": "Testosterone [Mass/volume] in Serum or Plasma by LC/MS/MS",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.36443
+      },
+      {
+        "rank": 9,
+        "code_value": "35158-5",
+        "display_name": "Myristoleate (C14:1) [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.353441
+      },
+      {
+        "rank": 10,
+        "code_value": "2242-6",
+        "display_name": "Deprecated Estradiol Free [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.351784
+      },
+      {
+        "rank": 11,
+        "code_value": "13907-1",
+        "display_name": "Norethindrone [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.345396
+      },
+      {
+        "rank": 12,
+        "code_value": "35157-7",
+        "display_name": "Myristate (C14:0) [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.34315
+      },
+      {
+        "rank": 13,
+        "code_value": "1995-0",
+        "display_name": "Calcium.ionized [Moles/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.337332
+      },
+      {
+        "rank": 14,
+        "code_value": "85155-0",
+        "display_name": "Pharmacology Evaluation and management of hyperlipidemia note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.336031
+      },
+      {
+        "rank": 15,
+        "code_value": "40088-7",
+        "display_name": "Prothrombin time (PT) in Platelet poor plasma by Coagulation assay --baseline",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.335261
+      },
+      {
+        "rank": 16,
+        "code_value": "90798-0",
+        "display_name": "Thyroxine (T4) [Mass/volume] in Serum or Plasma --3 hours post dose levothyroxine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.335033
+      },
+      {
+        "rank": 17,
+        "code_value": "90797-2",
+        "display_name": "Thyroxine (T4) [Mass/volume] in Serum or Plasma --2 hours post dose levothyroxine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.334784
+      },
+      {
+        "rank": 18,
+        "code_value": "101179-0",
+        "display_name": "Immunoglobulin light chains.free/Protein.total in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.332645
+      },
+      {
+        "rank": 19,
+        "code_value": "80629-9",
+        "display_name": "1,2,2-Trimethylpropyl methylphosphonate [Mass/volume] in Blood",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.328695
+      },
+      {
+        "rank": 20,
+        "code_value": "2478-6",
+        "display_name": "Inhibin [Mass/volume] in Serum or Plasma",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.327667
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "74435-9",
+        "58293-2",
+        "105508-6",
+        "21026-0",
+        "14869-2",
+        "62421-3",
+        "49856-8",
+        "105121-8",
+        "35158-5",
+        "2242-6",
+        "13907-1",
+        "35157-7",
+        "1995-0",
+        "85155-0",
+        "40088-7",
+        "90798-0",
+        "90797-2",
+        "101179-0",
+        "80629-9",
+        "2478-6"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "74435-9",
+        "58293-2",
+        "105508-6",
+        "21026-0",
+        "14869-2",
+        "62421-3",
+        "49856-8",
+        "105121-8",
+        "35158-5",
+        "2242-6",
+        "13907-1",
+        "35157-7",
+        "1995-0",
+        "85155-0",
+        "40088-7",
+        "90798-0",
+        "90797-2",
+        "101179-0",
+        "80629-9",
+        "2478-6"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.36784105,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 13,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 4,
+    "entity_text": "Total cholesterol test",
+    "variant_type": "abbreviation",
+    "query": "TC chol",
+    "expected_entity_type": "lab_result",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "93191-5",
+        "display_name": "HTR2C gene c.-759C>T [Genotype] in Blood or Tissue by Molecular genetics method Nominal",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.373422
+      },
+      {
+        "rank": 2,
+        "code_value": "72657-0",
+        "display_name": "Procainamide [Mass/volume] in Serum or Plasma --trough",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.347255
+      },
+      {
+        "rank": 3,
+        "code_value": "74986-1",
+        "display_name": "Hydroxychloroquine [Mass/volume] in Serum or Plasma --trough",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.325441
+      },
+      {
+        "rank": 4,
+        "code_value": "39239-9",
+        "display_name": "Anticipatory guidance or health education type CPHS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.32389
+      },
+      {
+        "rank": 5,
+        "code_value": "76442-3",
+        "display_name": "Primary health condition",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.304066
+      },
+      {
+        "rank": 6,
+        "code_value": "46640-9",
+        "display_name": "Secondary diagnosis [RFC]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.303285
+      },
+      {
+        "rank": 7,
+        "code_value": "45236-7",
+        "display_name": "HIV treatment cohort",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.302525
+      },
+      {
+        "rank": 8,
+        "code_value": "64100-1",
+        "display_name": "Contraindication",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.294208
+      },
+      {
+        "rank": 9,
+        "code_value": "87536-9",
+        "display_name": "Treatment or health behavior affected by challenges",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.291821
+      },
+      {
+        "rank": 10,
+        "code_value": "20995-7",
+        "display_name": "Cortisol [Interpretation] in Serum or Plasma--1 hour post dose corticotropin",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.288613
+      },
+      {
+        "rank": 11,
+        "code_value": "46683-9",
+        "display_name": "Extreme heat [RFC]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.277061
+      },
+      {
+        "rank": 12,
+        "code_value": "28087-5",
+        "display_name": "Defensive coping [CCC]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.271661
+      },
+      {
+        "rank": 13,
+        "code_value": "45231-8",
+        "display_name": "HIV treatment prior to enrollment",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.267791
+      },
+      {
+        "rank": 14,
+        "code_value": "18630-4",
+        "display_name": "Primary diagnosis",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.266503
+      },
+      {
+        "rank": 15,
+        "code_value": "46682-1",
+        "display_name": "Extreme cold [RFC]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.26599
+      },
+      {
+        "rank": 16,
+        "code_value": "21905-5",
+        "display_name": "Primary tumor.clinical [Class] Cancer",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.265057
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "93191-5",
+        "72657-0",
+        "74986-1",
+        "39239-9",
+        "76442-3",
+        "46640-9",
+        "45236-7",
+        "64100-1",
+        "87536-9",
+        "20995-7",
+        "46683-9",
+        "28087-5",
+        "45231-8",
+        "18630-4",
+        "46682-1",
+        "21905-5"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "93191-5",
+        "72657-0",
+        "74986-1",
+        "39239-9",
+        "76442-3",
+        "46640-9",
+        "45236-7",
+        "64100-1",
+        "87536-9",
+        "20995-7",
+        "46683-9",
+        "28087-5",
+        "45231-8",
+        "18630-4",
+        "46682-1",
+        "21905-5"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.2980368125,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 2,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 5,
+    "entity_text": "Pregnancy test",
+    "variant_type": "clinical",
+    "query": "pregnancy test result",
+    "expected_entity_type": "observation",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "85693-0",
+        "display_name": "Previous rubella virus test result",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.489001
+      },
+      {
+        "rank": 2,
+        "code_value": "96768-7",
+        "display_name": "Pregnancy outcome related to illness or condition",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.463235
+      },
+      {
+        "rank": 3,
+        "code_value": "39226-6",
+        "display_name": "Hemoglobin test status CPHS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.37549
+      },
+      {
+        "rank": 4,
+        "code_value": "39263-9",
+        "display_name": "Tuberculin screen test status CPHS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.359757
+      },
+      {
+        "rank": 5,
+        "code_value": "53691-2",
+        "display_name": "Gestational age Estimated from patient reported estimated date of conception",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.324056
+      },
+      {
+        "rank": 6,
+        "code_value": "96154-0",
+        "display_name": "Pulmonary Evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.300741
+      },
+      {
+        "rank": 7,
+        "code_value": "81270-1",
+        "display_name": "Gestational age in weeks--at onset of illness",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.286651
+      },
+      {
+        "rank": 8,
+        "code_value": "9579-4",
+        "display_name": "Tetrahydrocorticosterone [Mass/time] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.278328
+      },
+      {
+        "rank": 9,
+        "code_value": "110630-1",
+        "display_name": "Allo-tetrahydrocorticosterone [Measurement] in Urine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.277187
+      },
+      {
+        "rank": 10,
+        "code_value": "82907-7",
+        "display_name": "Tetrahydrocorticosterone/Allo-tetrahydrocorticosterone [Molar ratio] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.276506
+      },
+      {
+        "rank": 11,
+        "code_value": "94721-8",
+        "display_name": "COVID-19 Evaluation note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.27391
+      },
+      {
+        "rank": 12,
+        "code_value": "11776-2",
+        "display_name": "Gestational age estimation formula Narrative [Bibliographic Citation] Citation",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.271485
+      },
+      {
+        "rank": 13,
+        "code_value": "11383-7",
+        "display_name": "Patient problem outcome Narrative",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.271277
+      },
+      {
+        "rank": 14,
+        "code_value": "78840-6",
+        "display_name": "JWH-081 5-hydroxypentyl (synthetic cannabinoid metabolite) cutoff [Mass/volume] in Urine for Confirmatory method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.270215
+      },
+      {
+        "rank": 15,
+        "code_value": "82906-9",
+        "display_name": "Tetrahydrocorticosterone/Allo-tetrahydrocorticosterone [Molar ratio] in Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.264073
+      },
+      {
+        "rank": 16,
+        "code_value": "53576-5",
+        "display_name": "Personal health monitoring report Document",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.263458
+      },
+      {
+        "rank": 17,
+        "code_value": "100512-3",
+        "display_name": "Pediatric pulmonology Outpatient Progress note",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.261562
+      },
+      {
+        "rank": 18,
+        "code_value": "55824-7",
+        "display_name": "Allo-tetrahydrocorticosterone [Mass/time] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.260323
+      },
+      {
+        "rank": 19,
+        "code_value": "91541-3",
+        "display_name": "Disease outcome [Type]",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.259958
+      },
+      {
+        "rank": 20,
+        "code_value": "1727-7",
+        "display_name": "Adenosine monophosphate.cyclic [Mass/time] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.259592
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "66563-8",
+        "display_name": "Pregnancy test result [PhenX]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "85675-7",
+        "display_name": "Serologic test result for Mother --pre pregnancy",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "85693-0",
+        "96768-7",
+        "39226-6",
+        "39263-9",
+        "53691-2",
+        "96154-0",
+        "81270-1",
+        "9579-4",
+        "110630-1",
+        "82907-7",
+        "94721-8",
+        "11776-2",
+        "11383-7",
+        "78840-6",
+        "82906-9",
+        "53576-5",
+        "100512-3",
+        "55824-7",
+        "91541-3",
+        "1727-7"
+      ],
+      "lexical_codes": [
+        "66563-8",
+        "85675-7"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "85693-0",
+        "96768-7",
+        "39226-6",
+        "39263-9",
+        "53691-2",
+        "96154-0",
+        "81270-1",
+        "9579-4",
+        "110630-1",
+        "82907-7",
+        "94721-8",
+        "11776-2",
+        "11383-7",
+        "78840-6",
+        "82906-9",
+        "53576-5",
+        "100512-3",
+        "55824-7",
+        "91541-3",
+        "1727-7"
+      ],
+      "lexical_only_codes": [
+        "66563-8",
+        "85675-7"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.30434025,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 10,
+      "lexical_entity_type_match": 1
+    }
+  },
+  {
+    "entity_id": 5,
+    "entity_text": "Pregnancy test",
+    "variant_type": "layperson",
+    "query": "pregnant test positive negative",
+    "expected_entity_type": "observation",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "80865-9",
+        "display_name": "US transvaginal for pregnancy",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.491179
+      },
+      {
+        "rank": 2,
+        "code_value": "33853-3",
+        "display_name": "Progesterone [Moles/volume] in Serum or Plasma --1st specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.354183
+      },
+      {
+        "rank": 3,
+        "code_value": "71425-3",
+        "display_name": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Blood by Immunoassay",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.252552
+      },
+      {
+        "rank": 4,
+        "code_value": "106735-4",
+        "display_name": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum, Plasma or Blood by Rapid immunoassay",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.25037
+      },
+      {
+        "rank": 5,
+        "code_value": "44459-6",
+        "display_name": "C peptide/Creatinine [Mass Ratio] in Urine --2nd specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.232078
+      },
+      {
+        "rank": 6,
+        "code_value": "94330-8",
+        "display_name": "Specimen Processing comment",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.192362
+      },
+      {
+        "rank": 7,
+        "code_value": "81577-9",
+        "display_name": "PT Brain for amyloidosis",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.188516
+      },
+      {
+        "rank": 8,
+        "code_value": "21899-0",
+        "display_name": "Primary tumor.pathology Cancer",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.176512
+      },
+      {
+        "rank": 9,
+        "code_value": "10742-5",
+        "display_name": "Amyloid.microscopic observation [Identifier] in Tissue by Bennhold stain.Putchler modified",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.173316
+      },
+      {
+        "rank": 10,
+        "code_value": "85343-2",
+        "display_name": "Lymph nodes with macrometastases [#] in Cancer specimen by Light microscopy",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.159382
+      },
+      {
+        "rank": 11,
+        "code_value": "17214-8",
+        "display_name": "CD99 cells/cells in Blood",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.149971
+      },
+      {
+        "rank": 12,
+        "code_value": "74037-3",
+        "display_name": "Transmissible spongiform encephalopathy [Identifier] in Brain by Light microscopy",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.0968759
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "80865-9",
+        "33853-3",
+        "71425-3",
+        "106735-4",
+        "44459-6",
+        "94330-8",
+        "81577-9",
+        "21899-0",
+        "10742-5",
+        "85343-2",
+        "17214-8",
+        "74037-3"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "80865-9",
+        "33853-3",
+        "71425-3",
+        "106735-4",
+        "44459-6",
+        "94330-8",
+        "81577-9",
+        "21899-0",
+        "10742-5",
+        "85343-2",
+        "17214-8",
+        "74037-3"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.2264414083333333,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 7,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 5,
+    "entity_text": "Pregnancy test",
+    "variant_type": "abbreviation",
+    "query": "preg test",
+    "expected_entity_type": "observation",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "107557-1",
+        "display_name": "Test performed --1st trimester",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.596589
+      },
+      {
+        "rank": 2,
+        "code_value": "89498-0",
+        "display_name": "Prenatal diagnosis",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.485368
+      },
+      {
+        "rank": 3,
+        "code_value": "5803-2",
+        "display_name": "pH of Urine by Test strip",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.472894
+      },
+      {
+        "rank": 4,
+        "code_value": "95576-5",
+        "display_name": "Pregnanetriol [Z-score] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.462744
+      },
+      {
+        "rank": 5,
+        "code_value": "45144-3",
+        "display_name": "clomiPRAMINE [Presence] in Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.458472
+      },
+      {
+        "rank": 6,
+        "code_value": "50560-2",
+        "display_name": "pH of Urine by Automated test strip",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.450155
+      },
+      {
+        "rank": 7,
+        "code_value": "77881-1",
+        "display_name": "risperiDONE cutoff [Mass/volume] in Urine for Confirmatory method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.440519
+      },
+      {
+        "rank": 8,
+        "code_value": "58457-3",
+        "display_name": "Sulfites [Presence] in Urine by Test strip",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.437051
+      },
+      {
+        "rank": 9,
+        "code_value": "97153-1",
+        "display_name": "Primidone [Presence] in Urine by Confirmatory method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.436457
+      },
+      {
+        "rank": 10,
+        "code_value": "78819-0",
+        "display_name": "clomiPRAMINE cutoff [Mass/volume] in Urine for Confirmatory method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.432589
+      },
+      {
+        "rank": 11,
+        "code_value": "95573-2",
+        "display_name": "Pregnanediol [Z-score] in 24 hour Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.424706
+      },
+      {
+        "rank": 12,
+        "code_value": "15092-0",
+        "display_name": "Pregnanetriol [Moles/volume] in Urine",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.417775
+      },
+      {
+        "rank": 13,
+        "code_value": "73570-4",
+        "display_name": "Testosterone/Epitestosterone [Interpretation] in Urine Qualitative",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.415716
+      },
+      {
+        "rank": 14,
+        "code_value": "108424-3",
+        "display_name": "clomiPRAMINE [Measurement] in Urine",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.415549
+      },
+      {
+        "rank": 15,
+        "code_value": "19678-2",
+        "display_name": "Prazepam [Presence] in Urine by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.415508
+      },
+      {
+        "rank": 16,
+        "code_value": "74819-4",
+        "display_name": "Promazine [Presence] in Urine by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.41415
+      },
+      {
+        "rank": 17,
+        "code_value": "16904-5",
+        "display_name": "Glucose [Presence] in Urine --1st specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.41262
+      },
+      {
+        "rank": 18,
+        "code_value": "19710-3",
+        "display_name": "traMADol [Presence] in Urine by Screen method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.41262
+      },
+      {
+        "rank": 19,
+        "code_value": "44833-2",
+        "display_name": "Preliminary diagnosis",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.412443
+      },
+      {
+        "rank": 20,
+        "code_value": "98964-0",
+        "display_name": "Brexpiprazole [Presence] in Urine by Confirmatory method",
+        "entity_type": "lab_result",
+        "code_system": "loinc",
+        "similarity_score": 0.412215
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "57530-8",
+        "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --pre dose dexamethasone",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "57531-6",
+        "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --1 day post dose dexamethasone",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "51674-0",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --6th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "56522-6",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --30 minutes post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "57532-4",
+        "display_name": "17-Hydroxypregnenolone [Moles/volume] in Serum or Plasma --2 days post dose dexamethasone",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "16298-2",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --45 minutes post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 7,
+        "code_value": "16299-0",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --6 hours post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 8,
+        "code_value": "51670-8",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --baseline",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 9,
+        "code_value": "51672-4",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --4th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 10,
+        "code_value": "51673-2",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --5th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 11,
+        "code_value": "51675-7",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --7th specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 12,
+        "code_value": "51676-5",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --2nd specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 13,
+        "code_value": "51677-3",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --1st specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 14,
+        "code_value": "51678-1",
+        "display_name": "17-Hydroxypregnenolone [Mass/volume] in Serum or Plasma --3rd specimen post XXX challenge",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "107557-1",
+        "89498-0",
+        "5803-2",
+        "95576-5",
+        "45144-3",
+        "50560-2",
+        "77881-1",
+        "58457-3",
+        "97153-1",
+        "78819-0",
+        "95573-2",
+        "15092-0",
+        "73570-4",
+        "108424-3",
+        "19678-2",
+        "74819-4",
+        "16904-5",
+        "19710-3",
+        "44833-2",
+        "98964-0"
+      ],
+      "lexical_codes": [
+        "57530-8",
+        "57531-6",
+        "51674-0",
+        "56522-6",
+        "57532-4",
+        "16298-2",
+        "16299-0",
+        "51670-8",
+        "51672-4",
+        "51673-2",
+        "51675-7",
+        "51676-5",
+        "51677-3",
+        "51678-1"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "107557-1",
+        "89498-0",
+        "5803-2",
+        "95576-5",
+        "45144-3",
+        "50560-2",
+        "77881-1",
+        "58457-3",
+        "97153-1",
+        "78819-0",
+        "95573-2",
+        "15092-0",
+        "73570-4",
+        "108424-3",
+        "19678-2",
+        "74819-4",
+        "16904-5",
+        "19710-3",
+        "44833-2",
+        "98964-0"
+      ],
+      "lexical_only_codes": [
+        "57530-8",
+        "57531-6",
+        "51674-0",
+        "56522-6",
+        "57532-4",
+        "16298-2",
+        "16299-0",
+        "51670-8",
+        "51672-4",
+        "51673-2",
+        "51675-7",
+        "51676-5",
+        "51677-3",
+        "51678-1"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.441307,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 5,
+      "lexical_entity_type_match": 14
+    }
+  },
+  {
+    "entity_id": 6,
+    "entity_text": "ECG findings",
+    "variant_type": "clinical",
+    "query": "electrocardiogram findings impression",
+    "expected_entity_type": "observation",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "58253-6",
+        "display_name": "Electrocardiograms recorded",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.675108
+      },
+      {
+        "rank": 2,
+        "code_value": "18750-0",
+        "display_name": "Cardiac electrophysiology study",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.610573
+      },
+      {
+        "rank": 3,
+        "code_value": "8617-3",
+        "display_name": "QRS complex [Interpretation] by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.608361
+      },
+      {
+        "rank": 4,
+        "code_value": "58261-9",
+        "display_name": "Electrocardiogram serial reading",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.590634
+      },
+      {
+        "rank": 5,
+        "code_value": "9873-1",
+        "display_name": "QRS complex [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.588907
+      },
+      {
+        "rank": 6,
+        "code_value": "18843-3",
+        "display_name": "EKG Comparison study (narrative)",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.56671
+      },
+      {
+        "rank": 7,
+        "code_value": "8897-1",
+        "display_name": "QRS complex Ventricles by EKG",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.53952
+      },
+      {
+        "rank": 8,
+        "code_value": "76282-3",
+        "display_name": "Heart rate.beat-to-beat by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.529213
+      },
+      {
+        "rank": 9,
+        "code_value": "76000-9",
+        "display_name": "Paced heart rate by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.527435
+      },
+      {
+        "rank": 10,
+        "code_value": "8611-6",
+        "display_name": "Myocardial infarction age by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.520246
+      },
+      {
+        "rank": 11,
+        "code_value": "8607-4",
+        "display_name": "Axis [Interpretation] by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.519361
+      },
+      {
+        "rank": 12,
+        "code_value": "44973-6",
+        "display_name": "QRS duration {Electrocardiograph lead}",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.508979
+      },
+      {
+        "rank": 13,
+        "code_value": "76639-4",
+        "display_name": "R-R interval (Minimum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.505115
+      },
+      {
+        "rank": 14,
+        "code_value": "76638-6",
+        "display_name": "R-R interval (Maximum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.503149
+      },
+      {
+        "rank": 15,
+        "code_value": "76644-4",
+        "display_name": "R-R interval.coefficient of variation by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.492226
+      },
+      {
+        "rank": 16,
+        "code_value": "99478-0",
+        "display_name": "Cardiac loop monitor study Document",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.489596
+      },
+      {
+        "rank": 17,
+        "code_value": "18513-2",
+        "display_name": "QRS onset [Time] Reference beat",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.486897
+      },
+      {
+        "rank": 18,
+        "code_value": "8890-6",
+        "display_name": "Heart rate Cardiac apex by Auscultation",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.482119
+      },
+      {
+        "rank": 19,
+        "code_value": "8891-4",
+        "display_name": "Heart rate Cardiac apex by palpation",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.481187
+      },
+      {
+        "rank": 20,
+        "code_value": "9964-8",
+        "display_name": "QRS initial amplitude in lead I",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.476929
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "58253-6",
+        "18750-0",
+        "8617-3",
+        "58261-9",
+        "9873-1",
+        "18843-3",
+        "8897-1",
+        "76282-3",
+        "76000-9",
+        "8611-6",
+        "8607-4",
+        "44973-6",
+        "76639-4",
+        "76638-6",
+        "76644-4",
+        "99478-0",
+        "18513-2",
+        "8890-6",
+        "8891-4",
+        "9964-8"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "58253-6",
+        "18750-0",
+        "8617-3",
+        "58261-9",
+        "9873-1",
+        "18843-3",
+        "8897-1",
+        "76282-3",
+        "76000-9",
+        "8611-6",
+        "8607-4",
+        "44973-6",
+        "76639-4",
+        "76638-6",
+        "76644-4",
+        "99478-0",
+        "18513-2",
+        "8890-6",
+        "8891-4",
+        "9964-8"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.5351132500000001,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 17,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 6,
+    "entity_text": "ECG findings",
+    "variant_type": "layperson",
+    "query": "heart test results ECG",
+    "expected_entity_type": "observation",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "76282-3",
+        "display_name": "Heart rate.beat-to-beat by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.609025
+      },
+      {
+        "rank": 2,
+        "code_value": "58253-6",
+        "display_name": "Electrocardiograms recorded",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.599526
+      },
+      {
+        "rank": 3,
+        "code_value": "18750-0",
+        "display_name": "Cardiac electrophysiology study",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.592481
+      },
+      {
+        "rank": 4,
+        "code_value": "76000-9",
+        "display_name": "Paced heart rate by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.590217
+      },
+      {
+        "rank": 5,
+        "code_value": "18843-3",
+        "display_name": "EKG Comparison study (narrative)",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.549897
+      },
+      {
+        "rank": 6,
+        "code_value": "8617-3",
+        "display_name": "QRS complex [Interpretation] by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.543714
+      },
+      {
+        "rank": 7,
+        "code_value": "58261-9",
+        "display_name": "Electrocardiogram serial reading",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.533914
+      },
+      {
+        "rank": 8,
+        "code_value": "76638-6",
+        "display_name": "R-R interval (Maximum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.519734
+      },
+      {
+        "rank": 9,
+        "code_value": "8890-6",
+        "display_name": "Heart rate Cardiac apex by Auscultation",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.511205
+      },
+      {
+        "rank": 10,
+        "code_value": "76639-4",
+        "display_name": "R-R interval (Minimum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.510536
+      },
+      {
+        "rank": 11,
+        "code_value": "8897-1",
+        "display_name": "QRS complex Ventricles by EKG",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.506971
+      },
+      {
+        "rank": 12,
+        "code_value": "8607-4",
+        "display_name": "Axis [Interpretation] by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.499493
+      },
+      {
+        "rank": 13,
+        "code_value": "8891-4",
+        "display_name": "Heart rate Cardiac apex by palpation",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.496915
+      },
+      {
+        "rank": 14,
+        "code_value": "99478-0",
+        "display_name": "Cardiac loop monitor study Document",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.494985
+      },
+      {
+        "rank": 15,
+        "code_value": "9873-1",
+        "display_name": "QRS complex [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.494275
+      },
+      {
+        "rank": 16,
+        "code_value": "8611-6",
+        "display_name": "Myocardial infarction age by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.489444
+      },
+      {
+        "rank": 17,
+        "code_value": "44973-6",
+        "display_name": "QRS duration {Electrocardiograph lead}",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.485972
+      },
+      {
+        "rank": 18,
+        "code_value": "76644-4",
+        "display_name": "R-R interval.coefficient of variation by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.478031
+      },
+      {
+        "rank": 19,
+        "code_value": "8886-4",
+        "display_name": "Heart rate method",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "similarity_score": 0.467708
+      },
+      {
+        "rank": 20,
+        "code_value": "56849-3",
+        "display_name": "Cardiac rhythm monitoring (set)",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.456636
+      }
+    ],
+    "lexical_results": [],
+    "analysis": {
+      "vector_codes": [
+        "76282-3",
+        "58253-6",
+        "18750-0",
+        "76000-9",
+        "18843-3",
+        "8617-3",
+        "58261-9",
+        "76638-6",
+        "8890-6",
+        "76639-4",
+        "8897-1",
+        "8607-4",
+        "8891-4",
+        "99478-0",
+        "9873-1",
+        "8611-6",
+        "44973-6",
+        "76644-4",
+        "8886-4",
+        "56849-3"
+      ],
+      "lexical_codes": [],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "76282-3",
+        "58253-6",
+        "18750-0",
+        "76000-9",
+        "18843-3",
+        "8617-3",
+        "58261-9",
+        "76638-6",
+        "8890-6",
+        "76639-4",
+        "8897-1",
+        "8607-4",
+        "8891-4",
+        "99478-0",
+        "9873-1",
+        "8611-6",
+        "44973-6",
+        "76644-4",
+        "8886-4",
+        "56849-3"
+      ],
+      "lexical_only_codes": [],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.52153395,
+      "lexical_avg_relevance": 0,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 16,
+      "lexical_entity_type_match": 0
+    }
+  },
+  {
+    "entity_id": 6,
+    "entity_text": "ECG findings",
+    "variant_type": "abbreviation",
+    "query": "EKG ECG",
+    "expected_entity_type": "observation",
+    "vector_results": [
+      {
+        "rank": 1,
+        "code_value": "71575-5",
+        "display_name": "ECG NEMSIS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.651505
+      },
+      {
+        "rank": 2,
+        "code_value": "71577-1",
+        "display_name": "ECG interpretation method NEMSIS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.61106
+      },
+      {
+        "rank": 3,
+        "code_value": "9860-8",
+        "display_name": "EKG device Institution inventory number",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.551041
+      },
+      {
+        "rank": 4,
+        "code_value": "43460-5",
+        "display_name": "Deprecated Heart Scan during electroconvulsive shock treatment",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.480768
+      },
+      {
+        "rank": 5,
+        "code_value": "35969-5",
+        "display_name": "CT Esophagus",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.458399
+      },
+      {
+        "rank": 6,
+        "code_value": "89198-6",
+        "display_name": "Mean score [ECog]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.441187
+      },
+      {
+        "rank": 7,
+        "code_value": "79799-3",
+        "display_name": "Electroretinography device Vendor name [Identifier]",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.422532
+      },
+      {
+        "rank": 8,
+        "code_value": "69103-0",
+        "display_name": "CT Elbow - left Arthrogram",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.405472
+      },
+      {
+        "rank": 9,
+        "code_value": "96215-9",
+        "display_name": "Left ganglion cells Function compared to previous assessment by ERG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.404632
+      },
+      {
+        "rank": 10,
+        "code_value": "92678-2",
+        "display_name": "US.elastography Lung",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.4045
+      },
+      {
+        "rank": 11,
+        "code_value": "19792-1",
+        "display_name": "Examination extent landmark Gastrointestinal tract upper EGD",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.40391
+      },
+      {
+        "rank": 12,
+        "code_value": "99827-8",
+        "display_name": "US.elastography Breast",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.398548
+      },
+      {
+        "rank": 13,
+        "code_value": "29754-9",
+        "display_name": "Nystagmogram study",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.392581
+      },
+      {
+        "rank": 14,
+        "code_value": "35966-1",
+        "display_name": "CT Elbow - left",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.39043
+      },
+      {
+        "rank": 15,
+        "code_value": "80339-5",
+        "display_name": "Vital signs assessment [Interpretation]",
+        "entity_type": "physical_finding",
+        "code_system": "loinc",
+        "similarity_score": 0.384387
+      },
+      {
+        "rank": 16,
+        "code_value": "71586-2",
+        "display_name": "Exam finding location Eye NEMSIS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.379583
+      },
+      {
+        "rank": 17,
+        "code_value": "104934-5",
+        "display_name": "Imaging examination name",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.37692
+      },
+      {
+        "rank": 18,
+        "code_value": "67556-1",
+        "display_name": "EMS condition code NEMSIS",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.373948
+      },
+      {
+        "rank": 19,
+        "code_value": "58485-4",
+        "display_name": "Estradiol (E2) [Mass/volume] in Serum or Plasma by High sensitivity method --baseline",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.373153
+      },
+      {
+        "rank": 20,
+        "code_value": "24679-3",
+        "display_name": "RF Esophagus Views W gastrografin PO",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "similarity_score": 0.371612
+      }
+    ],
+    "lexical_results": [
+      {
+        "rank": 1,
+        "code_value": "76637-8",
+        "display_name": "Total beats during EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 2,
+        "code_value": "76638-6",
+        "display_name": "R-R interval (Maximum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 3,
+        "code_value": "76639-4",
+        "display_name": "R-R interval (Minimum value during study) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 4,
+        "code_value": "76643-6",
+        "display_name": "R-R interval.standard deviation (Heart rate variability) by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 5,
+        "code_value": "76644-4",
+        "display_name": "R-R interval.coefficient of variation by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 6,
+        "code_value": "76645-1",
+        "display_name": "Cardiac stress test EKG study Type",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 7,
+        "code_value": "8618-1",
+        "display_name": "Recording duration by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 8,
+        "code_value": "8622-3",
+        "display_name": "Ventricular morphology [Interpretation] by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 9,
+        "code_value": "44976-9",
+        "display_name": "P-R Interval {Electrocardiograph lead}",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 10,
+        "code_value": "8894-8",
+        "display_name": "P wave Atrium by EKG",
+        "entity_type": "vital_sign",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 11,
+        "code_value": "58253-6",
+        "display_name": "Electrocardiograms recorded",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 12,
+        "code_value": "76000-9",
+        "display_name": "Paced heart rate by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 13,
+        "code_value": "76281-5",
+        "display_name": "Type of arrhythmia on EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 14,
+        "code_value": "76282-3",
+        "display_name": "Heart rate.beat-to-beat by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 15,
+        "code_value": "9861-6",
+        "display_name": "Style Pacemaker lead by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 16,
+        "code_value": "9866-5",
+        "display_name": "Axis [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 17,
+        "code_value": "9868-1",
+        "display_name": "Conduction [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 18,
+        "code_value": "9869-9",
+        "display_name": "Hypertrophy [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 19,
+        "code_value": "9870-7",
+        "display_name": "Intraventricular conduction [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      },
+      {
+        "rank": 20,
+        "code_value": "9872-3",
+        "display_name": "Myocardial ischemia [Interpretation] Narrative by EKG",
+        "entity_type": "observation",
+        "code_system": "loinc",
+        "relevance_score": 1,
+        "similarity_score": 0
+      }
+    ],
+    "analysis": {
+      "vector_codes": [
+        "71575-5",
+        "71577-1",
+        "9860-8",
+        "43460-5",
+        "35969-5",
+        "89198-6",
+        "79799-3",
+        "69103-0",
+        "96215-9",
+        "92678-2",
+        "19792-1",
+        "99827-8",
+        "29754-9",
+        "35966-1",
+        "80339-5",
+        "71586-2",
+        "104934-5",
+        "67556-1",
+        "58485-4",
+        "24679-3"
+      ],
+      "lexical_codes": [
+        "76637-8",
+        "76638-6",
+        "76639-4",
+        "76643-6",
+        "76644-4",
+        "76645-1",
+        "8618-1",
+        "8622-3",
+        "44976-9",
+        "8894-8",
+        "58253-6",
+        "76000-9",
+        "76281-5",
+        "76282-3",
+        "9861-6",
+        "9866-5",
+        "9868-1",
+        "9869-9",
+        "9870-7",
+        "9872-3"
+      ],
+      "overlap_codes": [],
+      "vector_only_codes": [
+        "71575-5",
+        "71577-1",
+        "9860-8",
+        "43460-5",
+        "35969-5",
+        "89198-6",
+        "79799-3",
+        "69103-0",
+        "96215-9",
+        "92678-2",
+        "19792-1",
+        "99827-8",
+        "29754-9",
+        "35966-1",
+        "80339-5",
+        "71586-2",
+        "104934-5",
+        "67556-1",
+        "58485-4",
+        "24679-3"
+      ],
+      "lexical_only_codes": [
+        "76637-8",
+        "76638-6",
+        "76639-4",
+        "76643-6",
+        "76644-4",
+        "76645-1",
+        "8618-1",
+        "8622-3",
+        "44976-9",
+        "8894-8",
+        "58253-6",
+        "76000-9",
+        "76281-5",
+        "76282-3",
+        "9861-6",
+        "9866-5",
+        "9868-1",
+        "9869-9",
+        "9870-7",
+        "9872-3"
+      ],
+      "overlap_count": 0,
+      "overlap_percentage": 0,
+      "vector_avg_similarity": 0.43380840000000004,
+      "lexical_avg_relevance": 1,
+      "lexical_avg_similarity": 0,
+      "vector_entity_type_match": 19,
+      "lexical_entity_type_match": 19
+    }
+  }
+]

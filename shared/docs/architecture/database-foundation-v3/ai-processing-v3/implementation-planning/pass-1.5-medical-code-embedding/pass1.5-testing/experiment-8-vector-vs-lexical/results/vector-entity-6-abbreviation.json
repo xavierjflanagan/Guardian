@@ -1,0 +1,171 @@
+{
+  "entity_id": 6,
+  "entity_text": "ECG findings",
+  "variant_type": "abbreviation",
+  "query": "EKG ECG",
+  "expected_entity_type": "observation",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:19.119Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "71575-5",
+      "display_name": "ECG NEMSIS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.651505
+    },
+    {
+      "rank": 2,
+      "code_value": "71577-1",
+      "display_name": "ECG interpretation method NEMSIS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.61106
+    },
+    {
+      "rank": 3,
+      "code_value": "9860-8",
+      "display_name": "EKG device Institution inventory number",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.551041
+    },
+    {
+      "rank": 4,
+      "code_value": "43460-5",
+      "display_name": "Deprecated Heart Scan during electroconvulsive shock treatment",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.480768
+    },
+    {
+      "rank": 5,
+      "code_value": "35969-5",
+      "display_name": "CT Esophagus",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.458399
+    },
+    {
+      "rank": 6,
+      "code_value": "89198-6",
+      "display_name": "Mean score [ECog]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.441187
+    },
+    {
+      "rank": 7,
+      "code_value": "79799-3",
+      "display_name": "Electroretinography device Vendor name [Identifier]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.422532
+    },
+    {
+      "rank": 8,
+      "code_value": "69103-0",
+      "display_name": "CT Elbow - left Arthrogram",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.405472
+    },
+    {
+      "rank": 9,
+      "code_value": "96215-9",
+      "display_name": "Left ganglion cells Function compared to previous assessment by ERG",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.404632
+    },
+    {
+      "rank": 10,
+      "code_value": "92678-2",
+      "display_name": "US.elastography Lung",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.4045
+    },
+    {
+      "rank": 11,
+      "code_value": "19792-1",
+      "display_name": "Examination extent landmark Gastrointestinal tract upper EGD",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.40391
+    },
+    {
+      "rank": 12,
+      "code_value": "99827-8",
+      "display_name": "US.elastography Breast",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.398548
+    },
+    {
+      "rank": 13,
+      "code_value": "29754-9",
+      "display_name": "Nystagmogram study",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.392581
+    },
+    {
+      "rank": 14,
+      "code_value": "35966-1",
+      "display_name": "CT Elbow - left",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.39043
+    },
+    {
+      "rank": 15,
+      "code_value": "80339-5",
+      "display_name": "Vital signs assessment [Interpretation]",
+      "entity_type": "physical_finding",
+      "code_system": "loinc",
+      "similarity_score": 0.384387
+    },
+    {
+      "rank": 16,
+      "code_value": "71586-2",
+      "display_name": "Exam finding location Eye NEMSIS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.379583
+    },
+    {
+      "rank": 17,
+      "code_value": "104934-5",
+      "display_name": "Imaging examination name",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.37692
+    },
+    {
+      "rank": 18,
+      "code_value": "67556-1",
+      "display_name": "EMS condition code NEMSIS",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.373948
+    },
+    {
+      "rank": 19,
+      "code_value": "58485-4",
+      "display_name": "Estradiol (E2) [Mass/volume] in Serum or Plasma by High sensitivity method --baseline",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.373153
+    },
+    {
+      "rank": 20,
+      "code_value": "24679-3",
+      "display_name": "RF Esophagus Views W gastrografin PO",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.371612
+    }
+  ]
+}

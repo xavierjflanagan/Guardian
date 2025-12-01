@@ -1,0 +1,201 @@
+{
+  "experiment": "LOINC Embedding Validation",
+  "created": "2025-11-01",
+  "total_entities": 6,
+  "total_queries": 18,
+  "entities": [
+    {
+      "id": 1,
+      "entity_text": "Blood glucose measurement",
+      "category": "lab_test",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "glucose serum plasma blood measurement",
+          "expected_entity_type": "lab_result"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "blood sugar level test",
+          "expected_entity_type": "lab_result"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "BG BSL glucose",
+          "expected_entity_type": "lab_result"
+        }
+      ],
+      "ground_truth_matches": {
+        "perfect": ["2345-7", "2339-0", "32016-8"],
+        "good": ["2340-8", "2341-6", "41653-7"],
+        "acceptable": ["41651-1", "104598-8"]
+      },
+      "rationale": {
+        "perfect": "2345-7 (Glucose [Mass/volume] in Serum or Plasma) - THE standard lab test, 2339-0 (Glucose [Mass/volume] in Blood), 32016-8 (Glucose [Mass/volume] in Capillary blood - finger stick)",
+        "good": "Test strip variants and glucometer measurements",
+        "acceptable": "Arterial blood glucose measurements"
+      }
+    },
+    {
+      "id": 2,
+      "entity_text": "Hemoglobin A1c test",
+      "category": "lab_test",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "hemoglobin a1c glycated blood",
+          "expected_entity_type": "lab_result"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "a1c diabetes blood test",
+          "expected_entity_type": "lab_result"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "HbA1c",
+          "expected_entity_type": "lab_result"
+        }
+      ],
+      "ground_truth_matches": {
+        "perfect": ["4548-4", "17856-6", "41995-2"],
+        "good": ["4549-2", "17855-8", "62388-4"],
+        "acceptable": ["27353-2", "53553-4"]
+      },
+      "rationale": {
+        "perfect": "4548-4 (Hemoglobin A1c/Hemoglobin.total in Blood) - most common, 17856-6 (by HPLC method), 41995-2 (Mass/volume)",
+        "good": "Different measurement methods (Electrophoresis, calculation, JDS/JSCC protocol)",
+        "acceptable": "Estimated glucose mean values from glycated hemoglobin"
+      }
+    },
+    {
+      "id": 3,
+      "entity_text": "Blood pressure measurement",
+      "category": "vital_sign",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "blood pressure systolic diastolic",
+          "expected_entity_type": "vital_sign"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "BP reading pressure",
+          "expected_entity_type": "vital_sign"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "BP SBP DBP",
+          "expected_entity_type": "vital_sign"
+        }
+      ],
+      "ground_truth_matches": {
+        "perfect": ["55284-4"],
+        "good": ["8480-6", "8462-4"],
+        "acceptable": ["8508-4", "8546-4", "8547-2"]
+      },
+      "rationale": {
+        "perfect": "55284-4 (Blood pressure systolic and diastolic) - combined measurement",
+        "good": "Individual systolic and diastolic measurements (typical vital sign codes)",
+        "acceptable": "Site-specific measurements (brachial artery left/right)"
+      }
+    },
+    {
+      "id": 4,
+      "entity_text": "Total cholesterol test",
+      "category": "lab_test",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "cholesterol total serum plasma",
+          "expected_entity_type": "lab_result"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "cholesterol level blood test",
+          "expected_entity_type": "lab_result"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "TC chol",
+          "expected_entity_type": "lab_result"
+        }
+      ],
+      "ground_truth_matches": {
+        "perfect": ["2093-3", "35200-5"],
+        "good": ["14647-2"],
+        "acceptable": ["48620-9"]
+      },
+      "rationale": {
+        "perfect": "2093-3 (Cholesterol [Mass/volume] in Serum or Plasma) - standard test, 35200-5 (Mass or Moles/volume variant)",
+        "good": "14647-2 (Moles/volume measurement)",
+        "acceptable": "48620-9 (Ultracentrifugate method)"
+      }
+    },
+    {
+      "id": 5,
+      "entity_text": "Pregnancy test",
+      "category": "clinical_observation",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "pregnancy test result",
+          "expected_entity_type": "observation"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "pregnant test positive negative",
+          "expected_entity_type": "observation"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "preg test",
+          "expected_entity_type": "observation"
+        }
+      ],
+      "ground_truth_matches": {
+        "perfect": ["66563-8", "66562-0"],
+        "good": [],
+        "acceptable": []
+      },
+      "rationale": {
+        "perfect": "66563-8 (Pregnancy test result [PhenX]), 66562-0 (Pregnancy test required [PhenX]) - direct pregnancy test codes",
+        "good": "No other good matches identified",
+        "acceptable": "HCG lab results would be separate entity"
+      }
+    },
+    {
+      "id": 6,
+      "entity_text": "ECG findings",
+      "category": "diagnostic_test",
+      "search_variants": [
+        {
+          "variant_type": "clinical",
+          "query": "electrocardiogram findings impression",
+          "expected_entity_type": "observation"
+        },
+        {
+          "variant_type": "layperson",
+          "query": "heart test results ECG",
+          "expected_entity_type": "observation"
+        },
+        {
+          "variant_type": "abbreviation",
+          "query": "EKG ECG",
+          "expected_entity_type": "observation"
+        }
+      ],
+      "ground_truth_matches": {
+        "perfect": ["8601-7", "18844-1", "28010-7"],
+        "good": ["18810-2", "18843-3"],
+        "acceptable": ["9866-5", "9868-1", "9869-9"]
+      },
+      "rationale": {
+        "perfect": "8601-7 (EKG impression), 18844-1 (EKG impression Narrative), 28010-7 (EKG Report narrative) - overall interpretation",
+        "good": "18810-2 (Study observation overall), 18843-3 (Comparison study)",
+        "acceptable": "Specific findings (axis, conduction, hypertrophy interpretation narratives)"
+      }
+    }
+  ],
+  "notes": "Ground truth established by querying actual LOINC database. Perfect matches are primary codes a clinician would expect. Good matches are acceptable alternatives. Acceptable matches are related but less specific."
+}

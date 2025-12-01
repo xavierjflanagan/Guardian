@@ -1,0 +1,171 @@
+{
+  "entity_id": 4,
+  "entity_text": "Total cholesterol test",
+  "variant_type": "layperson",
+  "query": "cholesterol level blood test",
+  "expected_entity_type": "lab_result",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:10.312Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "74435-9",
+      "display_name": "Cholesterol.non-esterified/Cholesterol.total in Serum or Plasma by Gas chromatography",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.495891
+    },
+    {
+      "rank": 2,
+      "code_value": "58293-2",
+      "display_name": "Taken medication for high blood cholesterol",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.462037
+    },
+    {
+      "rank": 3,
+      "code_value": "105508-6",
+      "display_name": "Have you ever taken medication for high blood cholesterol",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.437639
+    },
+    {
+      "rank": 4,
+      "code_value": "21026-0",
+      "display_name": "Pathologist interpretation of Blood tests",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.403193
+    },
+    {
+      "rank": 5,
+      "code_value": "14869-2",
+      "display_name": "Pathologist review of Blood tests",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.400309
+    },
+    {
+      "rank": 6,
+      "code_value": "62421-3",
+      "display_name": "Fatty acids.nonesterified [Moles/volume] in Serum or Plasma --9th specimen fasting",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.36688
+    },
+    {
+      "rank": 7,
+      "code_value": "49856-8",
+      "display_name": "Methyltestosterone [Presence] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.365223
+    },
+    {
+      "rank": 8,
+      "code_value": "105121-8",
+      "display_name": "Testosterone [Mass/volume] in Serum or Plasma by LC/MS/MS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.36443
+    },
+    {
+      "rank": 9,
+      "code_value": "35158-5",
+      "display_name": "Myristoleate (C14:1) [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.353441
+    },
+    {
+      "rank": 10,
+      "code_value": "2242-6",
+      "display_name": "Deprecated Estradiol Free [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.351784
+    },
+    {
+      "rank": 11,
+      "code_value": "13907-1",
+      "display_name": "Norethindrone [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.345396
+    },
+    {
+      "rank": 12,
+      "code_value": "35157-7",
+      "display_name": "Myristate (C14:0) [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.34315
+    },
+    {
+      "rank": 13,
+      "code_value": "1995-0",
+      "display_name": "Calcium.ionized [Moles/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.337332
+    },
+    {
+      "rank": 14,
+      "code_value": "85155-0",
+      "display_name": "Pharmacology Evaluation and management of hyperlipidemia note",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.336031
+    },
+    {
+      "rank": 15,
+      "code_value": "40088-7",
+      "display_name": "Prothrombin time (PT) in Platelet poor plasma by Coagulation assay --baseline",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.335261
+    },
+    {
+      "rank": 16,
+      "code_value": "90798-0",
+      "display_name": "Thyroxine (T4) [Mass/volume] in Serum or Plasma --3 hours post dose levothyroxine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.335033
+    },
+    {
+      "rank": 17,
+      "code_value": "90797-2",
+      "display_name": "Thyroxine (T4) [Mass/volume] in Serum or Plasma --2 hours post dose levothyroxine",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.334784
+    },
+    {
+      "rank": 18,
+      "code_value": "101179-0",
+      "display_name": "Immunoglobulin light chains.free/Protein.total in 24 hour Urine",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.332645
+    },
+    {
+      "rank": 19,
+      "code_value": "80629-9",
+      "display_name": "1,2,2-Trimethylpropyl methylphosphonate [Mass/volume] in Blood",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.328695
+    },
+    {
+      "rank": 20,
+      "code_value": "2478-6",
+      "display_name": "Inhibin [Mass/volume] in Serum or Plasma",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.327667
+    }
+  ]
+}

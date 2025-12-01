@@ -1,0 +1,171 @@
+{
+  "entity_id": 3,
+  "entity_text": "Blood pressure measurement",
+  "variant_type": "abbreviation",
+  "query": "BP SBP DBP",
+  "expected_entity_type": "vital_sign",
+  "method": "vector",
+  "timestamp": "2025-11-02T01:38:08.400Z",
+  "results": [
+    {
+      "rank": 1,
+      "code_value": "96595-4",
+      "display_name": "Hemoglobin A1c/Hemoglobin.total in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.532058
+    },
+    {
+      "rank": 2,
+      "code_value": "28139-4",
+      "display_name": "Blood pressure alteration [CCC]",
+      "entity_type": "observation",
+      "code_system": "loinc",
+      "similarity_score": 0.521766
+    },
+    {
+      "rank": 3,
+      "code_value": "53346-3",
+      "display_name": "Cortisol [Moles/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.509718
+    },
+    {
+      "rank": 4,
+      "code_value": "53345-5",
+      "display_name": "Cortisol [Mass/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.500594
+    },
+    {
+      "rank": 5,
+      "code_value": "29574-1",
+      "display_name": "Thyrotropin [Presence] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.496762
+    },
+    {
+      "rank": 6,
+      "code_value": "96423-9",
+      "display_name": "Progesterone [Mass/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.491886
+    },
+    {
+      "rank": 7,
+      "code_value": "53064-2",
+      "display_name": "Beta aminoisobutyrate [Moles/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.491514
+    },
+    {
+      "rank": 8,
+      "code_value": "96425-4",
+      "display_name": "Cortisol/Cortisone [Mass Ratio] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.491298
+    },
+    {
+      "rank": 9,
+      "code_value": "47573-1",
+      "display_name": "Aspartate [Moles/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.482925
+    },
+    {
+      "rank": 10,
+      "code_value": "29575-8",
+      "display_name": "Thyrotropin [Units/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.475376
+    },
+    {
+      "rank": 11,
+      "code_value": "50083-5",
+      "display_name": "Alpha aminoadipate [Moles/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.473667
+    },
+    {
+      "rank": 12,
+      "code_value": "96587-1",
+      "display_name": "Aspartate aminotransferase [Enzymatic activity/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.467577
+    },
+    {
+      "rank": 13,
+      "code_value": "103810-8",
+      "display_name": "Pulse pressure by Invasive",
+      "entity_type": "vital_sign",
+      "code_system": "loinc",
+      "similarity_score": 0.465331
+    },
+    {
+      "rank": 14,
+      "code_value": "43927-3",
+      "display_name": "Arginine [Presence] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.457604
+    },
+    {
+      "rank": 15,
+      "code_value": "80558-0",
+      "display_name": "Amitriptyline [Mass/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.45689
+    },
+    {
+      "rank": 16,
+      "code_value": "96586-3",
+      "display_name": "Alanine aminotransferase [Enzymatic activity/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.456704
+    },
+    {
+      "rank": 17,
+      "code_value": "96424-7",
+      "display_name": "Testosterone/Cortisol [Mass Ratio] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.456606
+    },
+    {
+      "rank": 18,
+      "code_value": "96422-1",
+      "display_name": "Cortisone [Mass/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.454754
+    },
+    {
+      "rank": 19,
+      "code_value": "38506-2",
+      "display_name": "Thyroxine (T4) [Presence] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.453391
+    },
+    {
+      "rank": 20,
+      "code_value": "92749-1",
+      "display_name": "Lyso-sphingomyelin [Moles/volume] in DBS",
+      "entity_type": "lab_result",
+      "code_system": "loinc",
+      "similarity_score": 0.449153
+    }
+  ]
+}
