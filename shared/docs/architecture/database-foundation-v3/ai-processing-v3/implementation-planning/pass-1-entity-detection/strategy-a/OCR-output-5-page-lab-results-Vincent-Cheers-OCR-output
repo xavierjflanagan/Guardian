@@ -1,0 +1,370 @@
+# 5-Page Lab Results OCR Output
+
+**Shell File ID:** 3195b2af-bafb-40ed-8408-e83bdd39cebf
+**Patient:** Vincent Cheers
+**Document Type:** Lab Results (Melbourne Pathology)
+**Pages:** 5 (pages 75-79 of larger document)
+**Date:** September 2016
+
+---
+
+## OCR Text with Y-Coordinates
+
+--- PAGE 1 START ---
+[Y:150] CHEERS , VINCENT
+[Y:170] BURRELL
+[Y:180] 18 ST , MCCRAE . 3938
+[Y:200] Phone : 0419132498
+[Y:230] Birthdate : 16/02/1959 Sex : M Medicare Number : 3018255132
+[Y:260] Your Reference : Lab Reference : 338052523 - H - H900
+[Y:290] Laboratory : Melbourne Pathology
+[Y:310] Addressee : Referred by :
+[Y:320] DR DAMIAN FLANAGAN DR DAMIAN FLANAGAN
+[Y:370] Name of Test : ED - HAEMATOLOGY
+[Y:390] Requested : 20/09/2016 Collected 17:23
+[Y:400] : 21/09/2016 Reported : 21/09/2016
+[Y:500] HAEMATOLOGY
+[Y:560] Date 21/09/16
+[Y:580] Time 0940
+[Y:610] Lab Id . 338052523 Units Reference
+[Y:660] 139
+[Y:670] HAEMOGLOBIN g / L ( 130-180 )
+[Y:690] Hct 0.42 ( 0.39-0.51 )
+[Y:720] RBC 4.4 x10 * 12 / L ( 4.3-5.8 )
+[Y:750] MCV 95 fL ( 80-100 )
+[Y:780] MCH 31 pg ( 27-34 )
+[Y:800] 331 g / L ( 310-360 )
+[Y:810] MCHC
+[Y:830] RDW 12.9 ( 11-17 )
+[Y:860] PLATELETS 282 x 10 * 9 / L ( 150-450 )
+[Y:880] 6.8
+[Y:890] WHITE CELLS x10 * 9 / L ( 4.0-11.0 )
+[Y:910] 5.0 x10 * 9 / L
+[Y:920] Neutrophils ( 2.0-7.5 )
+[Y:940] Lymphocytes 0.9 L x109 / L ( 1.0-4.0 )
+[Y:970] Monocytes 0.8 x109 / L ( 0-1.0 )
+[Y:1000] Eosinophils 0.1 X10 * 9 / L ( 0-0.5 )
+[Y:1020] 0.0 x10 * 9 / L ( 0-0.3 )
+[Y:1030] Basophils
+[Y:1070] Unauthorised
+[Y:1080] Report - Completed Report to Follow
+[Y:1120] Maxwell
+[Y:1130] Dept Supervising Pathologist : Dr Ellen
+[Y:1180] Melbourne Pathology NATA No .: 2133
+[Y:1230] Tests Completed : FBE
+[Y:1250] Tests
+[Y:1260] Pending : CA , EUC , LFT , CRP , ESR
+[Y:1280] Sample Pending :
+[Y:1390] CHEERS , VINCENT
+[Y:1410] 18 BURRELL 3938
+[Y:1420] ST , MCCRAE .
+[Y:1440] Phone : 0419132498
+[Y:1470] Birthdate : 16/02/1959 Sex : M Medicare Number : 3018255132
+[Y:1500] Your Reference : Lab Reference : 338052523 - C - C950
+[Y:1530] Laboratory : Melbourne Pathology
+[Y:1550] Addressee : DR DAMIAN FLANAGAN Referred by : DR DAMIAN FLANAGAN
+[Y:1610] Name of Test : SE CHEMISTRY
+[Y:1630] Requested : 20/09/2016 Collected : 21/09/2016 Reported : 22/09/2016 05:08
+[Y:1740] MULTIPLE BIOCHEMICAL ANALYSIS
+[Y:1790] 19/09/16 21/09/16
+[Y:1800] Date 23/03/11 02/08/12
+[Y:1820] Time 0950 0850 1422 0940
+[Y:1850] Lab Id . 312421042 317403315 339554737 338052523 Units Reference
+[Y:1900] 144 140 mmol / L ( 135-145 )
+[Y:1910] S SODIUM 140
+[Y:1930] S POTASSIUM 3.9 4.5 4.6 mmol / L ( 3.5-5.5 )
+[Y:1960] S CHLORIDE 105 102 102 mmol / L ( 95-110 )
+[Y:1990] S BICARB . 28 27 26 mmol / L ( 20-32 )
+[Y:2010] UREA 4.6 mmol / L ( 3.5-8.5 )
+[Y:2020] S 5.0 4.5
+[Y:2040] S CREAT . 75 71 69 umol / L ( 60-110 )
+[Y:2070] eGFR > 90 > 90 > 90
+[Y:2150] of 219
+[Y:2160] Page 75 Vincent
+--- PAGE 1 END ---
+
+--- PAGE 2 START ---
+[Y:120] S T - BIL . 16 14 7 umol / L ( 4-20 )
+[Y:150] S ALP 62 66 75 U / L ( 35-110 )
+[Y:180] S GGT 12 11 14 U / L ( 5-50 )
+[Y:210] S ALT 17 22 37 U / L ( 5-40 )
+[Y:230] S AST 23 24 29 U / L ( 10-40 )
+[Y:260] ST - PROTEIN 71 77 65 g / L ( 63-80 )
+[Y:290] S ALBUMIN 45 49 35 35 g / L ( 34-45 )
+[Y:320] S GLOBULIN 26 28 30 g / L ( 26-41 )
+[Y:340] 2.69 H mmol / L
+[Y:350] S CALCIUM 2.65 H ( 2.15-2.55 )
+[Y:370] S CHOL 3.8 4.9 mmol / L ( 3.5-5.5 )
+[Y:400] S TRIG 0.4 L 0.4 L mmol / L ( 0.5-2.0 )
+[Y:430] S HDL - CHOL 2.01 2.53 mmol / L ( > 1.00 )
+[Y:450] 1.6 / L < 3.5 )
+[Y:460] S LDL - CHOL 2.2 mmol (
+[Y:480] S LDLC / HDLC 0.8 0.9 ( < 4.0 )
+[Y:510] S Chol / HDLC 1.9 1.9 ( < 4.5 )
+[Y:540] S GLU ( FAST ) 4.3 5.0 mmol / L ( 3.6-6.0 )
+[Y:560] S CA ( Corr / L
+[Y:570] ) 2.79 H 2.75 H mmol ( 2.15-2.55 )
+[Y:620] Comments on Collection 21/09/16 0940 :
+[Y:650] EUC
+[Y:670] eGFR is greater than 90 mL / min / 1.73m2 . No evidence of kidney disease .
+[Y:720] LFT
+[Y:770] Department Supervising Pathologist : Dr Zhong Lu
+[Y:820] Melbourne Pathology NATA No .: 2133
+[Y:880] Tests Completed : CA , EUC , LFT , CRP , FBE , ESR
+[Y:900] Tests Pending
+[Y:910] :
+[Y:930] Sample Pending :
+[Y:1030] CHEERS ,
+[Y:1040] VINCENT
+[Y:1060] 18 BURRELL ST , MCCRAE . 3938
+[Y:1090] Phone : 0419132498
+[Y:1110] Birthdate : 16/02/1959 Medicare Number : 3018255132
+[Y:1120] Sex : M
+[Y:1140] Your Reference : Lab Reference : 338052523 - C - C290
+[Y:1170] Laboratory : Melbourne Pathology
+[Y:1190] Referred
+[Y:1200] Addressee : DR DAMIAN FLANAGAN by : DR DAMIAN FLANAGAN
+[Y:1250] Name of Test : SE C - REACTIVE PROTEIN
+[Y:1280] Requested : 20/09/2016 Collected : 21/09/2016 Reported : 22/09/2016 05:08
+[Y:1380] 21/09/16
+[Y:1390] Date
+[Y:1410] Time 0940
+[Y:1440] Lab Id . 338052523 Units Reference
+[Y:1490] / L < 5 )
+[Y:1500] S CRP 47 H mg (
+[Y:1550] Department Supervising Pathologist : Dr Zhong Lu
+[Y:1600] Melbourne Pathology NATA No .: 2133
+[Y:1650] Tests Completed : CA , EUC , LFT , CRP , FBE , ESR
+[Y:1670] Tests
+[Y:1680] Pending :
+[Y:1700] Sample Pending :
+[Y:1810] CHEERS , VINCENT
+[Y:1830] 18 BURRELL ST , 3938
+[Y:1840] MCCRAE .
+[Y:1860] Phone : 0419132498
+[Y:1890] Birthdate : 16/02/1959 Sex : M Medicare Number : 3018255132
+[Y:1920] Your Reference : Lab Reference : 338052523 - H - H900
+[Y:1940] Laboratory : Melbourne Pathology
+[Y:1970] Addressee : DR DAMIAN FLANAGAN Referred by : DR DAMIAN FLANAGAN
+[Y:2030] Name of Test : ED HAEMATOLOGY
+[Y:2050] Requested : 20/09/2016 Collected : 21/09/2016 Reported : 22/09/2016 05:08
+[Y:2150] of 219
+[Y:2160] Page 76 Vincent
+--- PAGE 2 END ---
+
+--- PAGE 3 START ---
+[Y:180] HAEMATOLOGY
+[Y:230] Date 21/09/16
+[Y:260] Time 0940
+[Y:290] Lab Id . 338052523 Units Reference
+[Y:340] HAEMOGLOBIN 139 g / L ( 130-180 )
+[Y:370] Hct 0.42 ( 0.39-0.51 )
+[Y:390] 4.4 x10 * 12 / L
+[Y:400] RBC ( 4.3-5.8 )
+[Y:420] MCV 95 fL ( 80-100 )
+[Y:450] MCH 31 pg ( 27-34 )
+[Y:480] MCHC 331 g / L ( 310-360 )
+[Y:500] 12.9
+[Y:510] RDW ( 11-17 )
+[Y:530] PLATELETS 282 x 10 * 9 / L ( 150-450 )
+[Y:560] WHITE CELLS 6.8 x10 * 9 / L ( 4.0-11.0 )
+[Y:590] Neutrophils 5.0 x10 * 9 / L ( 2.0-7.5 )
+[Y:620] Lymphocytes 0.9 L x10 * 9 / L ( 1.0-4.0 )
+[Y:640] 0.8 x10 * 9 / L ( 0-1.0 )
+[Y:650] Monocytes
+[Y:670] Eosinophils 0.1 x10 * 9 / L ( 0-0.5 )
+[Y:700] Basophils 0.0 x10x9 / L ( 0-0.3 )
+[Y:730] ESR 20 H mm / hr ( 2-14 )
+[Y:780] ESR EDTA specimen
+[Y:830] Dept Supervising Pathologist : Dr Ellen Maxwell
+[Y:880] Melbourne Pathology NATA No .: 2133
+[Y:930] Tests Completed : CA , EUC , LFT , CRP , FBE , ESR
+[Y:960] Tests Pending :
+[Y:990] Sample Pending :
+[Y:1090] CHEERS , VINCENT
+[Y:1120] 18 BURRELL ST , MCCRAE . 3938
+[Y:1140] Phone
+[Y:1150] : 59811678
+[Y:1170] Birthdate : 16/02/1959 Sex : M Medicare Number : 3018255132
+[Y:1200] Your Reference : 00275357 Lab Reference : 339170013 - C - C290
+[Y:1230] Laboratory : Melbourne Pathology
+[Y:1250] Addressee Referred by
+[Y:1260] : DR DAMIAN FLANAGAN : DR DAMIAN FLANAGAN
+[Y:1310] Name of Test : SE C - REACTIVE PROTEIN
+[Y:1340] Requested : 27/09/2016 Collected : 28/09/2016 Reported : 29/09/2016 12:23
+[Y:1440] 21/09/16 28/09/16
+[Y:1450] Date
+[Y:1470] Time 0940 1310
+[Y:1500] Lab Id . 338052523 339170013 Units Reference
+[Y:1550] S CRP 47 H 37 H / L ( < 5 )
+[Y:1560] mg
+[Y:1600] Department Supervising Pathologist : Dr Zhong Lu
+[Y:1660] Melbourne Pathology NATA No .: 2133
+[Y:1710] Tests Completed : EUC , LFT , CRP , PSA , FBE , ESR
+[Y:1730] Tests Pending CA
+[Y:1740] :
+[Y:1760] Sample Pending : UPE
+[Y:1870] CHEERS , VINCENT
+[Y:1890] 18 BURRELL ST , MCCRAE . 3938
+[Y:1920] Phone : 59811678
+[Y:1940] Birthdate Medicare 3018255132
+[Y:1950] : 16/02/1959 Sex : M Number :
+[Y:1970] 00275357 Lab Reference : 339170013 - C - C960
+[Y:1980] Your Reference :
+[Y:2000] Laboratory : Melbourne Pathology
+[Y:2030] Addressee : DR DAMIAN FLANAGAN Referred by : DR DAMIAN FLANAGAN
+[Y:2080] Name of Test : SE TUMOUR MARKERS
+[Y:2150] of 219
+[Y:2160] Page 77 Vincent
+--- PAGE 3 END ---
+
+--- PAGE 4 START ---
+[Y:120] Requested : 27/09/2016 Collected : 28/09/2016 Reported : 29/09/2016 12:23
+[Y:230] TUMOUR MARKERS
+[Y:280] 23/03/11 02/08/12 28/09/16
+[Y:290] Date
+[Y:310] Time 0950 0850 1310
+[Y:340] Lab Id . 312421042 317403315 339170013 Units Reference
+[Y:390] S PSA 0.80 0.94 0.97 ug / L ( 0.30-3.5 )
+[Y:440] Comments on Collection 28/09/16 1310 :
+[Y:470] PSA
+[Y:500] In men aged 55 - 59 years , the median total PSA is 1.1 ug / L .
+[Y:550] A total PSA below the median is associated with a low risk of prostatic
+[Y:570] neoplasia . If clinically indicated , consider waiting up to 5 years before
+[Y:600] reviewing PSA status .
+[Y:650] Department Supervising Pathologist : Dr Zhong Lu
+[Y:700] Melbourne Pathology NATA No .: 2133
+[Y:760] Tests Completed : EUC , LFT , CRP , PSA , FBE , ESR
+[Y:780] Tests Pending : CA
+[Y:810] Sample Pending : UPE
+[Y:910] CHEERS , VINCENT
+[Y:940] 18 BURRELL ST , MCCRAE . 3938
+[Y:970] Phone : 59811678
+[Y:990] Birthdate : 16/02/1959 Sex : Medicare Number : 3018255132
+[Y:1000] M
+[Y:1020] Your Reference : 00275357 Lab Reference : 339170013 - H - H900
+[Y:1050] Laboratory : Melbourne Pathology
+[Y:1070] Referred
+[Y:1080] Addressee : DR DAMIAN FLANAGAN by : DR DAMIAN FLANAGAN
+[Y:1130] Name of Test : ED HAEMATOLOGY
+[Y:1160] Requested : 27/09/2016 Collected : 28/09/2016 Reported : 29/09/2016 12:23
+[Y:1270] HAEMATOLOGY
+[Y:1320] Date 21/09/16 28/09/16
+[Y:1350] Time 0940 1310
+[Y:1370] Lab Id . 338052523 339170013 Units Reference
+[Y:1430] HAEMOGLOBIN 139 144 g / L ( 130-180 )
+[Y:1450] 0.39-0.51
+[Y:1460] Hct 0.42 0.45 ( )
+[Y:1480] RBC 4.4 4.7 x10 * 12 / L ( 4.3-5.8 )
+[Y:1510] MCV 95 96 fL ( 80-100 )
+[Y:1540] MCH 31 31 pg ( 27-34 )
+[Y:1560] 331 / L
+[Y:1570] MCHC 321 g ( 310-360 )
+[Y:1590] 12.9 13.2 ( 11-17 )
+[Y:1600] RDW
+[Y:1620] PLATELETS 282 388 x 10 * 9 / L ( 150-450 )
+[Y:1650] WHITE CELLS 6.8 11.8 H X10 * 9 / L ( 4.0-11.0 )
+[Y:1680] Neutrophils 5.0 10.2 H x10 * 9 / L ( 2.0-7.5 )
+[Y:1700] 0.9 L 0.9 L X10 * 9 / L ( 1.0-4.0 )
+[Y:1710] Lymphocytes
+[Y:1730] Monocytes 0.8 0.6 x10 * 9 / L ( 0-1.0 )
+[Y:1760] Eosinophils 0.1 0.0 X10 * 9 / L ( 0-0.5 )
+[Y:1790] Basophils 0.0 0.0 x10 * 9 / L ( 0-0.3 )
+[Y:1810] 20 H 9 mm / hr
+[Y:1820] ESR ( 2-14 )
+[Y:1870] ESR EDTA specimen
+[Y:1920] Dept Supervising Pathologist : Dr Ellen Maxwell
+[Y:1970] Melbourne Pathology NATA No .: 2133
+[Y:2020] Tests Completed : EUC , LFT , CRP , PSA , FBE , ESR
+[Y:2050] Tests Pending : CA
+[Y:2070] Sample Pending : UPE
+[Y:2150] of 219
+[Y:2160] Page 78 Vincent
+--- PAGE 4 END ---
+
+--- PAGE 5 START ---
+[Y:200] CHEERS , VINCENT
+[Y:230] 18 BURRELL ST , MCCRAE . 3938
+[Y:250] Phone
+[Y:260] : 59811678
+[Y:280] Birthdate : 16/02/1959 Sex : M Medicare Number : 3018255132
+[Y:310] Your Reference : 00275357 Lab Reference : 339170013 - C - C950
+[Y:340] Laboratory : Melbourne Pathology
+[Y:360] Addressee Referred
+[Y:370] : DR DAMIAN FLANAGAN by : DR DAMIAN FLANAGAN
+[Y:420] Name of Test : SE CHEMISTRY
+[Y:450] Requested : 27/09/2016 Collected : 28/09/2016 Reported : 29/09/2016 13:08
+[Y:550] MULTIPLE BIOCHEMICAL ANALYSIS
+[Y:610] Date 28/09/16
+[Y:630] Time
+[Y:640] 1310
+[Y:660] Lab Id . 339170013 Units Reference
+[Y:720] S SODIUM 141 mmol / L ( 135-145 )
+[Y:740] 4.5 mmol / L ( 3.5-5.5 )
+[Y:750] S POTASSIUM
+[Y:770] S CHLORIDE 100 mmol / L ( 95-110 )
+[Y:800] S BICARB . 23 mmol / L ( 20-32 )
+[Y:830] S UREA 4.8 mmol / L ( 3.5-8.5 )
+[Y:850] 68 L
+[Y:860] S CREAT . umol / ( 60-110 )
+[Y:880] eGFR > 90
+[Y:910] S T - BIL . 6 umol / L ( 4-20 )
+[Y:940] S ALP 101 U / L ( 35-110 )
+[Y:970] S GGT 21 U / L ( 5-50 )
+[Y:990] 30 U / L ( 5-40 )
+[Y:1000] S ALT
+[Y:1020] S AST 24 U / L ( 10-40 )
+[Y:1050] ST PROTEIN 67 g / L ( 63-80 )
+[Y:1080] S ALBUMIN 34 g / L ( 34-45 )
+[Y:1100] GLOBULIN 33 L ( 26-41 )
+[Y:1110] S g /
+[Y:1130] S CALCIUM 2.73 H mmol / L . ( 2.15-2.55 )
+[Y:1160] S CA ( Corr ) 2.85 H mmol / L . ( 2.15-2.55 )
+[Y:1210] Comments on Collection 28/09/16 1310 :
+[Y:1240] EUC
+[Y:1260] eGFR is greater than 90 mL / min / 1.73m2 . No evidence of kidney disease .
+[Y:1320] LFT
+[Y:1370] Department Supervising Pathologist : Dr Zhong Lu
+[Y:1420] Melbourne Pathology NATA No .: 2133
+[Y:1470] Tests Completed : CA , EUC , LFT , CRP , PSA , FBE , ESR
+[Y:1500] Tests Pending :
+[Y:1520] Sample Pending : UPE
+[Y:2150] 79 of 219
+[Y:2160] Page Vincent
+--- PAGE 5 END ---
+
+---
+
+## Key Observations
+
+### V3 Prompt Performance
+
+| Metric | Result |
+|--------|--------|
+| Total Entities | 212 |
+| lab_result | 209 |
+| physical_finding | 2 |
+| procedure | 1 |
+| condition | 0 (CORRECT) |
+
+### Critical Success: Negation Handling
+
+The V3 prompt correctly handled negation contexts:
+- `[Y:670] eGFR is greater than 90 mL / min / 1.73m2 . No evidence of kidney disease .`
+- V2 would have extracted "kidney disease" as a condition
+- V3 correctly classified as `physical_finding` (or ignored)
+
+### Critical Success: Risk Assessment Handling
+
+The V3 prompt correctly handled risk assessments:
+- `[Y:550] A total PSA below the median is associated with a low risk of prostatic`
+- `[Y:570] neoplasia . If clinically indicated , consider waiting up to 5 years before`
+- V2 would have extracted "prostatic neoplasia" as a condition
+- V3 correctly ignored (not a patient diagnosis)
+
+### Processing Performance
+
+| Metric | V2 (Pro) | V3 (Flash-Lite) |
+|--------|----------|-----------------|
+| Time | 185s | 60s |
+| Cost | ~$0.20 | ~$0.007 |

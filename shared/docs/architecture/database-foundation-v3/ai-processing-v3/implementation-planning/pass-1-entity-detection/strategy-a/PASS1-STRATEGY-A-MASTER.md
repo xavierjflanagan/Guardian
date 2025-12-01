@@ -783,10 +783,7 @@ async processEncounterWithRetry(encounter: Encounter, maxRetries = 3): Promise<v
 
 ## 9. Open Questions (Resolved)
 
-1. **Alias generation**: ~~Should Pass 1 generate aliases or defer to Pass 1.5's synonym matching?~~
-   **RESOLVED**: Pass 1 generates up to 3 aliases per entity. Works well in practice.
-
-2. **Multi-page encounters**: ~~How to handle entities that span page boundaries?~~
+1. **Multi-page encounters**: ~~How to handle entities that span page boundaries?~~
    **RESOLVED**: Entities assigned to the page where they start. Safe-split batching handles large encounters. No issues observed in testing.
 
 ---
