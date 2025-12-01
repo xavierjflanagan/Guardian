@@ -1,9 +1,9 @@
 # Pass 1 Strategy-A Master Design & Implementation
 
 **Created:** 2025-11-28
-**Status:** Implementation Phase - Phase 0 Complete, Phase 1 Ready
+**Status:** Production Ready
 **Owner:** Xavier Flanagan
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-12-01
 
 ---
 
@@ -15,19 +15,22 @@
 | Phase 1: Database Setup | COMPLETE | 12/12 tasks - Migration 71 |
 | Phase 2: Core Implementation | COMPLETE | 8 files, 3141 lines - pass1-v2 module |
 | Phase 3: Worker Integration | COMPLETE | ~360 lines removed, simplified to ~50 lines |
-| Phase 4: Testing | Not Started | |
-| Phase 5: Cleanup | Not Started | |
+| Phase 4: Testing | COMPLETE | Manual testing done, unit tests deferred |
+| Phase 5: Cleanup | PARTIAL | Legacy env flags removed, old pass1/ folder remains |
 
-**Latest Updates (2025-11-29):**
-- **Phase 3: Worker Integration COMPLETE**
-  - Replaced legacy pass1 imports with pass1-v2 module
-  - Removed env flags (ENABLE_PASS1, PASS1_OCR_ONLY) - Pass 1 always enabled
-  - Replaced Pass1EntityDetector with Pass1Detector (createPass1Detector factory)
-  - Deleted ~360 lines of legacy Pass 1 code (vision mode, 7-table inserts)
-  - New runPass1() is ~50 lines - calls Pass1Detector.processShellFile()
-  - worker.ts version bumped to 2.1
-- **Phase 2: Core Implementation COMPLETE**
-  - 8 files in `apps/render-worker/src/pass1-v2/` (3141 lines)
+**Latest Updates (2025-12-01):**
+- **Parallel Encounter Processing IMPLEMENTED**
+  - Encounters now process in parallel (was sequential)
+  - Uses separate `encounterLimit` to avoid deadlock with batch-level `this.limit`
+  - See `12-PARALLEL-PROCESSING-ARCHITECTURE.md` for full details
+- **Concurrency Limit Increased**: 5 -> 30 (well under Gemini's 300 RPM limit)
+- **V3 Patient-Context Prompt**: Eliminates false positives from vaccine disease names, negation contexts
+- **Zone Extraction Disabled**: `PASS1_DISABLE_ZONES=true` - entities only, zones derived post-AI if needed
+- **Model**: gemini-2.5-flash-lite (29x cheaper than Pro, equal accuracy)
+
+**Previous Updates (2025-11-29):**
+- Phase 3: Worker Integration COMPLETE
+- Phase 2: Core Implementation COMPLETE (8 files in `pass1-v2/`)
 - Phase 0-1: safe-split infrastructure, Migration 71
 
 ---
@@ -117,9 +120,18 @@ shared/docs/architecture/database-foundation-v3/ai-processing-v3/
       PASS1-STRATEGY-A-MASTER.md                    <-- THIS FILE (design + implementation tracker)
       01-PASS-1-STRATEGY-A-AUDIT.md                 <-- Existing audit of old system
       02-PASS-1-OCT-2025-JOB-AUDIT.md               <-- Existing job audit
-      03-prompt-caching-deep-dive.md                 <-- Prompt caching mechanics reference
+      03-prompt-caching-deep-dive.md                <-- Prompt caching mechanics reference
       04-rate-limits-monitoring-retry-strategy.md   <-- Rate limits, monitoring, retry logic
       05-hierarchical-observability-system.md       <-- Metrics, audit, error tracking tables
+      06-PROMPT-IMPROVEMENTS-SESSION.md             <-- Initial prompt improvement notes
+      07-PASS1-PROMPT-V2-SPECIFICATION.md           <-- V2 prompt spec (context rules)
+      07b-PASS1-PROMPT-V3-PATIENT-CONTEXT.md        <-- V3 prompt spec (patient-centric framing)
+      08-POST-AI-ZONE-DERIVATION-SYSTEM.md          <-- Deterministic zone derivation (future)
+      08b-ZONE-REMOVAL-TEST-CHANGES.md              <-- Zone disable implementation
+      09-GEMINI-PRO-VS-FLASH-EVALUATION.md          <-- Model comparison results
+      10-ENTITY-ONLY-EXTRACTION-RESULTS.md          <-- Entity-only mode validation
+      11-V3-PROMPT-FLASH-LITE-EVALUATION.md         <-- V3 + Flash-Lite production validation
+      12-PARALLEL-PROCESSING-ARCHITECTURE.md        <-- Parallel encounters, concurrency config
     archive-pre-strategy-a/                         <-- Old Pass 1 docs (already moved)
 ```
 
@@ -553,20 +565,20 @@ Single source of truth for progress tracking. Check off items as completed.
 
 | Status | Task | Notes |
 |--------|------|-------|
-| [ ] | Unit tests for prompt generation | |
-| [ ] | Unit tests for output parsing | |
-| [ ] | Integration test: single encounter processing | |
-| [ ] | Integration test: large encounter with safe-split batching | |
-| [ ] | Measure token usage reduction | Target: 80% reduction |
+| [~] | Unit tests for prompt generation | Deferred - manual testing sufficient for now |
+| [~] | Unit tests for output parsing | Deferred - manual testing sufficient for now |
+| [x] | Integration test: single encounter processing | 3-page Patient Health Summary - see `11-V3-PROMPT-FLASH-LITE-EVALUATION.md` |
+| [x] | Integration test: large encounter with safe-split batching | 5-page Lab Results (8 encounters) - see `11-V3-PROMPT-FLASH-LITE-EVALUATION.md` |
+| [x] | Measure token usage reduction | ~80% reduction achieved, ~$0.003-0.007 per document |
 
 ### Phase 5: Cleanup & Documentation
 
 | Status | Task | Notes |
 |--------|------|-------|
-| [ ] | Delete old `pass1/` folder | Pre-launch: no need to archive |
-| [ ] | Remove legacy Pass 1 env flags from worker.ts | `ENABLE_PASS1`, `PASS1_OCR_ONLY` |
-| [ ] | Update CLAUDE.md with Pass 1 info | |
-| [ ] | Document Pass 1.5 integration points | How entities flow to code shortlisting |
+| [ ] | Delete old `pass1/` folder | Low priority - not blocking anything |
+| [x] | Remove legacy Pass 1 env flags from worker.ts | `ENABLE_PASS1`, `PASS1_OCR_ONLY` removed |
+| [x] | Update CLAUDE.md with Pass 1 info | Basic info present |
+| [~] | Document Pass 1.5 integration points | Deferred until Pass 1.5 work begins |
 
 ---
 
@@ -769,11 +781,13 @@ async processEncounterWithRetry(encounter: Encounter, maxRetries = 3): Promise<v
 
 ---
 
-## 9. Open Questions
+## 9. Open Questions (Resolved)
 
-1. **Alias generation**: Should Pass 1 generate aliases or defer to Pass 1.5's synonym matching? Current design has Pass 1 output max 3 aliases.
+1. **Alias generation**: ~~Should Pass 1 generate aliases or defer to Pass 1.5's synonym matching?~~
+   **RESOLVED**: Pass 1 generates up to 3 aliases per entity. Works well in practice.
 
-2. **Multi-page encounters**: How to handle entities that span page boundaries? Current design assigns entity to the page where it starts.
+2. **Multi-page encounters**: ~~How to handle entities that span page boundaries?~~
+   **RESOLVED**: Entities assigned to the page where they start. Safe-split batching handles large encounters. No issues observed in testing.
 
 ---
 
@@ -801,3 +815,8 @@ async processEncounterWithRetry(encounter: Encounter, maxRetries = 3): Promise<v
 | Standardized error codes across passes | 2025-11-29 | Error taxonomy: API errors (RATE_LIMIT, API_5XX), processing errors (PARSE_JSON, CONTEXT_TOO_LARGE), data errors (OCR_QUALITY_LOW). Enables consistent debugging. |
 | Remove confidence from Pass 0.5 AI output | 2025-11-29 | AI confidence scores not actionable - quality comes from Pass 1.5 similarity and Pass 2 validation. Saves ~12 tokens/encounter + ~5 tokens/split. TypeScript defaults to 0.5. |
 | Delete unused image-processing.ts | 2025-11-29 | Zero imports in codebase. `format-processor/` handles all image optimization. Removed 250 lines of dead code. |
+| V3 Patient-Context Prompt | 2025-12-01 | Reframe extraction as "facts about THIS PATIENT" instead of generic entity detection. Eliminates false positives from vaccine disease names (e.g., "Yellow Fever" in immunisation record), negation contexts ("No evidence of X"), and family history. See `07b-PASS1-PROMPT-V3-PATIENT-CONTEXT.md`. |
+| Disable Zone Extraction | 2025-12-01 | `PASS1_DISABLE_ZONES=true` env var. AI zone extraction was inconsistent. Entity-only mode works well; zones can be derived post-AI from entity Y-coordinates if needed. See `08-POST-AI-ZONE-DERIVATION-SYSTEM.md`. |
+| Use gemini-2.5-flash-lite | 2025-12-01 | 29x cheaper than Pro, 3x faster, equal or better accuracy. See `11-V3-PROMPT-FLASH-LITE-EVALUATION.md`. |
+| Parallel Encounter Processing | 2025-12-01 | Encounters process in parallel using separate `encounterLimit` (avoids deadlock with batch-level `this.limit`). See `12-PARALLEL-PROCESSING-ARCHITECTURE.md`. |
+| Concurrency Limit: 30 | 2025-12-01 | Increased from 5 to 30. With `WORKER_CONCURRENCY=3`, worst case is 90 concurrent API calls - well under Gemini's 300 RPM limit. Allows most documents to process in single wave. |
