@@ -6,12 +6,12 @@
  * Reference: PASS1-STRATEGY-A-MASTER.md Section 4
  *
  * Architecture:
- * - processShellFile(): Entry point, iterates encounters sequentially
+ * - processShellFile(): Entry point, processes encounters in parallel
  * - processEncounter(): Retry-until-complete pattern for batches
  * - processBatch(): Single OpenAI API call with parsing
  *
  * Key Design Decisions:
- * - Two-level parallelism: encounters sequential, batches parallel within encounter
+ * - Two-level parallelism: encounters parallel, batches parallel within encounter
  * - Retry-until-complete: failed batches retry while successful wait in memory
  * - Transient error preservation: track retry history even on eventual success
  * - Y-markers added dynamically at prompt time (not stored in DB)
@@ -159,27 +159,28 @@ export class Pass1Detector {
       };
     }
 
-    console.log(`[Pass1] Found ${encounters.length} encounters to process`);
+    console.log(`[Pass1] Found ${encounters.length} encounters to process (concurrency: ${this.config.concurrency_limit})`);
 
-    // Process encounters sequentially (fail-fast)
-    const results: EncounterProcessingResult[] = [];
+    // Process encounters in parallel
+    // CRITICAL: Use separate limiter for encounters to avoid deadlock with batch-level this.limit
+    const encounterLimit = pLimit(this.config.concurrency_limit);
+
+    const encounterPromises = encounters.map(encounter =>
+      encounterLimit(() => this.processEncounter(encounter, processing_session_id))
+    );
+
+    const results = await Promise.all(encounterPromises);
+
+    // Aggregate results from parallel processing
     let totalEntities = 0;
     let totalZones = 0;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
+    let totalInputTokens = 0;  // Note: remains 0 (pre-existing behavior - tokens tracked per batch in DB)
+    let totalOutputTokens = 0; // Note: remains 0 (pre-existing behavior)
 
-    for (const encounter of encounters) {
-      const result = await this.processEncounter(encounter, processing_session_id);
-      results.push(result);
-
+    for (const result of results) {
       if (result.success) {
         totalEntities += result.entitiesDetected;
         totalZones += result.zonesDetected;
-        // Token counts are tracked in batch results
-      } else {
-        // Fail-fast: stop on first encounter failure
-        console.log(`[Pass1] Encounter ${encounter.id} failed, stopping`);
-        break;
       }
     }
 
@@ -189,7 +190,7 @@ export class Pass1Detector {
     const encountersFailed = results.filter(r => !r.success).length;
     const totalRetries = results.reduce((sum, r) => sum + r.totalRetries, 0);
 
-    // Determine overall success
+    // Determine overall success (all encounters must succeed)
     const success = encountersFailed === 0;
     const failedResult = results.find(r => !r.success);
 
