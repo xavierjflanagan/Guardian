@@ -349,6 +349,9 @@ export interface Pass1Config {
 
 /**
  * Default configuration values
+ *
+ * Zone inclusion can be disabled via environment variable:
+ *   PASS1_DISABLE_ZONES=true  -> entities only, no bridge schema zones
  */
 export const DEFAULT_PASS1_CONFIG: Pass1Config = {
   max_retries: 3,
@@ -356,7 +359,7 @@ export const DEFAULT_PASS1_CONFIG: Pass1Config = {
   batch_min_pages: 3,
   batch_max_pages: 10,
   batch_hard_ceiling: 50,
-  include_zones_in_prompt: true
+  include_zones_in_prompt: process.env.PASS1_DISABLE_ZONES !== 'true'
 };
 
 // =============================================================================

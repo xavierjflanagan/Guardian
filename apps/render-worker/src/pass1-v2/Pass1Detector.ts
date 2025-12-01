@@ -129,7 +129,7 @@ export class Pass1Detector {
     const startTime = Date.now();
     const { shell_file_id, patient_id, processing_session_id } = input;
 
-    console.log(`[Pass1] Starting shell file ${shell_file_id}`);
+    console.log(`[Pass1] Starting shell file ${shell_file_id} (zones: ${this.config.include_zones_in_prompt ? 'enabled' : 'DISABLED'})`);
 
     // Update session status to processing
     await updateSessionPass1Status(this.supabase, processing_session_id, 'processing');
