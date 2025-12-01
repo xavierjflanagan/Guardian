@@ -355,7 +355,7 @@ export interface Pass1Config {
  */
 export const DEFAULT_PASS1_CONFIG: Pass1Config = {
   max_retries: 3,
-  concurrency_limit: 5,
+  concurrency_limit: 30,
   batch_min_pages: 3,
   batch_max_pages: 10,
   batch_hard_ceiling: 50,
