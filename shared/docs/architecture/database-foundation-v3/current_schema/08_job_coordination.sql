@@ -1096,6 +1096,8 @@ COMMENT ON FUNCTION finalize_session_metrics IS
 
 
 -- Pass 1 Entity Detection Metrics
+-- Migration 72: Removed legacy columns (vision_model_used, ocr_model_used, ocr_agreement_average,
+--               confidence_distribution, ocr_pages_processed) - OLD Pass 1 is retired
 CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     profile_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -1106,21 +1108,14 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     entities_detected INTEGER NOT NULL,
     processing_time_ms INTEGER NOT NULL,
     processing_time_minutes NUMERIC(10,2) NOT NULL GENERATED ALWAYS AS (ROUND(processing_time_ms::numeric / 60000.0, 2)) STORED,
-    vision_model_used TEXT NOT NULL,
-    ocr_model_used TEXT,
 
     -- Quality Metrics
-    ocr_agreement_average NUMERIC(4,3),
-    confidence_distribution JSONB, -- { "high": 15, "medium": 8, "low": 2 }
     entity_types_found TEXT[], -- ['medication', 'condition', 'vital_sign']
 
     -- Token Breakdown (for accurate cost calculation)
-    input_tokens INTEGER,       -- prompt_tokens from OpenAI API (text + images)
-    output_tokens INTEGER,      -- completion_tokens from OpenAI API
+    input_tokens INTEGER,       -- Total input tokens across all batches (aggregated from pass1_batch_results)
+    output_tokens INTEGER,      -- Total output tokens across all batches
     total_tokens INTEGER,       -- sum of input + output
-
-    -- Cost and Performance
-    ocr_pages_processed INTEGER,
 
     -- Metadata (Compliance Audit Trail)
     user_agent TEXT,       -- NULL for background jobs; populated for direct API calls
@@ -1128,7 +1123,7 @@ CREATE TABLE IF NOT EXISTS pass1_entity_metrics (
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
     -- Migration 71: Strategy-A observability columns
-    ai_model_used TEXT,                -- AI model used for Strategy-A (replaces legacy vision_model_used)
+    ai_model_used TEXT,                -- AI model used for Strategy-A entity detection
     encounters_total INTEGER,          -- Total encounters processed in this session
     encounters_succeeded INTEGER,
     encounters_failed INTEGER,

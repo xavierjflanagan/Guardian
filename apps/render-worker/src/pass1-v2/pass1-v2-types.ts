@@ -303,6 +303,8 @@ export interface EncounterProcessingResult {
   batchCount: number;
   totalRetries: number;
   durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
   error?: string;
   errorCode?: string;
 }

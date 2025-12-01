@@ -509,7 +509,6 @@ export async function updatePass1Metrics(
       processing_session_id: context.processing_session_id,
       entities_detected: metrics.entities_detected,
       processing_time_ms: metrics.processing_time_ms,
-      vision_model_used: 'none',  // Legacy field - Strategy-A is OCR-only
       ai_model_used: metrics.ai_model_used,
       input_tokens: metrics.input_tokens,
       output_tokens: metrics.output_tokens,

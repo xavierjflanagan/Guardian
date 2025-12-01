@@ -575,7 +575,7 @@ Single source of truth for progress tracking. Check off items as completed.
 
 | Status | Task | Notes |
 |--------|------|-------|
-| [ ] | Delete old `pass1/` folder | Low priority - not blocking anything |
+| [x] | Delete old `pass1/` folder | Deleted 2025-12-01, moved AIProcessingJobPayload to shared/types.ts |
 | [x] | Remove legacy Pass 1 env flags from worker.ts | `ENABLE_PASS1`, `PASS1_OCR_ONLY` removed |
 | [x] | Update CLAUDE.md with Pass 1 info | Basic info present |
 | [~] | Document Pass 1.5 integration points | Deferred until Pass 1.5 work begins |

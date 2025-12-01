@@ -21,7 +21,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { createPass1Detector, Pass1Detector } from './pass1-v2';
 import { getSelectedModel } from './shared/ai';
-import type { AIProcessingJobPayload } from './pass1/pass1-types';
+import type { AIProcessingJobPayload } from './shared/types';
 import { runPass05, Pass05Input } from './pass05';
 import { calculateSHA256 } from './utils/checksum';
 import {

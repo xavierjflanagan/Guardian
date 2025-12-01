@@ -174,13 +174,15 @@ export class Pass1Detector {
     // Aggregate results from parallel processing
     let totalEntities = 0;
     let totalZones = 0;
-    let totalInputTokens = 0;  // Note: remains 0 (pre-existing behavior - tokens tracked per batch in DB)
-    let totalOutputTokens = 0; // Note: remains 0 (pre-existing behavior)
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
 
     for (const result of results) {
       if (result.success) {
         totalEntities += result.entitiesDetected;
         totalZones += result.zonesDetected;
+        totalInputTokens += result.inputTokens;
+        totalOutputTokens += result.outputTokens;
       }
     }
 
@@ -368,6 +370,8 @@ export class Pass1Detector {
           batchCount: batches.length,
           totalRetries,
           durationMs: Date.now() - startTime,
+          inputTokens: 0,
+          outputTokens: 0,
           error: lastError?.error_message || 'Batch processing failed',
           errorCode: lastError?.error_code || 'INTERNAL_ERROR'
         };
@@ -428,7 +432,9 @@ export class Pass1Detector {
       zonesDetected: mergedResponse.bridge_schema_zones.length,
       batchCount: batches.length,
       totalRetries,
-      durationMs: Date.now() - startTime
+      durationMs: Date.now() - startTime,
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens
     };
   }
 
