@@ -2,8 +2,9 @@
  * Pass 1 Strategy-A Prompt Generator
  *
  * Created: 2025-11-29
+ * Updated: 2025-12-01 - V3 patient-context approach (07b spec)
  * Purpose: Build prompts for entity detection from OCR text
- * Reference: PASS1-STRATEGY-A-MASTER.md Section 4.1
+ * Reference: 07b-PASS1-PROMPT-V3-PATIENT-CONTEXT.md
  *
  * IMPORTANT: OCR text is pre-processed with Y-coordinate markers by ocr-formatter.ts
  * and stored in Supabase Storage as enhanced-ocr-y.txt (Y-only format).
@@ -21,9 +22,17 @@ import { Pass1EntityType, VALID_ENTITY_TYPES } from './pass1-v2-types';
 
 /**
  * System message for Pass 1 entity detection
- * Minimal persona focused on classification
+ * V3: Patient-context framing - extract facts ABOUT THIS PATIENT
  */
-export const PASS1_SYSTEM_MESSAGE = `You are a medical document reviewer that locates, extracts and classifies clinical entities and their locations from the uploaded document OCR text. Output minimal JSON only.`;
+export const PASS1_SYSTEM_MESSAGE = `You are reviewing a patient's medical record. Your task is to extract clinical facts that are TRUE OF THIS PATIENT - their conditions, their medications, their procedures, their immunisations.
+
+Medical documents contain many medical terms that are NOT facts about the patient:
+- Vaccine names include diseases they prevent (not patient diagnoses)
+- Negation phrases rule OUT conditions (patient does NOT have them)
+- Family history describes relatives (not this patient)
+- Side effect warnings are potential risks (not confirmed conditions)
+
+Extract only what belongs in this patient's structured health record. Output JSON only.`;
 
 // =============================================================================
 // PROMPT GENERATION
@@ -40,6 +49,7 @@ export interface PromptOptions {
 
 /**
  * Build the user prompt for Pass 1 entity detection
+ * V3: Patient-context approach with explicit exclusion rules
  *
  * @param ocrText - Pre-formatted OCR text with [Y:###] markers (from enhanced-ocr-y.txt)
  * @param options - Prompt options (pageNumber, batchInfo, includeZones)
@@ -55,257 +65,184 @@ export function buildUserPrompt(
   const entityTypesList = VALID_ENTITY_TYPES.join(', ');
 
   // Build the prompt - OCR text already has [Y:###] markers
-  let prompt = `ENCOUNTER OCR TEXT (Y-coordinates per line):
+  let prompt = `PATIENT MEDICAL RECORD (OCR with Y-coordinates):
 ${ocrText}
 
-TASK: Identify and extract every clinical entity from this document.
+TASK: Extract clinical facts about THIS PATIENT.
 
-STEP 1 - LINE-BY-LINE EXTRACTION:
-Read EVERY line of the document. For each line, determine:
-- Does this line contain any clinical entities?
-- If yes, extract ALL clinical entities with their exact text, entity_type, page_number, and y_coordinate
+ENTITY TYPES: ${entityTypesList}
+
+WHAT TO EXTRACT (facts about this patient):
+- Conditions the patient HAS (diagnoses in history sections)
+- Medications the patient TAKES (current medications, prescriptions)
+- Procedures the patient HAD (surgeries, treatments performed on them)
+- Immunisations the patient RECEIVED (vaccines administered)
+- Allergies the patient HAS
+- Lab results, vitals, observations about the patient
+
+WHAT NOT TO EXTRACT (not facts about this patient):
+- Disease names in vaccine records: "Stamaril (Yellow Fever)" -> extract "Stamaril (Yellow Fever)" as immunisation, do NOT extract "Yellow Fever" as a separate condition
+- Negated conditions: "No evidence of kidney disease" -> do NOT extract "kidney disease"
+- Risk assessments: "low risk of prostatic neoplasia" -> do NOT extract "prostatic neoplasia"
+- Family history: conditions listed under "Family History" belong to relatives, not this patient
+- "Nil known" in allergy section: this is an observation that patient has no known allergies, not an allergy entity
+
+EXTRACTION RULES:
+- Use the EXACT text from the document for original_text
+- Record the Y-coordinate from the [Y:###] marker
+- Include 1-3 aliases for medical code lookup (generic name, common abbreviation, or brand name)
+- If the same medication appears on multiple lines (different dates), extract each occurrence separately
 `;
 
   // Only add zone instructions if includeZones is true
   if (includeZones) {
     prompt += `
-STEP 2 - GROUP INTO ZONES:
-After extracting all entities, group them into bridge_schema_zones to help with downstream parallel batch processing.
-A zone is a contiguous Y-range on a page where entities of the same type cluster.
-`;
-  }
-
-  prompt += `
-ENTITY TYPES: ${entityTypesList}
-
-EXTRACTION RULES:
-- A clinical entity is ANY mention of a medication, condition, disease, procedure, immunisation, allergy, test result, vital measurement, or clinical observation - essentially anything that is a clinical event, clinical fact or clinical context.
-- Read every line - entities may be scattered throughout without section headers
-- DO NOT DEDUPLICATE: If the same medication/vaccine appears on 5 different lines, output 5 separate entities with different y_coordinates
-- Each line that contains clinical entities = at least one entity in your output (even if the clinical entity is listed on other lines)
-- Extract the EXACT text as it appears in the document for original_text
-- Use y_coordinate from the [Y:###] marker for that line
-- When uncertain whether something is a clinical entity, include it
-- Aliases: 1-3 common alternatives for medical code lookup (SNOMED, RxNorm, LOINC)
-
-COMMON PATTERNS TO RECOGNIZE:
-- "Prescriptions:" or "Script date:" sections contain medications
-- Immunisation records often have format: "DATE Vaccine Name (Disease)"
-- Past History sections contain conditions AND procedures
-- Lines with "mg", "mcg", "mL", "Tablet", "Capsule", "Injection" are likely medications or immunisations
-- Lines with dates followed by medical terms are likely clinical events`;
-
-  // Only add zone rules if includeZones is true
-  if (includeZones) {
-    prompt += `
-
 ZONE RULES:
+- Group entities into bridge_schema_zones by type and contiguous Y-range
 - One zone per schema_type per contiguous Y-range
-- Zones of different types on the same page MAY overlap
-- entity_count must match the number of entities you extracted for that zone
-- A clinical section continuing from one page to the next = separate zones (different pages)`;
+- entity_count must match the number of entities in that zone
+`;
   }
 
   // Add page context if provided
   if (pageNumber !== undefined) {
-    prompt += `\n- All entities on this page should have page_number: ${pageNumber}`;
+    prompt += `\nAll entities on this page should have page_number: ${pageNumber}`;
   }
 
   // Add batch context if provided
   if (batchInfo) {
-    prompt += `\n- ${batchInfo}`;
+    prompt += `\n${batchInfo}`;
   }
 
   // Add output schema - different based on includeZones flag
   if (includeZones) {
     prompt += `
 
-OUTPUT JSON SCHEMA:
+OUTPUT JSON:
 {
   "entities": [
     {
       "id": "e1",
       "original_text": "Metformin 500mg Tablet",
       "entity_type": "medication",
-      "aliases": ["metformin", "glucophage"],
-      "y_coordinate": 550,
+      "aliases": ["metformin hydrochloride", "Glucophage"],
+      "y_coordinate": 1350,
       "page_number": 1
     },
     {
       "id": "e2",
-      "original_text": "Lisinopril 10mg Tablet",
-      "entity_type": "medication",
-      "aliases": ["lisinopril", "zestril"],
-      "y_coordinate": 620,
+      "original_text": "Type 2 Diabetes",
+      "entity_type": "condition",
+      "aliases": ["diabetes mellitus type 2", "T2DM", "T2 diabetes"],
+      "y_coordinate": 1890,
       "page_number": 1
     },
     {
       "id": "e3",
-      "original_text": "Type 2 Diabetes",
-      "entity_type": "condition",
-      "aliases": ["diabetes mellitus type 2", "T2DM"],
-      "y_coordinate": 900,
+      "original_text": "Aortic valve replacement",
+      "entity_type": "procedure",
+      "aliases": ["AVR", "aortic valve surgery"],
+      "y_coordinate": 2000,
       "page_number": 1
     },
     {
       "id": "e4",
-      "original_text": "Hypertension",
-      "entity_type": "condition",
-      "aliases": ["high blood pressure", "HTN"],
-      "y_coordinate": 950,
-      "page_number": 1
+      "original_text": "FluQuadri (Influenza)",
+      "entity_type": "immunisation",
+      "aliases": ["influenza vaccine", "flu shot"],
+      "y_coordinate": 930,
+      "page_number": 2
     },
     {
       "id": "e5",
-      "original_text": "Ruptured spleen",
-      "entity_type": "condition",
-      "aliases": ["splenic rupture"],
-      "y_coordinate": 130,
-      "page_number": 2
-    },
-    {
-      "id": "e6",
-      "original_text": "Pneumonia",
-      "entity_type": "condition",
-      "aliases": ["lung infection"],
-      "y_coordinate": 200,
-      "page_number": 2
-    },
-    {
-      "id": "e7",
-      "original_text": "Influenza Vaccine",
-      "entity_type": "immunisation",
-      "aliases": ["flu shot", "flu vaccine"],
-      "y_coordinate": 500,
-      "page_number": 2
-    },
-    {
-      "id": "e8",
-      "original_text": "COVID-19 Vaccine",
-      "entity_type": "immunisation",
-      "aliases": ["covid vaccine", "coronavirus vaccine"],
-      "y_coordinate": 550,
-      "page_number": 2
-    },
-    {
-      "id": "e9",
-      "original_text": "Hepatitis B Vaccine",
-      "entity_type": "immunisation",
-      "aliases": ["hep B vaccine"],
-      "y_coordinate": 600,
-      "page_number": 2
-    },
-    {
-      "id": "e10",
-      "original_text": "Doxycycline 100mg Capsule",
-      "entity_type": "medication",
-      "aliases": ["doxycycline"],
-      "y_coordinate": 950,
-      "page_number": 2
-    },
-    {
-      "id": "e11",
-      "original_text": "Metformin 500mg Tablet",
-      "entity_type": "medication",
-      "aliases": ["metformin", "glucophage"],
-      "y_coordinate": 1050,
-      "page_number": 2
+      "original_text": "Penicillin",
+      "entity_type": "allergy",
+      "aliases": ["penicillin allergy", "PCN allergy"],
+      "y_coordinate": 820,
+      "page_number": 1
     }
   ],
   "bridge_schema_zones": [
     {
       "schema_type": "medications",
       "page_number": 1,
-      "y_start": 550,
-      "y_end": 620,
-      "entity_count": 2
+      "y_start": 1350,
+      "y_end": 1350,
+      "entity_count": 1
     },
     {
       "schema_type": "conditions",
       "page_number": 1,
-      "y_start": 900,
-      "y_end": 950,
-      "entity_count": 2
-    },
-    {
-      "schema_type": "conditions",
-      "page_number": 2,
-      "y_start": 130,
-      "y_end": 200,
-      "entity_count": 2
+      "y_start": 1890,
+      "y_end": 1890,
+      "entity_count": 1
     },
     {
       "schema_type": "immunisations",
       "page_number": 2,
-      "y_start": 500,
-      "y_end": 600,
-      "entity_count": 3
-    },
-    {
-      "schema_type": "medications",
-      "page_number": 2,
-      "y_start": 950,
-      "y_end": 1050,
-      "entity_count": 2
+      "y_start": 930,
+      "y_end": 930,
+      "entity_count": 1
     }
   ]
 }
 
-The example above shows:
-- Page 1: 2 medications (e1, e2), 2 conditions (e3, e4)
-- Page 2: 2 conditions (e5, e6), 3 immunisations (e7, e8, e9), 2 medications (e10, e11)
-- Note: e11 is "Metformin 500mg Tablet" again - same drug as e1 but different line/date = separate entity
-- 5 zones total across 2 pages, with entity_count matching actual entities in each zone
+Note: e4 shows correct immunisation handling - include "(Influenza)" in original_text but classify as immunisation only, NOT as a separate condition.
 
-Output ONLY valid JSON matching this schema. No explanations or markdown.`;
+Output ONLY valid JSON. No explanations.`;
   } else {
     // Entity-only output schema (no zones)
     prompt += `
 
-OUTPUT JSON SCHEMA (entities only - no zones required):
+OUTPUT JSON:
 {
   "entities": [
     {
       "id": "e1",
       "original_text": "Metformin 500mg Tablet",
       "entity_type": "medication",
-      "aliases": ["metformin", "glucophage"],
-      "y_coordinate": 550,
+      "aliases": ["metformin hydrochloride", "Glucophage"],
+      "y_coordinate": 1350,
       "page_number": 1
     },
     {
       "id": "e2",
-      "original_text": "Lisinopril 10mg Tablet",
-      "entity_type": "medication",
-      "aliases": ["lisinopril", "zestril"],
-      "y_coordinate": 620,
+      "original_text": "Type 2 Diabetes",
+      "entity_type": "condition",
+      "aliases": ["diabetes mellitus type 2", "T2DM", "T2 diabetes"],
+      "y_coordinate": 1890,
       "page_number": 1
     },
     {
       "id": "e3",
-      "original_text": "Type 2 Diabetes",
-      "entity_type": "condition",
-      "aliases": ["diabetes mellitus type 2", "T2DM"],
-      "y_coordinate": 900,
+      "original_text": "Aortic valve replacement",
+      "entity_type": "procedure",
+      "aliases": ["AVR", "aortic valve surgery"],
+      "y_coordinate": 2000,
       "page_number": 1
     },
     {
       "id": "e4",
-      "original_text": "Metformin 500mg Tablet",
-      "entity_type": "medication",
-      "aliases": ["metformin", "glucophage"],
-      "y_coordinate": 1200,
+      "original_text": "FluQuadri (Influenza)",
+      "entity_type": "immunisation",
+      "aliases": ["influenza vaccine", "flu shot"],
+      "y_coordinate": 930,
+      "page_number": 2
+    },
+    {
+      "id": "e5",
+      "original_text": "Penicillin",
+      "entity_type": "allergy",
+      "aliases": ["penicillin allergy", "PCN allergy"],
+      "y_coordinate": 820,
       "page_number": 1
     }
   ]
 }
 
-The example above shows:
-- e1 and e4 are BOTH "Metformin 500mg Tablet" - same drug appearing on different lines = 2 separate entities
-- Every line with clinical content must produce at least one entity
-- Focus on COMPLETENESS - extract every clinical mention
+Note: e4 shows correct immunisation handling - include "(Influenza)" in original_text but classify as immunisation only, NOT as a separate condition.
 
-Output ONLY valid JSON with "entities" array. No explanations or markdown.`;
+Output ONLY valid JSON. No explanations.`;
   }
 
   return prompt;
