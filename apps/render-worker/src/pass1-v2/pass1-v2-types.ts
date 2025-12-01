@@ -117,6 +117,13 @@ export interface Pass1ShellFileInput {
 }
 
 /**
+ * Boundary type for encounter start/end
+ * - 'page_start'/'page_end': Encounter starts/ends at page boundary
+ * - 'intra_page': Encounter starts/ends mid-page at specific Y-coordinate
+ */
+export type BoundaryType = 'page_start' | 'page_end' | 'intra_page';
+
+/**
  * Encounter data loaded from healthcare_encounters
  */
 export interface EncounterData {
@@ -126,8 +133,12 @@ export interface EncounterData {
   start_page: number;                   // 1-indexed
   end_page: number;                     // 1-indexed
   page_count: number;                   // Computed: end_page - start_page + 1
+  start_boundary_type: BoundaryType;    // How encounter starts
+  end_boundary_type: BoundaryType;      // How encounter ends
+  start_y: number | null;               // Y-coordinate if start_boundary_type is 'intra_page'
+  end_y: number | null;                 // Y-coordinate if end_boundary_type is 'intra_page'
   safe_split_points: SafeSplitPoint[];  // From Migration 70
-  enhanced_ocr_text: string;            // Y-only format from shell_files
+  enhanced_ocr_text: string;            // Y-only format, sliced to encounter boundaries
 }
 
 /**

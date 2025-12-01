@@ -44,6 +44,7 @@ export type {
   Pass1EntityType,
   SafeSplitType,
   SafeSplitPoint,
+  BoundaryType,
   Pass1Entity,
   Pass1BridgeSchemaZone,
   Pass1AIResponse
@@ -147,5 +148,7 @@ export {
   updateSessionPass1Status,
   updatePass1Metrics,
   loadEncountersForShellFile,
-  updateShellFileStatus
+  updateShellFileStatus,
+  sliceOcrTextToEncounter,
+  INTRA_PAGE_BOUNDARY_BUFFER
 } from './pass1-v2-database';

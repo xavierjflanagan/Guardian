@@ -535,21 +535,127 @@ export async function updatePass1Metrics(
 // =============================================================================
 
 /**
+ * Buffer zone for intra-page boundaries (Y-units)
+ * Prevents cutting off entities at exact boundary due to OCR variance
+ * Configurable - default 150 covers ~3-4 lines of text
+ */
+export const INTRA_PAGE_BOUNDARY_BUFFER = 150;
+
+/**
+ * Slice OCR text to encounter boundaries with Y-coordinate support
+ *
+ * Handles intra-page boundaries by filtering lines based on Y-coordinates.
+ * OCR text format: "[Y:###] text content" per line, with "--- PAGE N START/END ---" markers.
+ *
+ * @param fullOcrText - Complete OCR text for all pages
+ * @param startPage - Encounter start page (1-indexed)
+ * @param endPage - Encounter end page (1-indexed)
+ * @param startBoundaryType - 'page_start' or 'intra_page'
+ * @param endBoundaryType - 'page_end' or 'intra_page'
+ * @param startY - Y-coordinate for intra-page start (with buffer applied)
+ * @param endY - Y-coordinate for intra-page end (with buffer applied)
+ * @returns Sliced OCR text for the encounter
+ */
+export function sliceOcrTextToEncounter(
+  fullOcrText: string,
+  startPage: number,
+  endPage: number,
+  startBoundaryType: string,
+  endBoundaryType: string,
+  startY: number | null,
+  endY: number | null
+): string {
+  const lines = fullOcrText.split('\n');
+  const resultLines: string[] = [];
+
+  let currentPage = 0;
+  let inEncounterPages = false;
+
+  // Apply buffer to Y boundaries
+  const effectiveStartY = startY !== null ? startY - INTRA_PAGE_BOUNDARY_BUFFER : null;
+  const effectiveEndY = endY !== null ? endY + INTRA_PAGE_BOUNDARY_BUFFER : null;
+
+  for (const line of lines) {
+    // Check for page markers
+    const pageStartMatch = line.match(/---\s*PAGE\s*(\d+)\s*START\s*---/i);
+    const pageEndMatch = line.match(/---\s*PAGE\s*(\d+)\s*END\s*---/i);
+
+    if (pageStartMatch) {
+      currentPage = parseInt(pageStartMatch[1], 10);
+      inEncounterPages = currentPage >= startPage && currentPage <= endPage;
+
+      // Include page marker if we're in encounter range
+      if (inEncounterPages) {
+        resultLines.push(line);
+      }
+      continue;
+    }
+
+    if (pageEndMatch) {
+      const markerPage = parseInt(pageEndMatch[1], 10);
+      // Include page end marker if we're in encounter range
+      if (markerPage >= startPage && markerPage <= endPage) {
+        resultLines.push(line);
+      }
+      continue;
+    }
+
+    // Skip lines outside encounter page range
+    if (!inEncounterPages) {
+      continue;
+    }
+
+    // Extract Y-coordinate from line: [Y:###] text
+    const yMatch = line.match(/^\[Y:(\d+)\]/);
+
+    if (!yMatch) {
+      // Line without Y-coordinate (empty line, header, etc.) - include if in page range
+      resultLines.push(line);
+      continue;
+    }
+
+    const lineY = parseInt(yMatch[1], 10);
+
+    // Apply Y-coordinate filtering for boundary pages
+
+    // Start page with intra-page boundary: exclude lines BEFORE startY
+    if (currentPage === startPage && startBoundaryType === 'intra_page' && effectiveStartY !== null) {
+      if (lineY < effectiveStartY) {
+        continue; // Skip lines before the start boundary
+      }
+    }
+
+    // End page with intra-page boundary: exclude lines AFTER endY
+    if (currentPage === endPage && endBoundaryType === 'intra_page' && effectiveEndY !== null) {
+      if (lineY > effectiveEndY) {
+        continue; // Skip lines after the end boundary
+      }
+    }
+
+    // Line passes all filters - include it
+    resultLines.push(line);
+  }
+
+  return resultLines.join('\n');
+}
+
+/**
  * Load encounters for a shell file
  *
  * @param supabase - Supabase client
  * @param shellFileId - Shell file ID
- * @returns Array of encounter data
+ * @param patientId - Patient ID for storage path
+ * @returns Array of encounter data with properly sliced OCR text
  */
 export async function loadEncountersForShellFile(
   supabase: SupabaseClient,
   shellFileId: string,
   patientId: string
 ): Promise<EncounterData[]> {
-  // Load encounters
+  // Load encounters with boundary fields
   const { data: encounters, error: encError } = await supabase
     .from('healthcare_encounters')
-    .select('id, patient_id, start_page, end_page, safe_split_points')
+    .select('id, patient_id, start_page, end_page, start_boundary_type, end_boundary_type, start_y, end_y, safe_split_points')
     .eq('source_shell_file_id', shellFileId)
     .order('start_page', { ascending: true });
 
@@ -563,23 +669,44 @@ export async function loadEncountersForShellFile(
 
   // Load enhanced OCR text from Supabase Storage (Y-only format)
   // This is pre-formatted with [Y:###] markers by ocr-formatter.ts
-  const enhancedOcrText = await loadEnhancedOCR_Y(supabase, patientId, shellFileId);
+  const fullOcrText = await loadEnhancedOCR_Y(supabase, patientId, shellFileId);
 
-  if (!enhancedOcrText) {
+  if (!fullOcrText) {
     throw new Error(`No enhanced OCR text found for shell file ${shellFileId}`);
   }
 
-  // Map to EncounterData with all required fields
-  return encounters.map(enc => ({
-    id: enc.id,
-    shell_file_id: shellFileId,
-    patient_id: enc.patient_id || patientId,
-    start_page: enc.start_page,
-    end_page: enc.end_page,
-    page_count: enc.end_page - enc.start_page + 1,
-    safe_split_points: enc.safe_split_points || [],
-    enhanced_ocr_text: enhancedOcrText
-  }));
+  // Map to EncounterData with properly sliced OCR text per encounter
+  return encounters.map(enc => {
+    // Determine boundary types (default to page boundaries if not set)
+    const startBoundaryType = enc.start_boundary_type || 'page_start';
+    const endBoundaryType = enc.end_boundary_type || 'page_end';
+
+    // Slice OCR text to this encounter's boundaries
+    const slicedOcrText = sliceOcrTextToEncounter(
+      fullOcrText,
+      enc.start_page,
+      enc.end_page,
+      startBoundaryType,
+      endBoundaryType,
+      enc.start_y,
+      enc.end_y
+    );
+
+    return {
+      id: enc.id,
+      shell_file_id: shellFileId,
+      patient_id: enc.patient_id || patientId,
+      start_page: enc.start_page,
+      end_page: enc.end_page,
+      page_count: enc.end_page - enc.start_page + 1,
+      start_boundary_type: startBoundaryType as EncounterData['start_boundary_type'],
+      end_boundary_type: endBoundaryType as EncounterData['end_boundary_type'],
+      start_y: enc.start_y,
+      end_y: enc.end_y,
+      safe_split_points: enc.safe_split_points || [],
+      enhanced_ocr_text: slicedOcrText
+    };
+  });
 }
 
 // NOTE: Enhanced OCR text is loaded from Supabase Storage via loadEnhancedOCR_Y()
