@@ -31,6 +31,7 @@ Medical documents contain many medical terms that are NOT facts about the patien
 - Negation phrases rule OUT conditions (patient does NOT have them)
 - Family history describes relatives (not this patient)
 - Side effect warnings are potential risks (not confirmed conditions)
+- Lab and vital sign VALUES (numbers, ranges) are data points, not clinical entities - extract only the TEST or MEASUREMENT NAME
 
 Extract only what belongs in this patient's structured health record. Output JSON only.`;
 
@@ -78,20 +79,21 @@ WHAT TO EXTRACT (facts about this patient):
 - Procedures the patient HAD (surgeries, treatments performed on them)
 - Immunisations the patient RECEIVED (vaccines administered)
 - Allergies the patient HAS
-- Lab results, vitals, observations about the patient
+- The NAMES of any Lab tests, vitals, observations about the patient (extract the name, NOT the value or result)
 
 WHAT NOT TO EXTRACT (not facts about this patient):
-- Disease names in vaccine records: "Stamaril (Yellow Fever)" -> extract "Stamaril (Yellow Fever)" as immunisation, do NOT extract "Yellow Fever" as a separate condition
+- Diseases in vaccine records: "Stamaril (Yellow Fever)" -> extract "Stamaril (Yellow Fever)" as immunisation, do NOT extract "Yellow Fever" as a separate condition
 - Negated conditions: "No evidence of kidney disease" -> do NOT extract "kidney disease"
 - Risk assessments: "low risk of prostatic neoplasia" -> do NOT extract "prostatic neoplasia"
 - Family history: conditions listed under "Family History" belong to relatives, not this patient
 - "Nil known" in allergy section: this is an observation that patient has no known allergies, not an allergy entity
 
 EXTRACTION RULES:
-- Use the EXACT text from the document for original_text
+- Use the EXACT text from the document OCR text for original_text
 - Record the Y-coordinate from the [Y:###] marker
 - Include 1-3 aliases for medical code lookup (generic name, common abbreviation, or brand name)
 - If the same medication appears on multiple lines (different dates), extract each occurrence separately
+- Entity text must be at least 2 characters and represent a complete clinical term
 `;
 
   // Only add zone instructions if includeZones is true
@@ -160,6 +162,14 @@ OUTPUT JSON:
       "aliases": ["penicillin allergy", "PCN allergy"],
       "y_coordinate": 820,
       "page_number": 1
+    },
+    {
+      "id": "e6",
+      "original_text": "HAEMOGLOBIN",
+      "entity_type": "lab_result",
+      "aliases": ["hemoglobin", "Hgb", "Hb"],
+      "y_coordinate": 670,
+      "page_number": 1
     }
   ],
   "bridge_schema_zones": [
@@ -188,6 +198,7 @@ OUTPUT JSON:
 }
 
 Note: e4 shows correct immunisation handling - include "(Influenza)" in original_text but classify as immunisation only, NOT as a separate condition.
+Note: e6 shows correct lab result handling - extract the TEST NAME only, not the numeric value "139" or reference range "(130-180)".
 
 Output ONLY valid JSON. No explanations.`;
   } else {
@@ -236,11 +247,20 @@ OUTPUT JSON:
       "aliases": ["penicillin allergy", "PCN allergy"],
       "y_coordinate": 820,
       "page_number": 1
+    },
+    {
+      "id": "e6",
+      "original_text": "HAEMOGLOBIN",
+      "entity_type": "lab_result",
+      "aliases": ["hemoglobin", "Hgb", "Hb"],
+      "y_coordinate": 670,
+      "page_number": 1
     }
   ]
 }
 
 Note: e4 shows correct immunisation handling - include "(Influenza)" in original_text but classify as immunisation only, NOT as a separate condition.
+Note: e6 shows correct lab result handling - extract the TEST NAME only, not the numeric value "139" or reference range "(130-180)".
 
 Output ONLY valid JSON. No explanations.`;
   }
