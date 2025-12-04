@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 const patientId = 'd1dbe18c-afc2-421f-bd58-145ddb48cbca';
-const shellFileId = '3195b2af-bafb-40ed-8408-e83bdd39cebf';
+const shellFileId = 'f9fd56be-db76-489a-81f5-fd1bc592d082'; // 006_Emma_Thompson_Emergency_Summary.pdf
 const storagePath = `${patientId}/${shellFileId}-ocr/enhanced-ocr-y.txt`;
 
 async function main() {

@@ -1,0 +1,466 @@
+--- PAGE 1 START ---
+[Y:220] Encounter Summary ( October 30 , 2025 , 1:53:08 PM -0400 )
+[Y:280] Patient Legal : Emma THOMPSON Date of Birth : November 14 , 1965 Gender : Female
+[Y:300] Patient - ID : PDHZTKZ8QTL9KKT ( 1.2.840.114350.1.13.330.2.7.3.688884.100 )
+[Y:340] Encounter ID : 2307738641 ( 1.2.840.114350.1.13.330.2.7.3.698084.8 ) , Type : Emergency -
+[Y:370] Emergency
+[Y:390] translation : Hospital Encounter
+[Y:410] translation : 0 ( 1.2.840.114350.1.72.1.30.1 )
+[Y:440] Date / Time : June 22 , 2025 4:50 PM -0400 - 6PM -0400
+[Y:460] Location : Emergency Department - Emergency Medicine
+[Y:480] translation : Emergency Medicine
+[Y:520] Documentation Of Care provision , Date / Time : June 22 , 2025 4:50 PM -0400 - 6PM -0400 , Performer : Legal :
+[Y:550] Per Patient NOPCP MD
+[Y:580] Author Epic Version 11.3 , Organization : Piedmont Healthcare , Authored On : October 30 , 2025 ,
+[Y:610] 1:53:08 PM -0400
+[Y:670] Reason for Visit
+[Y:720] Reason Comments
+[Y:750] Motor Vehicle Crash Patient presented to ED completely ambulatory , walked with steady gait , GCS 15 ,
+[Y:780] Aox4 , chief complaint pain from MVC today , denies L.O.C.
+[Y:830] Encounter Details
+[Y:890] Care Team ( Latest
+[Y:900] Date Type Department Description
+[Y:910] Contact Info )
+[Y:940] 06/22/2025 Emergency MVC ( motor vehicle
+[Y:960] 4:50 PM Piedmont Eastside Medical Tinkham , Matthew T , collision ) , initial encounter
+[Y:990] EDT - Emergency Department MD ( Primary Dx )
+[Y:1010] 06/22/2025 South Campus Discharge Disposition :
+[Y:1030] 6:00 PM 265 Brookview Center Home or Self Care
+[Y:1050] 2160 FOUNTAIN DR Way
+[Y:1060] EDT
+[Y:1100] SNELLVILLE , GA 30078- STE 400
+[Y:1120] 7022
+[Y:1140] KNOXVILLE , TN 37919
+[Y:1160] 770-982-2313
+[Y:1180] 865-293-5617 Work
+[Y:1190] ( )
+[Y:1230] 865-347-5180 ( Fax )
+[Y:1300] Social
+[Y:1310] History
+[Y:1360] Tobacco Use Types Packs / Day Years Used Date
+[Y:1390] Smoking Tobacco : Every Cigarettes
+[Y:1420] Day
+[Y:1450] Smokeless Tobacco : Never
+[Y:1500] Tobacco Cessation : Ready to Quit : Not Asked ; Counseling Given : Not Answered
+[Y:1540] Alcohol Use Standard Drinks / Week Comments
+[Y:1570] 0 ( 1 standard drink = 0.6
+[Y:1580] Never
+[Y:1600] oz pure alcohol )
+[Y:1640] Pregnant Comments
+[Y:1670] Unknown
+[Y:1710] Sex and Gender Information Value Date Recorded
+[Y:1740] Birth
+[Y:1750] Sex Assigned at Not on file
+[Y:1780] Legal Sex Female 06/22/2025 4:50 PM EDT
+[Y:1820] Gender Identity Not on file
+[Y:1860] Sexual Orientation Not on file
+[Y:1900] [ 1 ] . documented as of this encounter
+[Y:1940] Last Filed Vital Signs
+[Y:1990] Vital Sign
+[Y:2000] Reading Time Taken Comments
+[Y:2030] Blood Pressure 184/87 06/22/2025 5:45 PM EDT
+[Y:2060] EDT
+[Y:2070] Pulse 103 06/22/2025 4:58 PM
+--- PAGE 1 END ---
+
+--- PAGE 2 START ---
+[Y:150] Vital Reading
+[Y:160] Sign Time Taken Comments
+[Y:190] Temperature 37.1 ° C ( 98.8 ° F ) 06/22/2025 4:58 PM EDT
+[Y:230] Respiratory Rate 17 06/22/2025 4:58 PM EDT
+[Y:260] Oxygen Saturation 99 %
+[Y:270] 06/22/2025 4:58 PM EDT
+[Y:300] Inhaled Oxygen
+[Y:330] Concentration
+[Y:360] 60.8 kg ( 134 lb ) 06/22/2025 4:58 PM EDT
+[Y:370] Weight
+[Y:400] Height 157.5 cm ( 5 ' 2 " ) 06/22/2025 4:58 PM EDT
+[Y:440] Body Mass Index 24.51 06/22/2025 4:58 PM EDT
+[Y:480] [ 2 ] . documented in this encounter
+[Y:520] Instructions
+[Y:530] Discharge
+[Y:580] Attachments
+[Y:620] The following attachments cannot be sent through Care Everywhere .
+[Y:670] 。 Motor Vehicle Collision Injury Adult Easy - to - Read ( English )
+[Y:720] [ 3 ] . documented in this encounter
+[Y:760] Medications at Time of Discharge
+[Y:810] Dispense
+[Y:820] Refills Last Filled
+[Y:830] Medication Sig Start Date End Date
+[Y:840] Quantity
+[Y:870] Take 2 tablets by mouth 06/22/2025 07/02/2025
+[Y:890] acetaminophen every 6 ( six ) hours as 30
+[Y:910] ( TYLENOL ) 325 mg tablet tablet
+[Y:920] needed for Pain .
+[Y:970] Place 1 patch onto the 06/22/2025 07/22/2025
+[Y:990] lidocaine ( LIDODERM ) 5 30
+[Y:1000] skin daily . Remove &
+[Y:1020] % patch Discard patch within 12 patch
+[Y:1040] hours or as directed by
+[Y:1070] MD
+[Y:1100] Take 1 tablet by mouth in 06/22/2025 06/27/2025
+[Y:1120] methocarbamol tablet 10
+[Y:1130] the morning and 1
+[Y:1150] ( ROBAXIN ) 500 MG tablet before bedtime . Do all tablet
+[Y:1170] this for 5 days .
+[Y:1210] [ 4 ] . documented as of this encounter
+[Y:1260] ED Notes
+[Y:1310] Shivani Patel , RN - 06/22/2025 5:49 PM EDT
+[Y:1340] Formatting of this note might be different from the original .
+[Y:1360] Doctor has seen the patient and the patient is ready for discharge . Patient is updated and educated on discharge
+[Y:1390] papers . Patient states no concerns at this time . Vital signs stable .
+[Y:1440] Electronically signed by Shivani Patel , RN at 06/22/2025 5:49 PM EDT
+[Y:1470] Matthew T Tinkham , MD - 06/22/2025 5:34 PM EDT
+[Y:1490] Formatting of this note is different from the original .
+[Y:1540] History
+[Y:1590] Chief Complaint
+[Y:1620] Patient presents with
+[Y:1650] Motor Vehicle Crash
+[Y:1670] Patient presented to ED completely ambulatory , walked with steady gait , GCS 15 , Aox4 , chief complaint pain
+[Y:1700] from MVC today , denies L.O.C.
+[Y:1750] Patient is a 59 - year - old female past medical history of CKD and hypertension here after motor vehicle collision .
+[Y:1780] Patient was a restrained front passenger . Patient was in a car that was rear - ended . Patient states that she did hit
+[Y:1800] the side of her head on the window during the incident , but had no LOC . Patient states she does have neck pain
+[Y:1830] and pain down her back . Patient with no weakness , numbness , dizziness , inability to ambulate . Patient denies
+[Y:1860] chest pain or shortness of breath .
+[Y:1910] Motor Vehicle Crash
+[Y:1960] Past Medical History :
+[Y:1990] Diagnosis Date
+[Y:2010] • Chronic kidney disease
+[Y:2040] • Hypertension
+[Y:2090] History reviewed . No pertinent surgical history .
+--- PAGE 2 END ---
+
+--- PAGE 3 START ---
+[Y:180] No family history on file .
+[Y:230] Additional Information
+[Y:280] Social
+[Y:290] History
+[Y:340] Tobacco Use
+[Y:370] • Smoking status : Every Day
+[Y:390] Types : Cigarettes
+[Y:420] • Smokeless tobacco : Never
+[Y:440] Vaping Use
+[Y:470] Vaping status : Never Used
+[Y:490] Substance Use Topics
+[Y:520] • Alcohol use : Never
+[Y:540] Never
+[Y:550] Drug use :
+[Y:650] Review of Systems
+[Y:680] Constitutional : Negative for chills and fever .
+[Y:700] HENT : Negative for ear pain and sore throat .
+[Y:730] Eyes : Negative for pain and visual disturbance .
+[Y:750] Respiratory : Negative for cough and shortness of breath .
+[Y:780] Cardiovascular : Negative for chest pain and palpitations .
+[Y:810] Gastrointestinal : Negative for abdominal pain and vomiting .
+[Y:830] Genitourinary : Negative for dysuria and hematuria .
+[Y:860] Musculoskeletal : Positive for back pain . Negative for arthralgias .
+[Y:890] Skin : Negative for color change and rash .
+[Y:910] Neurological : Negative for seizures and syncope .
+[Y:940] All other systems reviewed and are negative .
+[Y:990] Physical Exam
+[Y:1010] BP ( ! ) 182/95 ( BP Location : Left arm , Patient Position : Sitting , BP Cuff Size : Medium ) | Pulse 103 | Temp 98.8 ° F
+[Y:1040] ( 37.1 ° C ) ( Oral ) | Resp 17 | Ht 5 ' 2 " ( 1.575 m ) | Wt 60.8 kg ( 134 lb ) | SpO2 99 % | BMI 24.51 kg / m²
+[Y:1090] Physical Exam
+[Y:1120] Vitals reviewed .
+[Y:1150] Constitutional :
+[Y:1170] General : She is not in acute distress .
+[Y:1200] Appearance : Normal appearance . She is normal weight . She is not ill - appearing , toxic - appearing or diaphoretic .
+[Y:1220] HENT :
+[Y:1250] Head : Normocephalic and atraumatic .
+[Y:1280] Right Ear : External ear normal .
+[Y:1300] Left Ear : External ear normal .
+[Y:1330] Nose : Nose normal .
+[Y:1350] Mouth / Throat :
+[Y:1380] Mouth : Mucous membranes are moist .
+[Y:1410] Pharynx : No oropharyngeal exudate or posterior oropharyngeal erythema .
+[Y:1430] Eyes :
+[Y:1460] General : No scleral icterus .
+[Y:1480] Right eye : No discharge .
+[Y:1510] Left eye : No discharge .
+[Y:1540] Extraocular Movements : Extraocular movements intact .
+[Y:1560] Conjunctiva / sclera : Conjunctivae normal .
+[Y:1590] Pupils : Pupils are equal , round , and reactive to light .
+[Y:1610] Cardiovascular :
+[Y:1640] Rate and Rhythm : Normal rate and regular rhythm .
+[Y:1660] Pulses : Normal
+[Y:1670] pulses .
+[Y:1690] Heart sounds : Normal heart sounds . No murmur heard .
+[Y:1720] No friction rub . No gallop .
+[Y:1740] Pulmonary
+[Y:1750] :
+[Y:1770] Effort : Pulmonary effort is normal . No respiratory distress .
+[Y:1790] Breath sounds : Normal breath
+[Y:1800] sounds . No wheezing .
+[Y:1820] Abdominal :
+[Y:1850] General : Abdomen is flat . Bowel sounds are normal .
+[Y:1870] Palpations : Abdomen is soft .
+[Y:1900] Tenderness : There is no abdominal tenderness .
+[Y:1930] Musculoskeletal :
+[Y:1950] General : No swelling , tenderness , deformity or signs of injury . Normal range of motion .
+[Y:1980] Cervical back : Normal range of motion and neck supple . No rigidity .
+[Y:2000] Skin
+[Y:2010] :
+[Y:2030] General : Skin is warm .
+[Y:2050] Capillary Refill : Capillary refill takes less than 2 seconds .
+[Y:2080] Coloration : Skin is not jaundiced or pale .
+--- PAGE 3 END ---
+
+--- PAGE 4 START ---
+[Y:160] Neurological :
+[Y:180] General : No focal deficit present .
+[Y:210] Mental Status : She is alert and oriented to person , place , and time . Mental status is at baseline .
+[Y:230] Cranial Nerves : No cranial nerve deficit .
+[Y:260] Sensory : No sensory deficit .
+[Y:290] Motor : No weakness .
+[Y:310] Coordination : Coordination normal .
+[Y:340] Gait : Gait normal .
+[Y:360] Deep Tendon Reflexes : Reflexes normal .
+[Y:420] ED Course
+[Y:470] ED Course as of 06/22/25 1751
+[Y:490] Sun Jun 22 , 2025
+[Y:520] 1747 Patient reassessed . Patient well - appearing , vitals have improved . Discussed reasons to return to emergency
+[Y:550] department , including change in pain , new symptoms , neurological symptoms , passing out , or anything that
+[Y:570] concerns the patient at all . Patient endorsed understanding and agrees with plan for discharge at this time . [ MT ]
+[Y:620] ED Course User Index
+[Y:650] [ MT ] Matthew T Tinkham , MD
+[Y:700] Thrombolytic Stroke Assessment
+[Y:750] NIH Stroke Assessment Scale
+[Y:810] Procedures
+[Y:860] Medical Decision Making
+[Y:890] Patient here after motor vehicle collision . Patient with normal physical exam including stable vitals , no evidence
+[Y:910] of traumatic injury on exam , neurological exam intact . Patient fully ambulatory and with full range of motion in
+[Y:940] all extremities . Patient has full sensation and normal pulses in all extremities . Patient unlikely to have intracranial
+[Y:960] trauma , unlikely to have of fracture or dislocation in spine or any other areas . Discussed utility of imaging with
+[Y:990] patient including obtaining plain films and obtaining CT head . After discussion and shared decision making ,
+[Y:1010] decision was made to defer imaging at this time . Patient instructed to return to this emergency department or
+[Y:1040] any emergency department if symptoms change or worsen or if patient has any concerns that would require
+[Y:1070] imaging . Patient endorsed understanding agrees with plan . Plan at this time will be to treat patient
+[Y:1090] symptomatically , reassess , discharged with outpatient follow - up .
+[Y:1140] Vital
+[Y:1150] Signs :
+[Y:1170] Reviewed the patient's vital signs .
+[Y:1220] Nursing Notes : Reviewed and utilized the nursing notes .
+[Y:1280] Old Medical Records :
+[Y:1300] The patient's available past medical records and past encounters were reviewed .
+[Y:1350] Allergies :
+[Y:1380] Morphine Hives
+[Y:1390] --
+[Y:1430] Laboratory Studies :
+[Y:1460] Ordered and independently reviewed and interpreted laboratory tests . Abnormal findings are listed below :
+[Y:1480] Labs Reviewed - No data to display
+[Y:1530] Studies :
+[Y:1540] Imaging
+[Y:1560] Imaging studies were ordered .
+[Y:1590] Radiology studies results reviewed by the Emergency Department Provider :
+[Y:1610] No orders to display
+[Y:1660] Medications given in the ED :
+[Y:1690] Current Facility - Administered Medications : lidocaine ( Salonpas ) 4 % topical patch 1 patch , 1 patch ,
+[Y:1720] Transdermal , Once , Matthew T Tinkham , MD , 1 patch at 06/22/25 1724
+[Y:1740] No current outpatient medications on file .
+[Y:1790] Vitals :
+[Y:1800] Repeat
+[Y:1850] | | 06/22/25 |
+[Y:1870] || 1658 |
+[Y:1920] | BP : | ( ! ) 182/95
+[Y:1930] |
+[Y:1950] | BP Location : | Left arm |
+[Y:1980] | Patient Position : | Sitting |
+[Y:2000] | BP Cuff Size : | Medium |
+[Y:2030] | Pulse : | 103 |
+[Y:2060] | Resp : | 17 |
+[Y:2080] | Temp : 198.8 ° F ( 37.1 ° C ) |
+--- PAGE 4 END ---
+
+--- PAGE 5 START ---
+[Y:160] | TempSrc : | Oral |
+[Y:200] | SpO2 : 99 % |
+[Y:210] | Weight : 160.8 kg ( 134 lb ) |
+[Y:230] | Height : 5 ' 2 " ( 1.575 m ) |
+[Y:310] Orders :
+[Y:340] No orders of the defined types were placed in this encounter .
+[Y:390] Medications Given in ED :
+[Y:420] Medications
+[Y:440] lidocaine ( Salonpas ) 4 % topical patch 1 patch ( 1 patch Transdermal Patch Applied 6/22/25 1724 )
+[Y:470] methocarbamoL ( Robaxin ) tablet 500 mg ( 500 mg Oral Given 6/22/25 1724 )
+[Y:490] acetaminophen ( Tylenol ) tablet 650 mg ( 650 mg Oral Given 6/22/25 1724 )
+[Y:550] COUNSELING
+[Y:570] Counseling : The emergency provider has spoken with the patient and discussed today's findings , in addition to
+[Y:600] providing specific details for the plan of care . Questions are answered and there is agreement with the plan .
+[Y:620] Counseling was provided regarding the diagnosis and prognosis .
+[Y:680] Disclaimer : Voice recognition software may have been used for the composition of this note . Occasionally ,
+[Y:700] unintentional substitution of words or phrases may occur when using this software . An attempt was made to
+[Y:730] proofread for accuracy , but to expedite availability , some errors may persist . Please read for context and please
+[Y:750] contact author with any need for correction or further clarification .
+[Y:810] Electronically Signed by Matthew T Tinkham , MD
+[Y:1140] Matthew T Tinkham
+[Y:1150] , MD
+[Y:1170] 06/22/25 1751
+[Y:1220] Electronically signed by Matthew T Tinkham , MD at 06/22/2025 5:51 PM EDT
+[Y:1270] [ 5 ] . documented in this encounter
+[Y:1320] Plan of Treatment
+[Y:1370] Not on file
+[Y:1410] [ 6 ] . documented as of this encounter
+[Y:1460] Visit Diagnoses
+[Y:1510] Diagnosis
+[Y:1570] MVC ( motor vehicle collision ) , initial encounter - Primary
+[Y:1630] [ 7 ] . documented in this encounter
+[Y:1670] Administered Medications
+[Y:1720] Inactive Administered Medications up to 3 most recent administrations
+[Y:1750] Medication Order MAR Action Action Date Dose Rate Site
+[Y:1780] Given 06/22/2025 650 mg
+[Y:1800] acetaminophen ( Tylenol ) tablet 650 mg
+[Y:1810] 5:24 PM
+[Y:1830] EDT
+[Y:1850] 650 mg , Oral , ONCE , On Sun 6/22/25 at
+[Y:1870] 1715 , For 1 dose , 3250 MG / DAY MAX FOR
+[Y:1890] ACETAMINOPHEN , LORTAB / VICODIN 5-325
+[Y:1910] CONTAINS 325MG , PERCOCET 5-325
+[Y:1940] CONTAINS 325MG
+[Y:2010] Patch 06/22/2025 1 patch Other
+[Y:2030] lidocaine ( Salonpas ) 4 % topical patch 1 5:24 PM
+[Y:2040] Applied
+[Y:2060] patch EDT
+--- PAGE 5 END ---
+
+--- PAGE 6 START ---
+[Y:150] Medication
+[Y:160] Order MAR Action Action Date Dose Rate Site
+[Y:180] 1 patch , Transdermal , Administer over 8
+[Y:210] Hours , ONCE , On Sun 6/22/25 at 1720 , For
+[Y:230] 1 dose
+[Y:300] Given 06/22/2025 500 mg
+[Y:320] methocarbamoL ( Robaxin ) tablet 500 mg
+[Y:330] 5:24 PM
+[Y:350] EDT
+[Y:370] 500 mg , Oral , ONCE , On Sun 6/22/25 at
+[Y:390] 1715 , For 1 dose , May discolor urine . Use
+[Y:410] for muscle relaxation may cause drowsiness
+[Y:490] [ 8 ] . documented in this encounter
+[Y:530] Active and Recently Administered Medications
+[Y:590] Times are shown in EDT .
+[Y:620] Scheduled
+[Y:640] Medication Order 06/20/2025 06/21/2025 06/22/2025
+[Y:700] acetaminophen ( Tylenol ) tablet 650 mg 1724 ( Given -
+[Y:720] ( COMPLETED ) Provider :
+[Y:740] 650 mg , Oral , ONCE , On Sun 6/22/25 at Shivani Patel ,
+[Y:760] 1715 , For 1 dose , 3250 MG / DAY MAX FOR
+[Y:770] RN )
+[Y:790] ACETAMINOPHEN , LORTAB / VICODIN 5-325
+[Y:810] CONTAINS 325MG , PERCOCET 5-325
+[Y:840] CONTAINS 325MG
+[Y:940] lidocaine ( Salonpas ) 4 % topical patch 1 1724 ( Patch
+[Y:960] Applied -
+[Y:970] patch
+[Y:990] 1 patch , Transdermal , Administer over 8 Provider :
+[Y:1010] Hours , ONCE , On Sun 6/22/25 at 1720 , For Shivani Patel ,
+[Y:1030] 1 dose RN -
+[Y:1060] Comment :
+[Y:1080] back )
+[Y:1190] methocarbamoL ( Robaxin ) tablet 500 mg • 1724 ( Given
+[Y:1210] ( COMPLETED ) Provider :
+[Y:1230] 500 mg , Oral , ONCE , On Sun 6/22/25 at Shivani Patel ,
+[Y:1260] 1715 , For 1 dose , May discolor urine . Use for RN )
+[Y:1280] muscle relaxation may cause drowsiness
+[Y:1360] [ 9 ] . documented in this encounter
+[Y:1410] Care Teams
+[Y:1460] Team Member Relationship Specialty Start Date End Date
+[Y:1490] PCP General 6/22/25
+[Y:1510] Nopcp , Per Patient , MD
+[Y:1560] 000-000-0000 ( Fax )
+[Y:1620] [ 10 ] . documented as of this encounter
+[Y:1670] Document Created On October
+[Y:1680] ID 1.2.840.114350.1.13.330.2.7.8.688883.1596741773
+[Y:1700] Version 3 30 , 2025 ,
+[Y:1720] 1:53:08 PM
+[Y:1730] Set - ID 893bb3e9-4fb8-11f0-98aa - 005056bc8b04
+[Y:1740] -0400
+[Y:1750] ( 1.2.840.114350.1.13.330.2.7.1.1 )
+[Y:1800] Custodian Piedmont Healthcare Contact Details Workplace : 1968 Peachtree
+[Y:1830] Road Northwest
+[Y:1850] Atlanta , GA 30309
+[Y:1870] USA
+[Y:1940] Patient Legal : Emma THOMPSON Contact Details Home Primary : 123 Collins
+[Y:1960] Street
+[Y:1990] Melbourne
+[Y:2010] Melbourne , VIC 3000
+[Y:2030] USA
+[Y:2060] Period from June 22 , 2025 to
+--- PAGE 6 END ---
+
+--- PAGE 7 START ---
+[Y:180] Home Primary : USA
+[Y:200] Period from June 22 , 2025
+[Y:220] to June 21 , 2025
+[Y:270] Tel Home Primary : + 1-770-
+[Y:290] 777-7777 , Mail :
+[Y:320] emma.thompson@example.com
+[Y:350] Date of Birth
+[Y:360] November 14 , 1965 Gender Female
+[Y:390] Ethnicity Not Hispanic or Latino
+[Y:400] Race Black or African American
+[Y:430] Language
+[Y:440] Patient - IDS PDHZTKZ8QTL9KKT eng , preferred : yes
+[Y:460] ( 1.2.840.114350.1.13.330.2.7.3.688884.100 ) Communication
+[Y:500] Provider Piedmont Healthcare Contact Details Workplace : 1968 Peachtree
+[Y:520] Organization ID 20800 ( Organization ) Road Northwest
+[Y:540] Atlanta , GA 30309
+[Y:550] ( 1.2.840.114350.1.13.330.2.7.2.688879 )
+[Y:570] USA
+[Y:630] Of
+[Y:640] Documentation June 22 , 2025 4:50 PM -0400 - 6PM -0400
+[Y:660] - care provision
+[Y:690] NOPCP MD of
+[Y:700] Performer - Legal : Per Patient Contact Details unknown
+[Y:720] Primary Care Piedmont Healthcare Fax : + 1-000-000-0000
+[Y:740] Provider - General
+[Y:790] Encounter ID Encounter Date June 22 , 2025
+[Y:800] 2307738641
+[Y:810] 4:50 PM -0400
+[Y:820] ( 1.2.840.114350.1.13.330.2.7.3.698084.8 )
+[Y:840] Type Emergency - Emergency - 6PM -0400
+[Y:870] translation : Hospital Encounter
+[Y:890] translation : 0
+[Y:910] ( 1.2.840.114350.1.72.1.30.1 )
+[Y:950] Home or Self Care
+[Y:960] Discharge
+[Y:980] Disposition
+[Y:1020] Encounter Piedmont Eastside Medical Emergency Department South Campus ( Workplace : 2160
+[Y:1040] Location FOUNTAIN DR
+[Y:1070] SNELLVILLE , GA 30078-7022
+[Y:1090] ) of
+[Y:1130] Responsible Party Matthew T TINKHAM of Piedmont Healthcare Contact Details Workplace :
+[Y:1150] 265 Brookview
+[Y:1170] Center Way
+[Y:1200] STE 400
+[Y:1220] KNOXVILLE ,
+[Y:1240] TN 37919
+[Y:1270] USA
+[Y:1290] Tel Workplace :
+[Y:1310] + 1-865-293-
+[Y:1340] 5617 , Fax : + 1-
+[Y:1360] 865-347-5180
+[Y:1400] attender ( at June Legal : Matthew T TINKHAM MD Contact Details Workplace :
+[Y:1420] 22 , 2025 , 4:50 PM 265 Brookview
+[Y:1440] Center Way
+[Y:1450] -0400 )
+[Y:1470] STE 400
+[Y:1490] KNOX
+[Y:1510] KNOXVILLE
+[Y:1520] ,
+[Y:1540] TN 37919
+[Y:1560] USA
+[Y:1580] Tel Workplace :
+[Y:1610] + 1-865-293-
+[Y:1630] 5617 , Fax : + 1-
+[Y:1650] 865-347-5180
+[Y:1720] Author Epic Version 11.3 , Contact Details not applicable
+[Y:1740] Organization : Piedmont
+[Y:1760] Contact Details Workplace : 1968 Peachtree
+[Y:1770] Healthcare
+[Y:1780] ( Organization ) Road Northwest
+[Y:1810] Atlanta , GA 30309
+[Y:1830] USA
+[Y:1880] Legal unknown signed at October 30 , Contact Details unknown
+[Y:1900] Authenticator 2025 , 1:53:08 PM -0400
+--- PAGE 7 END ---

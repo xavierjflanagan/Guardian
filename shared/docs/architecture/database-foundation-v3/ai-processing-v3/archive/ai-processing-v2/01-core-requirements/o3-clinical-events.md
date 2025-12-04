@@ -29,7 +29,7 @@ activity_type TEXT NOT NULL CHECK (activity_type IN ('observation', 'interventio
 
 | Activity Type | Definition | Examples |
 |--------------|------------|----------|
-| **observation** | Information gathering without changing patient state | Blood pressure measurement, lab test, physical exam finding, X-ray |
+| **observation** | Information gathering without changing patient state | Blood pressure measurement, lab test, physical exam finding, X-ray, |
 | **intervention** | Actions that change or intend to change patient state | Medication administration, vaccination, surgery, therapy session |
 
 ### Axis 2: Clinical Purposes

@@ -104,7 +104,7 @@ classification_examples:
     
   "Blood pressure medication prescription":
     activity_type: "intervention"  # Prescribing treatment
-    clinical_purposes: ["therapeutic", "monitoring"]  # Treatment and tracking
+    clinical_purposes: ["therapeutic"]  # Treatment and tracking
 ```
 
 ### Classification Confidence Requirements
